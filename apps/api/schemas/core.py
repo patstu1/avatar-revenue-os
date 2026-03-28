@@ -95,10 +95,14 @@ class OfferResponse(BaseModel):
     name: str
     description: Optional[str]
     monetization_method: str
+    offer_url: Optional[str] = None
     payout_amount: float
+    payout_type: str = "cpa"
     epc: float
     conversion_rate: float
+    average_order_value: float = 0.0
     is_active: bool
+    priority: int = 0
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -125,6 +129,12 @@ class CreatorAccountResponse(BaseModel):
     platform: str
     account_type: str
     platform_username: str
+    niche_focus: Optional[str] = None
+    sub_niche_focus: Optional[str] = None
+    language: str = "en"
+    geography: Optional[str] = None
+    monetization_focus: Optional[str] = None
+    posting_capacity_per_day: int = 1
     account_health: str
     total_revenue: float
     total_profit: float

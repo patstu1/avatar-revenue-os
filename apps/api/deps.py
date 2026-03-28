@@ -1,4 +1,4 @@
-"""Shared FastAPI dependencies: database sessions, auth, settings."""
+"""Shared FastAPI dependencies: database sessions, auth, RBAC, settings."""
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.config import Settings, get_settings
+from packages.db.enums import UserRole
 from packages.db.models.core import User
 from packages.db.session import async_session_factory
 
@@ -63,3 +64,29 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+class RequireRole:
+    """RBAC dependency. Usage: Depends(RequireRole(UserRole.ADMIN))
+    Hierarchy: ADMIN > OPERATOR > VIEWER
+    """
+
+    HIERARCHY = {UserRole.ADMIN: 3, UserRole.OPERATOR: 2, UserRole.VIEWER: 1}
+
+    def __init__(self, minimum_role: UserRole):
+        self.minimum_role = minimum_role
+
+    async def __call__(self, current_user: CurrentUser) -> User:
+        user_level = self.HIERARCHY.get(current_user.role, 0)
+        required_level = self.HIERARCHY.get(self.minimum_role, 0)
+        if user_level < required_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Requires {self.minimum_role.value} role or higher",
+            )
+        return current_user
+
+
+AdminUser = Annotated[User, Depends(RequireRole(UserRole.ADMIN))]
+OperatorUser = Annotated[User, Depends(RequireRole(UserRole.OPERATOR))]
+ViewerUser = Annotated[User, Depends(RequireRole(UserRole.VIEWER))]

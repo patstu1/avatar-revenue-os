@@ -1,5 +1,5 @@
 """AI Avatar Revenue OS — FastAPI Application."""
-import json
+import logging
 import time
 
 import structlog
@@ -7,9 +7,15 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.config import get_settings
-from apps.api.routers import auth, brands, health, organizations, avatars, offers, accounts, content, decisions, jobs
+from apps.api.routers import (
+    auth, brands, health, organizations, avatars, offers,
+    accounts, content, decisions, jobs, providers, dashboard,
+    settings as settings_router,
+)
 
 settings = get_settings()
+
+log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
 
 structlog.configure(
     processors=[
@@ -18,7 +24,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.dev.ConsoleRenderer() if settings.api_env == "development" else structlog.processors.JSONRenderer(),
     ],
-    wrapper_class=structlog.make_filtering_bound_logger(settings.log_level),
+    wrapper_class=structlog.make_filtering_bound_logger(log_level),
 )
 
 logger = structlog.get_logger()
@@ -29,6 +35,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    redirect_slashes=False,
 )
 
 app.add_middleware(
@@ -70,3 +77,6 @@ app.include_router(accounts.router, prefix="/api/v1/accounts", tags=["Creator Ac
 app.include_router(content.router, prefix="/api/v1/content", tags=["Content Pipeline"])
 app.include_router(decisions.router, prefix="/api/v1/decisions", tags=["Decisions"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["System Jobs"])
+app.include_router(providers.router, prefix="/api/v1/providers", tags=["Provider Profiles"])
+app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
+app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["Settings"])

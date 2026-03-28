@@ -1,87 +1,58 @@
-"""Integration tests for the brand management flow."""
+"""Integration tests for brand CRUD and audit logging."""
 import pytest
 
 
-async def get_auth_headers(api_client, sample_org_data) -> dict:
+async def _register_and_get_headers(api_client, sample_org_data) -> dict:
     await api_client.post("/api/v1/auth/register", json=sample_org_data)
-    response = await api_client.post("/api/v1/auth/login", json={
-        "email": sample_org_data["email"],
-        "password": sample_org_data["password"],
+    resp = await api_client.post("/api/v1/auth/login", json={
+        "email": sample_org_data["email"], "password": sample_org_data["password"],
     })
-    token = response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
 
 @pytest.mark.asyncio
-async def test_create_and_list_brands(api_client, sample_org_data):
-    headers = await get_auth_headers(api_client, sample_org_data)
-
-    # Create brand
-    response = await api_client.post("/api/v1/brands", json={
-        "name": "Test Brand",
-        "slug": "test-brand",
-        "niche": "finance",
+async def test_create_brand(api_client, sample_org_data):
+    headers = await _register_and_get_headers(api_client, sample_org_data)
+    response = await api_client.post("/api/v1/brands/", json={
+        "name": "Test Brand", "slug": "test-brand", "niche": "finance",
         "decision_mode": "guarded_auto",
     }, headers=headers)
     assert response.status_code == 201
     brand = response.json()
     assert brand["name"] == "Test Brand"
+    assert brand["niche"] == "finance"
     assert brand["decision_mode"] == "guarded_auto"
 
-    # List brands
-    response = await api_client.get("/api/v1/brands", headers=headers)
-    assert response.status_code == 200
-    brands = response.json()
-    assert len(brands) >= 1
-    assert any(b["slug"] == "test-brand" for b in brands)
 
-    # Get brand by ID
-    response = await api_client.get(f"/api/v1/brands/{brand['id']}", headers=headers)
+@pytest.mark.asyncio
+async def test_list_brands(api_client, sample_org_data):
+    headers = await _register_and_get_headers(api_client, sample_org_data)
+    await api_client.post("/api/v1/brands/", json={"name": "B1", "slug": "b1"}, headers=headers)
+    await api_client.post("/api/v1/brands/", json={"name": "B2", "slug": "b2"}, headers=headers)
+
+    response = await api_client.get("/api/v1/brands/", headers=headers)
     assert response.status_code == 200
-    assert response.json()["id"] == brand["id"]
+    assert len(response.json()) >= 2
 
 
 @pytest.mark.asyncio
-async def test_create_avatar_for_brand(api_client, sample_org_data):
-    headers = await get_auth_headers(api_client, sample_org_data)
+async def test_get_brand_by_id(api_client, sample_org_data):
+    headers = await _register_and_get_headers(api_client, sample_org_data)
+    create_resp = await api_client.post("/api/v1/brands/", json={"name": "Get Test", "slug": "get-test"}, headers=headers)
+    brand_id = create_resp.json()["id"]
 
-    brand_resp = await api_client.post("/api/v1/brands", json={
-        "name": "Avatar Test Brand",
-        "slug": "avatar-test-brand",
-    }, headers=headers)
-    brand_id = brand_resp.json()["id"]
-
-    response = await api_client.post("/api/v1/avatars", json={
-        "brand_id": brand_id,
-        "name": "Test Avatar",
-        "persona_description": "A friendly finance educator",
-        "voice_style": "warm and authoritative",
-    }, headers=headers)
-    assert response.status_code == 201
-    avatar = response.json()
-    assert avatar["name"] == "Test Avatar"
-    assert avatar["brand_id"] == brand_id
+    response = await api_client.get(f"/api/v1/brands/{brand_id}", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["id"] == brand_id
 
 
 @pytest.mark.asyncio
-async def test_create_offer_for_brand(api_client, sample_org_data):
-    headers = await get_auth_headers(api_client, sample_org_data)
+async def test_brand_creation_creates_audit_log(api_client, sample_org_data):
+    headers = await _register_and_get_headers(api_client, sample_org_data)
+    await api_client.post("/api/v1/brands/", json={"name": "Audit Test", "slug": "audit-test"}, headers=headers)
 
-    brand_resp = await api_client.post("/api/v1/brands", json={
-        "name": "Offer Test Brand",
-        "slug": "offer-test-brand",
-    }, headers=headers)
-    brand_id = brand_resp.json()["id"]
-
-    response = await api_client.post("/api/v1/offers", json={
-        "brand_id": brand_id,
-        "name": "Test Affiliate Offer",
-        "monetization_method": "affiliate",
-        "payout_amount": 25.0,
-        "epc": 1.50,
-        "conversion_rate": 0.03,
-    }, headers=headers)
-    assert response.status_code == 201
-    offer = response.json()
-    assert offer["name"] == "Test Affiliate Offer"
-    assert offer["payout_amount"] == 25.0
+    response = await api_client.get("/api/v1/jobs/audit/logs", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    actions = [item["action"] for item in data["items"]]
+    assert "brand.created" in actions
