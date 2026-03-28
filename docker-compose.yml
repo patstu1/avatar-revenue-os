@@ -1,0 +1,190 @@
+###############################################################################
+# AI Avatar Revenue OS — Docker Compose (isolated environment)
+# Project: avatar-revenue-os
+# Ports: postgres=5433, redis=6380, api=8001, web=3001
+###############################################################################
+
+name: avatar-revenue-os
+
+services:
+  # ─── PostgreSQL ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: aro-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - aro_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aro-network
+
+  # ─── Redis ─────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: aro-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
+    volumes:
+      - aro_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aro-network
+
+  # ─── Database Migrations ───────────────────────────────────────────────
+  migrate:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-migrate
+    command: alembic -c packages/db/alembic.ini upgrade head
+    environment:
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aro-network
+
+  # ─── FastAPI Backend ───────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-api
+    restart: unless-stopped
+    command: >
+      uvicorn apps.api.main:app
+      --host 0.0.0.0 --port 8000
+      --reload --log-level debug
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
+      REDIS_URL: ${REDIS_URL}
+      API_SECRET_KEY: ${API_SECRET_KEY}
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS}
+      API_ENV: ${API_ENV}
+      LOG_LEVEL: ${LOG_LEVEL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      TAVUS_API_KEY: ${TAVUS_API_KEY:-}
+      HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - aro-network
+
+  # ─── Celery Worker ─────────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker
+    restart: unless-stopped
+    command: >
+      celery -A workers.celery_app worker
+      --loglevel=info --concurrency=4
+      -Q default,generation,publishing,analytics,qa,learning,portfolio
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
+      REDIS_URL: ${REDIS_URL}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      TAVUS_API_KEY: ${TAVUS_API_KEY:-}
+      HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
+      LOG_LEVEL: ${LOG_LEVEL}
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - aro-network
+
+  # ─── Celery Beat Scheduler ────────────────────────────────────────────
+  scheduler:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-scheduler
+    restart: unless-stopped
+    command: >
+      celery -A workers.celery_app beat
+      --loglevel=info
+    environment:
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
+      LOG_LEVEL: ${LOG_LEVEL}
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - aro-network
+
+  # ─── Next.js Frontend ─────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.web
+    container_name: aro-web
+    restart: unless-stopped
+    command: npm run dev
+    ports:
+      - "3001:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8001
+    volumes:
+      - ./apps/web:/app/apps/web
+      - aro_web_node_modules:/app/apps/web/node_modules
+    depends_on:
+      - api
+    networks:
+      - aro-network
+
+volumes:
+  aro_pgdata:
+    name: aro_pgdata
+  aro_redisdata:
+    name: aro_redisdata
+  aro_web_node_modules:
+    name: aro_web_node_modules
+
+networks:
+  aro-network:
+    name: aro-network
+    driver: bridge
