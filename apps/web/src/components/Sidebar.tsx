@@ -6,7 +6,8 @@ import { useAuthStore } from '@/lib/store';
 import {
   LayoutDashboard, Users, Megaphone, Palette, ShoppingBag, MonitorPlay,
   FileText, BarChart3, GitBranch, Brain, Shield, Settings, LogOut,
-  Wallet, TrendingUp, Target, Zap, Scale
+  Wallet, TrendingUp, Target, Zap, Scale, Video, CheckCircle2,
+  Library, Calendar, ClipboardCheck
 } from 'lucide-react';
 
 const NAV_SECTIONS = [
@@ -24,8 +25,13 @@ const NAV_SECTIONS = [
       { href: '/dashboard/brands', label: 'Brands', icon: Megaphone },
       { href: '/dashboard/avatars', label: 'Avatars', icon: Palette },
       { href: '/dashboard/accounts', label: 'Creator Accounts', icon: Users },
-      { href: '/dashboard/content', label: 'Content Pipeline', icon: FileText },
-      { href: '/dashboard/publishing', label: 'Publishing', icon: MonitorPlay },
+      { href: '/dashboard/content', label: 'Content Briefs', icon: FileText },
+      { href: '/dashboard/publishing', label: 'Script Review', icon: MonitorPlay },
+      { href: '/dashboard/memory', label: 'Media Jobs', icon: Video },
+      { href: '/dashboard/qa', label: 'QA Center', icon: Shield },
+      { href: '/dashboard/approval', label: 'Approvals', icon: ClipboardCheck },
+      { href: '/dashboard/library', label: 'Content Library', icon: Library },
+      { href: '/dashboard/calendar', label: 'Publishing Calendar', icon: Calendar },
     ],
   },
   {
