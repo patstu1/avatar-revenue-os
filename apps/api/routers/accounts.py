@@ -28,6 +28,7 @@ async def create_account(body: CreatorAccountCreate, current_user: OperatorUser,
     account = await account_service.create(db, **body.model_dump())
     await log_action(
         db, "creator_account.created",
+        organization_id=current_user.organization_id,
         brand_id=body.brand_id, user_id=current_user.id,
         actor_type="human", entity_type="creator_account", entity_id=account.id,
     )
@@ -61,6 +62,7 @@ async def update_account(account_id: uuid.UUID, body: CreatorAccountCreate, curr
     updated = await account_service.update(db, account_id, **body.model_dump(exclude_unset=True))
     await log_action(
         db, "creator_account.updated",
+        organization_id=current_user.organization_id,
         brand_id=acct.brand_id, user_id=current_user.id, actor_type="human",
         entity_type="creator_account", entity_id=account_id,
     )
@@ -73,6 +75,7 @@ async def delete_account(account_id: uuid.UUID, current_user: OperatorUser, db: 
         raise HTTPException(status_code=404)
     await log_action(
         db, "creator_account.deleted",
+        organization_id=current_user.organization_id,
         user_id=current_user.id, actor_type="human",
         entity_type="creator_account", entity_id=account_id,
     )

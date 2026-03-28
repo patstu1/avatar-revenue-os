@@ -79,10 +79,10 @@ class Avatar(Base):
 
     brand: Mapped["Brand"] = relationship(back_populates="avatars")
     provider_profiles: Mapped[list["AvatarProviderProfile"]] = relationship(
-        back_populates="avatar", lazy="selectin"
+        back_populates="avatar", lazy="selectin", cascade="all, delete-orphan"
     )
     voice_profiles: Mapped[list["VoiceProviderProfile"]] = relationship(
-        back_populates="avatar", lazy="selectin"
+        back_populates="avatar", lazy="selectin", cascade="all, delete-orphan"
     )
 
 
@@ -90,7 +90,7 @@ class AvatarProviderProfile(Base):
     __tablename__ = "avatar_provider_profiles"
 
     avatar_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("avatars.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("avatars.id", ondelete="CASCADE"), nullable=False, index=True
     )
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     provider_avatar_id: Mapped[Optional[str]] = mapped_column(String(255))
@@ -111,7 +111,7 @@ class VoiceProviderProfile(Base):
     __tablename__ = "voice_provider_profiles"
 
     avatar_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("avatars.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("avatars.id", ondelete="CASCADE"), nullable=False, index=True
     )
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     provider_voice_id: Mapped[Optional[str]] = mapped_column(String(255))

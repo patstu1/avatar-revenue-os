@@ -1,5 +1,4 @@
 """Shared test fixtures for the Avatar Revenue OS test suite."""
-import asyncio
 import os
 import uuid
 from collections.abc import AsyncGenerator
@@ -14,18 +13,11 @@ import packages.db.models  # noqa: F401
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os_test",
+    "postgresql+asyncpg://avataros:avataros_dev_2026@postgres:5432/avatar_revenue_os_test",
 )
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def test_engine():
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
     async with engine.begin() as conn:

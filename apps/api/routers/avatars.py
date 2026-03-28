@@ -27,6 +27,7 @@ async def create_avatar(body: AvatarCreate, current_user: OperatorUser, db: DBSe
     avatar = await avatar_service.create(db, **body.model_dump())
     await log_action(
         db, "avatar.created",
+        organization_id=current_user.organization_id,
         brand_id=body.brand_id, user_id=current_user.id, actor_type="human",
         entity_type="avatar", entity_id=avatar.id,
     )
@@ -60,6 +61,7 @@ async def update_avatar(avatar_id: uuid.UUID, body: AvatarCreate, current_user: 
     updated = await avatar_service.update(db, avatar_id, **body.model_dump(exclude_unset=True))
     await log_action(
         db, "avatar.updated",
+        organization_id=current_user.organization_id,
         brand_id=avatar.brand_id, user_id=current_user.id, actor_type="human",
         entity_type="avatar", entity_id=avatar_id,
     )
@@ -72,6 +74,7 @@ async def delete_avatar(avatar_id: uuid.UUID, current_user: OperatorUser, db: DB
         raise HTTPException(status_code=404)
     await log_action(
         db, "avatar.deleted",
+        organization_id=current_user.organization_id,
         user_id=current_user.id, actor_type="human",
         entity_type="avatar", entity_id=avatar_id,
     )
