@@ -10,7 +10,7 @@ from apps.api.config import get_settings
 from apps.api.routers import (
     auth, brands, health, organizations, avatars, offers,
     accounts, content, decisions, jobs, providers, dashboard,
-    settings as settings_router, discovery, pipeline,
+    settings as settings_router, discovery, pipeline, analytics,
 )
 
 settings = get_settings()
@@ -82,3 +82,4 @@ app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboar
 app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["Settings"])
 app.include_router(discovery.router, prefix="/api/v1/brands", tags=["Discovery & Scoring"])
 app.include_router(pipeline.router, prefix="/api/v1/pipeline", tags=["Content Pipeline"])
+app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics & Attribution"])

@@ -1,28 +1,38 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { brandsApi } from '@/lib/api';
-import { discoveryApi } from '@/lib/discovery-api';
-import { ShoppingBag, Target, Zap } from 'lucide-react';
+import { analyticsApi } from '@/lib/analytics-api';
+import { DollarSign, Wallet, TrendingUp, ArrowDown } from 'lucide-react';
 
 type Brand = { id: string; name: string };
 
-type TopicCandidate = {
-  id: string;
-  title: string;
-  keywords?: string[] | null;
-  relevance_score: number;
-  trend_velocity: number;
+type RevenueDash = {
+  gross_revenue: number;
+  attribution_revenue: number;
+  total_revenue: number;
+  total_cost: number;
+  net_profit: number;
+  revenue_by_platform: Record<string, { revenue: number; impressions: number }>;
 };
 
-type OfferFitRow = {
-  offer_id: string;
-  offer_name: string;
-  fit_score: number;
-  confidence: string;
-  explanation: string;
+type FunnelData = {
+  impressions: number;
+  total_clicks: number;
+  funnel_stages: Record<string, { count: number; value: number }>;
 };
+
+const FUNNEL_ORDER = [
+  'click',
+  'opt_in',
+  'lead',
+  'booked_call',
+  'purchase',
+  'coupon_redemption',
+  'affiliate_conversion',
+  'assisted_conversion',
+];
 
 function errMessage(e: unknown) {
   if (e && typeof e === 'object' && 'response' in e) {
@@ -32,24 +42,63 @@ function errMessage(e: unknown) {
   return e instanceof Error ? e.message : 'Something went wrong';
 }
 
-function barTone(v: number) {
-  if (v > 0.6) return 'bg-emerald-500';
-  if (v > 0.3) return 'bg-amber-500';
-  return 'bg-red-500';
+function fmtMoney(n: number) {
+  return `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function confidenceBadge(c: string) {
-  const s = (c || '').toLowerCase();
-  if (s.includes('high') || s === 'strong') return 'badge-green';
-  if (s.includes('med') || s.includes('moderate')) return 'badge-yellow';
-  return 'badge-red';
+function FunnelRow({
+  label,
+  count,
+  value,
+  max,
+  prevCount,
+  showValue,
+}: {
+  label: string;
+  count: number;
+  value: number;
+  max: number;
+  prevCount: number | null;
+  showValue: boolean;
+}) {
+  const pctOfMax = max > 0 ? Math.min(100, (count / max) * 100) : 0;
+  const dropPct =
+    prevCount != null && prevCount > 0 && count <= prevCount
+      ? (((prevCount - count) / prevCount) * 100).toFixed(1)
+      : null;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <span className="text-gray-300 font-medium capitalize">{label}</span>
+        <div className="text-right">
+          <span className="text-white tabular-nums">{count.toLocaleString()}</span>
+          {showValue && (
+            <>
+              <span className="text-gray-500 mx-2">·</span>
+              <span className="text-emerald-300/90 tabular-nums">{fmtMoney(value)}</span>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="h-2.5 rounded-full bg-gray-800 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-brand-600 to-brand-400 transition-all"
+          style={{ width: `${pctOfMax}%` }}
+        />
+      </div>
+      {dropPct != null && Number(dropPct) > 0 && (
+        <p className="text-xs text-gray-500 flex items-center gap-1">
+          <ArrowDown size={12} className="shrink-0 text-amber-500" aria-hidden />
+          {dropPct}% drop from previous stage
+        </p>
+      )}
+    </div>
+  );
 }
 
-export default function RevenuePage() {
-  const queryClient = useQueryClient();
+export default function RevenueDashboardPage() {
   const [selectedBrandId, setSelectedBrandId] = useState('');
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-  const [fitByTopic, setFitByTopic] = useState<Record<string, OfferFitRow[]>>({});
 
   const {
     data: brands,
@@ -68,33 +117,27 @@ export default function RevenuePage() {
   }, [brands, selectedBrandId]);
 
   const {
-    data: signalsData,
-    isLoading: signalsLoading,
-    isError: signalsError,
-    error: signalsErr,
+    data: revenue,
+    isLoading: revLoading,
+    isError: revError,
+    error: revErr,
   } = useQuery({
-    queryKey: ['discovery-signals', selectedBrandId],
-    queryFn: () => discoveryApi.getSignals(selectedBrandId).then((r) => r.data as { topic_candidates: TopicCandidate[] }),
+    queryKey: ['analytics-revenue-dashboard', selectedBrandId],
+    queryFn: () => analyticsApi.revenueDashboard(selectedBrandId).then((r) => r.data as RevenueDash),
     enabled: Boolean(selectedBrandId),
+    refetchInterval: 60_000,
   });
 
-  const topics = signalsData?.topic_candidates ?? [];
-
-  useEffect(() => {
-    if (topics.length && !selectedTopicId) {
-      setSelectedTopicId(String(topics[0].id));
-    }
-    if (topics.length && selectedTopicId && !topics.some((t) => String(t.id) === selectedTopicId)) {
-      setSelectedTopicId(String(topics[0].id));
-    }
-  }, [topics, selectedTopicId]);
-
-  const offerFitMutation = useMutation({
-    mutationFn: (topicId: string) => discoveryApi.offerFit(selectedBrandId, topicId).then((r) => r.data as OfferFitRow[]),
-    onSuccess: (data, topicId) => {
-      setFitByTopic((prev) => ({ ...prev, [topicId]: data }));
-      queryClient.invalidateQueries({ queryKey: ['discovery-signals', selectedBrandId] });
-    },
+  const {
+    data: funnel,
+    isLoading: funnelLoading,
+    isError: funnelError,
+    error: funnelErr,
+  } = useQuery({
+    queryKey: ['analytics-funnel', selectedBrandId],
+    queryFn: () => analyticsApi.funnelDashboard(selectedBrandId).then((r) => r.data as FunnelData),
+    enabled: Boolean(selectedBrandId),
+    refetchInterval: 60_000,
   });
 
   const selectedBrand = useMemo(
@@ -102,12 +145,29 @@ export default function RevenuePage() {
     [brands, selectedBrandId]
   );
 
-  const selectedTopic = topics.find((t) => String(t.id) === selectedTopicId);
-  const fitResults = selectedTopicId ? fitByTopic[selectedTopicId] : undefined;
-  const computingSelected =
-    Boolean(selectedTopicId) &&
-    offerFitMutation.isPending &&
-    offerFitMutation.variables === selectedTopicId;
+  const funnelStages = funnel?.funnel_stages ?? {};
+  const funnelRows = useMemo(() => {
+    if (!funnel) return [];
+    const stages = funnel.funnel_stages ?? {};
+    const rows: { label: string; count: number; value: number; showValue: boolean }[] = [
+      { label: 'Impressions', count: funnel.impressions, value: 0, showValue: false },
+      {
+        label: 'Clicks',
+        count: funnel.total_clicks,
+        value: stages.click?.value ?? 0,
+        showValue: true,
+      },
+      ...FUNNEL_ORDER.filter((k) => k !== 'click').map((k) => ({
+        label: k.replace(/_/g, ' '),
+        count: stages[k]?.count ?? 0,
+        value: stages[k]?.value ?? 0,
+        showValue: true,
+      })),
+    ];
+    return rows;
+  }, [funnel]);
+
+  const maxFunnel = funnelRows.length ? Math.max(...funnelRows.map((r) => r.count), 1) : 0;
 
   if (brandsLoading) {
     return (
@@ -121,7 +181,7 @@ export default function RevenuePage() {
   if (brandsError) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-white">Offer Fit Explorer</h1>
+        <h1 className="text-2xl font-bold text-white">Revenue</h1>
         <div className="card border-red-900/50 text-red-300 py-8 text-center">Failed to load brands: {errMessage(brandsErr)}</div>
       </div>
     );
@@ -132,27 +192,30 @@ export default function RevenuePage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <ShoppingBag className="text-brand-500" size={28} aria-hidden />
-            Offer Fit Explorer
+            <DollarSign className="text-brand-500" size={28} aria-hidden />
+            Revenue Dashboard
           </h1>
-          <p className="text-gray-400 mt-1">Evaluate how each offer matches topic candidates</p>
+          <p className="text-gray-400 mt-1">Revenue metrics and attribution funnel</p>
         </div>
         <div className="card text-center py-12">
-          <Target className="mx-auto text-gray-600 mb-4" size={48} aria-hidden />
-          <p className="text-gray-500">No brands yet. Create a brand to explore offer fit.</p>
+          <Wallet className="mx-auto text-gray-600 mb-4" size={48} aria-hidden />
+          <p className="text-gray-500">No brands yet. Create a brand to view revenue.</p>
         </div>
       </div>
     );
   }
 
+  const loading = revLoading || funnelLoading;
+  const err = revError || funnelError;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <ShoppingBag className="text-brand-500" size={28} aria-hidden />
-          Offer Fit Explorer
+          <DollarSign className="text-brand-500" size={28} aria-hidden />
+          Revenue Dashboard
         </h1>
-        <p className="text-gray-400 mt-1">Evaluate how each offer matches topic candidates</p>
+        <p className="text-gray-400 mt-1">Revenue metrics, funnel drop-off, and platform breakdown</p>
       </div>
 
       <div className="card">
@@ -163,11 +226,7 @@ export default function RevenuePage() {
           id="revenue-brand-select"
           className="input-field w-full max-w-md"
           value={selectedBrandId}
-          onChange={(e) => {
-            setSelectedBrandId(e.target.value);
-            setSelectedTopicId(null);
-            setFitByTopic({});
-          }}
+          onChange={(e) => setSelectedBrandId(e.target.value)}
         >
           {brands.map((b) => (
             <option key={b.id} value={String(b.id)}>
@@ -178,137 +237,84 @@ export default function RevenuePage() {
         {selectedBrand && <p className="text-sm text-gray-500 mt-2">Viewing: {selectedBrand.name}</p>}
       </div>
 
-      {signalsLoading && <div className="card text-center py-12 text-gray-500">Loading topics…</div>}
+      {loading && <div className="card text-center py-12 text-gray-500">Loading revenue and funnel…</div>}
 
-      {signalsError && !signalsLoading && (
-        <div className="card border-red-900/50 text-red-300 py-8 text-center">Failed to load signals: {errMessage(signalsErr)}</div>
-      )}
-
-      {!signalsLoading && !signalsError && topics.length === 0 && (
-        <div className="card text-center py-12">
-          <Zap className="mx-auto text-gray-600 mb-4" size={40} aria-hidden />
-          <p className="text-gray-500">No topic candidates yet. Ingest signals for this brand first.</p>
+      {err && !loading && (
+        <div className="card border-red-900/50 text-red-300 py-8 text-center">
+          {revError && <>Revenue: {errMessage(revErr)} </>}
+          {funnelError && <>Funnel: {errMessage(funnelErr)}</>}
         </div>
       )}
 
-      {!signalsLoading && !signalsError && topics.length > 0 && (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-4 space-y-3">
-            <h2 className="stat-label">Topics</h2>
-            <ul className="space-y-2">
-              {topics.map((t) => {
-                const active = String(t.id) === selectedTopicId;
-                const tid = String(t.id);
-                const computing = offerFitMutation.isPending && offerFitMutation.variables === tid;
-                return (
-                  <li key={t.id}>
-                    <div
-                      className={`rounded-lg border px-4 py-3 transition-colors ${
-                        active
-                          ? 'border-brand-600 bg-brand-900/20 text-white'
-                          : 'border-gray-800 bg-gray-900/50 text-gray-300'
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTopicId(tid)}
-                        className="w-full text-left"
-                      >
-                        <span className="font-medium block">{t.title}</span>
-                        <span className="text-xs text-gray-500 mt-1 block">
-                          Relevance {(Number(t.relevance_score) * 100).toFixed(0)}% · Velocity{' '}
-                          {(Number(t.trend_velocity) * 100).toFixed(0)}%
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-secondary text-xs mt-3 w-full sm:w-auto disabled:opacity-50"
-                        disabled={offerFitMutation.isPending}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedTopicId(tid);
-                          offerFitMutation.mutate(tid);
-                        }}
-                      >
-                        <span className="inline-flex items-center justify-center gap-1.5">
-                          <Zap size={14} className={computing ? 'animate-pulse' : ''} aria-hidden />
-                          {computing ? 'Computing…' : 'Compute Fit'}
-                        </span>
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+      {!loading && !err && revenue && funnel && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="card-hover">
+              <p className="stat-label flex items-center gap-1">
+                <DollarSign size={14} aria-hidden /> Gross
+              </p>
+              <p className="stat-value mt-2 text-emerald-400">{fmtMoney(revenue.gross_revenue)}</p>
+            </div>
+            <div className="card-hover">
+              <p className="stat-label flex items-center gap-1">
+                <TrendingUp size={14} aria-hidden /> Attribution
+              </p>
+              <p className="stat-value mt-2 text-sky-400">{fmtMoney(revenue.attribution_revenue)}</p>
+            </div>
+            <div className="card-hover">
+              <p className="stat-label flex items-center gap-1">
+                <Wallet size={14} aria-hidden /> Total revenue
+              </p>
+              <p className="stat-value mt-2 text-white">{fmtMoney(revenue.total_revenue)}</p>
+            </div>
+            <div className="card-hover">
+              <p className="stat-label">Cost</p>
+              <p className="stat-value mt-2 text-amber-300">{fmtMoney(revenue.total_cost)}</p>
+            </div>
+            <div className="card-hover">
+              <p className="stat-label">Net profit</p>
+              <p className="stat-value mt-2 text-teal-300">{fmtMoney(revenue.net_profit)}</p>
+            </div>
           </div>
 
-          <div className="xl:col-span-8 space-y-4">
-            {selectedTopic && (
-              <div className="card">
-                <h3 className="text-lg font-semibold text-white">{selectedTopic.title}</h3>
-                <p className="text-sm text-gray-500 mt-1">Use Compute Fit on a topic in the list to load offer match results here.</p>
-                {selectedTopic.keywords && selectedTopic.keywords.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {selectedTopic.keywords.map((k, i) => (
-                      <span key={`${selectedTopic.id}-kw-${i}`} className="badge-blue">
-                        {typeof k === 'string' ? k : String(k)}
-                      </span>
-                    ))}
+          <div className="card">
+            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <ArrowDown size={22} className="text-brand-500" aria-hidden />
+              Funnel
+            </h3>
+            <div className="space-y-6 max-w-3xl">
+              {funnelRows.map((row, i) => (
+                <FunnelRow
+                  key={`${row.label}-${i}`}
+                  label={row.label}
+                  count={row.count}
+                  value={row.value}
+                  max={maxFunnel}
+                  prevCount={i === 0 ? null : funnelRows[i - 1].count}
+                  showValue={row.showValue}
+                />
+              ))}
+            </div>
+          </div>
+
+          {revenue.revenue_by_platform && Object.keys(revenue.revenue_by_platform).length > 0 && (
+            <div className="card">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <TrendingUp size={20} className="text-brand-500" aria-hidden />
+                Revenue by platform
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Object.entries(revenue.revenue_by_platform).map(([platform, row]) => (
+                  <div key={platform} className="card-hover">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider">{platform}</p>
+                    <p className="text-xl font-bold text-white mt-1">{fmtMoney(row.revenue)}</p>
+                    <p className="text-xs text-gray-500 mt-1">{Number(row.impressions).toLocaleString()} impressions</p>
                   </div>
-                )}
+                ))}
               </div>
-            )}
-
-            {offerFitMutation.isError && (
-              <div className="card border-red-900/50 text-red-300 text-sm">{errMessage(offerFitMutation.error)}</div>
-            )}
-
-            {computingSelected && (
-              <div className="card text-gray-500 text-sm">Computing offer fit for this topic…</div>
-            )}
-
-            {fitResults && fitResults.length === 0 && (
-              <div className="card text-gray-500 text-sm">No offer fit rows returned. Add offers for this brand.</div>
-            )}
-
-            {fitResults && fitResults.length > 0 && (
-              <div className="grid gap-4">
-                {fitResults.map((row) => {
-                  const score = Math.min(1, Math.max(0, Number(row.fit_score)));
-                  const pct = score * 100;
-                  return (
-                    <div key={row.offer_id} className="card-hover space-y-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h4 className="text-white font-semibold">{row.offer_name}</h4>
-                        <span className={confidenceBadge(row.confidence)}>{row.confidence}</span>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-xs text-gray-400">
-                          <span>Fit score</span>
-                          <span>{pct.toFixed(0)}%</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-gray-800 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${barTone(score)}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-400">{row.explanation}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {selectedTopicId && fitResults === undefined && !computingSelected && (
-              <div className="card text-gray-500 text-sm flex items-center gap-2">
-                <Target size={18} className="text-gray-600 shrink-0" aria-hidden />
-                Select a topic and click Compute Fit to see offer match scores.
-              </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
