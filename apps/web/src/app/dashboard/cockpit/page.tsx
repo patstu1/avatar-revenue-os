@@ -1,63 +1,111 @@
 'use client';
 
-import { Target, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Pause } from 'lucide-react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { brandsApi } from '@/lib/api';
+import { discoveryApi } from '@/lib/discovery-api';
+import { Target, TrendingUp, Zap, AlertTriangle, BarChart3, RefreshCw, ArrowRight } from 'lucide-react';
 
-export default function OperatorCockpitPage() {
+export default function OpportunityQueuePage() {
+  const queryClient = useQueryClient();
+  const [brandId, setBrandId] = useState('');
+
+  const { data: brands } = useQuery({
+    queryKey: ['brands'],
+    queryFn: () => brandsApi.list().then(r => r.data),
+  });
+
+  if (brands?.length && !brandId) setBrandId(brands[0].id);
+
+  const { data: queue, isLoading } = useQuery({
+    queryKey: ['opp-queue', brandId],
+    queryFn: () => discoveryApi.getQueue(brandId).then(r => r.data),
+    enabled: !!brandId,
+  });
+
+  const { data: recs } = useQuery({
+    queryKey: ['recommendations', brandId],
+    queryFn: () => discoveryApi.getRecommendations(brandId).then(r => r.data),
+    enabled: !!brandId,
+  });
+
+  const recompute = useMutation({
+    mutationFn: () => discoveryApi.recomputeOpportunities(brandId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['opp-queue', brandId] });
+      queryClient.invalidateQueries({ queryKey: ['recommendations', brandId] });
+    },
+  });
+
+  const triggerBrief = useMutation({
+    mutationFn: (topicId: string) => discoveryApi.triggerBrief(brandId, topicId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['opp-queue', brandId] }),
+  });
+
+  const actionColor: Record<string, string> = {
+    scale: 'badge-green', maintain: 'badge-blue', monitor: 'badge-yellow',
+    reduce: 'badge-yellow', suppress: 'badge-red', experiment: 'badge-blue',
+  };
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Operator Cockpit</h1>
-        <p className="text-gray-400 mt-1">Unified view of all operating modes, health, and active recommendations</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card border-emerald-800/50">
-          <div className="flex items-center gap-3 mb-3">
-            <CheckCircle2 size={20} className="text-emerald-400" />
-            <h3 className="text-sm font-semibold text-emerald-300 uppercase tracking-wider">Scale</h3>
-          </div>
-          <p className="text-3xl font-bold text-emerald-400">0</p>
-          <p className="text-xs text-gray-500 mt-1">Items recommended for scaling</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Opportunity Queue</h1>
+          <p className="text-gray-400 mt-1">Ranked recommendations with scoring, monetization path, and brief trigger</p>
         </div>
-
-        <div className="card border-amber-800/50">
-          <div className="flex items-center gap-3 mb-3">
-            <Pause size={20} className="text-amber-400" />
-            <h3 className="text-sm font-semibold text-amber-300 uppercase tracking-wider">Monitor</h3>
-          </div>
-          <p className="text-3xl font-bold text-amber-400">0</p>
-          <p className="text-xs text-gray-500 mt-1">Items under observation</p>
-        </div>
-
-        <div className="card border-red-800/50">
-          <div className="flex items-center gap-3 mb-3">
-            <AlertTriangle size={20} className="text-red-400" />
-            <h3 className="text-sm font-semibold text-red-300 uppercase tracking-wider">Suppress</h3>
-          </div>
-          <p className="text-3xl font-bold text-red-400">0</p>
-          <p className="text-xs text-gray-500 mt-1">Items flagged for suppression</p>
+        <div className="flex items-center gap-3">
+          <select className="input-field" value={brandId} onChange={e => setBrandId(e.target.value)}>
+            {brands?.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+          <button onClick={() => recompute.mutate()} className="btn-primary flex items-center gap-2" disabled={recompute.isPending}>
+            <RefreshCw size={14} className={recompute.isPending ? 'animate-spin' : ''} />
+            {recompute.isPending ? 'Scoring...' : 'Recompute'}
+          </button>
         </div>
       </div>
 
-      <div className="card">
-        <h3 className="text-lg font-semibold text-white mb-4">Active Queues</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {['Generation', 'Publishing', 'Analytics', 'QA', 'Learning', 'Portfolio'].map((q) => (
-            <div key={q} className="bg-gray-800/50 rounded-lg p-4 text-center">
-              <p className="text-xs text-gray-500 uppercase tracking-wider">{q}</p>
-              <p className="text-2xl font-bold text-gray-300 mt-1">0</p>
-              <p className="text-xs text-gray-600 mt-1">pending</p>
+      {isLoading ? (
+        <div className="text-gray-500 text-center py-12">Loading opportunity queue...</div>
+      ) : !queue?.length ? (
+        <div className="card text-center py-12">
+          <Target size={48} className="mx-auto text-gray-600 mb-4" />
+          <p className="text-gray-400">No opportunities scored yet. Ingest signals and run scoring.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {queue.map((item: any) => (
+            <div key={item.id} className="card-hover">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-brand-600/20 flex items-center justify-center text-brand-300 text-sm font-bold">
+                    {item.rank}
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">Score: {item.composite_score.toFixed(3)}</p>
+                    <p className="text-sm text-gray-400 mt-0.5 max-w-xl">{item.explanation || 'No explanation'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={actionColor[item.recommended_action] || 'badge-blue'}>
+                    {item.recommended_action}
+                  </span>
+                  <span className="badge-blue">{item.classification}</span>
+                  {item.topic_candidate_id && (
+                    <button
+                      onClick={() => triggerBrief.mutate(item.topic_candidate_id)}
+                      className="btn-secondary text-xs flex items-center gap-1"
+                      disabled={item.is_actioned}
+                    >
+                      <ArrowRight size={12} /> {item.is_actioned ? 'Triggered' : 'Trigger Brief'}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="card">
-        <h3 className="text-lg font-semibold text-white mb-4">Revenue Bottleneck Distribution</h3>
-        <p className="text-gray-500 text-sm py-8 text-center">
-          Bottleneck classification will populate as performance data is ingested.
-        </p>
-      </div>
+      )}
     </div>
   );
 }
