@@ -311,6 +311,7 @@ from packages.db.models.cinema_studio import (
     StudioProject, StudioScene, CharacterBible, StylePreset,
     StudioGeneration, StudioActivity,
 )
+from packages.db.models.provider_secrets import ProviderSecret
 from packages.db.models.causal_attribution import (
     CausalAttributionReport, CausalSignal, CausalHypothesis, CausalConfidenceReport, CausalCreditAllocation,
 )
@@ -538,4 +539,5 @@ __all__ = [
     "AIPersonality", "PersonalityMemory", "PersonalityEvolution",
     "StudioProject", "StudioScene", "CharacterBible", "StylePreset",
     "StudioGeneration", "StudioActivity",
+    "ProviderSecret",
 ]

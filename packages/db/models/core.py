@@ -8,6 +8,8 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from packages.db.base import Base
+
+from packages.db.models.offers import Offer, SponsorProfile, SponsorOpportunity, LtvModel, AudienceSegment  # noqa: F401
 from packages.db.enums import HealthStatus, ProviderType, UserRole
 
 

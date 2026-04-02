@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { settingsApi } from '@/lib/api';
-import { Settings, Shield, Key, Save, CheckCircle2, XCircle, Cpu, Image, Video, Mic, Music, Share2, DollarSign, Mail, Database } from 'lucide-react';
+import { Settings, Shield, Key, Save, CheckCircle2, XCircle, Cpu, Image, Video, Mic, Music, Share2, DollarSign, Mail, Database, Eye, EyeOff, Trash2, Loader2 } from 'lucide-react';
 
 const PROVIDER_CATEGORIES: Record<string, { label: string; icon: any; providers: string[] }> = {
   brain: {
@@ -58,6 +58,132 @@ const PROVIDER_CATEGORIES: Record<string, { label: string; icon: any; providers:
   },
 };
 
+function ProviderRow({ provider, description, onSaved }: { provider: any; description: string; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [keyValue, setKeyValue] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [error, setError] = useState('');
+
+  const saveMutation = useMutation({
+    mutationFn: () => settingsApi.saveApiKey(provider.provider, keyValue),
+    onSuccess: () => {
+      setEditing(false);
+      setKeyValue('');
+      setError('');
+      onSaved();
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.detail || 'Failed to save key');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => settingsApi.deleteApiKey(provider.provider),
+    onSuccess: () => {
+      setEditing(false);
+      setKeyValue('');
+      onSaved();
+    },
+    onError: () => {},
+  });
+
+  return (
+    <div className="py-3 px-4 bg-gray-800/50 rounded-lg space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-2.5 h-2.5 rounded-full ${provider.configured ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+          <div>
+            <p className="text-sm font-medium text-gray-200">
+              {provider.provider.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+            </p>
+            <p className="text-xs text-gray-500">{description}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {provider.configured ? (
+            <>
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded-full">
+                <CheckCircle2 size={12} /> {provider.source === 'dashboard' ? 'Dashboard' : 'Server'}
+              </span>
+              {!editing && (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded hover:bg-gray-700 transition"
+                >
+                  Update
+                </button>
+              )}
+              {provider.source === 'dashboard' && !editing && (
+                <button
+                  onClick={() => { if (confirm('Remove this API key?')) deleteMutation.mutate(); }}
+                  className="text-xs text-red-400 hover:text-red-300 px-1.5 py-1 rounded hover:bg-red-900/20 transition"
+                  title="Remove key"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 bg-gray-700/50 px-2.5 py-1 rounded-full">
+                <XCircle size={12} /> Not Set
+              </span>
+              {!editing && (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-blue-900/20 transition font-medium"
+                >
+                  + Add Key
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {editing && (
+        <div className="flex items-center gap-2 pt-1">
+          <div className="relative flex-1">
+            <input
+              type={showKey ? 'text' : 'password'}
+              value={keyValue}
+              onChange={(e) => { setKeyValue(e.target.value); setError(''); }}
+              placeholder={provider.configured ? 'Enter new key to replace...' : 'Paste your API key here...'}
+              className="input-field w-full pr-8 text-sm"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+            >
+              {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+          <button
+            onClick={() => saveMutation.mutate()}
+            disabled={!keyValue.trim() || saveMutation.isPending}
+            className="btn-primary text-xs px-3 py-2 flex items-center gap-1 disabled:opacity-40"
+          >
+            {saveMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+            Save
+          </button>
+          <button
+            onClick={() => { setEditing(false); setKeyValue(''); setError(''); }}
+            className="text-xs text-gray-400 hover:text-white px-2 py-2 rounded hover:bg-gray-700 transition"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {error && <p className="text-xs text-red-400 pl-5">{error}</p>}
+      {provider.configured && provider.key_preview && !editing && (
+        <p className="text-xs text-gray-600 pl-5 font-mono">{provider.key_preview}</p>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [orgForm, setOrgForm] = useState({ name: '', plan: '' });
@@ -94,6 +220,8 @@ export default function SettingsPage() {
   const configuredCount = integrations?.providers?.filter((p: any) => p.configured).length || 0;
   const totalCount = integrations?.providers?.length || 0;
 
+  const refreshIntegrations = () => queryClient.invalidateQueries({ queryKey: ['settings-integrations'] });
+
   return (
     <div className="space-y-8 pb-16">
       <div>
@@ -101,7 +229,7 @@ export default function SettingsPage() {
           <Settings size={24} /> Settings & API Keys
         </h1>
         <p className="text-gray-400 mt-1">
-          {configuredCount}/{totalCount} providers connected
+          {configuredCount}/{totalCount} providers connected — add keys directly below
         </p>
       </div>
 
@@ -163,26 +291,12 @@ export default function SettingsPage() {
               </h3>
               <div className="space-y-2">
                 {catProviders.map((p: any) => (
-                  <div key={`${catKey}-${p.provider}`} className="flex items-center justify-between py-3 px-4 bg-gray-800/50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2.5 h-2.5 rounded-full ${p.configured ? 'bg-emerald-400' : 'bg-gray-600'}`} />
-                      <div>
-                        <p className="text-sm font-medium text-gray-200">{p.provider.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}</p>
-                        <p className="text-xs text-gray-500">{descriptions[p.provider] || ''}</p>
-                      </div>
-                    </div>
-                    <div>
-                      {p.configured ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded-full">
-                          <CheckCircle2 size={12} /> Connected
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 bg-gray-700/50 px-2.5 py-1 rounded-full">
-                          <XCircle size={12} /> Not Set
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  <ProviderRow
+                    key={`${catKey}-${p.provider}`}
+                    provider={p}
+                    description={descriptions[p.provider] || ''}
+                    onSaved={refreshIntegrations}
+                  />
                 ))}
               </div>
             </div>
@@ -190,20 +304,18 @@ export default function SettingsPage() {
         })
       )}
 
-      {/* How to Configure */}
+      {/* Info Card */}
       <div className="card border-blue-900/30 bg-blue-900/5">
         <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-          <Key size={18} /> How to Add API Keys
+          <Key size={18} /> How API Keys Work
         </h3>
         <div className="text-sm text-gray-400 space-y-2">
-          <p>API keys are set as environment variables on the server for security. To add or change a key:</p>
-          <ol className="list-decimal list-inside space-y-1 text-gray-300">
-            <li>SSH into your server</li>
-            <li>Edit the .env file: <code className="text-xs bg-gray-800 px-1.5 py-0.5 rounded">nano /opt/nvironments/AI\ AVATAR\ CONTENT\ OS\ OPS\ NEW/.env</code></li>
-            <li>Add or update the key (e.g. <code className="text-xs bg-gray-800 px-1.5 py-0.5 rounded">ANTHROPIC_API_KEY=sk-ant-...</code>)</li>
-            <li>Save and restart: <code className="text-xs bg-gray-800 px-1.5 py-0.5 rounded">docker compose restart api worker scheduler</code></li>
-          </ol>
-          <p className="text-xs text-gray-500 mt-3">Keys are never stored in the database — only in server environment variables. The status above shows whether each key is detected.</p>
+          <p>You can add API keys in two ways:</p>
+          <ul className="list-disc list-inside space-y-1 text-gray-300">
+            <li><strong className="text-emerald-400">Dashboard</strong> — Click &quot;+ Add Key&quot; next to any provider above. Keys are encrypted and stored securely in the database.</li>
+            <li><strong className="text-blue-400">Server .env</strong> — Set keys as environment variables. Dashboard keys take priority over .env keys.</li>
+          </ul>
+          <p className="text-xs text-gray-500 mt-3">All keys are encrypted at rest using AES-256. Dashboard-stored keys override server environment variables. You can remove dashboard keys at any time to fall back to the server .env value.</p>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://app.nvironments.com';
 
 export const api = axios.create({
   baseURL: API_BASE,
@@ -81,6 +81,8 @@ export const settingsApi = {
   getOrganization: () => api.get('/api/v1/settings/organization'),
   updateOrganization: (data: any) => api.patch('/api/v1/settings/organization', data),
   getIntegrations: () => api.get('/api/v1/settings/integrations'),
+  saveApiKey: (provider: string, apiKey: string) => api.put(`/api/v1/settings/api-keys/${provider}`, { api_key: apiKey }),
+  deleteApiKey: (provider: string) => api.delete(`/api/v1/settings/api-keys/${provider}`),
 };
 
 export const decisionsApi = {

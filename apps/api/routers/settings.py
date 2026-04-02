@@ -8,6 +8,7 @@ from typing import Optional
 from apps.api.deps import AdminUser, DBSession
 from apps.api.services.audit_service import log_action
 from apps.api.services.crud_service import CRUDService
+from apps.api.services import secrets_service
 from packages.db.models.core import Organization
 
 router = APIRouter()
@@ -32,6 +33,17 @@ class OrganizationSettingsResponse(BaseModel):
 
 
 class ProviderKeyStatus(BaseModel):
+    provider: str
+    configured: bool
+    key_preview: str
+    source: str
+
+
+class SaveKeyRequest(BaseModel):
+    api_key: str
+
+
+class SaveKeyResponse(BaseModel):
     provider: str
     configured: bool
     key_preview: str
@@ -66,18 +78,63 @@ async def update_organization_settings(
     return org
 
 
+@router.put("/api-keys/{provider}", response_model=SaveKeyResponse)
+async def save_api_key(
+    provider: str, body: SaveKeyRequest, current_user: AdminUser, db: DBSession
+):
+    if provider not in secrets_service.ENV_KEY_MAP:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+    if not body.api_key.strip():
+        raise HTTPException(status_code=400, detail="API key cannot be empty")
+
+    await secrets_service.save_key(
+        db, current_user.organization_id, provider, body.api_key.strip(), current_user.id
+    )
+    await log_action(
+        db, "api_key.saved",
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="provider_secret",
+        details={"provider": provider},
+    )
+    return SaveKeyResponse(
+        provider=provider,
+        configured=True,
+        key_preview=secrets_service.mask_key(body.api_key.strip()),
+    )
+
+
+@router.delete("/api-keys/{provider}", status_code=204)
+async def delete_api_key(
+    provider: str, current_user: AdminUser, db: DBSession
+):
+    if provider not in secrets_service.ENV_KEY_MAP:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+
+    deleted = await secrets_service.delete_key(
+        db, current_user.organization_id, provider
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="No key stored for this provider")
+
+    await log_action(
+        db, "api_key.deleted",
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="provider_secret",
+        details={"provider": provider},
+    )
+
+
 @router.get("/integrations")
 async def get_integrations(current_user: AdminUser, db: DBSession):
     import os
     from apps.api.config import get_settings
     s = get_settings()
 
-    def mask(key: str) -> str:
-        if not key:
-            return ""
-        if len(key) < 8:
-            return "****"
-        return key[:4] + "****" + key[-4:]
+    db_keys = await secrets_service.get_all_keys(db, current_user.organization_id)
 
     ALL_PROVIDERS = [
         ("anthropic", "Claude Sonnet — Hero text / orchestrator", s.anthropic_api_key),
@@ -113,11 +170,24 @@ async def get_integrations(current_user: AdminUser, db: DBSession):
         ("sentry", "Sentry — Error monitoring", s.sentry_dsn),
     ]
 
-    providers = [
-        ProviderKeyStatus(provider=name, configured=bool(key), key_preview=mask(key))
-        for name, desc, key in ALL_PROVIDERS
-    ]
-    return IntegrationsOverview(providers=providers, descriptions={name: desc for name, desc, _ in ALL_PROVIDERS})
+    providers = []
+    for name, desc, env_val in ALL_PROVIDERS:
+        db_val = db_keys.get(name, "")
+        resolved = db_val or env_val
+        source = "dashboard" if db_val else ("server" if env_val else "none")
+        providers.append(
+            ProviderKeyStatus(
+                provider=name,
+                configured=bool(resolved),
+                key_preview=secrets_service.mask_key(resolved),
+                source=source,
+            )
+        )
+
+    return IntegrationsOverview(
+        providers=providers,
+        descriptions={name: desc for name, desc, _ in ALL_PROVIDERS},
+    )
 
 
 class IntegrationsOverview(BaseModel):

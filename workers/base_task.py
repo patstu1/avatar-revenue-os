@@ -104,3 +104,6 @@ class TrackedTask(Task):
                 session.commit()
         except Exception:
             logger.exception("worker.write_audit.failed", task_id=task_id, action=action)
+
+
+BaseTask = TrackedTask

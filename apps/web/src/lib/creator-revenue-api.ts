@@ -1,4 +1,4 @@
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "https://app.nvironments.com/api/v1";
 
 function headers() {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
