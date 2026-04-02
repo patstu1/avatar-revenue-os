@@ -5,8 +5,27 @@ from functools import lru_cache
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
-DATABASE_URL_SYNC = os.getenv("DATABASE_URL_SYNC", "postgresql://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
+
+def _resolve_db_urls() -> tuple[str, str]:
+    """Single source of truth for database URLs.
+
+    Priority: environment variable > Settings (pydantic) > hardcoded default.
+    """
+    default_async = "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os"
+    default_sync = "postgresql://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os"
+    env_async = os.getenv("DATABASE_URL")
+    env_sync = os.getenv("DATABASE_URL_SYNC")
+    if env_async and env_sync:
+        return env_async, env_sync
+    try:
+        from apps.api.config import get_settings
+        s = get_settings()
+        return env_async or s.database_url, env_sync or s.database_url_sync
+    except Exception:
+        return env_async or default_async, env_sync or default_sync
+
+
+DATABASE_URL, DATABASE_URL_SYNC = _resolve_db_urls()
 
 _POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 _MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "5"))

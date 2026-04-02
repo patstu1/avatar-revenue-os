@@ -1,8 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://app.nvironments.com";
-const orgId = "00000000-0000-0000-0000-000000000001";
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { credentials: "include", headers: { "Content-Type": "application/json" } }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { useAuthStore } from "@/lib/store";
+const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
 
 interface WFDef { id: string; workflow_name: string; workflow_type: string; scope_type: string; }
 interface WFInst { id: string; resource_type: string; current_step_order: number; status: string; }
@@ -10,12 +14,17 @@ interface WFInst { id: string; resource_type: string; current_step_order: number
 const statusColor: Record<string, string> = { in_progress: "bg-amber-900 text-amber-300", completed: "bg-green-900 text-green-300", rejected: "bg-red-900 text-red-300" };
 
 export default function WorkflowsPage() {
+  const user = useAuthStore((s) => s.user);
+  const orgId = user?.organization_id ?? "";
   const [tab, setTab] = useState<"definitions" | "instances">("instances");
   const [defs, setDefs] = useState<WFDef[]>([]); const [insts, setInsts] = useState<WFInst[]>([]); const [loading, setLoading] = useState(true);
   useEffect(() => {
+    if (!orgId) return;
     Promise.all([apiFetch(`/api/v1/orgs/${orgId}/workflows`), apiFetch(`/api/v1/orgs/${orgId}/workflow-instances`)])
       .then(([d, i]) => { setDefs(d); setInsts(i); }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [orgId]);
+
+  if (!orgId) return <div className="p-6"><p className="text-gray-500">Loading organization...</p></div>;
 
   return (
     <div className="p-6 space-y-6">

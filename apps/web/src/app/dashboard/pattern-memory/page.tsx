@@ -20,8 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Layers, RefreshCcw, Sparkles, Terminal } from "lucide-react";
-
-const brandId = "00000000-0000-0000-0000-000000000001";
+import { brandsApi } from "@/lib/api";
 
 type TabId = "winning" | "clusters" | "losing" | "reuse" | "decay";
 
@@ -43,6 +42,8 @@ function performanceBandClass(band: string): string {
 }
 
 export default function PatternMemoryPage() {
+  const [brandId, setBrandId] = useState("");
+  const [brands, setBrands] = useState<{id: string; name: string}[]>([]);
   const [tab, setTab] = useState<TabId>("winning");
   const [patterns, setPatterns] = useState<WinningPattern[]>([]);
   const [clusters, setClusters] = useState<PatternCluster[]>([]);
@@ -53,7 +54,16 @@ export default function PatternMemoryPage() {
   const [recomputing, setRecomputing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    brandsApi.list().then((r) => {
+      const list = r.data ?? r;
+      setBrands(Array.isArray(list) ? list : []);
+      if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
+    }).catch(() => {});
+  }, []);
+
   const loadAll = useCallback(async () => {
+    if (!brandId) return;
     setLoading(true);
     setError(null);
     try {
@@ -74,7 +84,7 @@ export default function PatternMemoryPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [brandId]);
 
   useEffect(() => {
     void loadAll();
@@ -110,6 +120,12 @@ export default function PatternMemoryPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Winning-Pattern Memory</h1>
             <p className="text-sm text-gray-400">Clusters, reuse signals, losers, and decay for this brand.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-gray-400">Brand:</label>
+            <select aria-label="Select brand" className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white" value={brandId} onChange={e => setBrandId(e.target.value)}>
+              {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
           </div>
         </div>
         <Button

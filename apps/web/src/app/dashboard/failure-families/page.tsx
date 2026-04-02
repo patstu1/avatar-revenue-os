@@ -1,29 +1,53 @@
 "use client";
 import { useEffect, useState } from "react";
+import { brandsApi } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://app.nvironments.com";
-const brandId = "00000000-0000-0000-0000-000000000001";
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { credentials: "include", headers: { "Content-Type": "application/json" } }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
+
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
 
 interface FFReport { id: string; family_type: string; family_key: string; failure_count: number; avg_fail_score: number; recommended_alternative: string | null; explanation: string | null; }
 interface Rule { id: string; family_type: string; family_key: string; suppression_mode: string; retest_after_days: number; reason: string | null; is_active: boolean; }
 
 export default function FailureFamiliesPage() {
+  const [brandId, setBrandId] = useState("");
+  const [brands, setBrands] = useState<{id: string; name: string}[]>([]);
   const [tab, setTab] = useState<"families" | "rules">("families");
   const [families, setFamilies] = useState<FFReport[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    brandsApi.list().then((r) => {
+      const list = r.data ?? r;
+      setBrands(Array.isArray(list) ? list : []);
+      if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!brandId) return;
+    setLoading(true);
     Promise.all([
       apiFetch(`/api/v1/brands/${brandId}/failure-families`),
       apiFetch(`/api/v1/brands/${brandId}/suppression-rules`),
     ]).then(([f, r]) => { setFamilies(f); setRules(r); }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-white">Failure-Family Suppression</h1>
+      <div className="flex items-center gap-3">
+        <label className="text-sm text-gray-400">Brand:</label>
+        <select aria-label="Select brand" className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white" value={brandId} onChange={e => setBrandId(e.target.value)}>
+          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
       <div className="flex gap-2">
         {[{key: "families" as const, label: `Failure Families (${families.length})`}, {key: "rules" as const, label: `Suppression Rules (${rules.length})`}].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === t.key ? "bg-red-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}>{t.label}</button>

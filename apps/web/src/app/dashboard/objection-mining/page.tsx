@@ -1,9 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useAuthStore } from "@/lib/store";
+import { brandsApi } from "@/lib/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://app.nvironments.com";
-const brandId = "00000000-0000-0000-0000-000000000001";
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { credentials: "include", headers: { "Content-Type": "application/json" } }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
 
 interface Cluster { id: string; objection_type: string; cluster_label: string; signal_count: number; avg_severity: number; avg_monetization_impact: number; recommended_response_angle: string | null; }
 interface Signal { id: string; source_type: string; objection_type: string; extracted_objection: string; severity: number; monetization_impact: number; platform: string | null; }
@@ -15,17 +20,34 @@ export default function ObjectionMiningPage() {
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [signals, setSignals] = useState<Signal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [brandId, setBrandId] = useState("");
+  const [brands, setBrands] = useState<{id: string; name: string}[]>([]);
 
   useEffect(() => {
+    brandsApi.list().then((r) => {
+      const list = r.data ?? r;
+      setBrands(Array.isArray(list) ? list : []);
+      if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!brandId) return;
     Promise.all([
       apiFetch(`/api/v1/brands/${brandId}/objection-clusters`),
       apiFetch(`/api/v1/brands/${brandId}/objection-signals`),
     ]).then(([c, s]) => { setClusters(c); setSignals(s); }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-white">Objection Mining</h1>
+      <div className="flex items-center gap-3">
+        <label className="text-sm text-gray-400">Brand:</label>
+        <select aria-label="Select brand" className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white" value={brandId} onChange={e => setBrandId(e.target.value)}>
+          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
       <div className="flex gap-2">
         {[{key: "clusters" as const, label: `Clusters (${clusters.length})`}, {key: "signals" as const, label: `Signals (${signals.length})`}].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === t.key ? "bg-amber-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}>{t.label}</button>

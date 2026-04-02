@@ -27,7 +27,7 @@ async def recompute_ranking(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, 
         oid = None
         if b.get("offer_id"):
             try: oid = uuid.UUID(str(b["offer_id"]))
-            except: pass
+            except (ValueError, AttributeError): pass
         db.add(AffiliateBlocker(brand_id=brand_id, offer_id=oid, blocker_type=b["blocker_type"], description=b["description"], severity=b["severity"]))
 
     await db.execute(delete(AffiliateLeak).where(AffiliateLeak.brand_id == brand_id))
@@ -38,10 +38,10 @@ async def recompute_ranking(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, 
         oid = lid = None
         if lk.get("offer_id"):
             try: oid = uuid.UUID(str(lk["offer_id"]))
-            except: pass
+            except (ValueError, AttributeError): pass
         if lk.get("link_id"):
             try: lid = uuid.UUID(str(lk["link_id"]))
-            except: pass
+            except (ValueError, AttributeError): pass
         db.add(AffiliateLeak(brand_id=brand_id, offer_id=oid, link_id=lid, leak_type=lk["leak_type"], severity=lk["severity"], revenue_loss_estimate=lk["revenue_loss_estimate"], recommendation=lk["recommendation"]))
 
     await db.flush()

@@ -2,7 +2,6 @@
 
 These are public — authentication is via the provider's own verification mechanism.
 """
-import json
 import os
 import uuid
 

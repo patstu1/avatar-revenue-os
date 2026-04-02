@@ -1,8 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://app.nvironments.com";
-const orgId = "00000000-0000-0000-0000-000000000001";
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { credentials: "include", headers: { "Content-Type": "application/json" } }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { useAuthStore } from "@/lib/store";
+const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
 
 interface Cap { id: string; total_queued: number; total_running: number; throughput_per_hour: number; burst_active: boolean; degraded: boolean; health_status: string; }
 interface Health { id: string; health_status: string; queue_depth_total: number; ceiling_utilization_pct: number; burst_count_24h: number; degradation_count_24h: number; recommendation: string | null; }
@@ -10,9 +14,13 @@ interface Health { id: string; health_status: string; queue_depth_total: number;
 const hColor: Record<string, string> = { healthy: "text-cyan-400", busy: "text-yellow-400", degraded: "text-pink-400", critical: "text-red-400" };
 
 export default function HyperscalePage() {
+  const user = useAuthStore((s) => s.user);
+  const orgId = user?.organization_id ?? "";
   const [caps, setCaps] = useState<Cap[]>([]); const [health, setHealth] = useState<Health[]>([]); const [loading, setLoading] = useState(true);
-  useEffect(() => { Promise.all([apiFetch(`/api/v1/orgs/${orgId}/scale/capacity`), apiFetch(`/api/v1/orgs/${orgId}/scale/health`)]).then(([c, h]) => { setCaps(c); setHealth(h); }).catch(() => {}).finally(() => setLoading(false)); }, []);
+  useEffect(() => { if (!orgId) return; Promise.all([apiFetch(`/api/v1/orgs/${orgId}/scale/capacity`), apiFetch(`/api/v1/orgs/${orgId}/scale/health`)]).then(([c, h]) => { setCaps(c); setHealth(h); }).catch(() => {}).finally(() => setLoading(false)); }, [orgId]);
   const latest = health[0]; const latestCap = caps[0];
+
+  if (!orgId) return <div className="p-6"><p className="text-gray-500">Loading organization...</p></div>;
 
   return (
     <div className="p-6 space-y-6">

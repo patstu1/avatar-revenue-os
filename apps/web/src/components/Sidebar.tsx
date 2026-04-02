@@ -88,6 +88,15 @@ import {
 
 const NAV_SECTIONS = [
   {
+    label: "Account Management",
+    items: [
+      { href: "/dashboard/accounts", label: "All Accounts", icon: Users },
+      { href: "/dashboard/account-state-intel", label: "Account Health Intel", icon: Gauge },
+      { href: "/dashboard/account-warmup", label: "Account Warm-Up", icon: TrendingUp },
+      { href: "/dashboard/account-maturity", label: "Account Maturity", icon: CheckCircle2 },
+    ],
+  },
+  {
     label: "Command Center",
     items: [
       { href: "/dashboard/command-center", label: "System Command Center", icon: Radio },
@@ -344,7 +353,6 @@ const NAV_SECTIONS = [
     items: [
       { href: "/dashboard/brands", label: "Brands", icon: Megaphone },
       { href: "/dashboard/avatars", label: "Avatars", icon: Palette },
-      { href: "/dashboard/accounts", label: "Creator Accounts", icon: Users },
       { href: "/dashboard/content", label: "Content Briefs", icon: FileText },
       {
         href: "/dashboard/publishing",
@@ -805,19 +813,12 @@ const NAV_SECTIONS = [
     label: "Experiments",
     items: [
       { href: "/dashboard/experiments", label: "Active Experiments", icon: FlaskConical },
-      { href: "/dashboard/promoted-rules", label: "Promoted Rules", icon: Crown },
     ],
   },
   {
     label: "Capital Allocator",
     items: [
       { href: "/dashboard/capital-allocation", label: "Allocation Dashboard", icon: Wallet },
-    ],
-  },
-  {
-    label: "Account State",
-    items: [
-      { href: "/dashboard/account-state-intel", label: "Account States", icon: Gauge },
     ],
   },
   {
@@ -872,12 +873,6 @@ const NAV_SECTIONS = [
     label: "Digital Twin",
     items: [
       { href: "/dashboard/simulations", label: "Simulations", icon: GitBranch },
-    ],
-  },
-  {
-    label: "Recovery",
-    items: [
-      { href: "/dashboard/recovery", label: "Recovery Engine", icon: RotateCcw },
     ],
   },
   {
@@ -1027,6 +1022,7 @@ export default function Sidebar() {
           </div>
           <button
             onClick={logout}
+            aria-label="Log out"
             className="text-gray-500 hover:text-red-400 transition-colors"
           >
             <LogOut size={16} />

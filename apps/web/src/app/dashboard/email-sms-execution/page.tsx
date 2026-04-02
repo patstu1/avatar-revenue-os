@@ -6,8 +6,7 @@ import {
   fetchSmsRequests,
   createSmsSend,
 } from "@/lib/live-execution-api";
-
-const BRAND = "00000000-0000-0000-0000-000000000001";
+import { brandsApi } from "@/lib/api";
 
 export default function EmailSmsExecutionPage() {
   const [emails, setEmails] = useState<any[]>([]);
@@ -17,33 +16,49 @@ export default function EmailSmsExecutionPage() {
   const [subject, setSubject] = useState("");
   const [toPhone, setToPhone] = useState("");
   const [smsBody, setSmsBody] = useState("");
+  const [brandId, setBrandId] = useState("");
+  const [brands, setBrands] = useState<{id: string; name: string}[]>([]);
 
   async function load() {
     setLoading(true);
-    const [e, s] = await Promise.all([fetchEmailRequests(BRAND), fetchSmsRequests(BRAND)]);
+    const [e, s] = await Promise.all([fetchEmailRequests(brandId), fetchSmsRequests(brandId)]);
     setEmails(e); setSmsList(s);
     setLoading(false);
   }
 
   async function sendEmail() {
     if (!toEmail || !subject) return;
-    await createEmailSend(BRAND, { to_email: toEmail, subject, body_text: "Test email" });
+    await createEmailSend(brandId, { to_email: toEmail, subject, body_text: "Test email" });
     setToEmail(""); setSubject("");
     load();
   }
 
   async function sendSms() {
     if (!toPhone || !smsBody) return;
-    await createSmsSend(BRAND, { to_phone: toPhone, message_body: smsBody });
+    await createSmsSend(brandId, { to_phone: toPhone, message_body: smsBody });
     setToPhone(""); setSmsBody("");
     load();
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    brandsApi.list().then((r) => {
+      const list = r.data ?? r;
+      setBrands(Array.isArray(list) ? list : []);
+      if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => { if (brandId) load(); }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Email & SMS Execution</h1>
+      <div className="flex items-center gap-3 mb-4">
+        <label className="text-sm text-gray-400">Brand:</label>
+        <select aria-label="Select brand" className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white" value={brandId} onChange={e => setBrandId(e.target.value)}>
+          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
 
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-2">

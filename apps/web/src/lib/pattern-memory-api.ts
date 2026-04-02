@@ -1,9 +1,13 @@
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://app.nvironments.com";
+const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
+
+function authHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
 async function apiFetch(path: string, opts?: RequestInit) {
   const res = await fetch(`${API}${path}`, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...(opts?.headers as Record<string, string>) },
+    headers: { ...authHeaders(), ...(opts?.headers as Record<string, string>) },
     ...opts,
   });
   if (!res.ok) throw new Error(await res.text());

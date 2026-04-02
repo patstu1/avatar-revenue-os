@@ -11,7 +11,7 @@ router = APIRouter()
 
 async def _ro(oid, cu, db):
     o = (await db.execute(select(Organization).where(Organization.id == oid))).scalar_one_or_none()
-    if not o or o.id != cu.organization_id: raise HTTPException(status_code=404, detail="Org not found")
+    if not o or o.id != cu.organization_id: raise HTTPException(status_code=403, detail="Organization not accessible")
 
 @router.get("/orgs/{org_id}/permissions/matrix", response_model=list[OPMMatrixOut])
 async def matrix(org_id: uuid.UUID, current_user: CurrentUser, db: DBSession):

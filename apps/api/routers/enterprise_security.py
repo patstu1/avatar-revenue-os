@@ -12,7 +12,7 @@ router = APIRouter()
 
 async def _ro(org_id, cu, db):
     o = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
-    if not o or o.id != cu.organization_id: raise HTTPException(status_code=404, detail="Org not found")
+    if not o or o.id != cu.organization_id: raise HTTPException(status_code=403, detail="Organization not accessible")
 
 @router.get("/orgs/{org_id}/security/roles", response_model=list[ESRoleOut])
 async def roles(org_id: uuid.UUID, current_user: CurrentUser, db: DBSession):

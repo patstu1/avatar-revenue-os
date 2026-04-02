@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import os
 import uuid
+
+import structlog
 from datetime import datetime, timezone
 from typing import Any
 
@@ -20,6 +22,8 @@ from packages.scoring.copilot_engine import (
     build_quick_status,
     generate_grounded_response,
 )
+
+logger = structlog.get_logger()
 
 
 def _message_to_dict(m: CopilotChatMessage) -> dict[str, Any]:
@@ -117,7 +121,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
             select(ExecutionBlockerEscalation).where(ExecutionBlockerEscalation.brand_id == brand_id, ExecutionBlockerEscalation.is_active.is_(True)).limit(10)
         )).scalars().all()))
     except Exception:
-        pass
+        logger.debug("autonomous_escalations unavailable", exc_info=True)
 
     all_blockers = scale_alerts + cr_blockers + msg_blockers + buf_blockers + prov_blockers + gk_alerts
     failed_items = [a for a in scale_alerts if "fail" in str(a.get("alert_type", "")).lower() or "weak_lane" in str(a.get("alert_type", "")).lower()]
@@ -206,6 +210,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         top_actions = await get_top_actions(db, brand_id, limit=5)
         quick["top_opportunity_actions"] = top_actions
     except Exception:
+        logger.debug("copilot context enrichment failed", exc_info=True)
         quick["top_opportunity_actions"] = []
 
     from packages.db.models.failure_family import SuppressionRule, FailureFamilyReport
@@ -261,7 +266,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         if exec_summary.get("status") != "no_data":
             quick["executive_summary"] = exec_summary
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     try:
         from apps.api.services.offer_lab_service import get_best_offer
@@ -269,7 +274,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         if best_offer.get("offer_id"):
             quick["best_offer"] = best_offer
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     try:
         from apps.api.services.revenue_leak_service import get_leak_summary
@@ -277,7 +282,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         if leak_summary.get("total_leaks", 0) > 0:
             quick["revenue_leaks"] = leak_summary
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     try:
         from apps.api.services.digital_twin_service import get_top_recommendations
@@ -285,7 +290,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         if sim_recs:
             quick["simulation_recommendations"] = sim_recs
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     try:
         from apps.api.services.recovery_engine_service import get_recovery_summary
@@ -293,14 +298,14 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         if rec_summary.get("open_incidents", 0) > 0:
             quick["recovery_status"] = rec_summary
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     try:
         from apps.api.services.operator_permission_service import get_autonomy_summary
         autonomy = await get_autonomy_summary(db, brand_id)
         quick["autonomy_matrix"] = autonomy
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     try:
         from apps.api.services.causal_attribution_service import get_attribution_summary
@@ -308,7 +313,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         if causal.get("reports"):
             quick["causal_attribution"] = causal
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     try:
         from apps.api.services.trend_viral_service import get_top_opportunities
@@ -316,7 +321,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         if trends:
             quick["top_trend_opportunities"] = trends
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     # Fleet status, warmup phases, shadow ban alerts
     try:
@@ -354,7 +359,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
                 for w in shadow_banned
             ]
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     # Revenue forecast
     try:
@@ -379,7 +384,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
                 "summary": generate_forecast_summary(forecast),
             }
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     # Monthly accumulated revenue
     try:
@@ -392,7 +397,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         )).scalar() or 0.0
         quick["monthly_revenue_mtd"] = round(float(mtd_revenue), 2)
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     # Niche research data for setup guidance
     try:
@@ -439,7 +444,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
             for p in niche_programs[:5]
         ]
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     # Revenue by niche
     try:
@@ -461,7 +466,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         if niche_revenue:
             quick["revenue_by_niche"] = {k: round(v, 2) for k, v in sorted(niche_revenue.items(), key=lambda x: x[1], reverse=True)}
     except Exception:
-        pass
+        logger.debug("copilot context enrichment failed", exc_info=True)
 
     actions = build_operator_actions(scale_alerts, growth_commands, cr_blockers, msg_blockers, buf_blockers, prov_blockers, autonomous_escalations)
     missing = build_missing_items()

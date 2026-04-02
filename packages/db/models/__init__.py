@@ -301,7 +301,7 @@ from packages.db.models.trend_viral import (
     TrendDuplicate, TrendSuppressionRule, TrendBlocker, TrendSourceHealth,
 )
 from packages.db.models.autonomous_farm import (
-    NicheScore, AccountWarmupPlan, FleetStatusReport, AccountVoiceProfile,
+    NicheScore, AccountWarmupPlan as FarmAccountWarmupPlan, FleetStatusReport, AccountVoiceProfile,
     ContentRepurposeRecord, CompetitorAccount, DailyIntelligenceReport,
 )
 from packages.db.models.ai_personality import (
@@ -534,7 +534,7 @@ __all__ = [
     "CausalAttributionReport", "CausalSignal", "CausalHypothesis", "CausalConfidenceReport", "CausalCreditAllocation",
     "TrendSignalEvent", "TrendVelocityReport", "ViralOpportunity", "TrendOpportunityScore",
     "TrendDuplicate", "TrendSuppressionRule", "TrendBlocker", "TrendSourceHealth",
-    "NicheScore", "AccountWarmupPlan", "FleetStatusReport", "AccountVoiceProfile",
+    "NicheScore", "FarmAccountWarmupPlan", "FleetStatusReport", "AccountVoiceProfile",
     "ContentRepurposeRecord", "CompetitorAccount", "DailyIntelligenceReport",
     "AIPersonality", "PersonalityMemory", "PersonalityEvolution",
     "StudioProject", "StudioScene", "CharacterBible", "StylePreset",

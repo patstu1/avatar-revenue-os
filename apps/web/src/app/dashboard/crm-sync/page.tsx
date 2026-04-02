@@ -6,8 +6,7 @@ import {
   runCrmSync,
   createCrmContact,
 } from "@/lib/live-execution-api";
-
-const BRAND = "00000000-0000-0000-0000-000000000001";
+import { brandsApi } from "@/lib/api";
 
 export default function CrmSyncPage() {
   const [contacts, setContacts] = useState<any[]>([]);
@@ -15,26 +14,42 @@ export default function CrmSyncPage() {
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [brandId, setBrandId] = useState("");
+  const [brands, setBrands] = useState<{id: string; name: string}[]>([]);
 
   async function load() {
     setLoading(true);
-    const [c, s] = await Promise.all([fetchCrmContacts(BRAND), fetchCrmSyncs(BRAND)]);
+    const [c, s] = await Promise.all([fetchCrmContacts(brandId), fetchCrmSyncs(brandId)]);
     setContacts(c); setSyncs(s);
     setLoading(false);
   }
 
   async function addContact() {
     if (!email) return;
-    await createCrmContact(BRAND, { email, name: name || undefined });
+    await createCrmContact(brandId, { email, name: name || undefined });
     setEmail(""); setName("");
     load();
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    brandsApi.list().then((r) => {
+      const list = r.data ?? r;
+      setBrands(Array.isArray(list) ? list : []);
+      if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => { if (brandId) load(); }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">CRM / Audience Sync</h1>
+      <div className="flex items-center gap-3 mb-4">
+        <label className="text-sm text-gray-400">Brand:</label>
+        <select aria-label="Select brand" className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white" value={brandId} onChange={e => setBrandId(e.target.value)}>
+          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
 
       <div className="flex gap-3 items-end">
         <div>
@@ -46,7 +61,7 @@ export default function CrmSyncPage() {
           <input value={name} onChange={e => setName(e.target.value)} className="border rounded p-2 w-48" />
         </div>
         <button onClick={addContact} className="px-4 py-2 bg-blue-600 text-white rounded">Add Contact</button>
-        <button onClick={() => runCrmSync(BRAND).then(load)} className="px-4 py-2 bg-green-600 text-white rounded">Run CRM Sync</button>
+        <button onClick={() => runCrmSync(brandId).then(load)} className="px-4 py-2 bg-green-600 text-white rounded">Run CRM Sync</button>
       </div>
 
       {loading ? <p>Loading…</p> : (

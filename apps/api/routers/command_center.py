@@ -13,5 +13,5 @@ router = APIRouter()
 async def command_center(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand or brand.organization_id != current_user.organization_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Brand not found")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brand not accessible")
     return await get_command_center_data(db, brand_id)

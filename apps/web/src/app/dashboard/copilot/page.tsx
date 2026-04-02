@@ -49,7 +49,8 @@ function truthBadgeColor(status: string) {
   return 'bg-gray-800 text-gray-300 border-gray-700';
 }
 
-function renderMarkdown(text: string) {
+function renderMarkdown(text: string | undefined | null) {
+  if (!text) return '';
   return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 }
 

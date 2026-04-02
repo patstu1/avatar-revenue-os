@@ -43,7 +43,7 @@ async def get_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSessio
     try:
         brand = await brand_service.get_or_404(db, brand_id)
     except ValueError:
-        raise HTTPException(status_code=404, detail="Brand not found")
+        raise HTTPException(status_code=403, detail="Brand not accessible")
     if brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     return brand
@@ -54,7 +54,7 @@ async def update_brand(brand_id: uuid.UUID, body: BrandCreate, current_user: Cur
     try:
         brand = await brand_service.get_or_404(db, brand_id)
     except ValueError:
-        raise HTTPException(status_code=404, detail="Brand not found")
+        raise HTTPException(status_code=403, detail="Brand not accessible")
     if brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     updated = await brand_service.update(db, brand_id, **body.model_dump(exclude_unset=True))

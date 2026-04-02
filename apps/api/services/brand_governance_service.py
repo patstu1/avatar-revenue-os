@@ -37,7 +37,7 @@ async def evaluate_content(db: AsyncSession, brand_id: uuid.UUID, content_item_i
         rid = None
         if v.get("rule_id"):
             try: rid = uuid.UUID(str(v["rule_id"]))
-            except: pass
+            except (ValueError, AttributeError): pass
         db.add(BrandGovernanceViolation(brand_id=brand_id, content_item_id=content_item_id, violation_type=v["violation_type"], rule_id=rid, severity=v["severity"], detail=v["detail"]))
 
     if editorial["verdict"] == "fail":

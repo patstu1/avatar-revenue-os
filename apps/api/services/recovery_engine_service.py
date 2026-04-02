@@ -35,7 +35,7 @@ async def recompute_recovery(db: AsyncSession, org_id: uuid.UUID) -> dict[str, A
         aid = None
         if inc.get("affected_id"):
             try: aid = uuid.UUID(str(inc["affected_id"]))
-            except: pass
+            except (ValueError, AttributeError): pass
         rec_inc = RecoveryIncidentV2(organization_id=org_id, incident_type=inc["incident_type"], severity=inc["severity"], affected_scope=inc["affected_scope"], affected_id=aid, detail=inc["detail"], auto_recoverable=inc["auto_recoverable"])
         db.add(rec_inc); await db.flush()
 

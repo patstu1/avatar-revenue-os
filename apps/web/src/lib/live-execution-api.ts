@@ -1,7 +1,8 @@
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://app.nvironments.com/api/v1";
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
+const API = `${BASE.replace(/\/+$/, "")}/api/v1`;
 
 function headers() {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
   return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 

@@ -1,8 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://app.nvironments.com";
-const orgId = "00000000-0000-0000-0000-000000000001";
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { credentials: "include", headers: { "Content-Type": "application/json" } }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { useAuthStore } from "@/lib/store";
+const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
 
 interface Incident { id: string; incident_type: string; severity: string; affected_scope: string; detail: string; auto_recoverable: boolean; recovery_status: string; }
 
@@ -10,8 +14,12 @@ const sevColor: Record<string, string> = { critical: "bg-red-900 text-red-300 bo
 const statusColor: Record<string, string> = { auto_recovering: "text-cyan-400", escalated: "text-red-400", pending_review: "text-yellow-400", resolved: "text-green-400", open: "text-gray-400" };
 
 export default function RecoveryPage() {
+  const user = useAuthStore((s) => s.user);
+  const orgId = user?.organization_id ?? "";
   const [incidents, setIncidents] = useState<Incident[]>([]); const [loading, setLoading] = useState(true);
-  useEffect(() => { apiFetch(`/api/v1/orgs/${orgId}/recovery/incidents`).then(setIncidents).catch(() => {}).finally(() => setLoading(false)); }, []);
+  useEffect(() => { if (!orgId) return; apiFetch(`/api/v1/orgs/${orgId}/recovery/incidents`).then(setIncidents).catch(() => {}).finally(() => setLoading(false)); }, [orgId]);
+
+  if (!orgId) return <div className="p-6"><p className="text-gray-500">Loading organization...</p></div>;
 
   return (
     <div className="p-6 space-y-6">

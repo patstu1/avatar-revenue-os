@@ -1,8 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://app.nvironments.com";
-const brandId = "00000000-0000-0000-0000-000000000001";
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { credentials: "include", headers: { "Content-Type": "application/json" } }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { useAuthStore } from "@/lib/store";
+import { brandsApi } from "@/lib/api";
+const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
 
 interface Report { id: string; target_metric: string; direction: string; magnitude: number; top_driver: string | null; total_hypotheses: number; summary: string | null; }
 interface Hypothesis { id: string; driver_type: string; driver_name: string; estimated_lift_pct: number; confidence: number; recommended_action: string | null; }
@@ -11,11 +16,28 @@ interface Credit { id: string; driver_name: string; credit_pct: number; confiden
 export default function CausalAttributionPage() {
   const [tab, setTab] = useState<"reports" | "hypotheses" | "credits">("reports");
   const [reports, setReports] = useState<Report[]>([]); const [hypotheses, setHypotheses] = useState<Hypothesis[]>([]); const [credits, setCredits] = useState<Credit[]>([]); const [loading, setLoading] = useState(true);
-  useEffect(() => { Promise.all([apiFetch(`/api/v1/brands/${brandId}/causal-attribution`), apiFetch(`/api/v1/brands/${brandId}/causal-attribution/hypotheses`), apiFetch(`/api/v1/brands/${brandId}/causal-attribution/credits`)]).then(([r, h, c]) => { setReports(r); setHypotheses(h); setCredits(c); }).catch(() => {}).finally(() => setLoading(false)); }, []);
+  const [brandId, setBrandId] = useState("");
+  const [brands, setBrands] = useState<{id: string; name: string}[]>([]);
+
+  useEffect(() => {
+    brandsApi.list().then((r) => {
+      const list = r.data ?? r;
+      setBrands(Array.isArray(list) ? list : []);
+      if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => { if (!brandId) return; Promise.all([apiFetch(`/api/v1/brands/${brandId}/causal-attribution`), apiFetch(`/api/v1/brands/${brandId}/causal-attribution/hypotheses`), apiFetch(`/api/v1/brands/${brandId}/causal-attribution/credits`)]).then(([r, h, c]) => { setReports(r); setHypotheses(h); setCredits(c); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-white">Causal Attribution</h1>
+      <div className="flex items-center gap-3">
+        <label className="text-sm text-gray-400">Brand:</label>
+        <select aria-label="Brand" className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white" value={brandId} onChange={e => setBrandId(e.target.value)}>
+          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
       <div className="flex gap-2">
         {[{key: "reports" as const, label: `Reports (${reports.length})`}, {key: "hypotheses" as const, label: `Hypotheses (${hypotheses.length})`}, {key: "credits" as const, label: `Credits (${credits.length})`}].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === t.key ? "bg-cyan-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}>{t.label}</button>

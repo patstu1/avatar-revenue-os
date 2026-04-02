@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { fetchExperiments, fetchWinners, fetchLosers, fetchPromotedRules, ActiveExperiment, PWWinner, PWLoser, PromotedRule } from "@/lib/promote-winner-api";
-
-const brandId = "00000000-0000-0000-0000-000000000001";
+import { brandsApi } from "@/lib/api";
 
 export default function ExperimentsPage() {
+  const [brandId, setBrandId] = useState("");
+  const [brands, setBrands] = useState<{id: string; name: string}[]>([]);
   const [tab, setTab] = useState<"experiments" | "winners" | "losers" | "rules">("experiments");
   const [experiments, setExperiments] = useState<ActiveExperiment[]>([]);
   const [winners, setWinners] = useState<PWWinner[]>([]);
@@ -14,12 +15,21 @@ export default function ExperimentsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    brandsApi.list().then((r) => {
+      const list = r.data ?? r;
+      setBrands(Array.isArray(list) ? list : []);
+      if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!brandId) return;
     setLoading(true);
     Promise.all([fetchExperiments(brandId), fetchWinners(brandId), fetchLosers(brandId), fetchPromotedRules(brandId)])
       .then(([e, w, l, r]) => { setExperiments(e); setWinners(w); setLosers(l); setRules(r); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [brandId]);
 
   const tabs = [
     { key: "experiments" as const, label: `Experiments (${experiments.length})` },
@@ -31,6 +41,12 @@ export default function ExperimentsPage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold text-white">Experiment / Promote-Winner Engine</h1>
+      <div className="flex items-center gap-3">
+        <label className="text-sm text-gray-400">Brand:</label>
+        <select aria-label="Select brand" className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white" value={brandId} onChange={e => setBrandId(e.target.value)}>
+          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
       <div className="flex gap-2">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t.key ? "bg-amber-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"}`}>

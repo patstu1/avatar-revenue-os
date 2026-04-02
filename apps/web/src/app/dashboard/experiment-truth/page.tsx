@@ -5,31 +5,46 @@ import {
   fetchExperimentLiveResults,
   recomputeExperimentTruth,
 } from "@/lib/live-execution-api";
-
-const BRAND = "00000000-0000-0000-0000-000000000001";
+import { brandsApi } from "@/lib/api";
 
 export default function ExperimentTruthPage() {
   const [imports, setImports] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [brandId, setBrandId] = useState("");
+  const [brands, setBrands] = useState<{id: string; name: string}[]>([]);
 
   async function load() {
     setLoading(true);
     const [imp, res] = await Promise.all([
-      fetchExperimentImports(BRAND),
-      fetchExperimentLiveResults(BRAND),
+      fetchExperimentImports(brandId),
+      fetchExperimentLiveResults(brandId),
     ]);
     setImports(imp); setResults(res);
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    brandsApi.list().then((r) => {
+      const list = r.data ?? r;
+      setBrands(Array.isArray(list) ? list : []);
+      if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => { if (brandId) load(); }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Experiment Truth</h1>
+      <div className="flex items-center gap-3 mb-4">
+        <label className="text-sm text-gray-400">Brand:</label>
+        <select aria-label="Select brand" className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white" value={brandId} onChange={e => setBrandId(e.target.value)}>
+          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
 
-      <button onClick={() => recomputeExperimentTruth(BRAND).then(load)} className="px-4 py-2 bg-purple-600 text-white rounded">
+      <button onClick={() => recomputeExperimentTruth(brandId).then(load)} className="px-4 py-2 bg-purple-600 text-white rounded">
         Reconcile Experiment Truth
       </button>
 

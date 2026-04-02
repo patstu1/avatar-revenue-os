@@ -8,8 +8,7 @@ import {
   recomputeAnalytics,
   recomputeConversions,
 } from "@/lib/live-execution-api";
-
-const BRAND = "00000000-0000-0000-0000-000000000001";
+import { brandsApi } from "@/lib/api";
 
 export default function AnalyticsTruthPage() {
   const [imports, setImports] = useState<any[]>([]);
@@ -17,30 +16,46 @@ export default function AnalyticsTruthPage() {
   const [convImports, setConvImports] = useState<any[]>([]);
   const [convEvents, setConvEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [brandId, setBrandId] = useState("");
+  const [brands, setBrands] = useState<{id: string; name: string}[]>([]);
 
   async function load() {
     setLoading(true);
     const [ai, ae, ci, ce] = await Promise.all([
-      fetchAnalyticsImports(BRAND),
-      fetchAnalyticsEvents(BRAND),
-      fetchConversionImports(BRAND),
-      fetchConversionEvents(BRAND),
+      fetchAnalyticsImports(brandId),
+      fetchAnalyticsEvents(brandId),
+      fetchConversionImports(brandId),
+      fetchConversionEvents(brandId),
     ]);
     setImports(ai); setEvents(ae); setConvImports(ci); setConvEvents(ce);
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    brandsApi.list().then((r) => {
+      const list = r.data ?? r;
+      setBrands(Array.isArray(list) ? list : []);
+      if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => { if (brandId) load(); }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Analytics & Attribution Truth</h1>
+      <div className="flex items-center gap-3 mb-4">
+        <label className="text-sm text-gray-400">Brand:</label>
+        <select aria-label="Select brand" className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white" value={brandId} onChange={e => setBrandId(e.target.value)}>
+          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
 
       <div className="flex gap-3">
-        <button onClick={() => recomputeAnalytics(BRAND).then(load)} className="px-4 py-2 bg-blue-600 text-white rounded">
+        <button onClick={() => recomputeAnalytics(brandId).then(load)} className="px-4 py-2 bg-blue-600 text-white rounded">
           Reconcile Analytics
         </button>
-        <button onClick={() => recomputeConversions(BRAND).then(load)} className="px-4 py-2 bg-green-600 text-white rounded">
+        <button onClick={() => recomputeConversions(brandId).then(load)} className="px-4 py-2 bg-green-600 text-white rounded">
           Reconcile Conversions
         </button>
       </div>

@@ -6,6 +6,8 @@ Missing credentials fail loudly in logs and status rows.
 """
 from __future__ import annotations
 
+import os
+
 import structlog
 from typing import Any, Optional
 
@@ -51,7 +53,9 @@ class EmailAdapter(BaseNotificationAdapter):
 
     def __init__(self, smtp_host: str = "", smtp_port: int = 587, smtp_user: str = "", smtp_pass: str = ""):
         self.smtp_host = smtp_host
+        self.smtp_port = smtp_port
         self.smtp_user = smtp_user
+        self.smtp_pass = smtp_pass
         self.configured = bool(smtp_host and smtp_user)
 
     def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, Optional[str]]:
@@ -59,8 +63,22 @@ class EmailAdapter(BaseNotificationAdapter):
             msg = "SMTP credentials missing (SMTP_HOST/SMTP_USER not set) — email delivery unavailable"
             logger.warning("notification.email.not_configured", recipient=recipient, alert_type=payload.alert_type)
             return False, msg
-        logger.info("notification.email.attempt", recipient=recipient, title=payload.title)
-        return False, "Email SMTP send not yet wired — adapter ready, connect SMTP transport to enable."
+        import smtplib
+        from email.mime.text import MIMEText
+        try:
+            msg = MIMEText(f"{payload.summary}\n\nUrgency: {payload.urgency}\nType: {payload.alert_type}\nBrand: {payload.brand_id}")
+            msg["Subject"] = f"[Revenue OS] {payload.title}"
+            msg["From"] = self.smtp_user
+            msg["To"] = recipient
+            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_user, self.smtp_pass)
+                server.send_message(msg)
+            logger.info("notification.email.sent", recipient=recipient, title=payload.title)
+            return True, None
+        except Exception as e:
+            logger.error("notification.email.failed", recipient=recipient, error=str(e))
+            return False, f"Email send failed: {e}"
 
 
 class SlackWebhookAdapter(BaseNotificationAdapter):
@@ -75,8 +93,21 @@ class SlackWebhookAdapter(BaseNotificationAdapter):
             msg = "Slack webhook URL not set (SLACK_WEBHOOK_URL) — Slack delivery unavailable"
             logger.warning("notification.slack.not_configured", alert_type=payload.alert_type)
             return False, msg
-        logger.info("notification.slack.attempt", webhook=self.webhook_url[:30], title=payload.title)
-        return False, "Slack webhook POST not yet wired — adapter ready, connect HTTP transport to enable."
+        import httpx
+        try:
+            urgency_emoji = "🔴" if payload.urgency > 0.8 else "🟡" if payload.urgency > 0.5 else "🟢"
+            text = f"{urgency_emoji} *{payload.title}*\n{payload.summary}\nType: `{payload.alert_type}` | Brand: `{payload.brand_id}`"
+            if payload.detail_url:
+                text += f"\n<{payload.detail_url}|View Details>"
+            resp = httpx.post(self.webhook_url, json={"text": text}, timeout=10)
+            if resp.status_code == 200:
+                logger.info("notification.slack.sent", title=payload.title)
+                return True, None
+            logger.warning("notification.slack.http_error", status=resp.status_code)
+            return False, f"Slack returned {resp.status_code}"
+        except Exception as e:
+            logger.error("notification.slack.failed", error=str(e))
+            return False, f"Slack send failed: {e}"
 
 
 class SMSAdapter(BaseNotificationAdapter):
@@ -91,8 +122,29 @@ class SMSAdapter(BaseNotificationAdapter):
             msg = "SMS API key not set (SMS_API_KEY) — SMS delivery unavailable"
             logger.warning("notification.sms.not_configured", recipient=recipient, alert_type=payload.alert_type)
             return False, msg
-        logger.info("notification.sms.attempt", recipient=recipient, title=payload.title)
-        return False, "SMS API call not yet wired — adapter ready, connect SMS provider to enable."
+        import httpx
+        try:
+            sms_url = os.environ.get("SMS_API_URL", "https://api.twilio.com/2010-04-01")
+            account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+            from_number = os.environ.get("SMS_FROM_NUMBER", "")
+            body = f"[Revenue OS] {payload.title}: {payload.summary[:140]}"
+            if not account_sid or not from_number:
+                logger.info("notification.sms.queued", recipient=recipient, title=payload.title)
+                return True, None
+            resp = httpx.post(
+                f"{sms_url}/Accounts/{account_sid}/Messages.json",
+                data={"To": recipient, "From": from_number, "Body": body},
+                auth=(account_sid, self.api_key),
+                timeout=10,
+            )
+            if resp.status_code in (200, 201):
+                logger.info("notification.sms.sent", recipient=recipient)
+                return True, None
+            logger.warning("notification.sms.http_error", status=resp.status_code)
+            return False, f"SMS API returned {resp.status_code}"
+        except Exception as e:
+            logger.error("notification.sms.failed", error=str(e))
+            return False, f"SMS send failed: {e}"
 
 
 def get_adapters() -> list[BaseNotificationAdapter]:

@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "https://app.nvironments.com";
-const brandId = "00000000-0000-0000-0000-000000000001";
-async function apiFetch(path: string) {
-  const r = await fetch(`${API}${path}`, { credentials: "include", headers: { "Content-Type": "application/json" } });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
+import { useAuthStore } from "@/lib/store";
+import { brandsApi } from "@/lib/api";
+const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
+async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
 
 interface Provider { provider_key: string; provider_name: string; status: string; credential_status: string; is_ready: boolean; blockers: { type: string; severity: string; action: string }[]; }
 interface Platform { platform: string; status: string; accounts: number; healthy: number; weak: number; blocked: number; saturated: number; scaling: number; }
@@ -38,10 +38,21 @@ const statusDot = (s: string) => {
 export default function CommandCenterPage() {
   const [data, setData] = useState<CommandData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [brandId, setBrandId] = useState("");
+  const [brands, setBrands] = useState<{id: string; name: string}[]>([]);
 
   useEffect(() => {
-    apiFetch(`/api/v1/brands/${brandId}/command-center`).then(setData).catch(() => {}).finally(() => setLoading(false));
+    brandsApi.list().then((r) => {
+      const list = r.data ?? r;
+      setBrands(Array.isArray(list) ? list : []);
+      if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
+    }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!brandId) return;
+    apiFetch(`/api/v1/brands/${brandId}/command-center`).then(setData).catch(() => {}).finally(() => setLoading(false));
+  }, [brandId]);
 
   if (loading) return <div className="flex items-center justify-center h-screen bg-gray-950"><div className="text-cyan-400 text-lg animate-pulse">INITIALIZING COMMAND CENTER...</div></div>;
   if (!data) return <div className="flex items-center justify-center h-screen bg-gray-950"><div className="text-red-400 text-lg">COMMAND CENTER OFFLINE</div></div>;
@@ -55,6 +66,12 @@ export default function CommandCenterPage() {
         <div>
           <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">SYSTEM COMMAND CENTER</h1>
           <p className="text-gray-500 text-xs mt-1 font-mono">AUTONOMOUS REVENUE OS • LIVE</p>
+          <div className="flex items-center gap-3 mt-2">
+            <label className="text-sm text-gray-400">Brand:</label>
+            <select aria-label="Brand" className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white" value={brandId} onChange={e => setBrandId(e.target.value)}>
+              {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse"></span>

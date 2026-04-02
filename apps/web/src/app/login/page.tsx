@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -40,7 +41,7 @@ export default function LoginPage() {
         const { data: tokenData } = await authApi.login(form.email, form.password);
         setAuth(user, tokenData.access_token);
       }
-      router.push('/dashboard');
+      router.push(searchParams.get('redirect') || '/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Something went wrong');
     } finally {

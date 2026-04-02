@@ -13,7 +13,7 @@ router = APIRouter()
 async def _rb(brand_id, current_user, db):
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand or brand.organization_id != current_user.organization_id:
-        raise HTTPException(status_code=404, detail="Brand not found")
+        raise HTTPException(status_code=403, detail="Brand not accessible")
 
 @router.get("/{brand_id}/landing-pages", response_model=list[LandingPageOut])
 async def list_pages(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):

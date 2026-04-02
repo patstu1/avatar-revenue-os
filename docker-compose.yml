@@ -55,11 +55,9 @@ services:
       dockerfile: infrastructure/docker/Dockerfile.api
     container_name: aro-migrate
     restart: "no"
-    command: alembic -c packages/db/alembic.ini upgrade head
+    command: python3 create_tables.py
     environment:
       DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
-    volumes:
-      - .:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -197,28 +195,6 @@ services:
     networks:
       - aro-network
 
-  # ─── Caddy Reverse Proxy (HTTPS + routing) ───────────────────────────
-  caddy:
-    image: caddy:2-alpine
-    container_name: aro-caddy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      DOMAIN: ${DOMAIN:-app.nvironments.com}
-    volumes:
-      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - aro_caddy_data:/data
-      - aro_caddy_config:/config
-    depends_on:
-      api:
-        condition: service_healthy
-      web:
-        condition: service_healthy
-    networks:
-      - aro-network
 
   # ─── Next.js Frontend ─────────────────────────────────────────────────
   web:
@@ -254,10 +230,6 @@ volumes:
     name: aro_redisdata
   aro_web_node_modules:
     name: aro_web_node_modules
-  aro_caddy_data:
-    name: aro_caddy_data
-  aro_caddy_config:
-    name: aro_caddy_config
 
 networks:
   aro-network:

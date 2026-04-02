@@ -12,7 +12,7 @@ router = APIRouter()
 
 async def _rb(bid, cu, db):
     b = (await db.execute(select(Brand).where(Brand.id == bid))).scalar_one_or_none()
-    if not b or b.organization_id != cu.organization_id: raise HTTPException(status_code=404, detail="Brand not found")
+    if not b or b.organization_id != cu.organization_id: raise HTTPException(status_code=403, detail="Brand not accessible")
 
 @router.get("/{brand_id}/offer-lab/offers", response_model=list[OLOfferOut])
 async def offers(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):

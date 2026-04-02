@@ -43,7 +43,7 @@ async def recompute_leaks(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, An
         aid = None
         if l.get("affected_id"):
             try: aid = uuid.UUID(str(l["affected_id"]))
-            except: pass
+            except (ValueError, AttributeError): pass
         ev = RevenueLeakEvent(brand_id=brand_id, report_id=report.id, leak_type=l["leak_type"], severity=l["severity"], affected_scope=l["affected_scope"], affected_id=aid, estimated_revenue_loss=l["estimated_revenue_loss"], confidence=l["confidence"], evidence_json=l.get("evidence_json", {}), next_best_action=l["next_best_action"], truth_label=l.get("truth_label", "measured"))
         db.add(ev); await db.flush()
         event_map[id(l)] = ev.id
