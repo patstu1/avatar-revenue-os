@@ -25,11 +25,20 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24
     algorithm: str = "HS256"
 
-    # AI Providers
-    openai_api_key: str = ""
-    elevenlabs_api_key: str = ""
-    tavus_api_key: str = ""
-    heygen_api_key: str = ""
+    # AI Providers — Tiered Routing Stack
+    anthropic_api_key: str = ""      # Claude: hero text / orchestrator
+    google_ai_api_key: str = ""      # Gemini Flash + Imagen 4
+    deepseek_api_key: str = ""       # DeepSeek: bulk text
+    openai_api_key: str = ""         # GPT Image 1.5 + Realtime voice
+    fal_api_key: str = ""            # Kling video + Flux images
+    runway_api_key: str = ""         # Runway Gen-4: hero video
+    heygen_api_key: str = ""         # HeyGen: primary avatar
+    did_api_key: str = ""            # D-ID: budget avatar
+    elevenlabs_api_key: str = ""     # ElevenLabs: hero voice
+    fish_audio_api_key: str = ""     # Fish Audio: standard voice
+    mistral_api_key: str = ""        # Voxtral: bulk voice
+    suno_api_key: str = ""           # Suno: music
+    tavus_api_key: str = ""          # Tavus: optional avatar
 
     # S3
     s3_endpoint_url: str = ""

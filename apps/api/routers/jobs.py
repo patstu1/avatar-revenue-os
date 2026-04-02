@@ -1,5 +1,6 @@
 """System job monitoring endpoints."""
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -17,8 +18,8 @@ cost_service = CRUDService(ProviderUsageCost)
 async def list_jobs(
     current_user: CurrentUser,
     db: DBSession,
-    brand_id: uuid.UUID | None = None,
-    status: str | None = None,
+    brand_id: Optional[uuid.UUID] = None,
+    status: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
 ):
@@ -57,7 +58,7 @@ async def list_audit_logs(
 async def list_provider_costs(
     current_user: CurrentUser,
     db: DBSession,
-    brand_id: uuid.UUID | None = None,
+    brand_id: Optional[uuid.UUID] = None,
     page: int = Query(1, ge=1),
 ):
     filters = {}

@@ -1,0 +1,84 @@
+###############################################################################
+# AI Avatar Revenue OS — Production Docker Compose Override
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+###############################################################################
+
+services:
+  api:
+    command: >
+      uvicorn apps.api.main:app
+      --host 0.0.0.0 --port 8000
+      --workers 4 --log-level ${LOG_LEVEL:-warning}
+    volumes: []
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+  worker:
+    command: >
+      celery -A workers.celery_app worker
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=4
+      -Q default,generation,publishing,analytics,qa,learning,portfolio,scale_alerts,notifications,growth_pack,revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,mxp
+    volumes: []
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+  scheduler:
+    volumes: []
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+
+  web:
+    command: npm run start
+    volumes: []
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 64M

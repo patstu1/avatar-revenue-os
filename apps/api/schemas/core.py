@@ -120,6 +120,7 @@ class CreatorAccountCreate(BaseModel):
     geography: Optional[str] = None
     monetization_focus: Optional[str] = None
     posting_capacity_per_day: int = 1
+    scale_role: Optional[str] = None  # flagship | experimental
 
 
 class CreatorAccountResponse(BaseModel):
@@ -135,6 +136,7 @@ class CreatorAccountResponse(BaseModel):
     geography: Optional[str] = None
     monetization_focus: Optional[str] = None
     posting_capacity_per_day: int = 1
+    scale_role: Optional[str] = None
     account_health: str
     total_revenue: float
     total_profit: float
@@ -143,6 +145,11 @@ class CreatorAccountResponse(BaseModel):
     ctr: float
     conversion_rate: float
     follower_count: int
+    fatigue_score: float = 0.0
+    saturation_score: float = 0.0
+    originality_drift_score: float = 0.0
+    diminishing_returns_score: float = 0.0
+    follower_growth_rate: float = 0.0
     is_active: bool
     created_at: datetime
 

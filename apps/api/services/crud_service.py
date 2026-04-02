@@ -1,4 +1,6 @@
 """Generic CRUD service for any SQLAlchemy model. Service-layer pattern."""
+from __future__ import annotations
+
 import math
 import uuid
 from typing import Any, Generic, Type, TypeVar

@@ -3,6 +3,8 @@
 Evaluates how well a specific offer matches a specific topic candidate
 for a specific brand's audience. Deterministic, rules-based.
 """
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 FORMULA_VERSION = "v1"

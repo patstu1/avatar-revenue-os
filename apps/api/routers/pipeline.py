@@ -1,5 +1,6 @@
 """Content pipeline endpoints — Phase 3 core."""
 import uuid
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
@@ -98,6 +99,19 @@ async def get_media_job(job_id: uuid.UUID, current_user: CurrentUser, db: DBSess
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.post("/media-jobs/{job_id}/finalize", response_model=ContentItemResponse)
+async def finalize_media(job_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
+    """Bridge a completed MediaJob into a ContentItem for QA/approval/publish."""
+    try:
+        item = await cps.finalize_media_job(db, job_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    await log_action(db, "content_item.created_from_media", organization_id=current_user.organization_id,
+                     brand_id=item.brand_id, user_id=current_user.id, actor_type="human",
+                     entity_type="content_item", entity_id=item.id)
+    return item
+
+
 @router.post("/content/{content_id}/run-qa", response_model=QAReportResponse)
 async def run_qa(content_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
     try:
@@ -189,7 +203,7 @@ async def get_publish_status(content_id: uuid.UUID, current_user: CurrentUser, d
 @router.get("/content/library", response_model=list[ContentItemResponse])
 async def content_library(
     brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
-    status: str | None = None, page: int = Query(1, ge=1),
+    status: Optional[str] = None, page: int = Query(1, ge=1),
 ):
     query = select(ContentItem).where(ContentItem.brand_id == brand_id)
     if status:

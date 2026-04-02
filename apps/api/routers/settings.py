@@ -37,10 +37,6 @@ class ProviderKeyStatus(BaseModel):
     key_preview: str
 
 
-class IntegrationsOverview(BaseModel):
-    providers: list[ProviderKeyStatus]
-
-
 @router.get("/organization", response_model=OrganizationSettingsResponse)
 async def get_organization_settings(current_user: AdminUser, db: DBSession):
     try:
@@ -70,8 +66,9 @@ async def update_organization_settings(
     return org
 
 
-@router.get("/integrations", response_model=IntegrationsOverview)
+@router.get("/integrations")
 async def get_integrations(current_user: AdminUser, db: DBSession):
+    import os
     from apps.api.config import get_settings
     s = get_settings()
 
@@ -82,11 +79,47 @@ async def get_integrations(current_user: AdminUser, db: DBSession):
             return "****"
         return key[:4] + "****" + key[-4:]
 
-    providers = [
-        ProviderKeyStatus(provider="openai", configured=bool(s.openai_api_key), key_preview=mask(s.openai_api_key)),
-        ProviderKeyStatus(provider="elevenlabs", configured=bool(s.elevenlabs_api_key), key_preview=mask(s.elevenlabs_api_key)),
-        ProviderKeyStatus(provider="tavus", configured=bool(s.tavus_api_key), key_preview=mask(s.tavus_api_key)),
-        ProviderKeyStatus(provider="heygen", configured=bool(s.heygen_api_key), key_preview=mask(s.heygen_api_key)),
-        ProviderKeyStatus(provider="s3", configured=bool(s.s3_access_key_id), key_preview=mask(s.s3_access_key_id)),
+    ALL_PROVIDERS = [
+        ("anthropic", "Claude Sonnet — Hero text / orchestrator", s.anthropic_api_key),
+        ("google_ai", "Gemini Flash + Imagen 4 + YouTube API", s.google_ai_api_key),
+        ("deepseek", "DeepSeek — Bulk text / scanning", s.deepseek_api_key),
+        ("openai", "GPT Image 1.5 — Hero images", s.openai_api_key),
+        ("fal", "Kling video + Flux images (via fal.ai)", s.fal_api_key),
+        ("runway", "Runway Gen-4 Turbo — Premium video", s.runway_api_key),
+        ("higgsfield", "Higgsfield Cinema Studio — Cinematic video", os.environ.get("HIGGSFIELD_API_KEY", "")),
+        ("heygen", "HeyGen — Hero avatar video", s.heygen_api_key),
+        ("did", "D-ID — Standard avatar video", s.did_api_key),
+        ("synthesia", "Synthesia — Bulk avatar video", os.environ.get("SYNTHESIA_API_KEY", "")),
+        ("elevenlabs", "ElevenLabs — Hero voice / TTS", s.elevenlabs_api_key),
+        ("fish_audio", "Fish Audio — Standard voice", s.fish_audio_api_key),
+        ("mistral", "Voxtral — Bulk voice", s.mistral_api_key),
+        ("suno", "Suno — Hero music", s.suno_api_key),
+        ("mubert", "Mubert — Standard music", os.environ.get("MUBERT_API_KEY", "")),
+        ("stability", "Stable Audio — Bulk music", os.environ.get("STABILITY_API_KEY", "")),
+        ("buffer", "Buffer — Social publishing", os.environ.get("BUFFER_API_KEY", "")),
+        ("publer", "Publer — Social publishing (failover)", os.environ.get("PUBLER_API_KEY", "")),
+        ("ayrshare", "Ayrshare — Social publishing (failover)", os.environ.get("AYRSHARE_API_KEY", "")),
+        ("stripe", "Stripe — Payment / revenue tracking", os.environ.get("STRIPE_API_KEY", "")),
+        ("impact", "Impact — Affiliate network (Spotify, Target)", os.environ.get("IMPACT_ACCOUNT_SID", "")),
+        ("shareasale", "ShareASale — Affiliate network", os.environ.get("SHAREASALE_API_TOKEN", "")),
+        ("clickbank", "ClickBank — Digital product affiliates", os.environ.get("CLICKBANK_API_KEY", "")),
+        ("amazon", "Amazon Associates — Retail affiliates", os.environ.get("AMAZON_ASSOCIATES_TAG", "")),
+        ("semrush", "Semrush — $200/sale affiliate", os.environ.get("SEMRUSH_AFFILIATE_KEY", "")),
+        ("tiktok_shop", "TikTok Shop — Product commerce", os.environ.get("TIKTOK_SHOP_ACCESS_TOKEN", "")),
+        ("etsy", "Etsy — Marketplace affiliate", os.environ.get("ETSY_AFFILIATE_API_KEY", "")),
+        ("s3", "S3 — Object storage (media)", s.s3_access_key_id),
+        ("smtp", "SMTP — Email sending", os.environ.get("SMTP_HOST", "")),
+        ("twilio", "Twilio — SMS", os.environ.get("TWILIO_ACCOUNT_SID", "")),
+        ("sentry", "Sentry — Error monitoring", s.sentry_dsn),
     ]
-    return IntegrationsOverview(providers=providers)
+
+    providers = [
+        ProviderKeyStatus(provider=name, configured=bool(key), key_preview=mask(key))
+        for name, desc, key in ALL_PROVIDERS
+    ]
+    return IntegrationsOverview(providers=providers, descriptions={name: desc for name, desc, _ in ALL_PROVIDERS})
+
+
+class IntegrationsOverview(BaseModel):
+    providers: list[ProviderKeyStatus]
+    descriptions: dict[str, str] = {}

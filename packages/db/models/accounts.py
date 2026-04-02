@@ -47,6 +47,8 @@ class CreatorAccount(Base):
     follower_growth_rate: Mapped[float] = mapped_column(Float, default=0.0)
     diminishing_returns_score: Mapped[float] = mapped_column(Float, default=0.0)
     cannibalization_risk: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    # Phase 5: flagship / experimental default portfolio roles (strings: flagship | experimental)
+    scale_role: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 

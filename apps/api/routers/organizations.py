@@ -1,5 +1,6 @@
 """Organization management endpoints."""
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
 
@@ -31,7 +32,7 @@ async def get_organization(org_id: uuid.UUID, current_user: CurrentUser, db: DBS
 
 @router.patch("/{org_id}", response_model=OrganizationResponse)
 async def update_organization(
-    org_id: uuid.UUID, current_user: CurrentUser, db: DBSession, name: str | None = None
+    org_id: uuid.UUID, current_user: CurrentUser, db: DBSession, name: Optional[str] = None
 ):
     if current_user.organization_id != org_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)

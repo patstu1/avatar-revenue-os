@@ -1,6 +1,6 @@
 """Portfolio allocations, scale recs, capital allocation, expansion, paid amp, roadmap."""
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import Boolean, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -46,9 +46,18 @@ class ScaleRecommendation(Base):
     recommended_action: Mapped[RecommendedAction] = mapped_column(
         Enum(RecommendedAction), nullable=False
     )
+    # Phase 5: canonical recommendation key (e.g. scale_current_winners_harder)
+    recommendation_key: Mapped[str] = mapped_column(String(80), default="monitor", nullable=False, index=True)
     incremental_profit_new_account: Mapped[float] = mapped_column(Float, default=0.0)
     incremental_profit_existing_push: Mapped[float] = mapped_column(Float, default=0.0)
     comparison_ratio: Mapped[float] = mapped_column(Float, default=0.0)
+    scale_readiness_score: Mapped[float] = mapped_column(Float, default=0.0)
+    cannibalization_risk_score: Mapped[float] = mapped_column(Float, default=0.0)
+    audience_segment_separation: Mapped[float] = mapped_column(Float, default=0.0)
+    expansion_confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    recommended_account_count: Mapped[int] = mapped_column(Integer, default=2)
+    weekly_action_plan: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    best_next_account: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     score_components: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     penalties: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     confidence: Mapped[ConfidenceLevel] = mapped_column(
@@ -115,6 +124,24 @@ class GeoLanguageExpansionRecommendation(Base):
     is_actioned: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class TrustSignalReport(Base):
+    """Phase 6: persisted trust & authority scoring per account (or brand rollup)."""
+
+    __tablename__ = "trust_signal_reports"
+
+    brand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
+    )
+    creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_accounts.id"), index=True
+    )
+    trust_score: Mapped[float] = mapped_column(Float, default=0.0)
+    components: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    recommendations: Mapped[Any] = mapped_column(JSONB, default=list)
+    evidence: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    confidence_label: Mapped[str] = mapped_column(String(20), default="medium")
+
+
 class PaidAmplificationJob(Base):
     __tablename__ = "paid_amplification_jobs"
 
@@ -135,6 +162,7 @@ class PaidAmplificationJob(Base):
     results: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     roi: Mapped[float] = mapped_column(Float, default=0.0)
     explanation: Mapped[Optional[str]] = mapped_column(Text)
+    is_candidate: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class RoadmapRecommendation(Base):
@@ -155,3 +183,22 @@ class RoadmapRecommendation(Base):
     inputs_used: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     is_actioned: Mapped[bool] = mapped_column(Boolean, default=False)
     rationale: Mapped[Optional[str]] = mapped_column(Text)
+
+
+class MonetizationRecommendation(Base):
+    __tablename__ = "monetization_recommendations"
+
+    brand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
+    )
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), index=True
+    )
+    recommendation_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    expected_revenue_uplift: Mapped[float] = mapped_column(Float, default=0.0)
+    expected_cost: Mapped[float] = mapped_column(Float, default=0.0)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    evidence: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    is_actioned: Mapped[bool] = mapped_column(Boolean, default=False)

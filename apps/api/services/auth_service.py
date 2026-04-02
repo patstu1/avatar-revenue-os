@@ -1,4 +1,6 @@
 """Authentication service — registration, login, password hashing."""
+from __future__ import annotations
+
 import uuid
 
 from passlib.context import CryptContext

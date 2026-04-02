@@ -245,9 +245,21 @@ async def detect_and_clone_winners(db: AsyncSession, brand_id: uuid.UUID) -> dic
     clone_jobs = []
     for w in winners:
         if w.clone_recommended:
+            cid = uuid.UUID(w.content_id)
+            dup = (
+                await db.execute(
+                    select(WinnerCloneJob.id).where(
+                        WinnerCloneJob.brand_id == brand_id,
+                        WinnerCloneJob.source_content_item_id == cid,
+                        WinnerCloneJob.status.in_([JobStatus.PENDING, JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.RETRYING]),
+                    ).limit(1)
+                )
+            ).scalar_one_or_none()
+            if dup:
+                continue
             job = WinnerCloneJob(
                 brand_id=brand_id,
-                source_content_item_id=uuid.UUID(w.content_id),
+                source_content_item_id=cid,
                 target_platforms=[{"platform": p} for p in w.clone_targets],
                 clone_strategy="adapt",
                 status=JobStatus.PENDING,
@@ -297,11 +309,50 @@ async def evaluate_suppressions(db: AsyncSession, brand_id: uuid.UUID) -> list[d
             reason = SuppressionReason.LOW_PROFIT
             detail = f"RPM ${p['rpm']:.2f} — below minimum viable threshold"
 
+        elif p["impressions"] > 5000 and p.get("engagement_rate", 0) < 0.005:
+            should_suppress = True
+            reason = SuppressionReason.FATIGUE
+            detail = f"Engagement {p.get('engagement_rate', 0):.3%} after {p['impressions']} impressions — audience fatigue"
+
+        elif p.get("saturation_score", 0) > 0.85:
+            should_suppress = True
+            reason = SuppressionReason.SATURATION
+            detail = f"Saturation score {p.get('saturation_score', 0):.2f} — niche oversaturated"
+
+        elif p.get("originality_score", 1.0) < 0.25:
+            should_suppress = True
+            reason = SuppressionReason.ORIGINALITY_LOW
+            detail = f"Originality {p.get('originality_score', 1.0):.2f} — too similar to existing content"
+
+        elif p.get("compliance_risk", False):
+            should_suppress = True
+            reason = SuppressionReason.COMPLIANCE_RISK
+            detail = "Compliance risk flagged on this content"
+
+        elif p.get("cannibalization_score", 0) > 0.75:
+            should_suppress = True
+            reason = SuppressionReason.CANNIBALIZATION
+            detail = f"Cannibalization score {p.get('cannibalization_score', 0):.2f} — competing with own content"
+
         if should_suppress and reason:
+            cid = uuid.UUID(p["content_id"])
+            already = (
+                await db.execute(
+                    select(SuppressionAction.id).where(
+                        SuppressionAction.brand_id == brand_id,
+                        SuppressionAction.target_entity_type == "content_item",
+                        SuppressionAction.target_entity_id == cid,
+                        SuppressionAction.is_lifted.is_(False),
+                    ).limit(1)
+                )
+            ).scalar_one_or_none()
+            if already:
+                continue
+
             action = SuppressionAction(
                 brand_id=brand_id,
                 target_entity_type="content_item",
-                target_entity_id=uuid.UUID(p["content_id"]),
+                target_entity_id=cid,
                 reason=reason,
                 reason_detail=detail,
                 suppressed_by="system",
@@ -314,7 +365,7 @@ async def evaluate_suppressions(db: AsyncSession, brand_id: uuid.UUID) -> list[d
                 decision_mode=DecisionMode.GUARDED_AUTO,
                 actor_type=ActorType.SYSTEM,
                 target_entity_type="content_item",
-                target_entity_id=uuid.UUID(p["content_id"]),
+                target_entity_id=cid,
                 suppression_reason=reason.value,
                 composite_score=0.0,
                 confidence=ConfidenceLevel.MEDIUM,
@@ -419,6 +470,34 @@ async def get_funnel_data(db: AsyncSession, brand_id: uuid.UUID) -> dict:
 
 
 # ── Revenue Leaks ────────────────────────────────────────────────────────────
+
+async def preview_revenue_leaks(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
+    """Read-only leak list for dashboards (no suppression persistence)."""
+    bottlenecks = await classify_bottlenecks(db, brand_id)
+    leaks = []
+    for b in bottlenecks:
+        if b["severity"] in ("critical", "warning"):
+            leaks.append({
+                "type": "bottleneck",
+                "entity": f"{b['username']} ({b['platform']})",
+                "issue": b["primary_bottleneck"],
+                "severity": b["severity"],
+                "detail": b["explanation"],
+                "actions": b["recommended_actions"],
+            })
+    perf = await get_content_performance(db, brand_id)
+    for p in perf:
+        if p["impressions"] > 500 and p["profit"] < -5:
+            leaks.append({
+                "type": "performance",
+                "entity": p["title"],
+                "issue": "low_profit",
+                "severity": "critical",
+                "detail": f"Negative profit ${p['profit']:.2f} after {p['impressions']} impressions",
+                "actions": ["Suppress or rework content", "Check offer fit"],
+            })
+    return leaks
+
 
 async def get_revenue_leaks(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
     bottlenecks = await classify_bottlenecks(db, brand_id)

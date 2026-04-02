@@ -1,10 +1,11 @@
 """Discovery, scoring, and recommendation endpoints — Phase 2 core."""
 import uuid
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
+from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.discovery import (
     ForecastResponse, NicheClusterResponse, OfferFitResponse,
     OpportunityScoreResponse, ProfitForecastResponse, RecommendationResponse,
@@ -22,7 +23,7 @@ router = APIRouter()
 
 
 @router.post("/{brand_id}/signals/ingest")
-async def ingest_signals(brand_id: uuid.UUID, body: SignalIngestRequest, current_user: OperatorUser, db: DBSession):
+async def ingest_signals(brand_id: uuid.UUID, body: SignalIngestRequest, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
     result = await ds.ingest_signals(db, brand_id, body.source_type, body.topics)
     await log_action(
         db, "signals.ingested",
@@ -53,7 +54,7 @@ async def get_niches(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSessi
 
 
 @router.post("/{brand_id}/niches/recompute", response_model=list[NicheClusterResponse])
-async def recompute_niches(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
+async def recompute_niches(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
     clusters = await ds.compute_niches(db, brand_id)
     await log_action(
         db, "niches.recomputed",
@@ -77,7 +78,7 @@ async def get_opportunities(brand_id: uuid.UUID, current_user: CurrentUser, db: 
 
 
 @router.post("/{brand_id}/opportunities/recompute")
-async def recompute_opportunities(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
+async def recompute_opportunities(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
     results = await ds.compute_opportunities(db, brand_id)
     recs = await ds.build_recommendation_queue(db, brand_id)
     await log_action(
@@ -102,7 +103,7 @@ async def get_opportunity_queue(brand_id: uuid.UUID, current_user: CurrentUser, 
 
 
 @router.post("/{brand_id}/opportunities/{topic_id}/forecast", response_model=ForecastResponse)
-async def forecast_topic(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
+async def forecast_topic(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user: CurrentUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
     try:
         result = await ds.compute_forecast_for_topic(db, brand_id, topic_id)
     except ValueError as e:
@@ -111,7 +112,7 @@ async def forecast_topic(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user:
 
 
 @router.post("/{brand_id}/opportunities/{topic_id}/offer-fit")
-async def compute_offer_fit(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
+async def compute_offer_fit(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user: CurrentUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
     try:
         results = await ds.compute_offer_fit_for_topic(db, brand_id, topic_id)
     except ValueError as e:
@@ -120,7 +121,7 @@ async def compute_offer_fit(brand_id: uuid.UUID, topic_id: uuid.UUID, current_us
 
 
 @router.post("/{brand_id}/opportunities/{topic_id}/trigger-brief")
-async def trigger_brief(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
+async def trigger_brief(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
     try:
         result = await ds.trigger_brief_for_topic(db, brand_id, topic_id)
     except ValueError as e:
@@ -145,15 +146,15 @@ async def get_trends(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSessi
 
 
 @router.post("/{brand_id}/trends/recompute")
-async def recompute_trends(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
+async def recompute_trends(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
     # Trend recompute re-classifies existing signals
     trends = (await db.execute(
         select(TrendSignal).where(TrendSignal.brand_id == brand_id)
     )).scalars().all()
     updated = 0
     for t in trends:
-        from packages.scoring.opportunity import _clamp
         new_strength = "strong" if t.velocity > 0.7 else "moderate" if t.velocity > 0.4 else "weak" if t.velocity > 0.1 else "insufficient"
+        t.strength = new_strength
         t.is_actionable = t.velocity > 0.3
         updated += 1
     await db.flush()

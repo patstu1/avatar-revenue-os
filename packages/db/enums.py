@@ -24,11 +24,20 @@ class Platform(str, enum.Enum):
     TIKTOK = "tiktok"
     INSTAGRAM = "instagram"
     TWITTER = "twitter"
+    X = "twitter"
+    REDDIT = "reddit"
     FACEBOOK = "facebook"
     LINKEDIN = "linkedin"
     PINTEREST = "pinterest"
     SNAPCHAT = "snapchat"
     THREADS = "threads"
+    EMAIL_NEWSLETTER = "email_newsletter"
+    BLOG = "blog"
+    SEO_AUTHORITY = "seo_authority"
+    TELEGRAM = "telegram"
+    DISCORD = "discord"
+    MEDIUM = "medium"
+    SUBSTACK = "substack"
 
 
 class AccountType(str, enum.Enum):
@@ -175,3 +184,81 @@ class ExperimentStatus(str, enum.Enum):
     COMPLETED = "completed"
     STOPPED = "stopped"
     INCONCLUSIVE = "inconclusive"
+
+
+# ---------------------------------------------------------------------------
+# Cinema Studio enums
+# ---------------------------------------------------------------------------
+
+class CameraShot(str, enum.Enum):
+    EXTREME_CLOSE_UP = "extreme_close_up"
+    CLOSE_UP = "close_up"
+    MEDIUM_CLOSE_UP = "medium_close_up"
+    MEDIUM = "medium"
+    MEDIUM_WIDE = "medium_wide"
+    WIDE = "wide"
+    EXTREME_WIDE = "extreme_wide"
+    OVER_SHOULDER = "over_shoulder"
+    POV = "pov"
+    AERIAL = "aerial"
+    LOW_ANGLE = "low_angle"
+    HIGH_ANGLE = "high_angle"
+    DUTCH_ANGLE = "dutch_angle"
+
+
+class CameraMovement(str, enum.Enum):
+    STATIC = "static"
+    PAN = "pan"
+    TILT = "tilt"
+    DOLLY = "dolly"
+    TRACKING = "tracking"
+    CRANE = "crane"
+    HANDHELD = "handheld"
+    STEADICAM = "steadicam"
+    ZOOM = "zoom"
+    WHIP_PAN = "whip_pan"
+    ORBIT = "orbit"
+
+
+class SceneLighting(str, enum.Enum):
+    NATURAL = "natural"
+    GOLDEN_HOUR = "golden_hour"
+    BLUE_HOUR = "blue_hour"
+    STUDIO = "studio"
+    DRAMATIC = "dramatic"
+    NEON = "neon"
+    LOW_KEY = "low_key"
+    HIGH_KEY = "high_key"
+    SILHOUETTE = "silhouette"
+    PRACTICAL = "practical"
+    MOONLIGHT = "moonlight"
+
+
+class SceneMood(str, enum.Enum):
+    CINEMATIC = "cinematic"
+    ENERGETIC = "energetic"
+    CALM = "calm"
+    MYSTERIOUS = "mysterious"
+    DARK = "dark"
+    ROMANTIC = "romantic"
+    EPIC = "epic"
+    NOSTALGIC = "nostalgic"
+    PLAYFUL = "playful"
+    TENSE = "tense"
+    DREAMY = "dreamy"
+    DOCUMENTARY = "documentary"
+
+
+class SceneStatus(str, enum.Enum):
+    DRAFT = "draft"
+    READY = "ready"
+    GENERATING = "generating"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class StudioGenerationStatus(str, enum.Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"

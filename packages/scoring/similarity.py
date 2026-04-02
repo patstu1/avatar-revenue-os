@@ -3,6 +3,8 @@
 Compares content against existing library using keyword overlap.
 Full embedding-based similarity requires AI provider credentials.
 """
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 SIMILARITY_THRESHOLD = 0.85

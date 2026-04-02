@@ -218,6 +218,11 @@ async def generate_media(db: AsyncSession, script_id: uuid.UUID) -> MediaJob:
     script.status = "media_queued"
     await db.flush()
     await db.refresh(job)
+    try:
+        from workers.generation_worker.tasks import generate_media as gen_media_task
+        gen_media_task.delay(str(script.id), str(avatar.id) if avatar else str(uuid.UUID(int=0)))
+    except Exception:
+        pass
     return job
 
 
@@ -227,6 +232,70 @@ async def get_media_job(db: AsyncSession, job_id: uuid.UUID) -> MediaJob:
     if not job:
         raise ValueError(f"MediaJob {job_id} not found")
     return job
+
+
+async def finalize_media_job(db: AsyncSession, job_id: uuid.UUID, *, output_config: Optional[dict] = None) -> ContentItem:
+    """Bridge MediaJob → ContentItem. Called when media generation completes.
+
+    Creates the ContentItem + Asset that the QA/approval/publish pipeline expects,
+    closing the gap between the generation half and the QA half of the pipeline.
+    """
+    job = await get_media_job(db, job_id)
+    if job.status != JobStatus.COMPLETED:
+        raise ValueError(f"MediaJob {job_id} is {job.status.value}, expected COMPLETED")
+
+    script = None
+    brief = None
+    if job.script_id:
+        script = (await db.execute(select(Script).where(Script.id == job.script_id))).scalar_one_or_none()
+    if script and script.brief_id:
+        brief = (await db.execute(select(ContentBrief).where(ContentBrief.id == script.brief_id))).scalar_one_or_none()
+
+    title = (script.title if script else None) or (brief.title if brief else None) or f"Content from media job {job_id}"
+    ctype = ContentType.SHORT_VIDEO
+    if brief and brief.target_platform:
+        if "long" in (brief.content_type or "").lower():
+            ctype = ContentType.LONG_VIDEO
+
+    asset = Asset(
+        brand_id=job.brand_id,
+        asset_type=job.job_type or "avatar_video",
+        file_path=output_config.get("file_path", f"media/{job_id}/output") if output_config else f"media/{job_id}/output",
+        file_size_bytes=output_config.get("file_size_bytes") if output_config else None,
+        mime_type=output_config.get("mime_type", "video/mp4") if output_config else "video/mp4",
+        duration_seconds=script.estimated_duration_seconds if script else None,
+        storage_provider=output_config.get("storage_provider", "s3") if output_config else "s3",
+        metadata_blob={"media_job_id": str(job_id), "provider": job.provider},
+    )
+    db.add(asset)
+    await db.flush()
+
+    item = ContentItem(
+        brand_id=job.brand_id,
+        brief_id=brief.id if brief else None,
+        script_id=script.id if script else None,
+        creator_account_id=brief.creator_account_id if brief else None,
+        title=title,
+        content_type=ctype,
+        video_asset_id=asset.id,
+        status="media_complete",
+        tags=brief.seo_keywords if brief else [],
+    )
+    db.add(item)
+
+    asset.content_item_id = item.id
+    job.output_asset_id = asset.id
+    if output_config:
+        job.output_config = output_config
+
+    if brief:
+        brief.status = "media_complete"
+    if script:
+        script.status = "media_complete"
+
+    await db.flush()
+    await db.refresh(item)
+    return item
 
 
 # ── Content Item + QA ────────────────────────────────────────────────────────
@@ -451,16 +520,14 @@ async def schedule_publish(
 
 
 async def publish_now(db: AsyncSession, content_id: uuid.UUID, creator_account_id: uuid.UUID, platform: str) -> PublishJob:
+    """Schedule and dispatch a publish job to the Celery publishing worker."""
     job = await schedule_publish(db, content_id, creator_account_id, platform)
-    job.status = JobStatus.RUNNING
     await db.flush()
-    job.status = JobStatus.COMPLETED
-    job.published_at = datetime.now(timezone.utc)
-    await db.flush()
-    item = await _ensure_content_item(db, content_id)
-    item.status = "published"
-    await db.flush()
-    await db.refresh(job)
+    try:
+        from workers.publishing_worker.tasks import publish_content
+        publish_content.delay(str(job.id))
+    except Exception:
+        pass
     return job
 
 

@@ -155,4 +155,11 @@ class ContentItem(Base):
     offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("offers.id")
     )
+    offer_stack: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
+    cta_type: Mapped[Optional[str]] = mapped_column(String(60))
+    offer_angle: Mapped[Optional[str]] = mapped_column(String(60))
+    hook_type: Mapped[Optional[str]] = mapped_column(String(60))
+    creative_structure: Mapped[Optional[str]] = mapped_column(String(60))
+    audience_response_profile: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    monetization_density_score: Mapped[float] = mapped_column(Float, default=0.0)
     total_cost: Mapped[float] = mapped_column(Float, default=0.0)

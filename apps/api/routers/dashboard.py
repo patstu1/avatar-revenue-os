@@ -1,9 +1,29 @@
 """Dashboard overview endpoint — reads real persisted data."""
+import uuid
+
 from sqlalchemy import func, select
 
 from apps.api.deps import CurrentUser, DBSession
 from apps.api.schemas.dashboard import DashboardOverview
-from fastapi import APIRouter
+from apps.api.schemas.growth import (
+    AudienceSegmentResponse,
+    ExpansionRecommendationsResponse,
+    GeoLanguageRecRow,
+    GrowthIntelDashboardResponse,
+    LeaksDashboardResponse,
+    LtvModelResponse,
+    PaidAmplificationResponse,
+    PaidJobRow,
+    RevenueLeakRow,
+    TrustReportRow,
+    TrustSignalsResponse,
+)
+from apps.api.schemas.revenue_intel import MonetizationRecRow, RevenueIntelDashboardResponse
+from apps.api.schemas.scale import ScaleCommandCenterResponse
+from apps.api.services import growth_service as growth_svc
+from apps.api.services import revenue_service as rev_svc
+from apps.api.services import scale_service as scale_svc
+from fastapi import APIRouter, HTTPException, Query
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
@@ -96,4 +116,92 @@ async def get_overview(current_user: CurrentUser, db: DBSession):
         active_accounts_by_platform=active_by_platform,
         recent_audit_actions=recent_audits,
         recent_jobs=recent_jobs,
+    )
+
+
+@router.get("/scale-command-center", response_model=ScaleCommandCenterResponse)
+async def get_scale_command_center(
+    current_user: CurrentUser,
+    db: DBSession,
+    brand_id: uuid.UUID = Query(..., description="Brand to render command center for"),
+):
+    brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
+    if not brand or brand.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Brand not accessible")
+    payload = await scale_svc.build_scale_command_center(db, brand_id)
+    return ScaleCommandCenterResponse(**payload)
+
+
+@router.get("/leaks", response_model=LeaksDashboardResponse)
+async def get_revenue_leaks_dashboard(
+    current_user: CurrentUser,
+    db: DBSession,
+    brand_id: uuid.UUID = Query(..., description="Brand for funnel + leak rows"),
+):
+    brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
+    if not brand or brand.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Brand not accessible")
+    data = await growth_svc.get_leak_reports_dashboard(db, brand_id)
+    return LeaksDashboardResponse(
+        brand_id=data["brand_id"],
+        funnel=data.get("funnel") or {},
+        leaks=[RevenueLeakRow(**x) for x in data["leaks"]],
+        summary=data.get("summary") or {},
+    )
+
+
+@router.get("/growth-intel", response_model=GrowthIntelDashboardResponse)
+async def get_growth_intel_full_dashboard(
+    current_user: CurrentUser,
+    db: DBSession,
+    brand_id: uuid.UUID = Query(..., description="Brand for Phase 6 growth intel (read-only)"),
+):
+    brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
+    if not brand or brand.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Brand not accessible")
+    raw = await growth_svc.get_growth_intel_dashboard(db, brand_id)
+    leaks = raw["leaks"]
+    exp = raw["expansion"]
+    paid = raw["paid_amplification"]
+    trust = raw["trust_signals"]
+    return GrowthIntelDashboardResponse(
+        brand_id=raw["brand_id"],
+        audience_segments=[AudienceSegmentResponse.model_validate(x) for x in raw["audience_segments"]],
+        ltv_models=[LtvModelResponse.model_validate(x) for x in raw["ltv_models"]],
+        leaks=LeaksDashboardResponse(
+            brand_id=leaks["brand_id"],
+            funnel=leaks.get("funnel") or {},
+            leaks=[RevenueLeakRow(**x) for x in leaks["leaks"]],
+            summary=leaks.get("summary") or {},
+        ),
+        expansion=ExpansionRecommendationsResponse(
+            geo_language_recommendations=[GeoLanguageRecRow(**g) for g in exp["geo_language_recommendations"]],
+            cross_platform_flow_plans=exp["cross_platform_flow_plans"],
+            latest_expansion_decision_id=exp.get("latest_expansion_decision_id"),
+        ),
+        paid_amplification=PaidAmplificationResponse(
+            jobs=[PaidJobRow(**j) for j in paid["jobs"]],
+            note=paid.get("note", ""),
+        ),
+        trust_signals=TrustSignalsResponse(reports=[TrustReportRow(**r) for r in trust["reports"]]),
+    )
+
+
+@router.get("/revenue-intel", response_model=RevenueIntelDashboardResponse)
+async def get_revenue_intel_dashboard(
+    current_user: CurrentUser,
+    db: DBSession,
+    brand_id: uuid.UUID = Query(..., description="Brand for revenue intelligence (read-only)"),
+):
+    brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
+    if not brand or brand.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Brand not accessible")
+    raw = await rev_svc.get_revenue_intel_dashboard(db, brand_id)
+    return RevenueIntelDashboardResponse(
+        brand_id=raw["brand_id"],
+        offer_stacks=[MonetizationRecRow(**r) for r in raw["offer_stacks"]],
+        funnel_paths=[MonetizationRecRow(**r) for r in raw["funnel_paths"]],
+        owned_audience=[MonetizationRecRow(**r) for r in raw["owned_audience"]],
+        productization=[MonetizationRecRow(**r) for r in raw["productization"]],
+        density_improvements=[MonetizationRecRow(**r) for r in raw["density_improvements"]],
     )

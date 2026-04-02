@@ -2,6 +2,8 @@
 
 This is the core Phase 2 service. All engines compose here. No business logic in routers.
 """
+from __future__ import annotations
+
 import uuid
 from datetime import datetime, timezone
 from typing import Optional

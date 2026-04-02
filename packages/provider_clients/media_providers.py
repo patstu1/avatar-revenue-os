@@ -3,6 +3,8 @@
 Each adapter implements request/response models, retry logic, error persistence,
 and fallback routing. Actual API calls require live credentials.
 """
+from __future__ import annotations
+
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -201,7 +203,7 @@ class FallbackAdapter(MediaProviderAdapter):
         return "fallback"
 
     def capabilities(self) -> dict:
-        return {"template_video": True, "static_image": True}
+        return {"template_video": True, "static_image": True, "studio_video": True}
 
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         return MediaResponse(
@@ -216,12 +218,114 @@ class FallbackAdapter(MediaProviderAdapter):
         return MediaResponse(provider="fallback", status=ProviderStatus.SUCCESS, provider_job_id=provider_job_id)
 
 
+class RunwayAdapter(MediaProviderAdapter):
+    """Runway Gen-4 Turbo: Hero cinematic video generation."""
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key
+    def provider_name(self) -> str:
+        return "runway"
+    def capabilities(self) -> dict:
+        return {"cinematic_video": True, "hero_video": True, "studio_video": True, "max_duration_sec": 15}
+    async def submit_job(self, request: MediaRequest) -> MediaResponse:
+        if not self.api_key:
+            return MediaResponse(provider="runway", status=ProviderStatus.FAILED, error_message="Runway API key not configured")
+        return MediaResponse(provider="runway", status=ProviderStatus.PENDING, provider_job_id=f"rw_{uuid.uuid4().hex[:12]}")
+    async def check_status(self, provider_job_id: str) -> MediaResponse:
+        return MediaResponse(provider="runway", status=ProviderStatus.PENDING, provider_job_id=provider_job_id)
+
+
+class KlingAdapter(MediaProviderAdapter):
+    """Kling AI: Bulk social video generation via fal.ai."""
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key
+    def provider_name(self) -> str:
+        return "kling"
+    def capabilities(self) -> dict:
+        return {"social_video": True, "b_roll": True, "studio_video": True, "max_duration_sec": 30}
+    async def submit_job(self, request: MediaRequest) -> MediaResponse:
+        if not self.api_key:
+            return MediaResponse(provider="kling", status=ProviderStatus.FAILED, error_message="FAL API key not configured")
+        return MediaResponse(provider="kling", status=ProviderStatus.PENDING, provider_job_id=f"kl_{uuid.uuid4().hex[:12]}")
+    async def check_status(self, provider_job_id: str) -> MediaResponse:
+        return MediaResponse(provider="kling", status=ProviderStatus.PENDING, provider_job_id=provider_job_id)
+
+
+class DIDAdapter(MediaProviderAdapter):
+    """D-ID: Budget avatar video generation."""
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key
+    def provider_name(self) -> str:
+        return "did"
+    def capabilities(self) -> dict:
+        return {"avatar_video": True, "lip_sync": True, "budget_avatar": True, "studio_video": True}
+    async def submit_job(self, request: MediaRequest) -> MediaResponse:
+        if not self.api_key:
+            return MediaResponse(provider="did", status=ProviderStatus.FAILED, error_message="D-ID API key not configured")
+        return MediaResponse(provider="did", status=ProviderStatus.PENDING, provider_job_id=f"did_{uuid.uuid4().hex[:12]}")
+    async def check_status(self, provider_job_id: str) -> MediaResponse:
+        return MediaResponse(provider="did", status=ProviderStatus.PENDING, provider_job_id=provider_job_id)
+
+
+class FishAudioAdapter(MediaProviderAdapter):
+    """Fish Audio: Standard-tier TTS, #1 on TTS-Arena."""
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key
+    def provider_name(self) -> str:
+        return "fish_audio"
+    def capabilities(self) -> dict:
+        return {"voice_synthesis": True, "bulk_voiceover": True, "output_formats": ["mp3", "wav"]}
+    async def submit_job(self, request: MediaRequest) -> MediaResponse:
+        if not self.api_key:
+            return MediaResponse(provider="fish_audio", status=ProviderStatus.FAILED, error_message="Fish Audio API key not configured")
+        return MediaResponse(provider="fish_audio", status=ProviderStatus.PENDING, provider_job_id=f"fa_{uuid.uuid4().hex[:12]}")
+    async def check_status(self, provider_job_id: str) -> MediaResponse:
+        return MediaResponse(provider="fish_audio", status=ProviderStatus.PENDING, provider_job_id=provider_job_id)
+
+
+class VoxtralAdapter(MediaProviderAdapter):
+    """Voxtral TTS (Mistral): Ultra-budget voice synthesis."""
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key
+    def provider_name(self) -> str:
+        return "voxtral"
+    def capabilities(self) -> dict:
+        return {"voice_synthesis": True, "voice_cloning": True, "ultra_budget": True}
+    async def submit_job(self, request: MediaRequest) -> MediaResponse:
+        if not self.api_key:
+            return MediaResponse(provider="voxtral", status=ProviderStatus.FAILED, error_message="Mistral API key not configured")
+        return MediaResponse(provider="voxtral", status=ProviderStatus.PENDING, provider_job_id=f"vx_{uuid.uuid4().hex[:12]}")
+    async def check_status(self, provider_job_id: str) -> MediaResponse:
+        return MediaResponse(provider="voxtral", status=ProviderStatus.PENDING, provider_job_id=provider_job_id)
+
+
+class SunoAdapter(MediaProviderAdapter):
+    """Suno: AI music generation."""
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key
+    def provider_name(self) -> str:
+        return "suno"
+    def capabilities(self) -> dict:
+        return {"music_generation": True, "background_tracks": True}
+    async def submit_job(self, request: MediaRequest) -> MediaResponse:
+        if not self.api_key:
+            return MediaResponse(provider="suno", status=ProviderStatus.FAILED, error_message="Suno API key not configured")
+        return MediaResponse(provider="suno", status=ProviderStatus.PENDING, provider_job_id=f"sn_{uuid.uuid4().hex[:12]}")
+    async def check_status(self, provider_job_id: str) -> MediaResponse:
+        return MediaResponse(provider="suno", status=ProviderStatus.PENDING, provider_job_id=provider_job_id)
+
+
 PROVIDER_REGISTRY: dict[str, type[MediaProviderAdapter]] = {
     "tavus": TavusAdapter,
     "elevenlabs": ElevenLabsAdapter,
     "openai_realtime": OpenAIRealtimeAdapter,
     "heygen": HeyGenLiveAvatarAdapter,
     "fallback": FallbackAdapter,
+    "runway": RunwayAdapter,
+    "kling": KlingAdapter,
+    "did": DIDAdapter,
+    "fish_audio": FishAudioAdapter,
+    "voxtral": VoxtralAdapter,
+    "suno": SunoAdapter,
 }
 
 
