@@ -38,8 +38,8 @@ export default function BufferStatusPage() {
               <div>Status: <span className="font-semibold">{String(lastResult.status || '—')}</span></div>
               <div>Detail: <span className="font-semibold">{String(lastResult.detail || '—')}</span></div>
             </div>
-            {lastResult.counts && (
-              <pre className="mt-4 text-xs bg-muted p-3 rounded overflow-auto">{JSON.stringify(lastResult.counts, null, 2)}</pre>
+            {lastResult.counts != null && (
+              <pre className="mt-4 text-xs bg-muted p-3 rounded overflow-auto">{JSON.stringify(lastResult.counts as Record<string, unknown>, null, 2)}</pre>
             )}
           </CardContent>
         </Card>

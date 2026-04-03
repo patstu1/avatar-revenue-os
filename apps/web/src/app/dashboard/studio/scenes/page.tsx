@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { brandsApi } from '@/lib/api';
 import { cinemaStudioApi } from '@/lib/cinema-studio-api';
 import Link from 'next/link';

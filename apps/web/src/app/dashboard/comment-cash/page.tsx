@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { brandsApi } from '@/lib/api';
 import { phase7Api } from '@/lib/phase7-api';
-import { MessageSquareDollar } from 'lucide-react';
+import { MessageSquareDot } from 'lucide-react';
 
 type Brand = { id: string; name: string };
 
@@ -64,7 +64,7 @@ export default function CommentCashPage() {
     <div className="space-y-8 pb-16">
       <div>
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <MessageSquareDollar className="text-brand-500" size={28} aria-hidden />
+          <MessageSquareDot className="text-brand-500" size={28} aria-hidden />
           Comment-to-Cash
         </h1>
         <p className="text-gray-400 mt-1 max-w-3xl">

@@ -10,7 +10,7 @@ import {
   DollarSign,
   Handshake,
   Map,
-  MessageSquareDollar,
+  MessageSquareDot,
   PiggyBank,
   RefreshCw,
   Shield,
@@ -361,7 +361,7 @@ export default function OperatorCockpitPage() {
           {commentCashSignals.length > 0 && (
             <div className="card">
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <MessageSquareDollar size={18} className="text-brand-400" aria-hidden />
+                <MessageSquareDot size={18} className="text-brand-400" aria-hidden />
                 Comment-to-Cash Signals
               </h2>
               <ul className="space-y-2">
