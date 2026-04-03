@@ -92,7 +92,7 @@ class BufferAdapter(DistributorAdapter):
         return await BufferClient().get_profiles()
 
 
-class PubierAdapter(DistributorAdapter):
+class PublerAdapter(DistributorAdapter):
     name = "publer"
 
     def is_configured(self) -> bool:
@@ -154,7 +154,7 @@ class AyrshareAdapter(DistributorAdapter):
 
 _ADAPTER_REGISTRY: list[DistributorAdapter] = [
     BufferAdapter(),
-    PubierAdapter(),
+    PublerAdapter(),
     AyrshareAdapter(),
 ]
 

@@ -5,8 +5,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
+import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.autonomous_phase_a import (
@@ -348,7 +351,7 @@ def _account_to_engine_dict(
                 created = created.replace(tzinfo=timezone.utc)
             age_days = max(1, (_utc_now() - created).days)
         except Exception:
-            pass
+            logger.debug("account_age_calculation_failed", exc_info=True)
 
     maturity_state = "stable"
     health_score = 0.5
@@ -731,7 +734,7 @@ async def rebuild_auto_queue(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
             try:
                 target_acct_id = uuid.UUID(qi["target_account_id"])
             except (ValueError, TypeError):
-                pass
+                logger.debug("queue_item_target_account_id_parse_failed", exc_info=True)
 
         signal_event_id = None
         for evt in actionable_rows:

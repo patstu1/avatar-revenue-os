@@ -1,36 +1,30 @@
-'use client';
-
+import type { Metadata } from 'next';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/lib/store';
+import Providers from '@/components/Providers';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: 'AI Avatar Revenue OS',
+  description: 'Autonomous content monetization platform',
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 30_000,
-        retry: 1,
-      },
-    },
-  }));
-
-  const hydrate = useAuthStore((s) => s.hydrate);
-
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
-
   return (
-    <html lang="en" className="dark">
-      <head>
-        <title>AI Avatar Revenue OS</title>
-        <meta name="description" content="Autonomous content monetization platform" />
-      </head>
-      <body className="min-h-screen">
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} dark`}>
+      <body className="min-h-screen font-sans">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

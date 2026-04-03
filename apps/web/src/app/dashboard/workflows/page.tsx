@@ -1,12 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch } from "@/lib/api";
 
 interface WFDef { id: string; workflow_name: string; workflow_type: string; scope_type: string; }
 interface WFInst { id: string; resource_type: string; current_step_order: number; status: string; }
@@ -20,7 +15,7 @@ export default function WorkflowsPage() {
   const [defs, setDefs] = useState<WFDef[]>([]); const [insts, setInsts] = useState<WFInst[]>([]); const [loading, setLoading] = useState(true);
   useEffect(() => {
     if (!orgId) return;
-    Promise.all([apiFetch(`/api/v1/orgs/${orgId}/workflows`), apiFetch(`/api/v1/orgs/${orgId}/workflow-instances`)])
+    Promise.all([apiFetch<any>(`/api/v1/orgs/${orgId}/workflows`), apiFetch<any>(`/api/v1/orgs/${orgId}/workflow-instances`)])
       .then(([d, i]) => { setDefs(d); setInsts(i); }).catch(() => {}).finally(() => setLoading(false));
   }, [orgId]);
 

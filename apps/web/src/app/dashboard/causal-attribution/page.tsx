@@ -1,13 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-import { brandsApi } from "@/lib/api";
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface Report { id: string; target_metric: string; direction: string; magnitude: number; top_driver: string | null; total_hypotheses: number; summary: string | null; }
 interface Hypothesis { id: string; driver_type: string; driver_name: string; estimated_lift_pct: number; confidence: number; recommended_action: string | null; }
@@ -27,7 +21,7 @@ export default function CausalAttributionPage() {
     }).catch(() => {});
   }, []);
 
-  useEffect(() => { if (!brandId) return; Promise.all([apiFetch(`/api/v1/brands/${brandId}/causal-attribution`), apiFetch(`/api/v1/brands/${brandId}/causal-attribution/hypotheses`), apiFetch(`/api/v1/brands/${brandId}/causal-attribution/credits`)]).then(([r, h, c]) => { setReports(r); setHypotheses(h); setCredits(c); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
+  useEffect(() => { if (!brandId) return; Promise.all([apiFetch<any>(`/api/v1/brands/${brandId}/causal-attribution`), apiFetch<any>(`/api/v1/brands/${brandId}/causal-attribution/hypotheses`), apiFetch<any>(`/api/v1/brands/${brandId}/causal-attribution/credits`)]).then(([r, h, c]) => { setReports(r); setHypotheses(h); setCredits(c); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">

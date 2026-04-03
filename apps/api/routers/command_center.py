@@ -14,4 +14,9 @@ async def command_center(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand or brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brand not accessible")
-    return await get_command_center_data(db, brand_id)
+    try:
+        return await get_command_center_data(db, brand_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")

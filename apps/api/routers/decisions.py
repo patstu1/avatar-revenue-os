@@ -3,7 +3,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query
 
-from apps.api.deps import CurrentUser, DBSession
+from apps.api.deps import CurrentUser, DBSession, require_brand_access
 from apps.api.services.crud_service import CRUDService
 from packages.db.models.decisions import (
     AllocationDecision,
@@ -37,6 +37,7 @@ async def list_decisions(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
 ):
+    await require_brand_access(brand_id, current_user, db)
     service = DECISION_SERVICES.get(decision_type)
     if service is None:
         raise HTTPException(status_code=400, detail=f"Unknown decision type: {decision_type}")
@@ -44,7 +45,8 @@ async def list_decisions(
 
 
 @router.get("/{decision_type}/{decision_id}")
-async def get_decision(decision_type: str, decision_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
+async def get_decision(decision_type: str, decision_id: uuid.UUID, brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
+    await require_brand_access(brand_id, current_user, db)
     service = DECISION_SERVICES.get(decision_type)
     if service is None:
         raise HTTPException(status_code=400, detail=f"Unknown decision type: {decision_type}")

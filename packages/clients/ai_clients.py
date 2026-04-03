@@ -98,7 +98,8 @@ class ClaudeContentClient:
     async def generate(self, prompt: str, max_tokens: int = 2048, system: str = "") -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("ANTHROPIC_API_KEY not configured")
-        try:
+
+        async def _call() -> dict[str, Any]:
             import anthropic
             client = anthropic.AsyncAnthropic(api_key=self.api_key)
             t0 = time.monotonic()
@@ -119,9 +120,8 @@ class ClaudeContentClient:
                 "output_tokens": response.usage.output_tokens,
                 "elapsed_ms": elapsed_ms,
             })
-        except Exception as e:
-            logger.exception("claude.content_generation_error")
-            return _fail(f"Claude generation error: {e}")
+
+        return await _request_with_retry(_call, "Claude")
 
 
 # ── TEXT: Gemini Flash ────────────────────────────────────────────
@@ -138,20 +138,24 @@ class GeminiFlashClient:
     async def generate(self, prompt: str, max_tokens: int = 1024, system: str = "") -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("GOOGLE_AI_API_KEY not configured")
-        payload: dict[str, Any] = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": max_tokens}}
-        if system:
-            payload["systemInstruction"] = {"parts": [{"text": system}]}
-        try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                resp = await c.post(f"{self.BASE_URL}/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}", json=payload)
-        except httpx.HTTPError as e:
-            return _fail(f"Gemini Flash network error: {e}")
-        err = await _handle_response(resp, "Gemini Flash")
-        if err:
-            return err
-        body = resp.json()
-        text = body.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-        return _ok({"text": text, "model": "gemini-2.5-flash"}, resp.status_code)
+
+        async def _call() -> dict[str, Any]:
+            payload: dict[str, Any] = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": max_tokens}}
+            if system:
+                payload["systemInstruction"] = {"parts": [{"text": system}]}
+            try:
+                async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+                    resp = await c.post(f"{self.BASE_URL}/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}", json=payload)
+            except httpx.HTTPError as e:
+                return _fail(f"Gemini Flash network error: {e}")
+            err = await _handle_response(resp, "Gemini Flash")
+            if err:
+                return err
+            body = resp.json()
+            text = body.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            return _ok({"text": text, "model": "gemini-2.5-flash"}, resp.status_code)
+
+        return await _request_with_retry(_call, "Gemini Flash")
 
 
 # ── TEXT: DeepSeek ────────────────────────────────────────────────
@@ -168,18 +172,22 @@ class DeepSeekClient:
     async def generate(self, prompt: str, max_tokens: int = 1024) -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("DEEPSEEK_API_KEY not configured")
-        payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tokens}
-        try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                resp = await c.post(f"{self.BASE_URL}/v1/chat/completions", json=payload, headers={"Authorization": f"Bearer {self.api_key}"})
-        except httpx.HTTPError as e:
-            return _fail(f"DeepSeek network error: {e}")
-        err = await _handle_response(resp, "DeepSeek")
-        if err:
-            return err
-        body = resp.json()
-        text = body.get("choices", [{}])[0].get("message", {}).get("content", "")
-        return _ok({"text": text, "model": "deepseek-chat"}, resp.status_code)
+
+        async def _call() -> dict[str, Any]:
+            payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tokens}
+            try:
+                async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+                    resp = await c.post(f"{self.BASE_URL}/v1/chat/completions", json=payload, headers={"Authorization": f"Bearer {self.api_key}"})
+            except httpx.HTTPError as e:
+                return _fail(f"DeepSeek network error: {e}")
+            err = await _handle_response(resp, "DeepSeek")
+            if err:
+                return err
+            body = resp.json()
+            text = body.get("choices", [{}])[0].get("message", {}).get("content", "")
+            return _ok({"text": text, "model": "deepseek-chat"}, resp.status_code)
+
+        return await _request_with_retry(_call, "DeepSeek")
 
 
 # ── IMAGE: GPT Image 1.5 ─────────────────────────────────────────
@@ -196,18 +204,22 @@ class GPTImageClient:
     async def generate(self, prompt: str, size: str = "1024x1024", quality: str = "high") -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("OPENAI_API_KEY not configured")
-        payload = {"model": "gpt-image-1", "prompt": prompt, "n": 1, "size": size, "quality": quality}
-        try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                resp = await c.post(f"{self.BASE_URL}/v1/images/generations", json=payload, headers={"Authorization": f"Bearer {self.api_key}"})
-        except httpx.HTTPError as e:
-            return _fail(f"GPT Image network error: {e}")
-        err = await _handle_response(resp, "GPT Image")
-        if err:
-            return err
-        body = resp.json()
-        url = body.get("data", [{}])[0].get("url", "")
-        return _ok({"image_url": url, "model": "gpt-image-1"}, resp.status_code)
+
+        async def _call() -> dict[str, Any]:
+            payload = {"model": "gpt-image-1", "prompt": prompt, "n": 1, "size": size, "quality": quality}
+            try:
+                async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
+                    resp = await c.post(f"{self.BASE_URL}/v1/images/generations", json=payload, headers={"Authorization": f"Bearer {self.api_key}"})
+            except httpx.HTTPError as e:
+                return _fail(f"GPT Image network error: {e}")
+            err = await _handle_response(resp, "GPT Image")
+            if err:
+                return err
+            body = resp.json()
+            url = body.get("data", [{}])[0].get("url", "")
+            return _ok({"image_url": url, "model": "gpt-image-1"}, resp.status_code)
+
+        return await _request_with_retry(_call, "GPT Image")
 
 
 # ── IMAGE: Imagen 4 Fast ─────────────────────────────────────────
@@ -571,17 +583,21 @@ class ElevenLabsClient:
         """Generate speech audio from text. Returns audio URL or bytes."""
         if not self._is_configured():
             return _blocked("ELEVENLABS_API_KEY not configured")
-        payload = {"text": text, "model_id": model_id, "voice_settings": {"stability": stability, "similarity_boost": similarity_boost}}
-        try:
-            async with httpx.AsyncClient(timeout=_POLL_TIMEOUT) as c:
-                resp = await c.post(f"{self.BASE_URL}/v1/text-to-speech/{voice_id}", json=payload, headers={"xi-api-key": self.api_key, "Content-Type": "application/json", "Accept": "audio/mpeg"})
-        except httpx.HTTPError as e:
-            return _fail(f"ElevenLabs network error: {e}")
-        if resp.status_code != 200:
-            err = await _handle_response(resp, "ElevenLabs")
-            if err:
-                return err
-        return _ok({"audio_bytes": resp.content, "content_type": "audio/mpeg", "voice_id": voice_id, "model": model_id, "char_count": len(text)})
+
+        async def _call() -> dict[str, Any]:
+            payload = {"text": text, "model_id": model_id, "voice_settings": {"stability": stability, "similarity_boost": similarity_boost}}
+            try:
+                async with httpx.AsyncClient(timeout=_POLL_TIMEOUT) as c:
+                    resp = await c.post(f"{self.BASE_URL}/v1/text-to-speech/{voice_id}", json=payload, headers={"xi-api-key": self.api_key, "Content-Type": "application/json", "Accept": "audio/mpeg"})
+            except httpx.HTTPError as e:
+                return _fail(f"ElevenLabs network error: {e}")
+            if resp.status_code != 200:
+                err = await _handle_response(resp, "ElevenLabs")
+                if err:
+                    return err
+            return _ok({"audio_bytes": resp.content, "content_type": "audio/mpeg", "voice_id": voice_id, "model": model_id, "char_count": len(text)})
+
+        return await _request_with_retry(_call, "ElevenLabs")
 
     async def get_voices(self) -> dict[str, Any]:
         if not self._is_configured():

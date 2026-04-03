@@ -37,14 +37,23 @@ async def list_offers(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSess
 @router.get("/{offer_id}", response_model=OfferResponse)
 async def get_offer(offer_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     try:
-        return await offer_service.get_or_404(db, offer_id)
+        offer = await offer_service.get_or_404(db, offer_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Offer not found")
+    brand = await brand_service.get(db, offer.brand_id)
+    if not brand or brand.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Offer not accessible")
+    return offer
 
 
 @router.delete("/{offer_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_offer(offer_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
-    deleted = await offer_service.delete(db, offer_id)
-    if not deleted:
+    try:
+        offer = await offer_service.get_or_404(db, offer_id)
+    except ValueError:
         raise HTTPException(status_code=404)
+    brand = await brand_service.get(db, offer.brand_id)
+    if not brand or brand.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Offer not accessible")
+    await offer_service.delete(db, offer_id)
     await log_action(db, "offer.deleted", organization_id=current_user.organization_id, user_id=current_user.id, actor_type="human", entity_type="offer", entity_id=offer_id)

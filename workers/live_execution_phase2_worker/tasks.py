@@ -9,6 +9,7 @@ from celery import shared_task
 from sqlalchemy import select
 
 from packages.db.models.core import Brand
+from workers.base_task import TrackedTask
 from packages.db.session import async_session_factory
 
 logger = logging.getLogger(__name__)
@@ -75,10 +76,27 @@ async def _do_recompute_buffer_execution_truth(brand_id: uuid.UUID) -> None:
 
 
 async def _do_detect_stale_buffer_jobs(brand_id: uuid.UUID) -> None:
-    from apps.api.services.live_execution_phase2_service import recompute_buffer_execution_truth
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+    from packages.db.models.buffer_distribution import BufferPublishJob
+    from packages.scoring.live_execution_phase2_engine import detect_stale_jobs
 
     async with async_session_factory() as db:
-        await recompute_buffer_execution_truth(db, brand_id)
+        q = select(BufferPublishJob).where(
+            BufferPublishJob.brand_id == brand_id,
+            BufferPublishJob.is_active.is_(True),
+            BufferPublishJob.status.in_(["pending", "processing", "queued", "submitted"]),
+        )
+        jobs = list((await db.execute(q)).scalars().all())
+        now = datetime.now(timezone.utc)
+        for job in jobs:
+            hours = 0.0
+            if job.created_at:
+                dt = job.created_at if job.created_at.tzinfo else job.created_at.replace(tzinfo=timezone.utc)
+                hours = (now - dt).total_seconds() / 3600.0
+            result = detect_stale_jobs(hours, job.status or "unknown")
+            if result["is_stale"]:
+                job.status = "stale"
         await db.commit()
 
 
@@ -90,49 +108,49 @@ async def _do_recompute_buffer_capabilities(brand_id: uuid.UUID) -> None:
         await db.commit()
 
 
-@shared_task(name="workers.live_execution_phase2_worker.tasks.process_webhook_events")
+@shared_task(name="workers.live_execution_phase2_worker.tasks.process_webhook_events", base=TrackedTask)
 def process_webhook_events():
     asyncio.run(_run_all_brands(_do_recompute_event_ingestions))
     return "done"
 
 
-@shared_task(name="workers.live_execution_phase2_worker.tasks.process_sequence_triggers")
+@shared_task(name="workers.live_execution_phase2_worker.tasks.process_sequence_triggers", base=TrackedTask)
 def process_sequence_triggers():
     asyncio.run(_run_all_brands(_do_process_sequence_triggers))
     return "done"
 
 
-@shared_task(name="workers.live_execution_phase2_worker.tasks.run_payment_connector_sync")
+@shared_task(name="workers.live_execution_phase2_worker.tasks.run_payment_connector_sync", base=TrackedTask)
 def run_payment_connector_sync():
     asyncio.run(_run_all_brands(_do_run_payment_sync))
     return "done"
 
 
-@shared_task(name="workers.live_execution_phase2_worker.tasks.run_analytics_auto_pull")
+@shared_task(name="workers.live_execution_phase2_worker.tasks.run_analytics_auto_pull", base=TrackedTask)
 def run_analytics_auto_pull():
     asyncio.run(_run_all_brands(_do_run_analytics_sync))
     return "done"
 
 
-@shared_task(name="workers.live_execution_phase2_worker.tasks.run_ad_reporting_import")
+@shared_task(name="workers.live_execution_phase2_worker.tasks.run_ad_reporting_import", base=TrackedTask)
 def run_ad_reporting_import():
     asyncio.run(_run_all_brands(_do_run_ad_import))
     return "done"
 
 
-@shared_task(name="workers.live_execution_phase2_worker.tasks.recompute_buffer_execution_truth")
+@shared_task(name="workers.live_execution_phase2_worker.tasks.recompute_buffer_execution_truth", base=TrackedTask)
 def recompute_buffer_execution_truth():
     asyncio.run(_run_all_brands(_do_recompute_buffer_execution_truth))
     return "done"
 
 
-@shared_task(name="workers.live_execution_phase2_worker.tasks.detect_stale_buffer_jobs")
+@shared_task(name="workers.live_execution_phase2_worker.tasks.detect_stale_buffer_jobs", base=TrackedTask)
 def detect_stale_buffer_jobs():
     asyncio.run(_run_all_brands(_do_detect_stale_buffer_jobs))
     return "done"
 
 
-@shared_task(name="workers.live_execution_phase2_worker.tasks.recompute_buffer_capabilities")
+@shared_task(name="workers.live_execution_phase2_worker.tasks.recompute_buffer_capabilities", base=TrackedTask)
 def recompute_buffer_capabilities():
     asyncio.run(_run_all_brands(_do_recompute_buffer_capabilities))
     return "done"

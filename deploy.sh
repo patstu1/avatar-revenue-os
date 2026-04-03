@@ -4,84 +4,78 @@ set -e
 echo "=== AI Avatar Content OS — Server Deploy ==="
 cd "$(dirname "$0")"
 
-# ── 1. Create .env if missing ──
+# ── 1. Verify .env exists (NEVER generate secrets in this script) ──
 if [ ! -f .env ]; then
-  echo "[1/5] Creating production .env ..."
-  cat > .env << 'DOTENV'
-COMPOSE_PROJECT_NAME=avatar-revenue-os
-
-POSTGRES_USER=avataros
-POSTGRES_PASSWORD=avataros_dev_2026
-POSTGRES_DB=avatar_revenue_os
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-DATABASE_URL=postgresql+asyncpg://avataros:avataros_dev_2026@postgres:5432/avatar_revenue_os
-DATABASE_URL_SYNC=postgresql://avataros:avataros_dev_2026@postgres:5432/avatar_revenue_os
-
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_URL=redis://redis:6379/0
-CELERY_BROKER_URL=redis://redis:6379/1
-CELERY_RESULT_BACKEND=redis://redis:6379/2
-
-API_HOST=0.0.0.0
-API_PORT=8000
-API_SECRET_KEY=avataros-prod-8f3a9c2d7e1b4056a3f9d8c2e71b0456
-API_CORS_ORIGINS=["https://app.nvironments.com","http://web:3000"]
-API_ENV=production
-
-NEXT_PUBLIC_API_URL=https://api.nvironments.com
-
-S3_ENDPOINT_URL=
-S3_ACCESS_KEY_ID=
-S3_SECRET_ACCESS_KEY=
-S3_BUCKET_NAME=avatar-revenue-os
-S3_REGION=us-east-1
-
-OPENAI_API_KEY=
-ELEVENLABS_API_KEY=
-TAVUS_API_KEY=
-HEYGEN_API_KEY=
-
-SENTRY_DSN=
-LOG_LEVEL=info
-DOTENV
-  echo "    .env created."
-else
-  echo "[1/5] .env already exists, keeping it."
+  echo "[ERROR] .env file not found."
+  echo "  Copy .env.example to .env and fill in production secrets before deploying."
+  echo "  NEVER hardcode secrets in deploy scripts."
+  exit 1
 fi
 
-# ── 2. Stop everything ──
-echo "[2/5] Stopping existing containers ..."
-docker compose down --remove-orphans 2>/dev/null || true
+source .env
+
+# Validate critical env vars are set and not defaults
+if [ -z "$API_SECRET_KEY" ] || echo "$API_SECRET_KEY" | grep -qi "changeme"; then
+  echo "[ERROR] API_SECRET_KEY is missing or contains 'changeme'. Set a strong random key in .env."
+  exit 1
+fi
+if [ -z "$POSTGRES_PASSWORD" ] || echo "$POSTGRES_PASSWORD" | grep -qi "changeme"; then
+  echo "[ERROR] POSTGRES_PASSWORD is missing or contains 'changeme'. Set a strong password in .env."
+  exit 1
+fi
+
+echo "[1/6] .env validated."
+
+# ── 2. Tag current images for rollback ──
+echo "[2/6] Tagging current images for rollback ..."
+docker compose images --quiet 2>/dev/null | while read img; do
+  docker tag "$img" "${img}:rollback" 2>/dev/null || true
+done
 
 # ── 3. Build images ──
-echo "[3/5] Building images ..."
-docker compose build
+echo "[3/6] Building images ..."
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 
 # ── 4. Start postgres+redis, then sync schema directly ──
-echo "[4/5] Starting database and syncing schema ..."
+echo "[4/6] Starting database and syncing schema ..."
 docker compose up -d postgres redis
 
 echo "    Waiting for postgres ..."
 for i in $(seq 1 30); do
-  if docker compose exec -T postgres pg_isready -U avataros -d avatar_revenue_os > /dev/null 2>&1; then
+  if docker compose exec -T postgres pg_isready -U "${POSTGRES_USER:-avataros}" -d "${POSTGRES_DB:-avatar_revenue_os}" > /dev/null 2>&1; then
     echo "    Postgres ready."
     break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo "[ERROR] Postgres did not become ready in 60s. Aborting."
+    exit 1
   fi
   sleep 2
 done
 
-echo "    Running schema sync (bypassing Alembic) ..."
-docker compose run --rm -e DATABASE_URL_SYNC="${DATABASE_URL_SYNC:-postgresql://avataros:avataros_dev_2026@postgres:5432/avatar_revenue_os}" --no-deps api python scripts/ensure_schema.py
+echo "    Running schema sync ..."
+docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm --no-deps api python scripts/ensure_schema.py
 
-# ── 5. Start all services (skip migrate since we already synced) ──
-echo "[5/5] Starting all services ..."
-docker compose up -d --no-deps api web worker scheduler
+# ── 5. Rolling restart (start new before stopping old) ──
+echo "[5/6] Starting all services ..."
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api web worker scheduler caddy
 
-echo ""
-echo "    Waiting for services ..."
-sleep 15
+# ── 6. Health verification ──
+echo "[6/6] Verifying health ..."
+MAX_RETRIES=15
+for i in $(seq 1 $MAX_RETRIES); do
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/healthz 2>/dev/null || echo "000")
+  if [ "$HTTP_CODE" = "200" ]; then
+    echo "    API healthy (HTTP 200)."
+    break
+  fi
+  if [ "$i" -eq "$MAX_RETRIES" ]; then
+    echo "[WARNING] API health check failed after ${MAX_RETRIES} attempts (HTTP $HTTP_CODE)."
+    echo "  Check logs: docker compose logs api"
+    echo "  To rollback: docker compose down && docker compose up -d (with rollback images)"
+  fi
+  sleep 3
+done
 
 docker compose ps
 

@@ -29,6 +29,7 @@ export default function LoginPage() {
       if (isLogin) {
         const { data } = await authApi.login(form.email, form.password);
         localStorage.setItem('aro_token', data.access_token);
+        document.cookie = `aro_token=${data.access_token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
         const { data: user } = await authApi.me();
         setAuth(user, data.access_token);
       } else {

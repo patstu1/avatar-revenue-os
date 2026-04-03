@@ -64,15 +64,19 @@ with engine.connect() as conn:
             conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN "{column}" {col_type}'))
             conn.commit()
 
-    # Stamp alembic to head
+    # Stamp alembic to head only if table is empty or freshly created
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS alembic_version (
             version_num VARCHAR(32) NOT NULL
         )
     """))
-    conn.execute(text("DELETE FROM alembic_version"))
-    conn.execute(text("INSERT INTO alembic_version VALUES ('b6587e9c03b5')"))
     conn.commit()
-    print("Alembic stamped to head (b6587e9c03b5).")
+    existing_version = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).scalar()
+    if existing_version:
+        print(f"Alembic already stamped at '{existing_version}' — skipping overwrite.")
+    else:
+        conn.execute(text("INSERT INTO alembic_version VALUES ('004_monetization')"))
+        conn.commit()
+        print("Alembic stamped to head (004_monetization) — fresh database.")
 
 print("Schema sync complete.")

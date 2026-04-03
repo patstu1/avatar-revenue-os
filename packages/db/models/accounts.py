@@ -1,8 +1,9 @@
 """Creator account and portfolio models."""
 import uuid
+from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,7 +15,7 @@ class CreatorAccount(Base):
     __tablename__ = "creator_accounts"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True
     )
     avatar_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("avatars.id"), index=True
@@ -47,8 +48,14 @@ class CreatorAccount(Base):
     follower_growth_rate: Mapped[float] = mapped_column(Float, default=0.0)
     diminishing_returns_score: Mapped[float] = mapped_column(Float, default=0.0)
     cannibalization_risk: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
-    # Phase 5: flagship / experimental default portfolio roles (strings: flagship | experimental)
     scale_role: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
+
+    platform_access_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    platform_refresh_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    platform_token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    platform_external_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    credential_status: Mapped[str] = mapped_column(String(30), default="not_connected")
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 

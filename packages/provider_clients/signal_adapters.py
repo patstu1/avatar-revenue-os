@@ -3,10 +3,15 @@
 Adapters ingest signals from various sources into the unified topic_candidates
 and trend_signals tables. Each adapter implements the SignalAdapter protocol.
 """
+import asyncio
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+
+import structlog
+
+logger = structlog.get_logger()
 
 
 @dataclass
@@ -127,29 +132,180 @@ class ManualSeedAdapter(SignalAdapter):
         return signals
 
 
+def _run_async(coro):
+    """Run an async coroutine from synchronous context."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result(timeout=60)
+    return asyncio.run(coro)
+
+
 class GenericTrendFeedAdapter(SignalAdapter):
-    """Interface for external trend data feeds (Google Trends, social APIs, etc).
-    Concrete implementations require live API credentials.
+    """Fetches external trend data from Google Trends, YouTube, Reddit, and TikTok.
+
+    Delegates to real trend clients from packages.clients.trend_data_clients.
     """
 
     def adapter_name(self) -> str:
         return "trend_feed"
 
     def fetch_signals(self, brand_id: uuid.UUID, config: dict) -> list[RawSignal]:
-        # Placeholder — concrete implementations need API credentials
-        return []
+        from packages.clients.trend_data_clients import (
+            GoogleTrendsClient, YouTubeTrendingClient,
+            RedditTrendingClient, TikTokTrendClient,
+        )
+
+        signals: list[RawSignal] = []
+        sources = config.get("sources", ["google_trends", "youtube", "reddit", "tiktok"])
+        region = config.get("region", "US")
+        query = config.get("query", "")
+        subreddits = config.get("subreddits", ["popular"])
+
+        async def _gather() -> list[RawSignal]:
+            collected: list[RawSignal] = []
+
+            if "google_trends" in sources:
+                try:
+                    result = await GoogleTrendsClient().fetch_daily_trends(geo=region)
+                    if result.get("success"):
+                        for item in result.get("data", []):
+                            collected.append(RawSignal(
+                                source_type="google_trends",
+                                title=item.get("title", ""),
+                                keywords=item.get("related_queries", []),
+                                platform="google",
+                                volume=int(item.get("traffic", "0").replace(",", "").replace("+", "") or 0),
+                                metadata=item,
+                            ))
+                except Exception as e:
+                    logger.warning("trend_feed.google_trends_error", error=str(e))
+
+            if "youtube" in sources:
+                try:
+                    client = YouTubeTrendingClient()
+                    result = await client.fetch_trending(region=region)
+                    if result.get("success"):
+                        for item in result.get("data", []):
+                            collected.append(RawSignal(
+                                source_type="youtube_trending",
+                                title=item.get("title", ""),
+                                keywords=item.get("tags", []),
+                                platform="youtube",
+                                volume=item.get("views", 0),
+                                metadata=item,
+                            ))
+                except Exception as e:
+                    logger.warning("trend_feed.youtube_error", error=str(e))
+
+            if "reddit" in sources:
+                try:
+                    result = await RedditTrendingClient().fetch_niche_trends(subreddits)
+                    if result.get("success"):
+                        for item in result.get("data", []):
+                            collected.append(RawSignal(
+                                source_type="reddit_rising",
+                                title=item.get("title", ""),
+                                keywords=[],
+                                platform="reddit",
+                                volume=item.get("score", 0),
+                                velocity=float(item.get("num_comments", 0)),
+                                metadata=item,
+                            ))
+                except Exception as e:
+                    logger.warning("trend_feed.reddit_error", error=str(e))
+
+            if "tiktok" in sources:
+                try:
+                    result = await TikTokTrendClient().fetch_trending_hashtags(country=region)
+                    if result.get("success"):
+                        for item in result.get("data", []):
+                            collected.append(RawSignal(
+                                source_type="tiktok_hashtag",
+                                title=item.get("hashtag", ""),
+                                keywords=[item.get("hashtag", "")],
+                                platform="tiktok",
+                                volume=item.get("video_count", 0),
+                                metadata=item,
+                            ))
+                except Exception as e:
+                    logger.warning("trend_feed.tiktok_error", error=str(e))
+
+            return collected
+
+        try:
+            signals = _run_async(_gather())
+        except Exception as e:
+            logger.error("trend_feed.fetch_failed", error=str(e))
+
+        return signals
 
 
 class GenericOfferInventoryAdapter(SignalAdapter):
-    """Interface for external offer/affiliate network feeds.
-    Concrete implementations require network API credentials.
+    """Fetches external offer/affiliate inventory from Impact and ShareASale.
+
+    Delegates to real affiliate network clients from packages.clients.affiliate_network_clients.
     """
 
     def adapter_name(self) -> str:
         return "offer_inventory"
 
     def fetch_signals(self, brand_id: uuid.UUID, config: dict) -> list[RawSignal]:
-        return []
+        from packages.clients.affiliate_network_clients import ImpactClient, ShareASaleClient
+
+        signals: list[RawSignal] = []
+
+        async def _gather() -> list[RawSignal]:
+            collected: list[RawSignal] = []
+
+            try:
+                impact = ImpactClient()
+                result = await impact.fetch_offers()
+                if result.get("success"):
+                    for offer in result.get("data", []):
+                        name = offer.get("Name", "") or offer.get("name", "")
+                        collected.append(RawSignal(
+                            source_type="impact_offer",
+                            title=name or "Impact campaign",
+                            keywords=[],
+                            category="affiliate",
+                            platform="impact",
+                            buyer_intent_score=0.6,
+                            metadata=offer,
+                        ))
+            except Exception as e:
+                logger.warning("offer_inventory.impact_error", error=str(e))
+
+            try:
+                sas = ShareASaleClient()
+                result = await sas.fetch_merchants()
+                if result.get("success"):
+                    data = result.get("data", "")
+                    if isinstance(data, str) and data.strip():
+                        collected.append(RawSignal(
+                            source_type="shareasale_merchants",
+                            title="ShareASale merchant listings",
+                            keywords=[],
+                            category="affiliate",
+                            platform="shareasale",
+                            buyer_intent_score=0.5,
+                            metadata={"raw_response": data[:2000]},
+                        ))
+            except Exception as e:
+                logger.warning("offer_inventory.shareasale_error", error=str(e))
+
+            return collected
+
+        try:
+            signals = _run_async(_gather())
+        except Exception as e:
+            logger.error("offer_inventory.fetch_failed", error=str(e))
+
+        return signals
 
 
 ADAPTER_REGISTRY: dict[str, type[SignalAdapter]] = {

@@ -1,15 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { brandsApi } from "@/lib/api";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface Offer { id: string; product_name: string; epc: number; conversion_rate: number; commission_rate: number; trust_score: number; rank_score: number; truth_label: string; }
 interface Leak { id: string; leak_type: string; severity: string; revenue_loss_estimate: number; recommendation: string; }
@@ -29,7 +20,7 @@ export default function AffiliateIntelPage() {
     }).catch(() => {});
   }, []);
 
-  useEffect(() => { if (!brandId) return; setLoading(true); Promise.all([apiFetch(`/api/v1/brands/${brandId}/affiliate-offers`), apiFetch(`/api/v1/brands/${brandId}/affiliate-leaks`), apiFetch(`/api/v1/brands/${brandId}/affiliate-blockers`)]).then(([o, l, b]) => { setOffers(o); setLeaks(l); setBlockers(b); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
+  useEffect(() => { if (!brandId) return; setLoading(true); Promise.all([apiFetch<any>(`/api/v1/brands/${brandId}/affiliate-offers`), apiFetch<any>(`/api/v1/brands/${brandId}/affiliate-leaks`), apiFetch<any>(`/api/v1/brands/${brandId}/affiliate-blockers`)]).then(([o, l, b]) => { setOffers(o); setLeaks(l); setBlockers(b); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">

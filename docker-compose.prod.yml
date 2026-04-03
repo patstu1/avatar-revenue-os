@@ -23,7 +23,7 @@ services:
     command: >
       celery -A workers.celery_app worker
       --loglevel=${LOG_LEVEL:-warning} --concurrency=4
-      -Q default,generation,publishing,analytics,qa,learning,portfolio,scale_alerts,notifications,growth_pack,revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,mxp
+      -Q default,generation,publishing,analytics,qa,learning,portfolio,scale_alerts,notifications,growth_pack,revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,mxp,creator_revenue,brain,buffer,autonomous_phase_d,cinema_studio,monetization
     volumes: []
     deploy:
       resources:

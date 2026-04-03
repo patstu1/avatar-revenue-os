@@ -154,13 +154,13 @@ def test_router_get_distributor_status():
 
 
 def test_router_platform_support():
-    from packages.clients.distributor_router import BufferAdapter, PubierAdapter, AyrshareAdapter
+    from packages.clients.distributor_router import BufferAdapter, PublerAdapter, AyrshareAdapter
     buffer = BufferAdapter()
     assert buffer.supports_platform("youtube")
     assert not buffer.supports_platform("reddit")
     assert not buffer.supports_platform("pinterest")
 
-    publer = PubierAdapter()
+    publer = PublerAdapter()
     assert publer.supports_platform("reddit")
     assert publer.supports_platform("pinterest")
 

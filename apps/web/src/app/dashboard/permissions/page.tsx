@@ -1,12 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch } from "@/lib/api";
 
 interface MatrixEntry { id: string; action_class: string; autonomy_mode: string; approval_role: string | null; override_allowed: boolean; override_role: string | null; explanation: string | null; }
 
@@ -16,7 +11,7 @@ export default function PermissionsPage() {
   const user = useAuthStore((s) => s.user);
   const orgId = user?.organization_id ?? "";
   const [matrix, setMatrix] = useState<MatrixEntry[]>([]); const [loading, setLoading] = useState(true);
-  useEffect(() => { if (!orgId) return; apiFetch(`/api/v1/orgs/${orgId}/permissions/matrix`).then(setMatrix).catch(() => {}).finally(() => setLoading(false)); }, [orgId]);
+  useEffect(() => { if (!orgId) return; apiFetch<any>(`/api/v1/orgs/${orgId}/permissions/matrix`).then(setMatrix).catch(() => {}).finally(() => setLoading(false)); }, [orgId]);
 
   if (!orgId) return <div className="p-6"><p className="text-gray-500">Loading organization...</p></div>;
 

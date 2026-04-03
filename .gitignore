@@ -51,6 +51,9 @@ packages/db/alembic/versions/__pycache__/
 *.log
 logs/
 
+# Celery
+celerybeat-schedule
+
 # Storage
 uploads/
 media/

@@ -3,6 +3,7 @@ import asyncio, logging
 from celery import shared_task
 from sqlalchemy import select
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ async def _run():
             logger.exception("opportunity cost ranking failed for brand %s", bid)
     return count
 
-@shared_task(name="workers.opportunity_cost_worker.tasks.recompute_opportunity_cost")
+@shared_task(name="workers.opportunity_cost_worker.tasks.recompute_opportunity_cost", base=TrackedTask)
 def recompute_opportunity_cost():
     count = asyncio.run(_run())
     return {"status": "completed", "brands_processed": count}

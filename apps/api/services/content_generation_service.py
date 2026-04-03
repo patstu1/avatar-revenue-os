@@ -10,8 +10,12 @@ import hashlib
 import logging
 import uuid
 from typing import Any, Optional
+
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.content import ContentBrief, Script, ContentItem
 from packages.db.models.core import Brand
@@ -135,7 +139,7 @@ def _build_generation_prompt(brief: ContentBrief, brand: Optional[Brand], metada
                 parts.append(f"\nAFFILIATE PRODUCT: {product['name']} (${product['payout']} commission)")
                 parts.append(f"Recommend {product['name']} naturally. Credentials not yet configured for auto-link.")
         except Exception:
-            pass
+            logger.debug("affiliate_link_enrichment_failed", exc_info=True)
 
     wins = metadata.get("winning_patterns", [])
     if wins:
@@ -208,7 +212,7 @@ def _build_generation_prompt(brief: ContentBrief, brand: Optional[Brand], metada
         if hashtags:
             parts.append(f"\n{build_hashtag_prompt_section(hashtags, platform)}")
     except Exception:
-        pass
+        logger.debug("hashtag_enrichment_failed", exc_info=True)
 
     return "\n".join(parts)
 
@@ -289,7 +293,7 @@ async def _enrich_brief_metadata(db: AsyncSession, brief: ContentBrief) -> dict:
             if niche_losses:
                 meta["niche_losing_patterns"] = niche_losses[:3]
     except Exception:
-        pass
+        logger.debug("niche_aggregate_pattern_enrichment_failed", exc_info=True)
 
     if brief.creator_account_id:
         try:
@@ -333,7 +337,7 @@ async def _enrich_brief_metadata(db: AsyncSession, brief: ContentBrief) -> dict:
                     meta["voice_id"] = personality.voice_id
                     meta["voice_provider"] = personality.voice_provider
         except Exception:
-            pass
+            logger.debug("personality_enrichment_failed", exc_info=True)
 
     if brief.creator_account_id:
         from packages.db.models.autonomous_farm import AccountVoiceProfile

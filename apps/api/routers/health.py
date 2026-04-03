@@ -1,5 +1,5 @@
 """Health check endpoints — liveness, readiness, and deep checks."""
-import redis
+from redis.asyncio import Redis as AsyncRedis
 from fastapi import APIRouter
 from sqlalchemy import text
 
@@ -28,16 +28,18 @@ async def readyz(db: DBSession):
 
     try:
         settings = get_settings()
-        r = redis.Redis.from_url(settings.redis_url, socket_connect_timeout=2)
-        r.ping()
+        r = AsyncRedis.from_url(settings.redis_url, socket_connect_timeout=2)
+        await r.ping()
+        await r.aclose()
         checks["redis"] = True
     except Exception:
         checks["redis"] = False
 
     try:
         settings = get_settings()
-        r_celery = redis.Redis.from_url(settings.redis_url.replace("/0", "/1"), socket_connect_timeout=2)
-        worker_keys = r_celery.keys("celery-task-meta-*") or []
+        r_celery = AsyncRedis.from_url(settings.celery_broker_url, socket_connect_timeout=2)
+        await r_celery.ping()
+        await r_celery.aclose()
         checks["celery_broker"] = True
     except Exception:
         checks["celery_broker"] = False

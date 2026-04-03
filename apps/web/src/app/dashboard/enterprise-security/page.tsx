@@ -1,12 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch } from "@/lib/api";
 
 interface Role { id: string; role_name: string; role_level: number; description: string | null; is_system: boolean; }
 interface Compliance { id: string; framework: string; control_id: string; control_name: string; status: string; }
@@ -20,9 +15,9 @@ export default function EnterpriseSecurityPage() {
   useEffect(() => {
     if (!orgId) return;
     Promise.all([
-      apiFetch(`/api/v1/orgs/${orgId}/security/roles`),
-      apiFetch(`/api/v1/orgs/${orgId}/security/compliance`),
-      apiFetch(`/api/v1/orgs/${orgId}/security/audit-trail`),
+      apiFetch<any>(`/api/v1/orgs/${orgId}/security/roles`),
+      apiFetch<any>(`/api/v1/orgs/${orgId}/security/compliance`),
+      apiFetch<any>(`/api/v1/orgs/${orgId}/security/audit-trail`),
     ]).then(([r, c, a]) => { setRoles(r); setCompliance(c); setAudit(a); }).catch(() => {}).finally(() => setLoading(false));
   }, [orgId]);
 

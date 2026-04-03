@@ -1,7 +1,6 @@
 import os
 from collections.abc import AsyncGenerator
 from functools import lru_cache
-
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -30,28 +29,38 @@ DATABASE_URL, DATABASE_URL_SYNC = _resolve_db_urls()
 _POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 _MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "5"))
 
-async_engine = create_async_engine(
-    DATABASE_URL,
-    echo=os.getenv("API_ENV") == "development",
-    pool_size=_POOL_SIZE,
-    max_overflow=_MAX_OVERFLOW,
-    pool_pre_ping=True,
-    pool_recycle=300,
-)
+_async_engine = None
+_async_session_factory = None
 
-async_session_factory = async_sessionmaker(
-    async_engine, class_=AsyncSession, expire_on_commit=False
-)
+
+def get_async_engine():
+    global _async_engine
+    if _async_engine is None:
+        _async_engine = create_async_engine(
+            DATABASE_URL,
+            echo=os.getenv("API_ENV") == "development",
+            pool_size=_POOL_SIZE,
+            max_overflow=_MAX_OVERFLOW,
+            pool_pre_ping=True,
+            pool_timeout=30,
+            pool_recycle=300,
+        )
+    return _async_engine
+
+
+def get_async_session_factory():
+    global _async_session_factory
+    if _async_session_factory is None:
+        _async_session_factory = async_sessionmaker(
+            get_async_engine(), class_=AsyncSession, expire_on_commit=False
+        )
+    return _async_session_factory
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+    factory = get_async_session_factory()
+    async with factory() as session:
+        yield session
 
 
 @lru_cache(maxsize=1)
@@ -66,4 +75,10 @@ def get_sync_engine():
     )
 
 
-AsyncSessionLocal = async_session_factory
+def __getattr__(name: str):
+    """Lazy module-level attribute access (PEP 562) for backward compatibility."""
+    if name == "async_engine":
+        return get_async_engine()
+    if name in ("async_session_factory", "AsyncSessionLocal"):
+        return get_async_session_factory()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

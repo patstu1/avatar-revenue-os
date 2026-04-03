@@ -1,4 +1,4 @@
-"""Request-scoped middleware: correlation IDs, structured logging, global error handling."""
+"""Request-scoped middleware: correlation IDs, structured logging, security headers, global error handling."""
 from __future__ import annotations
 
 import time
@@ -13,6 +13,48 @@ from starlette.middleware.base import BaseHTTPMiddleware
 logger = structlog.get_logger()
 
 REQUEST_ID_HEADER = "X-Request-ID"
+
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+}
+
+
+class RedirectHostFixMiddleware(BaseHTTPMiddleware):
+    """Rewrites Location headers on 307/308 redirects to use the client's
+    original Host header instead of the internal Docker hostname.
+
+    When behind a reverse proxy (Caddy/Next.js), FastAPI's redirect_slashes
+    emits Location headers like ``http://api:8000/...`` which are unreachable
+    from browsers. This middleware replaces the authority with the value from
+    the incoming Host header so the redirect works end-to-end.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if response.status_code in (307, 308) and "location" in response.headers:
+            from urllib.parse import urlparse, urlunparse
+            loc = response.headers["location"]
+            parsed = urlparse(loc)
+            client_host = request.headers.get("host", "")
+            scheme = request.headers.get("x-forwarded-proto", request.scope.get("scheme", "http"))
+            fixed = urlunparse((scheme, client_host, parsed.path, parsed.params, parsed.query, parsed.fragment))
+            response.headers["location"] = fixed
+        return response
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Adds standard security headers to every response."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        for header, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(header, value)
+        return response
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):

@@ -126,7 +126,12 @@ async def run_qa(content_id: uuid.UUID, current_user: OperatorUser, db: DBSessio
 
 @router.get("/qa/{content_id}")
 async def get_qa(content_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
-    result = await cps.get_qa_report(db, content_id)
+    try:
+        result = await cps.get_qa_report(db, content_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
     qa = result["qa_report"]
     sim = result["similarity_report"]
     return {
@@ -197,7 +202,12 @@ async def publish_now(content_id: uuid.UUID, body: ScheduleRequest, current_user
 
 @router.get("/content/{content_id}/publish-status", response_model=list[PublishJobResponse])
 async def get_publish_status(content_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
-    return await cps.get_publish_status(db, content_id)
+    try:
+        return await cps.get_publish_status(db, content_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.get("/content/library", response_model=list[ContentItemResponse])

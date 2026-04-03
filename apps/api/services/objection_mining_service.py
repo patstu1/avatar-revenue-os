@@ -3,8 +3,11 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.learning import CommentIngestion
 from packages.db.models.objection_mining import (
@@ -45,13 +48,13 @@ async def recompute_objections(db: AsyncSession, brand_id: uuid.UUID) -> dict[st
             try:
                 ci_id = uuid.UUID(str(s["content_item_id"]))
             except (ValueError, TypeError):
-                pass
+                logger.debug("objection_signal_content_id_parse_failed", exc_info=True)
         oid = None
         if s.get("offer_id"):
             try:
                 oid = uuid.UUID(str(s["offer_id"]))
             except (ValueError, TypeError):
-                pass
+                logger.debug("objection_signal_offer_id_parse_failed", exc_info=True)
         db.add(ObjectionSignal(
             brand_id=brand_id,
             source_type=s["source_type"],

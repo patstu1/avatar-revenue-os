@@ -1,15 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { brandsApi } from "@/lib/api";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface Opp { id: string; topic: string; source: string; velocity_score: number; novelty_score: number; revenue_potential_score: number; opportunity_type: string; recommended_platform: string | null; recommended_content_form: string | null; recommended_monetization: string | null; urgency: number; confidence: number; composite_score: number; truth_label: string; status: string; }
 
@@ -28,7 +19,7 @@ export default function TrendViralPage() {
     }).catch(() => {});
   }, []);
 
-  useEffect(() => { if (!brandId) return; setLoading(true); apiFetch(`/api/v1/brands/${brandId}/viral-opportunities`).then(setOpps).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
+  useEffect(() => { if (!brandId) return; setLoading(true); apiFetch<any>(`/api/v1/brands/${brandId}/viral-opportunities`).then(setOpps).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">

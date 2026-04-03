@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { accountsApi, brandsApi } from '@/lib/api';
-import { Users, Plus, Trash2, Globe, BarChart3 } from 'lucide-react';
+import { Users, Plus, Trash2, Globe, BarChart3, Link2, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 
 const PLATFORMS = [
   'youtube',
@@ -41,6 +41,9 @@ type CreatorAccount = {
   geography?: string | null;
   monetization_focus?: string | null;
   posting_capacity_per_day?: number | null;
+  credential_status?: string;
+  last_synced_at?: string | null;
+  platform_external_id?: string | null;
 };
 
 function formatMoney(n: number) {
@@ -110,6 +113,9 @@ export default function AccountsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState<AccountForm>(defaultForm);
   const [deleteTarget, setDeleteTarget] = useState<CreatorAccount | null>(null);
+  const [connectTarget, setConnectTarget] = useState<CreatorAccount | null>(null);
+  const [credForm, setCredForm] = useState({ platform_access_token: '', platform_refresh_token: '', platform_external_id: '' });
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   const {
     data: brands,
@@ -154,6 +160,27 @@ export default function AccountsPage() {
       setDeleteTarget(null);
     },
   });
+
+  const credentialMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, string> }) => accountsApi.updateCredentials(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts', selectedBrandId] });
+      setConnectTarget(null);
+      setCredForm({ platform_access_token: '', platform_refresh_token: '', platform_external_id: '' });
+    },
+  });
+
+  const handleSync = async (accountId: string) => {
+    setSyncingId(accountId);
+    try {
+      await accountsApi.triggerSync(accountId);
+      queryClient.invalidateQueries({ queryKey: ['accounts', selectedBrandId] });
+    } catch {
+      /* error handled by UI */
+    } finally {
+      setSyncingId(null);
+    }
+  };
 
   const selectedBrand = useMemo(
     () => brands?.find((b: { id: string }) => String(b.id) === selectedBrandId),
@@ -476,12 +503,130 @@ export default function AccountsPage() {
                   {account.monetization_focus && <span>Monetization: {account.monetization_focus}.</span>}
                 </p>
               )}
-              <div className="mt-4 pt-3 border-t border-gray-800 text-xs text-gray-500">
-                Added {new Date(account.created_at).toLocaleDateString()}
-                {!account.is_active && <span className="ml-2 text-amber-500">Inactive</span>}
+              <div className="mt-4 pt-3 border-t border-gray-800 flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs text-gray-500">
+                  Added {new Date(account.created_at).toLocaleDateString()}
+                  {!account.is_active && <span className="ml-2 text-amber-500">Inactive</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  {account.credential_status === 'connected' ? (
+                    <>
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                        <CheckCircle2 size={12} aria-hidden /> Connected
+                      </span>
+                      {account.last_synced_at && (
+                        <span className="text-xs text-gray-500">
+                          Synced {new Date(account.last_synced_at).toLocaleDateString()}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-gray-800 text-cyan-400 rounded hover:bg-gray-700 transition-colors"
+                        disabled={syncingId === account.id}
+                        onClick={() => handleSync(account.id)}
+                      >
+                        <RefreshCw size={12} className={syncingId === account.id ? 'animate-spin' : ''} aria-hidden />
+                        {syncingId === account.id ? 'Syncing…' : 'Sync'}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-brand-600 text-white rounded hover:bg-brand-500 transition-colors"
+                      onClick={() => {
+                        setConnectTarget(account);
+                        setCredForm({ platform_access_token: '', platform_refresh_token: '', platform_external_id: '' });
+                      }}
+                    >
+                      <Link2 size={12} aria-hidden />
+                      Connect Platform
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {connectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" role="dialog" aria-modal="true">
+          <div className="card max-w-lg w-full border-gray-700 shadow-xl">
+            <h3 className="text-lg font-semibold text-white mb-1">Connect {connectTarget.platform}</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Enter API credentials for <span className="text-white font-medium">{connectTarget.platform_username}</span> on {connectTarget.platform}.
+            </p>
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                credentialMutation.mutate({
+                  id: connectTarget.id,
+                  data: {
+                    platform_access_token: credForm.platform_access_token.trim(),
+                    platform_refresh_token: credForm.platform_refresh_token.trim() || undefined,
+                    platform_external_id: credForm.platform_external_id.trim() || undefined,
+                  } as Record<string, string>,
+                });
+              }}
+            >
+              <div>
+                <label htmlFor="cred-access-token" className="stat-label block mb-1.5">
+                  API Key / Access Token *
+                </label>
+                <input
+                  id="cred-access-token"
+                  type="password"
+                  className="input-field w-full"
+                  placeholder="Paste your API key or OAuth access token"
+                  value={credForm.platform_access_token}
+                  onChange={(e) => setCredForm({ ...credForm, platform_access_token: e.target.value })}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {connectTarget.platform === 'youtube' && 'YouTube: Use an OAuth2 access token from Google Cloud Console.'}
+                  {connectTarget.platform === 'tiktok' && 'TikTok: Use your TikTok for Developers API key.'}
+                  {!['youtube', 'tiktok'].includes(connectTarget.platform) && `Enter your ${connectTarget.platform} API credentials.`}
+                </p>
+              </div>
+              <div>
+                <label htmlFor="cred-refresh-token" className="stat-label block mb-1.5">
+                  Refresh Token (optional)
+                </label>
+                <input
+                  id="cred-refresh-token"
+                  type="password"
+                  className="input-field w-full"
+                  placeholder="OAuth refresh token (if applicable)"
+                  value={credForm.platform_refresh_token}
+                  onChange={(e) => setCredForm({ ...credForm, platform_refresh_token: e.target.value })}
+                />
+              </div>
+              <div>
+                <label htmlFor="cred-external-id" className="stat-label block mb-1.5">
+                  Channel / Page ID (optional)
+                </label>
+                <input
+                  id="cred-external-id"
+                  className="input-field w-full"
+                  placeholder="e.g. UC... for YouTube channel ID"
+                  value={credForm.platform_external_id}
+                  onChange={(e) => setCredForm({ ...credForm, platform_external_id: e.target.value })}
+                />
+              </div>
+              {credentialMutation.isError && (
+                <p className="text-sm text-red-400">{errMessage(credentialMutation.error)}</p>
+              )}
+              <div className="flex flex-wrap gap-2 justify-end pt-2">
+                <button type="button" className="btn-secondary" onClick={() => setConnectTarget(null)} disabled={credentialMutation.isPending}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={credentialMutation.isPending || !credForm.platform_access_token.trim()}>
+                  {credentialMutation.isPending ? 'Saving…' : 'Save Credentials'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

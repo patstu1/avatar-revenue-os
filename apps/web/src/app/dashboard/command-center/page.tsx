@@ -1,13 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-import { brandsApi } from "@/lib/api";
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { brandsApi, apiFetch } from "@/lib/api";
 
 interface Provider { provider_key: string; provider_name: string; status: string; credential_status: string; is_ready: boolean; blockers: { type: string; severity: string; action: string }[]; }
 interface Platform { platform: string; status: string; accounts: number; healthy: number; weak: number; blocked: number; saturated: number; scaling: number; }
@@ -51,11 +45,40 @@ export default function CommandCenterPage() {
 
   useEffect(() => {
     if (!brandId) return;
-    apiFetch(`/api/v1/brands/${brandId}/command-center`).then(setData).catch(() => {}).finally(() => setLoading(false));
+    apiFetch<CommandData>(`/api/v1/brands/${brandId}/command-center`).then(setData).catch(() => {}).finally(() => setLoading(false));
   }, [brandId]);
 
-  if (loading) return <div className="flex items-center justify-center h-screen bg-gray-950"><div className="text-cyan-400 text-lg animate-pulse">INITIALIZING COMMAND CENTER...</div></div>;
-  if (!data) return <div className="flex items-center justify-center h-screen bg-gray-950"><div className="text-red-400 text-lg">COMMAND CENTER OFFLINE</div></div>;
+  if (loading) return <div className="flex items-center justify-center h-[60vh] bg-gray-950"><div className="text-cyan-400 text-lg animate-pulse">INITIALIZING COMMAND CENTER...</div></div>;
+  if (!data) return (
+    <div className="min-h-[60vh] flex items-center justify-center bg-gray-950 p-6">
+      <div className="text-center max-w-md mx-auto space-y-4">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-yellow-900/30 border border-yellow-800 flex items-center justify-center">
+          <span className="text-2xl">⚡</span>
+        </div>
+        <h2 className="text-xl font-bold text-white">Command Center Loading</h2>
+        <p className="text-gray-400 text-sm">
+          {!brandId
+            ? "No brands found. Create a brand first in Accounts > Brands, then return here."
+            : "Could not load command center data. The API may still be starting up."}
+        </p>
+        {brandId && (
+          <button
+            onClick={() => { setLoading(true); apiFetch<CommandData>(`/api/v1/brands/${brandId}/command-center`).then(setData).catch(() => {}).finally(() => setLoading(false)); }}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-500 transition-colors"
+          >
+            Retry
+          </button>
+        )}
+        <div className="pt-4 border-t border-gray-800">
+          <p className="text-xs text-gray-500">Quick links:</p>
+          <div className="flex gap-3 justify-center mt-2">
+            <a href="/dashboard/accounts" className="text-xs text-cyan-400 hover:text-cyan-300">Manage Accounts</a>
+            <a href="/dashboard/settings" className="text-xs text-cyan-400 hover:text-cyan-300">Settings & API Keys</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const { revenue: rev, providers, platforms, accounts: accts, alerts } = data;
 

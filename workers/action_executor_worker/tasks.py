@@ -290,11 +290,10 @@ def enforce_capacity_throttle(self) -> dict:
 
             throttle = report.recommended_throttle
             if throttle is not None and throttle < 1.0:
-                # Celery rate limiting integration point:
-                # app.control.rate_limit(
-                #     "workers.generation_worker.generate_script",
-                #     f"{max(1, int(throttle * 10))}/m",
-                # )
+                app.control.rate_limit(
+                    "workers.generation_worker.generate_script",
+                    f"{max(1, int(throttle * 10))}/m",
+                )
                 _record_run(
                     session, report.brand_id, "ramp_output", "completed", 0.8,
                     {"capacity_report_id": str(report.id), "recommended_throttle": throttle},

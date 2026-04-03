@@ -11,7 +11,7 @@ from packages.db.enums import ConfidenceLevel, Platform, RecommendedAction
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.core import Brand
 from packages.db.models.offers import SponsorProfile
-from packages.db.models.portfolio import RevenuLeakReport, ScaleRecommendation
+from packages.db.models.portfolio import RevenueLeakReport, ScaleRecommendation
 from packages.db.models.scale_alerts import LaunchCandidate, LaunchReadinessReport
 
 
@@ -224,7 +224,7 @@ async def test_capital_constraint_changes_deployment_plan(api_client, db_session
         is_active=True,
     ))
     for _ in range(7):
-        db_session.add(RevenuLeakReport(
+        db_session.add(RevenueLeakReport(
             brand_id=brand_uuid,
             leak_type="conversion",
             affected_entity_type="funnel",
@@ -238,7 +238,7 @@ async def test_capital_constraint_changes_deployment_plan(api_client, db_session
     assert constrained_rows[0]["explanation_json"].get("capital_constrained") is True
     hold_constrained = constrained_rows[0]["holdback_budget"]
 
-    leaks = (await db_session.execute(select(RevenuLeakReport).where(RevenuLeakReport.brand_id == brand_uuid))).scalars().all()
+    leaks = (await db_session.execute(select(RevenueLeakReport).where(RevenueLeakReport.brand_id == brand_uuid))).scalars().all()
     for L in leaks:
         L.is_resolved = True
     await db_session.commit()

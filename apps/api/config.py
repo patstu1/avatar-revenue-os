@@ -1,5 +1,7 @@
+import sys
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -10,9 +12,21 @@ class Settings(BaseSettings):
     api_cors_origins: list[str] = ["http://localhost:3001"]
     log_level: str = "INFO"
 
-    # Database
-    database_url: str = "postgresql+asyncpg://avataros:avataros_dev_2026@postgres:5432/avatar_revenue_os"
-    database_url_sync: str = "postgresql://avataros:avataros_dev_2026@postgres:5432/avatar_revenue_os"
+    # Database (defaults point to Docker Compose service names for dev)
+    database_url: str = "postgresql+asyncpg://avataros:changeme@postgres:5432/avatar_revenue_os"
+    database_url_sync: str = "postgresql://avataros:changeme@postgres:5432/avatar_revenue_os"
+
+    @field_validator("api_secret_key")
+    @classmethod
+    def reject_weak_secret(cls, v: str) -> str:
+        weak_keys = {"changeme", "", "secret", "password", "test"}
+        if v.lower().strip() in weak_keys:
+            if "pytest" not in sys.modules:
+                raise ValueError(
+                    "API_SECRET_KEY is set to an insecure default. "
+                    "Set a strong random key (32+ chars) in your .env file."
+                )
+        return v
 
     # Redis
     redis_url: str = "redis://redis:6379/0"
@@ -46,6 +60,16 @@ class Settings(BaseSettings):
     s3_secret_access_key: str = ""
     s3_bucket_name: str = "avatar-revenue-os"
     s3_region: str = "us-east-1"
+
+    # Stripe Billing
+    stripe_api_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_starter_monthly: str = ""
+    stripe_price_starter_annual: str = ""
+    stripe_price_professional_monthly: str = ""
+    stripe_price_professional_annual: str = ""
+    stripe_price_business_monthly: str = ""
+    stripe_price_business_annual: str = ""
 
     # Observability
     sentry_dsn: str = ""

@@ -172,7 +172,7 @@ def process_notification_deliveries(self) -> dict:
                 continue
 
             nd.attempts = (nd.attempts or 0) + 1
-            ok, err = adapter.send(payload, recipient)
+            ok, err = asyncio.run(adapter.send(payload, recipient))
             if ok:
                 nd.status = "delivered"
                 nd.delivered_at = datetime.now(timezone.utc).isoformat()

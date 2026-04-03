@@ -1,19 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { api } from '@/lib/api';
+import { useAppStore } from '@/lib/store';
 
 /**
  * Resolves the active brand ID for the current user.
- * Checks localStorage first, then fetches the first brand from the API.
+ * Uses useAppStore as the single source of truth, synced with localStorage.
+ * Falls back to fetching the first brand from the API when none is stored.
  */
 export function useBrandId(): string | null {
-  const [brandId, setBrandId] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('aro_brand_id');
-    }
-    return null;
-  });
+  const brandId = useAppStore((s) => s.selectedBrandId);
+  const setSelectedBrandId = useAppStore((s) => s.setSelectedBrandId);
 
   useEffect(() => {
     if (brandId) return;
@@ -23,15 +21,14 @@ export function useBrandId(): string | null {
         const res = await api.get<{ items: { id: string }[] }>('/api/v1/brands/', { params: { page: 1 } });
         const first = res.data?.items?.[0];
         if (!cancelled && first?.id) {
-          localStorage.setItem('aro_brand_id', first.id);
-          setBrandId(first.id);
+          setSelectedBrandId(first.id);
         }
       } catch {
         // token missing or no brands — leave null
       }
     })();
     return () => { cancelled = true; };
-  }, [brandId]);
+  }, [brandId, setSelectedBrandId]);
 
   return brandId;
 }

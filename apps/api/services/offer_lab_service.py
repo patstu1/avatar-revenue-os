@@ -2,8 +2,12 @@
 from __future__ import annotations
 import uuid
 from typing import Any
+
+import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
 from packages.db.models.offer_lab import (
@@ -60,7 +64,7 @@ async def recompute_offer_lab(db: AsyncSession, brand_id: uuid.UUID) -> dict[str
         try:
             db.add(OfferLabUpsell(brand_id=brand_id, primary_offer_id=uuid.UUID(u["primary_offer_id"]), upsell_offer_id=uuid.UUID(u["upsell_offer_id"]), expected_take_rate=u["expected_take_rate"]))
         except (ValueError, TypeError):
-            pass
+            logger.debug("upsell_offer_id_parse_failed", exc_info=True)
 
     await db.flush()
     return {"rows_processed": len(lab_offers), "status": "completed"}

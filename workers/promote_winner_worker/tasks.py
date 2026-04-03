@@ -6,6 +6,7 @@ from celery import shared_task
 from sqlalchemy import select
 
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.promote_winner import ActiveExperiment
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ async def _ingest_experiment_observations():
                                     ))
                                 observations_created += 1
                     except Exception:
-                        pass
+                        logger.debug("observation ingestion failed for content %s", cid_str, exc_info=True)
         await db.commit()
         return observations_created
 
@@ -99,7 +100,7 @@ async def _evaluate_active():
     return evaluated
 
 
-@shared_task(name="workers.promote_winner_worker.tasks.evaluate_and_promote")
+@shared_task(name="workers.promote_winner_worker.tasks.evaluate_and_promote", base=TrackedTask)
 def evaluate_and_promote():
     count = asyncio.run(_evaluate_active())
     return {"status": "completed", "experiments_evaluated": count}

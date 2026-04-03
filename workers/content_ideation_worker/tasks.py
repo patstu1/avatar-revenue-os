@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from celery import shared_task
 from sqlalchemy import select, func
 
+from workers.base_task import TrackedTask
+
 from packages.db.session import async_session_factory
 from packages.db.models.content import ContentBrief
 from packages.db.models.core import Brand
@@ -238,6 +240,6 @@ async def _run_ideation():
     return {"brands_processed": len(brand_ids), "total_briefs_created": total_briefs}
 
 
-@shared_task(name="workers.content_ideation_worker.tasks.ideate_content")
+@shared_task(name="workers.content_ideation_worker.tasks.ideate_content", base=TrackedTask)
 def ideate_content():
     return asyncio.run(_run_ideation())

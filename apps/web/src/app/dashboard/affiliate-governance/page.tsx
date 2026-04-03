@@ -1,13 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
-async function apiPost(path: string) { const r = await fetch(`${API}${path}`, { method: "POST", headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch } from "@/lib/api";
 
 interface GovernanceRule { id: string; rule_name: string; rule_type: string; threshold: number | null; action: string; enabled: boolean; description: string | null; }
 interface BannedEntity { id: string; entity_type: string; entity_name: string; reason: string | null; banned_at: string; }
@@ -29,10 +23,10 @@ export default function AffiliateGovernancePage() {
     if (!orgId) return;
     setLoading(true);
     Promise.all([
-      apiFetch(`/api/v1/orgs/${orgId}/affiliate/governance-rules`),
-      apiFetch(`/api/v1/orgs/${orgId}/affiliate/banned`),
-      apiFetch(`/api/v1/orgs/${orgId}/affiliate/risk-flags`),
-      apiFetch(`/api/v1/orgs/${orgId}/affiliate/partners`),
+      apiFetch<any>(`/api/v1/orgs/${orgId}/affiliate/governance-rules`),
+      apiFetch<any>(`/api/v1/orgs/${orgId}/affiliate/banned`),
+      apiFetch<any>(`/api/v1/orgs/${orgId}/affiliate/risk-flags`),
+      apiFetch<any>(`/api/v1/orgs/${orgId}/affiliate/partners`),
     ]).then(([r, b, f, p]) => { setRules(r); setBanned(b); setRiskFlags(f); setPartners(p); }).catch(() => {}).finally(() => setLoading(false));
   };
 
@@ -43,8 +37,8 @@ export default function AffiliateGovernancePage() {
     setRecomputing(true);
     try {
       await Promise.all([
-        apiPost(`/api/v1/orgs/${orgId}/affiliate/governance-rules/recompute`),
-        apiPost(`/api/v1/orgs/${orgId}/affiliate/risk-flags/recompute`),
+        apiFetch<any>(`/api/v1/orgs/${orgId}/affiliate/governance-rules/recompute`, { method: "POST" }),
+        apiFetch<any>(`/api/v1/orgs/${orgId}/affiliate/risk-flags/recompute`, { method: "POST" }),
       ]);
       fetchAll();
     } catch { /* silently handled */ } finally { setRecomputing(false); }

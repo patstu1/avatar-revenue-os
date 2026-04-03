@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+__pycache__
+*.pyc
+.pytest_cache
+celerybeat-schedule
+.next
+tests/
+docs/
+*.md
+.pre-commit-config.yaml
+.github/

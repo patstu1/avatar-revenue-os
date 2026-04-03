@@ -46,6 +46,7 @@ app.conf.update(
         "brain": {},
         "buffer": {},
         "cinema_studio": {},
+        "monetization": {},
     },
     task_routes={
         "workers.generation_worker.*": {"queue": "generation"},
@@ -90,6 +91,7 @@ app.conf.update(
         "workers.brain_worker.*": {"queue": "brain"},
         "workers.buffer_worker.*": {"queue": "buffer"},
         "workers.cinema_studio_worker.*": {"queue": "cinema_studio"},
+        "workers.monetization_worker.*": {"queue": "monetization"},
     },
     beat_schedule={
         # RECOMPUTE DEPENDENCY ORDER:
@@ -769,6 +771,62 @@ app.conf.update(
             "task": "workers.cinema_studio_worker.tasks.auto_approve_studio_content",
             "schedule": 120.0,
         },
+        # --- Revenue Intelligence ---
+        "revenue-forecast-every-6h": {
+            "task": "workers.analytics_worker.tasks.recompute_revenue_forecast",
+            "schedule": crontab(minute=0, hour="*/6"),
+        },
+        "revenue-anomaly-check-every-1h": {
+            "task": "workers.analytics_worker.tasks.check_revenue_anomalies",
+            "schedule": crontab(minute=10),
+        },
+        "youtube-analytics-sync-every-2h": {
+            "task": "workers.analytics_worker.tasks.sync_youtube_analytics",
+            "schedule": crontab(minute=25, hour="*/2"),
+        },
+        # --- Monetization Machine ---
+        "credit-replenishment-monthly": {
+            "task": "workers.monetization_worker.tasks.replenish_credits",
+            "schedule": crontab(minute=0, hour=0, day_of_month=1),
+        },
+        "credit-exhaustion-check-every-2h": {
+            "task": "workers.monetization_worker.tasks.check_credit_exhaustion",
+            "schedule": crontab(minute=30, hour="*/2"),
+        },
+        "ascension-analysis-every-4h": {
+            "task": "workers.monetization_worker.tasks.compute_ascension_profiles",
+            "schedule": crontab(minute=15, hour="*/4"),
+        },
+        "monetization-health-every-6h": {
+            "task": "workers.monetization_worker.tasks.compute_monetization_health",
+            "schedule": crontab(minute=20, hour="*/6"),
+        },
+        "multiplication-opportunity-scan-every-1h": {
+            "task": "workers.monetization_worker.tasks.scan_multiplication_opportunities",
+            "schedule": crontab(minute=40),
+        },
+        # --- SaaS Metrics ---
+        "saas-metrics-snapshot-daily": {
+            "task": "workers.monetization_worker.tasks.snapshot_saas_metrics",
+            "schedule": crontab(minute=0, hour=1),
+        },
+        "churn-prediction-every-6h": {
+            "task": "workers.monetization_worker.tasks.run_churn_prediction",
+            "schedule": crontab(minute=30, hour="*/6"),
+        },
+        "expansion-opportunity-scan-every-4h": {
+            "task": "workers.monetization_worker.tasks.scan_expansion_opportunities",
+            "schedule": crontab(minute=45, hour="*/4"),
+        },
+        # --- Revenue Avenue Optimization ---
+        "revenue-avenue-rankings-every-12h": {
+            "task": "workers.monetization_worker.tasks.recompute_avenue_rankings",
+            "schedule": crontab(minute=0, hour="*/12"),
+        },
+        "pipeline-scoring-every-2h": {
+            "task": "workers.monetization_worker.tasks.score_pipeline_deals",
+            "schedule": crontab(minute=20, hour="*/2"),
+        },
     },
 )
 
@@ -832,4 +890,5 @@ app.autodiscover_tasks([
     "workers.offer_discovery_worker",
     "workers.data_pruning_worker",
     "workers.cinema_studio_worker",
+    "workers.monetization_worker",
 ])

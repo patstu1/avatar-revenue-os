@@ -52,6 +52,14 @@ class ImpactClient:
             logger.exception("Impact fetch_offers failed")
             return _blocked(str(e))
 
+    async def fetch_campaigns(self) -> dict[str, Any]:
+        """Alias for fetch_offers — returns campaign listings."""
+        return await self.fetch_offers()
+
+    @staticmethod
+    def build_tracking_link(campaign_id: str, affiliate_id: str, destination_url: str = "") -> str:
+        return f"https://impact.com/c/{affiliate_id}/{campaign_id}?u={destination_url}"
+
 
 class ShareASaleClient:
     """ShareASale Affiliate Network API client."""
@@ -78,20 +86,30 @@ class ShareASaleClient:
             logger.exception("ShareASale fetch_activity failed")
             return _blocked(str(e))
 
-    async def fetch_merchants(self) -> dict[str, Any]:
+    async def fetch_merchants(self, category: str = "") -> dict[str, Any]:
         if not self.api_token:
             return _blocked("SHAREASALE_API_TOKEN not configured")
         try:
+            params: dict[str, Any] = {
+                "affiliateId": self.merchant_id, "token": self.api_token,
+                "version": "2.9", "action": "merchantSearch",
+            }
+            if category:
+                params["category"] = category
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                r = await client.get(self.base_url, params={
-                    "affiliateId": self.merchant_id, "token": self.api_token,
-                    "version": "2.9", "action": "merchantSearch",
-                })
+                r = await client.get(self.base_url, params=params)
                 r.raise_for_status()
                 return {"success": True, "data": r.text}
         except Exception as e:
             logger.exception("ShareASale fetch_merchants failed")
             return _blocked(str(e))
+
+    @staticmethod
+    def build_affiliate_link(merchant_id: str, affiliate_id: str, destination_url: str = "") -> str:
+        base = f"https://www.shareasale.com/r.cfm?b=&u={affiliate_id}&m={merchant_id}"
+        if destination_url:
+            base += f"&urllink={destination_url}"
+        return base
 
 
 class CJClient:

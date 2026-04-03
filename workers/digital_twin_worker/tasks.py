@@ -3,6 +3,7 @@ import asyncio, logging
 from celery import shared_task
 from sqlalchemy import select
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,6 @@ async def _run():
         except Exception: logger.exception("digital twin failed %s", bid)
     return c
 
-@shared_task(name="workers.digital_twin_worker.tasks.run_simulations")
+@shared_task(name="workers.digital_twin_worker.tasks.run_simulations", base=TrackedTask)
 def run_simulations():
     return {"status": "completed", "brands": asyncio.run(_run())}

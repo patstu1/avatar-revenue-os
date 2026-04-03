@@ -4,8 +4,11 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.audience_state import AudienceStateEvent, AudienceStateReport
 from packages.db.models.core import Brand
@@ -113,7 +116,7 @@ async def recompute_audience_states(
         try:
             seg_uuid = uuid.UUID(r["segment_id"])
         except (ValueError, KeyError):
-            pass
+            logger.debug("segment_id_parse_failed", exc_info=True)
 
         db.add(
             AudienceStateReport(

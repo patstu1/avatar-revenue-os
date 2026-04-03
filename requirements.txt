@@ -44,6 +44,12 @@ aiosmtplib>=3.0.0
 # Storage
 boto3==1.36.2
 
+# Payments
+stripe>=8.0.0
+
+# Email validation (pydantic EmailStr)
+email-validator>=2.1.0
+
 # Utilities
 python-dateutil==2.9.0
 orjson==3.10.13

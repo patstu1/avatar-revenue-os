@@ -1,8 +1,11 @@
 """Content generation worker tasks."""
+import logging
 import uuid
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
+
+logger = logging.getLogger(__name__)
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.generation_worker.generate_script")
@@ -221,7 +224,7 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
                     } for p in profiles]
                     provider = select_provider("async_video", profile_dicts) or "fallback"
                 except Exception:
-                    pass
+                    logger.debug("provider selection failed, using fallback", exc_info=True)
 
         existing_job = session.query(MediaJob).filter(
             MediaJob.script_id == script.id,
@@ -250,15 +253,37 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
         media_job.started_at = datetime.now(timezone.utc).isoformat()
         session.commit()
 
-        # Provider integration point: when credentials exist, call the real adapter.
-        # provider_adapter = get_adapter(provider)
-        # result = provider_adapter.submit_job({...})
-        # poll for completion or receive webhook
-        # For now, mark completed and create ContentItem bridge.
+        provider_result = _call_media_provider_sync(provider, script, avatar)
 
-        media_job.status = JobStatus.COMPLETED
-        media_job.completed_at = datetime.now(timezone.utc).isoformat()
-        media_job.output_config = {"provider": provider, "note": "awaiting_provider_credentials"}
+        if provider_result and provider_result.get("success"):
+            media_job.status = JobStatus.COMPLETED
+            media_job.completed_at = datetime.now(timezone.utc).isoformat()
+            media_job.output_config = {
+                "provider": provider,
+                "model": provider_result.get("model", provider),
+                "output_url": provider_result.get("url", ""),
+                "source": "ai_provider",
+            }
+        elif provider_result and provider_result.get("blocked"):
+            media_job.status = JobStatus.FAILED
+            media_job.error_message = provider_result.get("error", "Provider not configured")
+            media_job.output_config = {"provider": provider, "blocked": True, "error": provider_result.get("error")}
+        else:
+            error_msg = provider_result.get("error", "Unknown provider error") if provider_result else "No provider available"
+            media_job.status = JobStatus.FAILED
+            media_job.error_message = error_msg
+            media_job.output_config = {"provider": provider, "error": error_msg}
+
+        if media_job.status != JobStatus.COMPLETED:
+            session.commit()
+            return {
+                "media_job_id": str(media_job.id),
+                "status": "failed",
+                "provider": provider,
+                "error": media_job.error_message or "Provider unavailable",
+            }
+
+        output_url = (media_job.output_config or {}).get("output_url", f"media/{media_job.id}/output")
 
         brief = None
         if script.brief_id:
@@ -267,10 +292,10 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
         asset = Asset(
             brand_id=script.brand_id,
             asset_type="avatar_video",
-            file_path=f"media/{media_job.id}/output",
+            file_path=output_url,
             mime_type="video/mp4",
             duration_seconds=script.estimated_duration_seconds,
-            storage_provider="s3",
+            storage_provider="external_url" if output_url.startswith("http") else "s3",
             metadata_blob={"media_job_id": str(media_job.id), "provider": provider},
         )
         session.add(asset)
@@ -307,3 +332,106 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
             "status": "completed",
             "provider": provider,
         }
+
+
+async def _call_media_provider(provider: str, script, avatar) -> dict:
+    """Call the appropriate AI media provider. Returns result dict with success/url/error."""
+    from packages.clients.ai_clients import (
+        HeyGenClient, DIDClient, RunwayClient, KlingClient,
+        ElevenLabsClient, FishAudioClient,
+    )
+
+    provider_lower = provider.lower() if provider else ""
+    script_text = (script.full_script or "")[:3000]
+
+    if provider_lower in ("heygen", "heygen_avatar"):
+        client = HeyGenClient()
+        if not client._is_configured():
+            return {"success": False, "blocked": True, "error": "HEYGEN_API_KEY not configured"}
+        avatar_id = "default"
+        voice_id = ""
+        if avatar and hasattr(avatar, 'heygen_avatar_id') and avatar.heygen_avatar_id:
+            avatar_id = avatar.heygen_avatar_id
+        result = await client.create_video(script_text, avatar_id=avatar_id, voice_id=voice_id)
+        if result.get("success"):
+            video_url = result.get("data", {}).get("video_url", "")
+            return {"success": True, "url": video_url, "model": "heygen"}
+        return result
+
+    if provider_lower in ("d-id", "did"):
+        client = DIDClient()
+        if not client._is_configured():
+            return {"success": False, "blocked": True, "error": "DID_API_KEY not configured"}
+        result = await client.generate(script_text)
+        if result.get("success"):
+            video_url = result.get("data", {}).get("video_url", "")
+            return {"success": True, "url": video_url, "model": "d-id"}
+        return result
+
+    if provider_lower in ("runway", "runway_gen4"):
+        client = RunwayClient()
+        if not client._is_configured():
+            return {"success": False, "blocked": True, "error": "RUNWAY_API_KEY not configured"}
+        prompt = f"Create a video for: {script_text[:500]}"
+        result = await client.generate(prompt)
+        if result.get("success"):
+            video_url = result.get("data", {}).get("video_url", "")
+            return {"success": True, "url": video_url, "model": "gen4_turbo"}
+        return result
+
+    if provider_lower in ("kling", "kling_ai"):
+        client = KlingClient()
+        if not client._is_configured():
+            return {"success": False, "blocked": True, "error": "FAL_API_KEY not configured"}
+        prompt = f"Create a video for: {script_text[:500]}"
+        result = await client.generate(prompt)
+        if result.get("success"):
+            video_url = result.get("data", {}).get("video_url", "")
+            return {"success": True, "url": video_url, "model": "kling-v2"}
+        return result
+
+    if provider_lower in ("elevenlabs", "eleven_labs"):
+        client = ElevenLabsClient()
+        if not client._is_configured():
+            return {"success": False, "blocked": True, "error": "ELEVENLABS_API_KEY not configured"}
+        result = await client.generate(script_text)
+        if result.get("success"):
+            return {"success": True, "url": "", "model": "elevenlabs", "audio": True}
+        return result
+
+    if provider_lower in ("fish_audio", "fishaudio"):
+        client = FishAudioClient()
+        if not client._is_configured():
+            return {"success": False, "blocked": True, "error": "FISH_AUDIO_API_KEY not configured"}
+        result = await client.generate(script_text)
+        if result.get("success"):
+            return {"success": True, "url": "", "model": "fish-audio", "audio": True}
+        return result
+
+    for ClientClass, key_name in [
+        (HeyGenClient, "HEYGEN_API_KEY"),
+        (DIDClient, "DID_API_KEY"),
+        (RunwayClient, "RUNWAY_API_KEY"),
+    ]:
+        client = ClientClass()
+        if client._is_configured():
+            if isinstance(client, HeyGenClient):
+                result = await client.create_video(script_text)
+            else:
+                result = await client.generate(script_text[:500])
+            if result.get("success"):
+                video_url = result.get("data", {}).get("video_url", "")
+                return {"success": True, "url": video_url, "model": key_name.split("_")[0].lower()}
+            return result
+
+    return {"success": False, "blocked": True, "error": "No media provider credentials configured. Add API keys in Settings."}
+
+
+def _call_media_provider_sync(provider: str, script, avatar) -> dict:
+    """Synchronous wrapper for _call_media_provider when an event loop is already running."""
+    import asyncio
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(_call_media_provider(provider, script, avatar))
+    finally:
+        loop.close()

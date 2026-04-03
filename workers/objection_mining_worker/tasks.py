@@ -3,6 +3,7 @@ import asyncio, logging
 from celery import shared_task
 from sqlalchemy import select
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ async def _run():
             logger.exception("objection mining failed for brand %s", bid)
     return count
 
-@shared_task(name="workers.objection_mining_worker.tasks.recompute_objection_mining")
+@shared_task(name="workers.objection_mining_worker.tasks.recompute_objection_mining", base=TrackedTask)
 def recompute_objection_mining():
     count = asyncio.run(_run())
     return {"status": "completed", "brands_processed": count}

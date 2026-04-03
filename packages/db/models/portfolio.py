@@ -86,7 +86,7 @@ class CapitalAllocationRecommendation(Base):
     is_actioned: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
-class RevenuLeakReport(Base):
+class RevenueLeakReport(Base):
     __tablename__ = "revenue_leak_reports"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(

@@ -24,7 +24,7 @@ class Platform(str, enum.Enum):
     TIKTOK = "tiktok"
     INSTAGRAM = "instagram"
     TWITTER = "twitter"
-    X = "twitter"
+    X = "x"
     REDDIT = "reddit"
     FACEBOOK = "facebook"
     LINKEDIN = "linkedin"

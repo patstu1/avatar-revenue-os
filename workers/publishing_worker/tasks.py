@@ -5,6 +5,9 @@ from datetime import datetime, timezone
 from workers.celery_app import app
 from workers.base_task import TrackedTask
 
+import workers.publishing_worker.auto_publish  # noqa: F401
+import workers.publishing_worker.measured_data_cascade  # noqa: F401
+
 
 @app.task(base=TrackedTask, bind=True, name="workers.publishing_worker.publish_content")
 def publish_content(self, publish_job_id: str) -> dict:
@@ -55,26 +58,92 @@ def publish_content(self, publish_job_id: str) -> dict:
         job.status = JobStatus.RUNNING
         session.commit()
 
-        # Platform API integration point:
-        # adapter = get_platform_adapter(job.platform)
-        # result = adapter.publish(content_item, asset, account)
-        # job.external_post_id = result.post_id
-        # job.external_url = result.url
+        content = session.get(ContentItem, job.content_item_id) if job.content_item_id else None
+        publish_result = _try_buffer_publish(session, job, content)
 
-        job.status = JobStatus.COMPLETED
-        job.published_at = datetime.now(timezone.utc)
-        job.error_message = None
-
-        if job.content_item_id:
-            content = session.get(ContentItem, job.content_item_id)
+        if publish_result.get("published"):
+            job.status = JobStatus.COMPLETED
+            job.published_at = datetime.now(timezone.utc)
+            job.error_message = None
+            job.platform_post_id = publish_result.get("buffer_post_id")
+            job.platform_post_url = publish_result.get("url")
             if content:
                 content.status = "published"
+        elif publish_result.get("no_buffer"):
+            job.status = JobStatus.FAILED
+            job.error_message = publish_result.get("error", "No publishing channel configured")
+        else:
+            job.status = JobStatus.FAILED
+            job.error_message = publish_result.get("error", "Publishing failed")
+            job.retries = (job.retries or 0) + 1
 
         session.commit()
 
         return {
             "publish_job_id": str(job.id),
-            "status": "published",
-            "platform": job.platform.value,
+            "status": "published" if job.status == JobStatus.COMPLETED else "failed",
+            "platform": job.platform.value if hasattr(job.platform, 'value') else str(job.platform),
             "published_at": job.published_at.isoformat() if job.published_at else None,
+            "error": job.error_message,
         }
+
+
+def _try_buffer_publish(session, job, content) -> dict:
+    """Attempt to publish via Buffer. Returns result dict."""
+    import asyncio
+    import os
+    from packages.db.models.buffer_distribution import BufferProfile
+
+    buffer_key = os.environ.get("BUFFER_API_KEY", "")
+    if not buffer_key:
+        return {"no_buffer": True, "error": "BUFFER_API_KEY not configured. Add your Buffer API key in Settings > Integrations."}
+
+    platform_val = job.platform.value if hasattr(job.platform, 'value') else str(job.platform)
+    profile = session.query(BufferProfile).filter(
+        BufferProfile.brand_id == job.brand_id,
+        BufferProfile.platform == job.platform,
+        BufferProfile.is_active.is_(True),
+        BufferProfile.credential_status == "connected",
+    ).first()
+
+    if not profile or not profile.buffer_profile_id:
+        return {"no_buffer": True, "error": f"No connected Buffer profile found for platform '{platform_val}'. Connect one in Buffer Distribution settings."}
+
+    text = ""
+    media = None
+    if content:
+        text = content.description or content.title or ""
+        if hasattr(content, 'video_asset_id') and content.video_asset_id:
+            from packages.db.models.content import Asset
+            asset = session.get(Asset, content.video_asset_id)
+            if asset and asset.file_path and asset.file_path.startswith("http"):
+                media = {"video": asset.file_path}
+
+    if not text:
+        return {"error": "No content text available for publishing"}
+
+    from packages.clients.external_clients import BufferClient
+    client = BufferClient(api_key=buffer_key)
+
+    try:
+        loop = asyncio.new_event_loop()
+        result = loop.run_until_complete(
+            client.create_update(
+                profile_ids=[profile.buffer_profile_id],
+                text=text,
+                media=media,
+                scheduled_at=job.scheduled_at.isoformat() if job.scheduled_at else None,
+            )
+        )
+        loop.close()
+    except Exception as e:
+        return {"error": f"Buffer API call failed: {e}"}
+
+    if result.get("success"):
+        updates = (result.get("data") or {}).get("updates", [{}])
+        buffer_id = updates[0].get("id", "") if updates else ""
+        return {"published": True, "buffer_post_id": buffer_id, "url": ""}
+    elif result.get("blocked"):
+        return {"no_buffer": True, "error": result.get("error", "Buffer API blocked")}
+    else:
+        return {"error": result.get("error", "Buffer publish failed")}

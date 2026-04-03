@@ -30,7 +30,7 @@ from packages.db.models.offers import AudienceSegment, LtvModel, Offer
 from packages.db.models.portfolio import (
     GeoLanguageExpansionRecommendation,
     PaidAmplificationJob,
-    RevenuLeakReport,
+    RevenueLeakReport,
     TrustSignalReport,
 )
 from packages.db.models.publishing import AttributionEvent, PerformanceMetric
@@ -156,7 +156,7 @@ def _accounts_as_dicts(accounts: list) -> list[dict]:
 # Serializers (single source of truth for dict shapes)
 # ---------------------------------------------------------------------------
 
-def _serialize_leak(r: RevenuLeakReport) -> dict:
+def _serialize_leak(r: RevenueLeakReport) -> dict:
     return {
         "id": str(r.id),
         "leak_type": r.leak_type,
@@ -263,9 +263,9 @@ async def recompute_growth_intel(
         {"bid": str(brand_id)},
     )
     await db.execute(
-        delete(RevenuLeakReport).where(
-            RevenuLeakReport.brand_id == brand_id,
-            RevenuLeakReport.details.contains({PHASE6_SOURCE: True}),
+        delete(RevenueLeakReport).where(
+            RevenueLeakReport.brand_id == brand_id,
+            RevenueLeakReport.details.contains({PHASE6_SOURCE: True}),
         )
     )
     await db.execute(
@@ -335,7 +335,7 @@ async def recompute_growth_intel(
     # —— Leaks ——
     leaks = detect_leaks(rollups, f_imps, f_clicks, f_conv, offer_by_id, follower_growth_by_ac)
     for lk in leaks:
-        db.add(RevenuLeakReport(
+        db.add(RevenueLeakReport(
             brand_id=brand_id,
             leak_type=lk["leak_type"],
             affected_entity_type=lk["entity_type"],
@@ -527,9 +527,9 @@ async def get_leak_reports_dashboard(db: AsyncSession, brand_id: uuid.UUID) -> d
     funnel = await asvc.get_funnel_data(db, brand_id)
     rows = (
         await db.execute(
-            select(RevenuLeakReport)
-            .where(RevenuLeakReport.brand_id == brand_id, RevenuLeakReport.is_resolved.is_(False))
-            .order_by(RevenuLeakReport.estimated_leaked_revenue.desc())
+            select(RevenueLeakReport)
+            .where(RevenueLeakReport.brand_id == brand_id, RevenueLeakReport.is_resolved.is_(False))
+            .order_by(RevenueLeakReport.estimated_leaked_revenue.desc())
             .limit(100)
         )
     ).scalars().all()

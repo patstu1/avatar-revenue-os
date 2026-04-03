@@ -1,14 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-import { brandsApi } from "@/lib/api";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface Cluster { id: string; objection_type: string; cluster_label: string; signal_count: number; avg_severity: number; avg_monetization_impact: number; recommended_response_angle: string | null; }
 interface Signal { id: string; source_type: string; objection_type: string; extracted_objection: string; severity: number; monetization_impact: number; platform: string | null; }
@@ -34,8 +27,8 @@ export default function ObjectionMiningPage() {
   useEffect(() => {
     if (!brandId) return;
     Promise.all([
-      apiFetch(`/api/v1/brands/${brandId}/objection-clusters`),
-      apiFetch(`/api/v1/brands/${brandId}/objection-signals`),
+      apiFetch<any>(`/api/v1/brands/${brandId}/objection-clusters`),
+      apiFetch<any>(`/api/v1/brands/${brandId}/objection-signals`),
     ]).then(([c, s]) => { setClusters(c); setSignals(s); }).catch(() => {}).finally(() => setLoading(false));
   }, [brandId]);
 

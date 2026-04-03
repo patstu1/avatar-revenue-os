@@ -6,8 +6,11 @@ flows to real providers (Runway, HeyGen, D-ID, etc.).
 import uuid
 from typing import Optional
 
+import structlog
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.enums import JobStatus
 from packages.db.models.cinema_studio import (
@@ -383,7 +386,7 @@ async def trigger_generation(
         from workers.cinema_studio_worker.tasks import process_studio_generation
         process_studio_generation.delay(str(generation.id), str(brand_id))
     except Exception:
-        pass
+        logger.warning("studio_generation_task_dispatch_failed", exc_info=True)
 
     return generation
 

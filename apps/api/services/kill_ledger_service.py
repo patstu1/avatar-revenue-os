@@ -5,9 +5,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+import structlog
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
@@ -402,8 +405,7 @@ async def recompute_kill_hindsight(
                 await db.flush()
             review_count += 1
         except IntegrityError:
-            # Concurrent recompute or duplicate — idempotent skip
-            pass
+            logger.debug("hindsight_review_duplicate_skipped", exc_info=True)
 
     return {"hindsight_reviews": review_count}
 

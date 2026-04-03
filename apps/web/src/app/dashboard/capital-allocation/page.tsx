@@ -1,19 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { brandsApi } from "@/lib/api";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-
-async function apiFetch(path: string) {
-  const res = await fetch(`${API}${path}`, { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface Report { id: string; total_budget: number; allocated_budget: number; experiment_reserve: number; hero_spend: number; bulk_spend: number; target_count: number; starved_count: number; }
 interface Decision { id: string; allocated_budget: number; allocated_volume: number; provider_tier: string; allocation_pct: number; starved: boolean; explanation: string | null; }
@@ -37,8 +24,8 @@ export default function CapitalAllocationPage() {
     if (!brandId) return;
     setLoading(true);
     Promise.all([
-      apiFetch(`/api/v1/brands/${brandId}/capital-allocation`),
-      apiFetch(`/api/v1/brands/${brandId}/capital-allocation/decisions`),
+      apiFetch<any>(`/api/v1/brands/${brandId}/capital-allocation`),
+      apiFetch<any>(`/api/v1/brands/${brandId}/capital-allocation/decisions`),
     ]).then(([r, d]) => { setReports(r); setDecisions(d); }).catch(() => {}).finally(() => setLoading(false));
   }, [brandId]);
 

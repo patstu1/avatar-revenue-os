@@ -4,8 +4,11 @@ import uuid
 from typing import Any
 from datetime import datetime, timezone
 
+import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.content import ContentItem
 from packages.db.models.pattern_memory import LosingPatternMemory
@@ -53,7 +56,7 @@ async def recompute_failure_families(
                 try:
                     ci_id = uuid.UUID(str(m["content_item_id"]))
                 except (ValueError, TypeError):
-                    pass
+                    logger.debug("failure_member_content_id_parse_failed", exc_info=True)
             db.add(FailureFamilyMember(
                 report_id=report.id, content_item_id=ci_id,
                 fail_score=float(m.get("fail_score", 0)), detail=m.get("detail"),

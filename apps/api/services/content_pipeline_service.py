@@ -4,12 +4,18 @@ All business logic lives here. Route handlers are thin wrappers.
 Every AI output is schema-validated before save. Every action is audited.
 """
 import hashlib
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
+import structlog
 from sqlalchemy import select, func
+
+logger = structlog.get_logger()
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from packages.db.enums import (
     ActorType, ApprovalStatus, ConfidenceLevel, ContentType, DecisionMode,
@@ -62,7 +68,11 @@ async def update_brief(db: AsyncSession, brief_id: uuid.UUID, **kwargs) -> Conte
 # ── Script Generation ────────────────────────────────────────────────────────
 
 async def generate_script(db: AsyncSession, brief_id: uuid.UUID) -> Script:
-    """Generate a script from a brief. Uses deterministic template when no AI key is available."""
+    """Generate a script from a brief using real AI providers when available.
+
+    Attempts Claude / Gemini Flash / DeepSeek via the tiered routing engine.
+    Falls back to deterministic template when no AI key is configured.
+    """
     brief = await get_brief(db, brief_id)
     brand = (await db.execute(select(Brand).where(Brand.id == brief.brand_id))).scalar_one_or_none()
 
@@ -70,27 +80,36 @@ async def generate_script(db: AsyncSession, brief_id: uuid.UUID) -> Script:
         select(func.count()).select_from(Script).where(Script.brief_id == brief_id)
     )).scalar() or 0
 
-    hook = brief.hook or f"Here's what nobody tells you about {brief.title}"
-    body = (
-        f"Today we're breaking down: {brief.title}.\n\n"
-        f"Angle: {brief.angle or 'Data-driven approach'}\n\n"
-    )
-    if brief.key_points and isinstance(brief.key_points, list):
-        for i, point in enumerate(brief.key_points, 1):
-            body += f"Point {i}: {point}\n"
-    body += f"\nTone: {brief.tone_guidance or (brand.tone_of_voice if brand else 'professional')}"
+    ai_result = await _try_ai_generation(db, brief, brand)
 
-    cta = brief.cta_strategy or "Check the link in the description"
-    if brief.monetization_integration:
-        cta += f" — {brief.monetization_integration}"
-
-    full_script = f"[HOOK]\n{hook}\n\n[BODY]\n{body}\n\n[CTA]\n{cta}"
+    if ai_result:
+        hook_text, body_text, cta_text = ai_result["hook"], ai_result["body"], ai_result["cta"]
+        full_script = ai_result["full_text"]
+        gen_model = ai_result["model"]
+        gen_meta = ai_result["metadata"]
+        duration = brief.target_duration_seconds or _estimate_spoken_duration(full_script)
+    else:
+        hook_text = brief.hook or f"Here's what nobody tells you about {brief.title}"
+        body_text = (
+            f"Today we're breaking down: {brief.title}.\n\n"
+            f"Angle: {brief.angle or 'Data-driven approach'}\n\n"
+        )
+        if brief.key_points and isinstance(brief.key_points, list):
+            for i, point in enumerate(brief.key_points, 1):
+                body_text += f"Point {i}: {point}\n"
+        body_text += f"\nTone: {brief.tone_guidance or (brand.tone_of_voice if brand else 'professional')}"
+        cta_text = brief.cta_strategy or "Check the link in the description"
+        if brief.monetization_integration:
+            cta_text += f" — {brief.monetization_integration}"
+        full_script = f"[HOOK]\n{hook_text}\n\n[BODY]\n{body_text}\n\n[CTA]\n{cta_text}"
+        gen_model = "template_v1"
+        gen_meta = {"source": "template", "brief_id": str(brief.id)}
+        duration = brief.target_duration_seconds or 60
 
     script_data = {
         "title": f"Script v{existing_count + 1}: {brief.title}",
-        "hook_text": hook,
-        "body_text": body,
-        "cta_text": cta,
+        "hook_text": hook_text,
+        "body_text": body_text,
         "full_script": full_script,
     }
     _validate_script_output(script_data)
@@ -104,13 +123,13 @@ async def generate_script(db: AsyncSession, brief_id: uuid.UUID) -> Script:
         title=script_data["title"],
         hook_text=script_data["hook_text"],
         body_text=script_data["body_text"],
-        cta_text=script_data["cta_text"],
+        cta_text=cta_text,
         full_script=script_data["full_script"],
-        estimated_duration_seconds=brief.target_duration_seconds or 60,
+        estimated_duration_seconds=duration,
         word_count=len(full_script.split()),
-        generation_model="template_v1",
+        generation_model=gen_model,
         generation_prompt_hash=prompt_hash,
-        generation_metadata={"source": "template", "brief_id": str(brief.id)},
+        generation_metadata=gen_meta,
         status="generated",
     )
     db.add(script)
@@ -118,6 +137,93 @@ async def generate_script(db: AsyncSession, brief_id: uuid.UUID) -> Script:
     await db.flush()
     await db.refresh(script)
     return script
+
+
+def _estimate_spoken_duration(text: str) -> int:
+    """Estimate spoken duration in seconds (~150 words per minute)."""
+    return max(15, int(len(text.split()) / 2.5))
+
+
+def _parse_ai_script(text: str) -> tuple[str, str, str]:
+    """Parse AI output into hook/body/cta sections."""
+    hook = body = cta = ""
+    sections = text.split("[")
+    for section in sections:
+        section = section.strip()
+        upper = section.upper()
+        if upper.startswith("HOOK]"):
+            hook = section[5:].strip()
+        elif upper.startswith("BODY]"):
+            body = section[5:].strip()
+        elif upper.startswith("CTA]"):
+            cta = section[4:].strip()
+    if not hook and not body:
+        body = text
+    return hook, body, cta
+
+
+async def _try_ai_generation(db: AsyncSession, brief: ContentBrief, brand) -> Optional[dict]:
+    """Attempt AI-powered script generation. Returns None if no AI provider is available."""
+    try:
+        from apps.api.services.content_generation_service import (
+            _get_ai_client, _enrich_brief_metadata, _build_generation_prompt,
+            SCRIPT_SYSTEM_PROMPT, CAPTION_SYSTEM_PROMPT,
+        )
+        from packages.scoring.tiered_routing_engine import classify_task_tier, route_to_provider
+
+        tier = classify_task_tier(brief.target_platform or "youtube")
+        provider_key = route_to_provider("text", tier)
+        client = await _get_ai_client(provider_key)
+
+        if not hasattr(client, '_is_configured') or not client._is_configured():
+            logger.info("AI provider %s not configured, falling back to template", provider_key)
+            return None
+
+        meta = await _enrich_brief_metadata(db, brief)
+
+        if brief.offer_id:
+            offer = (await db.execute(select(Offer).where(Offer.id == brief.offer_id))).scalar_one_or_none()
+            if offer:
+                meta["offer_name"] = offer.name
+                meta["offer_url"] = getattr(offer, "offer_url", None) or getattr(offer, "landing_url", None) or ""
+
+        prompt = _build_generation_prompt(brief, brand, meta)
+
+        ct = brief.content_type.value if hasattr(brief.content_type, 'value') else str(brief.content_type or "")
+        is_video_script = ct in ("SHORT_VIDEO", "LONG_VIDEO", "REEL", "SHORT", "STORY")
+        system_prompt = SCRIPT_SYSTEM_PROMPT if is_video_script else CAPTION_SYSTEM_PROMPT
+        max_tokens = 2048 if is_video_script else 1024
+
+        if provider_key in ("claude", "gemini_flash"):
+            result = await client.generate(prompt, max_tokens=max_tokens, system=system_prompt)
+        else:
+            result = await client.generate(f"{system_prompt}\n\n---\n\n{prompt}", max_tokens=max_tokens)
+
+        if not result.get("success"):
+            logger.warning("AI generation failed for brief %s: %s", brief.id, result.get("error"))
+            return None
+
+        generated_text = result["data"]["text"]
+        hook, body, cta = _parse_ai_script(generated_text)
+
+        return {
+            "hook": hook,
+            "body": body,
+            "cta": cta,
+            "full_text": generated_text,
+            "model": result["data"].get("model", provider_key),
+            "metadata": {
+                "source": "ai",
+                "provider": provider_key,
+                "tier": tier,
+                "model": result["data"].get("model", provider_key),
+                "tokens_used": result["data"].get("output_tokens", 0),
+                "brief_id": str(brief.id),
+            },
+        }
+    except Exception as e:
+        logger.warning("AI generation unavailable, falling back to template: %s", e)
+        return None
 
 
 async def get_script(db: AsyncSession, script_id: uuid.UUID) -> Script:
@@ -222,7 +328,7 @@ async def generate_media(db: AsyncSession, script_id: uuid.UUID) -> MediaJob:
         from workers.generation_worker.tasks import generate_media as gen_media_task
         gen_media_task.delay(str(script.id), str(avatar.id) if avatar else str(uuid.UUID(int=0)))
     except Exception:
-        pass
+        logger.warning("media_generation_task_dispatch_failed", exc_info=True)
     return job
 
 
@@ -527,7 +633,7 @@ async def publish_now(db: AsyncSession, content_id: uuid.UUID, creator_account_i
         from workers.publishing_worker.tasks import publish_content
         publish_content.delay(str(job.id))
     except Exception:
-        pass
+        logger.warning("publish_task_dispatch_failed", exc_info=True)
     return job
 
 

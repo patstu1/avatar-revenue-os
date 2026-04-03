@@ -7,6 +7,8 @@ import structlog
 from celery import shared_task
 from sqlalchemy import select
 
+from workers.base_task import TrackedTask
+
 from packages.db.models.core import Brand
 from packages.db.session import async_session_factory
 
@@ -21,7 +23,7 @@ async def _active_brand_ids() -> list:
         return list(rows)
 
 
-@shared_task(name="workers.autonomous_phase_d_worker.tasks.run_agent_orchestration")
+@shared_task(name="workers.autonomous_phase_d_worker.tasks.run_agent_orchestration", base=TrackedTask)
 def run_agent_orchestration():
     """Run a full agent orchestration cycle for every active brand."""
     from apps.api.services import autonomous_phase_d_service as svc
@@ -40,7 +42,7 @@ def run_agent_orchestration():
     asyncio.run(_inner())
 
 
-@shared_task(name="workers.autonomous_phase_d_worker.tasks.run_revenue_pressure")
+@shared_task(name="workers.autonomous_phase_d_worker.tasks.run_revenue_pressure", base=TrackedTask)
 def run_revenue_pressure():
     """Recompute revenue pressure for every active brand."""
     from apps.api.services import autonomous_phase_d_service as svc
@@ -59,7 +61,7 @@ def run_revenue_pressure():
     asyncio.run(_inner())
 
 
-@shared_task(name="workers.autonomous_phase_d_worker.tasks.run_blocker_detection")
+@shared_task(name="workers.autonomous_phase_d_worker.tasks.run_blocker_detection", base=TrackedTask)
 def run_blocker_detection():
     """Detect blockers across all active brands."""
     from apps.api.services import autonomous_phase_d_service as svc
@@ -78,7 +80,7 @@ def run_blocker_detection():
     asyncio.run(_inner())
 
 
-@shared_task(name="workers.autonomous_phase_d_worker.tasks.run_escalation_generation")
+@shared_task(name="workers.autonomous_phase_d_worker.tasks.run_escalation_generation", base=TrackedTask)
 def run_escalation_generation():
     """Generate operator escalations from blockers + revenue pressure."""
     from apps.api.services import autonomous_phase_d_service as svc

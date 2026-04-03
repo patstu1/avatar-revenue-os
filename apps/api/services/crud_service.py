@@ -77,7 +77,7 @@ class CRUDService(Generic[ModelT]):
     async def update(self, db: AsyncSession, id: uuid.UUID, **kwargs: Any) -> ModelT:
         instance = await self.get_or_404(db, id)
         for key, value in kwargs.items():
-            if hasattr(instance, key) and value is not None:
+            if hasattr(instance, key):
                 setattr(instance, key, value)
         await db.flush()
         await db.refresh(instance)

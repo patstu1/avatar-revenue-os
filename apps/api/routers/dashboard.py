@@ -128,7 +128,12 @@ async def get_scale_command_center(
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand or brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=403, detail="Brand not accessible")
-    payload = await scale_svc.build_scale_command_center(db, brand_id)
+    try:
+        payload = await scale_svc.build_scale_command_center(db, brand_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
     return ScaleCommandCenterResponse(**payload)
 
 
@@ -141,7 +146,12 @@ async def get_revenue_leaks_dashboard(
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand or brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=403, detail="Brand not accessible")
-    data = await growth_svc.get_leak_reports_dashboard(db, brand_id)
+    try:
+        data = await growth_svc.get_leak_reports_dashboard(db, brand_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
     return LeaksDashboardResponse(
         brand_id=data["brand_id"],
         funnel=data.get("funnel") or {},
@@ -159,7 +169,12 @@ async def get_growth_intel_full_dashboard(
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand or brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=403, detail="Brand not accessible")
-    raw = await growth_svc.get_growth_intel_dashboard(db, brand_id)
+    try:
+        raw = await growth_svc.get_growth_intel_dashboard(db, brand_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
     leaks = raw["leaks"]
     exp = raw["expansion"]
     paid = raw["paid_amplification"]
@@ -196,7 +211,12 @@ async def get_revenue_intel_dashboard(
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand or brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=403, detail="Brand not accessible")
-    raw = await rev_svc.get_revenue_intel_dashboard(db, brand_id)
+    try:
+        raw = await rev_svc.get_revenue_intel_dashboard(db, brand_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
     return RevenueIntelDashboardResponse(
         brand_id=raw["brand_id"],
         offer_stacks=[MonetizationRecRow(**r) for r in raw["offer_stacks"]],

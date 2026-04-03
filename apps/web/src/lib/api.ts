@@ -1,6 +1,34 @@
 import axios from 'axios';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8001');
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8001');
+
+export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('aro_token') : null;
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options?.headers,
+  };
+
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+
+  if (res.status === 401 && typeof window !== 'undefined') {
+    localStorage.removeItem('aro_token');
+    document.cookie = 'aro_token=; path=/; max-age=0';
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
+
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+
+  if (res.status === 204 || res.headers.get('content-length') === '0') {
+    return null as T;
+  }
+
+  return res.json();
+}
 
 export const api = axios.create({
   baseURL: API_BASE,
@@ -20,6 +48,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('aro_token');
+      document.cookie = 'aro_token=; path=/; max-age=0';
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -60,6 +89,8 @@ export const accountsApi = {
   create: (data: any) => api.post('/api/v1/accounts/', data),
   update: (id: string, data: any) => api.patch(`/api/v1/accounts/${id}`, data),
   delete: (id: string) => api.delete(`/api/v1/accounts/${id}`),
+  updateCredentials: (id: string, data: any) => api.put(`/api/v1/accounts/${id}/credentials`, data),
+  triggerSync: (id: string) => api.post(`/api/v1/accounts/${id}/sync`),
 };
 
 export const providersApi = {

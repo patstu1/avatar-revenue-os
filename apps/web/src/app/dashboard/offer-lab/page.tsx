@@ -1,13 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-import { brandsApi } from "@/lib/api";
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface OLOffer { id: string; offer_name: string; offer_type: string; primary_angle: string | null; price_point: number; rank_score: number; confidence: number; status: string; truth_label: string; }
 interface Blocker { id: string; blocker_type: string; description: string; recommendation: string | null; severity: string; }
@@ -26,7 +20,7 @@ export default function OfferLabPage() {
     }).catch(() => {});
   }, []);
 
-  useEffect(() => { if (!brandId) return; Promise.all([apiFetch(`/api/v1/brands/${brandId}/offer-lab/offers`), apiFetch(`/api/v1/brands/${brandId}/offer-lab/blockers`)]).then(([o, b]) => { setOffers(o); setBlockers(b); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
+  useEffect(() => { if (!brandId) return; Promise.all([apiFetch<any>(`/api/v1/brands/${brandId}/offer-lab/offers`), apiFetch<any>(`/api/v1/brands/${brandId}/offer-lab/blockers`)]).then(([o, b]) => { setOffers(o); setBlockers(b); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">

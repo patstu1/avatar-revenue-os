@@ -24,7 +24,7 @@ from packages.db.models.portfolio import (
     CapitalAllocationRecommendation,
     GeoLanguageExpansionRecommendation,
     PaidAmplificationJob,
-    RevenuLeakReport,
+    RevenueLeakReport,
     RoadmapRecommendation,
     ScaleRecommendation,
     TrustSignalReport,
@@ -117,7 +117,7 @@ async def recompute_phase7(
 
     # Phase 6 data for roadmap inputs
     leaks = list((await db.execute(
-        select(RevenuLeakReport).where(RevenuLeakReport.brand_id == brand_id, RevenuLeakReport.is_resolved.is_(False)).limit(50)
+        select(RevenueLeakReport).where(RevenueLeakReport.brand_id == brand_id, RevenueLeakReport.is_resolved.is_(False)).limit(50)
     )).scalars().all())
     leak_dicts = [{"leak_type": l.leak_type, "estimated_leaked_revenue": l.estimated_leaked_revenue, "estimated_recoverable": l.estimated_recoverable, "recommended_fix": l.recommended_fix, "root_cause": l.root_cause} for l in leaks]
 

@@ -6,8 +6,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.live_execution import (
     AnalyticsEvent,
@@ -154,13 +157,13 @@ async def create_conversion_import(
             try:
                 content_item_id = uuid.UUID(str(c["content_item_id"]))
             except (ValueError, AttributeError):
-                pass
+                logger.debug("conversion_content_item_id_parse_failed", exc_info=True)
         offer_id = None
         if c.get("offer_id"):
             try:
                 offer_id = uuid.UUID(str(c["offer_id"]))
             except (ValueError, AttributeError):
-                pass
+                logger.debug("conversion_offer_id_parse_failed", exc_info=True)
         ce = ConversionEvent(
             brand_id=brand_id,
             import_id=imp.id,

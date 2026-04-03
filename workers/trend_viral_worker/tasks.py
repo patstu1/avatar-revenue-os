@@ -3,6 +3,7 @@ import asyncio, logging, uuid
 from celery import shared_task
 from sqlalchemy import select
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentBrief
@@ -112,14 +113,14 @@ async def _deep_analysis():
     return c
 
 
-@shared_task(name="workers.trend_viral_worker.tasks.trend_light_scan")
+@shared_task(name="workers.trend_viral_worker.tasks.trend_light_scan", base=TrackedTask)
 def trend_light_scan():
     """Runs every 60 seconds — lightweight signal fetch + delta + viral reactor."""
     result = asyncio.run(_light_scan())
     return {"status": "completed", **result}
 
 
-@shared_task(name="workers.trend_viral_worker.tasks.trend_deep_analysis")
+@shared_task(name="workers.trend_viral_worker.tasks.trend_deep_analysis", base=TrackedTask)
 def trend_deep_analysis():
     """Runs every 5 minutes — full scoring + opportunity creation."""
     return {"status": "completed", "brands": asyncio.run(_deep_analysis())}

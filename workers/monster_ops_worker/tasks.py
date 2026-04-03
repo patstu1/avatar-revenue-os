@@ -6,6 +6,7 @@ from celery import shared_task
 from sqlalchemy import select
 
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
@@ -52,19 +53,19 @@ async def _recompute_scale(bid):
         await db.commit()
 
 
-@shared_task(name="workers.monster_ops_worker.tasks.recompute_expansion_advisor")
+@shared_task(name="workers.monster_ops_worker.tasks.recompute_expansion_advisor", base=TrackedTask)
 def recompute_expansion_advisor():
     asyncio.run(_run_all(_recompute_expansion))
     return "expansion-advisor-done"
 
 
-@shared_task(name="workers.monster_ops_worker.tasks.recompute_gatekeeper")
+@shared_task(name="workers.monster_ops_worker.tasks.recompute_gatekeeper", base=TrackedTask)
 def recompute_gatekeeper():
     asyncio.run(_run_all(_recompute_gatekeeper))
     return "gatekeeper-done"
 
 
-@shared_task(name="workers.monster_ops_worker.tasks.recompute_scale_engine")
+@shared_task(name="workers.monster_ops_worker.tasks.recompute_scale_engine", base=TrackedTask)
 def recompute_scale_engine():
     asyncio.run(_run_all(_recompute_scale))
     return "scale-engine-done"
@@ -77,7 +78,7 @@ async def _run_offer_learning(bid):
         await db.commit()
 
 
-@shared_task(name="workers.monster_ops_worker.tasks.run_offer_learning")
+@shared_task(name="workers.monster_ops_worker.tasks.run_offer_learning", base=TrackedTask)
 def run_offer_learning_task():
     asyncio.run(_run_all(_run_offer_learning))
     return "offer-learning-done"
@@ -230,13 +231,13 @@ async def _trigger_expansion_from_saturation(bid):
             return {"status": "saturation_below_threshold", "avg_saturation": round(avg_sat, 3)}
 
 
-@shared_task(name="workers.monster_ops_worker.tasks.detect_weak_lanes")
+@shared_task(name="workers.monster_ops_worker.tasks.detect_weak_lanes", base=TrackedTask)
 def detect_weak_lanes():
     asyncio.run(_run_all(_detect_weak_lanes))
     return "weak-lanes-done"
 
 
-@shared_task(name="workers.monster_ops_worker.tasks.trigger_saturation_expansion")
+@shared_task(name="workers.monster_ops_worker.tasks.trigger_saturation_expansion", base=TrackedTask)
 def trigger_saturation_expansion():
     asyncio.run(_run_all(_trigger_expansion_from_saturation))
     return "saturation-expansion-done"
@@ -263,7 +264,7 @@ async def _daily_operator_digest(bid):
         await db.commit()
 
 
-@shared_task(name="workers.monster_ops_worker.tasks.daily_operator_digest")
+@shared_task(name="workers.monster_ops_worker.tasks.daily_operator_digest", base=TrackedTask)
 def daily_operator_digest():
     asyncio.run(_run_all(_daily_operator_digest))
     return "daily-digest-done"

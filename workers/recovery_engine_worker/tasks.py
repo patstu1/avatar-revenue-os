@@ -3,6 +3,7 @@ import asyncio, logging
 from celery import shared_task
 from sqlalchemy import select
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.core import Organization
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ async def _run():
         except Exception: logger.exception("recovery engine failed %s", oid)
     return {"orgs": c, "actions_executed": executed_total}
 
-@shared_task(name="workers.recovery_engine_worker.tasks.scan_recovery")
+@shared_task(name="workers.recovery_engine_worker.tasks.scan_recovery", base=TrackedTask)
 def scan_recovery():
     result = asyncio.run(_run())
     return {"status": "completed", **result}

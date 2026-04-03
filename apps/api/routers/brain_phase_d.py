@@ -31,7 +31,12 @@ async def list_meta_monitoring(
     limit: int = Query(20, ge=1, le=100),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_meta_monitoring(db, brand_id, limit=limit)
+    try:
+        return await svc.list_meta_monitoring(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.post("/{brand_id}/meta-monitoring/recompute", response_model=RecomputeSummaryOut)
@@ -60,7 +65,12 @@ async def list_self_corrections(
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_self_corrections(db, brand_id, limit=limit)
+    try:
+        return await svc.list_self_corrections(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.get("/{brand_id}/readiness-brain", response_model=list[ReadinessBrainReportOut])
@@ -69,7 +79,12 @@ async def list_readiness_brain(
     limit: int = Query(10, ge=1, le=50),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_readiness_brain(db, brand_id, limit=limit)
+    try:
+        return await svc.list_readiness_brain(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.post("/{brand_id}/readiness-brain/recompute", response_model=RecomputeSummaryOut)
@@ -79,7 +94,7 @@ async def recompute_readiness_brain(
 ):
     await _require_brand(brand_id, current_user, db)
     try:
-        result = await svc.recompute_meta_monitoring(db, brand_id)
+        result = await svc.recompute_readiness_brain(db, brand_id)
         return RecomputeSummaryOut(
             status="completed",
             detail=f"Readiness brain — score computed, {result.get('escalations_created', 0)} escalations",
@@ -95,4 +110,9 @@ async def list_brain_escalations(
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_brain_escalations(db, brand_id, limit=limit)
+    try:
+        return await svc.list_brain_escalations(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")

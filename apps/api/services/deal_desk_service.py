@@ -4,8 +4,11 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+import structlog
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.audience_state import AudienceStateReport
@@ -242,7 +245,7 @@ async def recompute_deal_desk(db: AsyncSession, brand_id: uuid.UUID) -> dict[str
         try:
             scope_id_val = uuid.UUID(ctx["scope_id"])
         except (ValueError, KeyError):
-            pass
+            logger.debug("deal_scope_id_parse_failed", exc_info=True)
 
         db.add(
             DealDeskRecommendation(

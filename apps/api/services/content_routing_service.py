@@ -4,8 +4,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+import structlog
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.content_routing import ContentRoutingDecision, ContentRoutingCostReport
 from packages.scoring.tiered_routing_engine import (
@@ -28,7 +31,7 @@ async def route_task(db: AsyncSession, brand_id: uuid.UUID, task_description: st
         if top_cluster and top_cluster.avg_win_score >= 0.6:
             hero_override = True
     except Exception:
-        pass
+        logger.debug("winning_pattern_cluster_lookup_failed", exc_info=True)
 
     try:
         from apps.api.services.capital_allocator_service import get_allocation_for_target
@@ -38,7 +41,7 @@ async def route_task(db: AsyncSession, brand_id: uuid.UUID, task_description: st
         if alloc.get("starved"):
             hero_override = False
     except Exception:
-        pass
+        logger.debug("capital_allocation_lookup_failed", exc_info=True)
 
     try:
         from packages.db.models.account_state_intel import AccountStateReport
@@ -53,7 +56,7 @@ async def route_task(db: AsyncSession, brand_id: uuid.UUID, task_description: st
             if state_report.posting_cadence == "paused":
                 hero_override = False
     except Exception:
-        pass
+        logger.debug("account_state_routing_check_failed", exc_info=True)
 
     result = route_content_task(task_description, platform, content_type, is_promoted or hero_override, campaign_type)
     if hero_override and not is_promoted:

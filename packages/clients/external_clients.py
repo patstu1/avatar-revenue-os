@@ -757,9 +757,9 @@ class SmtpEmailClient:
     def __init__(self) -> None:
         self.host = os.environ.get("SMTP_HOST", "")
         self.port = int(os.environ.get("SMTP_PORT", "587"))
-        self.username = os.environ.get("SMTP_USERNAME", "")
-        self.password = os.environ.get("SMTP_PASSWORD", "")
-        self.from_email = os.environ.get("SMTP_FROM_EMAIL", "")
+        self.username = os.environ.get("SMTP_USERNAME", "") or os.environ.get("SMTP_USER", "")
+        self.password = os.environ.get("SMTP_PASSWORD", "") or os.environ.get("SMTP_PASS", "")
+        self.from_email = os.environ.get("SMTP_FROM_EMAIL", "") or self.username
         self.use_tls = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
 
     def _is_configured(self) -> bool:

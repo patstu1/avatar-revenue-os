@@ -154,34 +154,38 @@ class TestRateLimiting:
 
 class TestNotificationAdapters:
     def test_unconfigured_email_returns_clear_error(self):
+        import asyncio
         from packages.notifications.adapters import EmailAdapter, NotificationPayload
         adapter = EmailAdapter(smtp_host="", smtp_user="")
         payload = NotificationPayload(title="Test", summary="Test", urgency=50, alert_type="test", brand_id="x")
-        ok, err = adapter.send(payload, "test@example.com")
+        ok, err = asyncio.run(adapter.send(payload, "test@example.com"))
         assert ok is False
         assert "SMTP" in err
 
     def test_unconfigured_slack_returns_clear_error(self):
+        import asyncio
         from packages.notifications.adapters import SlackWebhookAdapter, NotificationPayload
         adapter = SlackWebhookAdapter(webhook_url="")
         payload = NotificationPayload(title="Test", summary="Test", urgency=50, alert_type="test", brand_id="x")
-        ok, err = adapter.send(payload, "channel")
+        ok, err = asyncio.run(adapter.send(payload, "channel"))
         assert ok is False
         assert "webhook" in err.lower() or "SLACK" in err
 
     def test_unconfigured_sms_returns_clear_error(self):
+        import asyncio
         from packages.notifications.adapters import SMSAdapter, NotificationPayload
         adapter = SMSAdapter(api_key="")
         payload = NotificationPayload(title="Test", summary="Test", urgency=50, alert_type="test", brand_id="x")
-        ok, err = adapter.send(payload, "+1234567890")
+        ok, err = asyncio.run(adapter.send(payload, "+1234567890"))
         assert ok is False
         assert "SMS" in err
 
     def test_in_app_always_succeeds(self):
+        import asyncio
         from packages.notifications.adapters import InAppAdapter, NotificationPayload
         adapter = InAppAdapter()
         payload = NotificationPayload(title="Test", summary="Test", urgency=50, alert_type="test", brand_id="x")
-        ok, err = adapter.send(payload, "user")
+        ok, err = asyncio.run(adapter.send(payload, "user"))
         assert ok is True
         assert err is None
 

@@ -3,8 +3,8 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from apps.api.deps import CurrentUser, DBSession
-from apps.api.schemas.core import BrandCreate, BrandResponse
+from apps.api.deps import CurrentUser, DBSession, OperatorUser
+from apps.api.schemas.core import BrandCreate, BrandResponse, BrandUpdate
 from apps.api.services.audit_service import log_action
 from apps.api.services.crud_service import CRUDService
 from packages.db.models.core import Brand
@@ -50,7 +50,7 @@ async def get_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSessio
 
 
 @router.patch("/{brand_id}", response_model=BrandResponse)
-async def update_brand(brand_id: uuid.UUID, body: BrandCreate, current_user: CurrentUser, db: DBSession):
+async def update_brand(brand_id: uuid.UUID, body: BrandUpdate, current_user: CurrentUser, db: DBSession):
     try:
         brand = await brand_service.get_or_404(db, brand_id)
     except ValueError:
@@ -60,3 +60,21 @@ async def update_brand(brand_id: uuid.UUID, body: BrandCreate, current_user: Cur
     updated = await brand_service.update(db, brand_id, **body.model_dump(exclude_unset=True))
     await log_action(db, "brand.updated", brand_id=brand_id, user_id=current_user.id, actor_type="human", entity_type="brand", entity_id=brand_id)
     return updated
+
+
+@router.delete("/{brand_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_brand(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
+    """Soft delete a brand by setting is_active=False."""
+    try:
+        brand = await brand_service.get_or_404(db, brand_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    if brand.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    await brand_service.update(db, brand_id, is_active=False)
+    await log_action(
+        db, "brand.deleted",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id, user_id=current_user.id,
+        actor_type="human", entity_type="brand", entity_id=brand_id,
+    )

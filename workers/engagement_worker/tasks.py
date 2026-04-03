@@ -6,6 +6,8 @@ import logging
 from celery import shared_task
 from sqlalchemy import select
 
+from workers.base_task import TrackedTask
+
 from packages.db.session import async_session_factory
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.autonomous_farm import AccountWarmupPlan
@@ -53,6 +55,6 @@ async def _run_engagement():
     return {"plans_generated": plans_generated, "warmup_accounts": len(warmup_accounts)}
 
 
-@shared_task(name="workers.engagement_worker.tasks.run_engagement")
+@shared_task(name="workers.engagement_worker.tasks.run_engagement", base=TrackedTask)
 def run_engagement():
     return asyncio.run(_run_engagement())

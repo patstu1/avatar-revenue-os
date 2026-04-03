@@ -1,5 +1,6 @@
 """Content pipeline: briefs, scripts, variants, assets, media jobs, content items."""
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import Boolean, Enum, Float, ForeignKey, Integer, String, Text
@@ -14,7 +15,7 @@ class ContentBrief(Base):
     __tablename__ = "content_briefs"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True
     )
     topic_candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("topic_candidates.id"), index=True
@@ -48,7 +49,7 @@ class Script(Base):
         UUID(as_uuid=True), ForeignKey("content_briefs.id"), nullable=False, index=True
     )
     brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True
     )
     version: Mapped[int] = mapped_column(Integer, default=1)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -123,15 +124,15 @@ class MediaJob(Base):
     error_message: Mapped[Optional[str]] = mapped_column(Text)
     error_details: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     cost: Mapped[float] = mapped_column(Float, default=0.0)
-    started_at: Mapped[Optional[str]] = mapped_column(String(50))
-    completed_at: Mapped[Optional[str]] = mapped_column(String(50))
+    started_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
 
 
 class ContentItem(Base):
     __tablename__ = "content_items"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True
     )
     brief_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_briefs.id"), index=True

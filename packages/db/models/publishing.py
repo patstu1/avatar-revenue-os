@@ -39,8 +39,8 @@ class PublishJob(Base):
 class PerformanceMetric(Base):
     __tablename__ = "performance_metrics"
 
-    content_item_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=False, index=True
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
     )
     creator_account_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True

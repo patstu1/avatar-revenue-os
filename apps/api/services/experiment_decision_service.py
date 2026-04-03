@@ -4,8 +4,11 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
@@ -312,7 +315,7 @@ async def _persist_outcomes_for_decisions(
                         evidence_json={"experiment_id": str(dec.id), "uplift": float(r.get("observed_uplift", 0))},
                     ))
             except Exception:
-                pass
+                logger.debug("experiment_winner_pattern_promotion_failed", exc_info=True)
 
         oc += 1
         ac += 1
@@ -432,7 +435,7 @@ async def recompute_experiment_decisions(
                 "age_days": 0,
             })
     except Exception:
-        pass
+        logger.debug("pattern_based_experiment_suggestion_failed", exc_info=True)
 
     mt_score = await _load_latest_market_timing_score(db, brand_id)
     experiments, timing_influence = apply_market_timing_to_experiment_candidates(experiments, mt_score)

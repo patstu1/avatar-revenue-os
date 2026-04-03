@@ -243,6 +243,11 @@ async def run_payment_sync(
                 "revenue": row.revenue_imported,
                 "refunds": row.refunds_imported,
             }}
+
+            revenue_events_created = await _create_revenue_events_from_sync(
+                db, brand_id, provider, data
+            )
+            row.details_json["revenue_events_created"] = revenue_events_created
         elif result.get("blocked"):
             row.status = "blocked"
             row.error_message = result.get("error")
@@ -254,6 +259,78 @@ async def run_payment_sync(
     db.add(row)
     await db.flush()
     return {"rows_processed": 1, "status": row.status}
+
+
+async def _create_revenue_events_from_sync(
+    db: AsyncSession, brand_id: uuid.UUID, provider: str, data: dict,
+) -> int:
+    """Create CreatorRevenueEvent rows from payment sync data, deduped by external_id."""
+    from packages.db.models.creator_revenue import CreatorRevenueEvent
+
+    created = 0
+
+    if provider == "stripe":
+        for charge in data.get("charges", []):
+            if not charge.get("paid"):
+                continue
+            ext_id = charge.get("id", "")
+            existing = (await db.execute(
+                select(CreatorRevenueEvent).where(
+                    CreatorRevenueEvent.brand_id == brand_id,
+                    CreatorRevenueEvent.metadata_json["stripe_charge_id"].astext == ext_id,
+                )
+            )).scalar_one_or_none()
+            if existing:
+                continue
+            amount = float(charge.get("amount", 0)) / 100.0
+            if amount <= 0:
+                continue
+            db.add(CreatorRevenueEvent(
+                brand_id=brand_id,
+                avenue_type="consulting" if "consulting" in str(charge.get("metadata", {})) else "ugc_services",
+                event_type="stripe_charge_sync",
+                revenue=amount,
+                cost=0.0,
+                profit=amount,
+                client_name=charge.get("receipt_email") or charge.get("billing_details", {}).get("email", ""),
+                description=f"Stripe charge {ext_id}: ${amount:.2f}",
+                metadata_json={"stripe_charge_id": ext_id, "source": "payment_sync"},
+            ))
+            created += 1
+
+    elif provider == "shopify":
+        for order in data.get("orders", []):
+            ext_id = str(order.get("id", ""))
+            existing = (await db.execute(
+                select(CreatorRevenueEvent).where(
+                    CreatorRevenueEvent.brand_id == brand_id,
+                    CreatorRevenueEvent.metadata_json["shopify_order_id"].astext == ext_id,
+                )
+            )).scalar_one_or_none()
+            if existing:
+                continue
+            amount = float(order.get("total_price", 0))
+            if order.get("financial_status") == "refunded":
+                amount = -amount
+            if amount == 0:
+                continue
+            event_type = "shopify_refund_sync" if amount < 0 else "shopify_order_sync"
+            db.add(CreatorRevenueEvent(
+                brand_id=brand_id,
+                avenue_type="ecommerce",
+                event_type=event_type,
+                revenue=amount,
+                cost=0.0,
+                profit=amount,
+                client_name=order.get("email", ""),
+                description=f"Shopify order #{order.get('order_number', ext_id)}: ${abs(amount):.2f}",
+                metadata_json={"shopify_order_id": ext_id, "source": "payment_sync"},
+            ))
+            created += 1
+
+    if created:
+        await db.flush()
+    return created
 
 
 # ── E. Analytics Syncs ────────────────────────────────────────────────

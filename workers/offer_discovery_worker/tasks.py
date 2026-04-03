@@ -11,6 +11,8 @@ import uuid
 from celery import shared_task
 from sqlalchemy import select
 
+from workers.base_task import TrackedTask
+
 from packages.db.session import async_session_factory
 from packages.db.models.core import Brand, Offer
 
@@ -153,6 +155,6 @@ async def _run_discovery():
     return {"discovered": total_discovered, "created": total_created, "brands": len(brands)}
 
 
-@shared_task(name="workers.offer_discovery_worker.tasks.discover_offers")
+@shared_task(name="workers.offer_discovery_worker.tasks.discover_offers", base=TrackedTask)
 def discover_offers():
     return asyncio.run(_run_discovery())

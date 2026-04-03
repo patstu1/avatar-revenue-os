@@ -242,6 +242,11 @@ async def recompute_meta_monitoring(db: AsyncSession, brand_id: uuid.UUID) -> di
     }
 
 
+async def recompute_readiness_brain(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, int]:
+    """Dedicated readiness brain recompute — delegates to full recompute."""
+    return await recompute_meta_monitoring(db, brand_id)
+
+
 # ── Serialization helpers ─────────────────────────────────────────────
 
 def _mm_out(r: MetaMonitoringReport) -> dict[str, Any]:

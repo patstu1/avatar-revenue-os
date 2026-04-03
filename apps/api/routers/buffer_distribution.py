@@ -36,7 +36,12 @@ async def list_buffer_profiles(
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_buffer_profiles(db, brand_id, limit=limit)
+    try:
+        return await svc.list_buffer_profiles(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.post("/{brand_id}/buffer-profiles", response_model=BufferProfileOut, status_code=status.HTTP_201_CREATED)
@@ -45,7 +50,12 @@ async def create_buffer_profile(
     current_user: OperatorUser, db: DBSession,
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.create_buffer_profile(db, brand_id, body.model_dump())
+    try:
+        return await svc.create_buffer_profile(db, brand_id, body.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 # ── Buffer Profile Update (root-scoped) ──────────────────────────────
@@ -55,7 +65,12 @@ async def update_buffer_profile(
     profile_id: uuid.UUID, body: BufferProfileUpdate,
     current_user: OperatorUser, db: DBSession,
 ):
-    result = await svc.update_buffer_profile(db, profile_id, body.model_dump(exclude_unset=True))
+    try:
+        result = await svc.update_buffer_profile(db, profile_id, body.model_dump(exclude_unset=True))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
     if not result:
         raise HTTPException(status_code=404, detail="Buffer profile not found")
     return result
@@ -69,7 +84,12 @@ async def list_publish_jobs(
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_publish_jobs(db, brand_id, limit=limit)
+    try:
+        return await svc.list_publish_jobs(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.post("/{brand_id}/buffer-publish-jobs/recompute", response_model=RecomputeSummaryOut)
@@ -133,4 +153,9 @@ async def list_buffer_blockers(
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_buffer_blockers(db, brand_id, limit=limit)
+    try:
+        return await svc.list_buffer_blockers(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")

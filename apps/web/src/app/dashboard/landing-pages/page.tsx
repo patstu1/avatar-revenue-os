@@ -1,13 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-import { brandsApi } from "@/lib/api";
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface LP { id: string; page_type: string; headline: string; status: string; publish_status: string; truth_label: string; destination_url: string | null; }
 interface LPQ { id: string; total_score: number; trust_score: number; conversion_fit: number; verdict: string; }
@@ -23,7 +17,7 @@ export default function LandingPagesPage() {
       if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
     }).catch(() => {});
   }, []);
-  useEffect(() => { if (!brandId) return; Promise.all([apiFetch(`/api/v1/brands/${brandId}/landing-pages`), apiFetch(`/api/v1/brands/${brandId}/landing-page-quality`)]).then(([p, q]) => { setPages(p); setQuality(q); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
+  useEffect(() => { if (!brandId) return; Promise.all([apiFetch<any>(`/api/v1/brands/${brandId}/landing-pages`), apiFetch<any>(`/api/v1/brands/${brandId}/landing-page-quality`)]).then(([p, q]) => { setPages(p); setQuality(q); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
 
   const verdictColor: Record<string, string> = { pass: "text-green-400", warn: "text-yellow-400", fail: "text-red-400", unscored: "text-gray-500" };
 

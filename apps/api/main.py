@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.config import get_settings
-from apps.api.middleware import RequestIDMiddleware, register_exception_handlers
+from apps.api.middleware import RequestIDMiddleware, SecurityHeadersMiddleware, RedirectHostFixMiddleware, register_exception_handlers
 from apps.api.routers import (
     auth, brands, health, organizations, avatars, offers,
     accounts, content, decisions, jobs, providers, dashboard,
@@ -72,6 +72,12 @@ from apps.api.routers import (
     causal_attribution,
     trend_viral,
     cinema_studio,
+    ws_live,
+    revenue_intelligence,
+    revenue_avenues,
+    monetization,
+    onboarding,
+    revenue_machine,
 )
 
 settings = get_settings()
@@ -92,13 +98,15 @@ structlog.configure(
 
 logger = structlog.get_logger()
 
+_is_dev = settings.api_env == "development"
+
 app = FastAPI(
     title="AI Avatar Revenue OS",
     description="Production-grade autonomous content monetization platform",
     version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    redirect_slashes=False,
+    docs_url="/docs" if _is_dev else None,
+    redoc_url="/redoc" if _is_dev else None,
+    redirect_slashes=True,
 )
 
 # --- Middleware (order matters: first added = outermost) ---
@@ -107,11 +115,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.api_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Accept"],
     expose_headers=["X-Request-ID"],
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RedirectHostFixMiddleware)
 app.add_middleware(RequestIDMiddleware)
 
 # --- Global exception handlers ---
@@ -224,3 +234,9 @@ app.include_router(operator_permission_matrix.router, prefix="/api/v1", tags=["O
 app.include_router(causal_attribution.router, prefix="/api/v1/brands", tags=["Causal Attribution"])
 app.include_router(trend_viral.router, prefix="/api/v1/brands", tags=["Trend / Viral Opportunity Engine"])
 app.include_router(cinema_studio.router, prefix="/api/v1/brands", tags=["Cinema Studio"])
+app.include_router(ws_live.router, prefix="/api/v1", tags=["WebSocket: Live Revenue Streaming"])
+app.include_router(revenue_intelligence.router, prefix="/api/v1/brands", tags=["Revenue Intelligence: Elite"])
+app.include_router(revenue_avenues.router, prefix="/api/v1/brands", tags=["Revenue Avenues: SaaS, Pipeline, Launches"])
+app.include_router(monetization.router, prefix="/api/v1/monetization", tags=["Monetization Machine: Credits, Plans, Packs, Telemetry"])
+app.include_router(onboarding.router, prefix="/api/v1/onboarding", tags=["Onboarding"])
+app.include_router(revenue_machine.router, prefix="/api/v1/monetization", tags=["Revenue Machine: Operating Model, Readiness, Triggers"])

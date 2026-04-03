@@ -10,7 +10,7 @@ from packages.db.models.experiments import Experiment, ExperimentVariant, Winner
 from packages.db.models.learning import MemoryEntry, CommentIngestion, CommentCluster, CommentCashSignal, KnowledgeGraphNode, KnowledgeGraphEdge
 from packages.db.models.portfolio import (
     PortfolioAllocation, ScaleRecommendation, CapitalAllocationRecommendation,
-    RevenuLeakReport, GeoLanguageExpansionRecommendation, PaidAmplificationJob, TrustSignalReport,
+    RevenueLeakReport as PortfolioRevenueLeakReport, GeoLanguageExpansionRecommendation, PaidAmplificationJob, TrustSignalReport,
     RoadmapRecommendation, MonetizationRecommendation,
 )
 from packages.db.models.decisions import (
@@ -369,6 +369,15 @@ from packages.db.models.affiliate_intel import (
 )
 from packages.db.models.landing_pages import LandingPage, LandingPageVariant, LandingPageBlock, LandingPageQualityReport, LandingPagePublishRecord
 from packages.db.models.campaigns import Campaign, CampaignVariant, CampaignAsset, CampaignDestination, CampaignBlocker
+from packages.db.models.saas_metrics import (
+    Subscription, SubscriptionEvent, SaaSMetricSnapshot,
+    HighTicketDeal, ProductLaunch,
+)
+from packages.db.models.monetization import (
+    CreditLedger, CreditTransaction, UsageMeterSnapshot,
+    PlanSubscription, PackPurchase, MultiplicationEvent,
+    MonetizationTelemetryEvent,
+)
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",
@@ -383,7 +392,7 @@ __all__ = [
     "MemoryEntry", "CommentIngestion", "CommentCluster", "CommentCashSignal",
     "KnowledgeGraphNode", "KnowledgeGraphEdge",
     "PortfolioAllocation", "ScaleRecommendation", "CapitalAllocationRecommendation",
-    "RevenuLeakReport", "GeoLanguageExpansionRecommendation", "PaidAmplificationJob", "TrustSignalReport",
+    "PortfolioRevenueLeakReport", "GeoLanguageExpansionRecommendation", "PaidAmplificationJob", "TrustSignalReport",
     "RoadmapRecommendation", "MonetizationRecommendation",
     "OpportunityDecision", "MonetizationDecision", "PublishDecision",
     "SuppressionDecision", "ScaleDecision", "AllocationDecision", "ExpansionDecision",
@@ -540,4 +549,9 @@ __all__ = [
     "StudioProject", "StudioScene", "CharacterBible", "StylePreset",
     "StudioGeneration", "StudioActivity",
     "ProviderSecret",
+    "Subscription", "SubscriptionEvent", "SaaSMetricSnapshot",
+    "HighTicketDeal", "ProductLaunch",
+    "CreditLedger", "CreditTransaction", "UsageMeterSnapshot",
+    "PlanSubscription", "PackPurchase", "MultiplicationEvent",
+    "MonetizationTelemetryEvent",
 ]

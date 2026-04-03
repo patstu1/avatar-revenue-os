@@ -1,13 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-import { brandsApi } from "@/lib/api";
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface Rule { id: string; rule_type: string; rule_key: string; severity: string; explanation: string | null; }
 interface Violation { id: string; violation_type: string; severity: string; detail: string; }
@@ -24,7 +18,7 @@ export default function BrandGovernancePage() {
       if (Array.isArray(list) && list.length > 0) setBrandId(list[0].id);
     }).catch(() => {});
   }, []);
-  useEffect(() => { if (!brandId) return; Promise.all([apiFetch(`/api/v1/brands/${brandId}/governance-voice-rules`), apiFetch(`/api/v1/brands/${brandId}/governance-violations`)]).then(([r, v]) => { setRules(r); setViolations(v); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
+  useEffect(() => { if (!brandId) return; Promise.all([apiFetch<any>(`/api/v1/brands/${brandId}/governance-voice-rules`), apiFetch<any>(`/api/v1/brands/${brandId}/governance-violations`)]).then(([r, v]) => { setRules(r); setViolations(v); }).catch(() => {}).finally(() => setLoading(false)); }, [brandId]);
 
   return (
     <div className="p-6 space-y-6">

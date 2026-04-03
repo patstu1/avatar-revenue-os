@@ -4,8 +4,11 @@ import uuid
 from typing import Any
 from datetime import datetime, timedelta, timezone
 
+import structlog
 from sqlalchemy import func, select, case, literal_column
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.account_state_intel import AccountStateReport
@@ -117,7 +120,7 @@ async def _revenue_section(db: AsyncSession, brand_id: uuid.UUID, now: datetime)
             fc = forecast_revenue(daily_revs)
             forecast_data = {"forecast_30d": fc["forecast_revenue_30d"], "trend": fc["trend_direction"], "confidence": fc["confidence"], "summary": generate_forecast_summary(fc)}
     except Exception:
-        pass
+        logger.debug("revenue_forecast_enrichment_failed", exc_info=True)
 
     fleet_data = {}
     try:
@@ -126,7 +129,7 @@ async def _revenue_section(db: AsyncSession, brand_id: uuid.UUID, now: datetime)
         if fleet:
             fleet_data = {"total": fleet.total_accounts, "warming": fleet.accounts_warming, "scaling": fleet.accounts_scaling, "plateaued": fleet.accounts_plateaued, "suspended": fleet.accounts_suspended, "expansion_recommended": fleet.expansion_recommended}
     except Exception:
-        pass
+        logger.debug("fleet_status_enrichment_failed", exc_info=True)
 
     return {
         "lifetime_revenue": round(total_rev, 2),

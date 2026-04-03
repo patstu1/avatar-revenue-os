@@ -12,6 +12,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  hydrated: boolean;
   setAuth: (user: User, token: string) => void;
   logout: () => void;
   hydrate: () => void;
@@ -21,14 +22,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
   isAuthenticated: false,
+  hydrated: false,
   setAuth: (user, token) => {
     localStorage.setItem('aro_token', token);
     localStorage.setItem('aro_user', JSON.stringify(user));
-    set({ user, token, isAuthenticated: true });
+    document.cookie = `aro_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+    set({ user, token, isAuthenticated: true, hydrated: true });
   },
   logout: () => {
     localStorage.removeItem('aro_token');
     localStorage.removeItem('aro_user');
+    document.cookie = 'aro_token=; path=/; max-age=0';
     set({ user: null, token: null, isAuthenticated: false });
   },
   hydrate: () => {
@@ -38,10 +42,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
-        set({ user, token, isAuthenticated: true });
+        document.cookie = `aro_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+        set({ user, token, isAuthenticated: true, hydrated: true });
       } catch {
-        set({ user: null, token: null, isAuthenticated: false });
+        set({ user: null, token: null, isAuthenticated: false, hydrated: true });
       }
+    } else {
+      set({ hydrated: true });
     }
   },
 }));
@@ -49,9 +56,25 @@ export const useAuthStore = create<AuthState>((set) => ({
 interface AppState {
   selectedBrandId: string | null;
   setSelectedBrandId: (id: string | null) => void;
+  hydrateSelectedBrand: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  selectedBrandId: null,
-  setSelectedBrandId: (id) => set({ selectedBrandId: id }),
+  selectedBrandId: typeof window !== 'undefined' ? localStorage.getItem('aro_brand_id') : null,
+  setSelectedBrandId: (id) => {
+    if (typeof window !== 'undefined') {
+      if (id) {
+        localStorage.setItem('aro_brand_id', id);
+      } else {
+        localStorage.removeItem('aro_brand_id');
+      }
+    }
+    set({ selectedBrandId: id });
+  },
+  hydrateSelectedBrand: () => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('aro_brand_id');
+      if (stored) set({ selectedBrandId: stored });
+    }
+  },
 }));

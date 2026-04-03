@@ -6,8 +6,11 @@ from typing import Any
 
 from collections import Counter
 
+import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
@@ -174,7 +177,7 @@ async def recompute_creative_memory(
                     )
                 )
             except (ValueError, AttributeError):
-                pass
+                logger.debug("creative_memory_link_content_id_parse_failed", exc_info=True)
 
         atom_count += 1
 

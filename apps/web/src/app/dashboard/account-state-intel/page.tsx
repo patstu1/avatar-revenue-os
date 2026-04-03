@@ -1,14 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-import { brandsApi } from "@/lib/api";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface StateReport { id: string; account_id: string; current_state: string; confidence: number; next_best_move: string | null; monetization_intensity: string; posting_cadence: string; expansion_eligible: boolean; explanation: string | null; }
 
@@ -35,7 +28,7 @@ export default function AccountStateIntelPage() {
 
   useEffect(() => {
     if (!brandId) return;
-    apiFetch(`/api/v1/brands/${brandId}/account-state`).then(setReports).catch(() => {}).finally(() => setLoading(false));
+    apiFetch<any>(`/api/v1/brands/${brandId}/account-state`).then(setReports).catch(() => {}).finally(() => setLoading(false));
   }, [brandId]);
 
   return (

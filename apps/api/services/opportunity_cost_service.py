@@ -3,8 +3,11 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.account_state_intel import AccountStateReport
@@ -47,7 +50,7 @@ async def recompute_ranking(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, 
             try:
                 tid = uuid.UUID(str(r["target_id"]))
             except (ValueError, TypeError):
-                pass
+                logger.debug("ranked_action_target_id_parse_failed", exc_info=True)
 
         db.add(RankedAction(
             brand_id=brand_id, report_id=report.id,

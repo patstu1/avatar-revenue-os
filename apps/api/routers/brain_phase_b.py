@@ -32,7 +32,12 @@ async def list_brain_decisions(
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_brain_decisions(db, brand_id, limit=limit)
+    try:
+        return await svc.list_brain_decisions(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.post("/{brand_id}/brain-decisions/recompute", response_model=RecomputeSummaryOut)
@@ -63,7 +68,12 @@ async def list_policy_evaluations(
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_policy_evaluations(db, brand_id, limit=limit)
+    try:
+        return await svc.list_policy_evaluations(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.get("/{brand_id}/confidence-reports", response_model=list[ConfidenceReportOut])
@@ -72,7 +82,12 @@ async def list_confidence_reports(
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_confidence_reports(db, brand_id, limit=limit)
+    try:
+        return await svc.list_confidence_reports(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.get("/{brand_id}/upside-cost-estimates", response_model=list[UpsideCostEstimateOut])
@@ -81,7 +96,12 @@ async def list_upside_cost_estimates(
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_upside_cost_estimates(db, brand_id, limit=limit)
+    try:
+        return await svc.list_upside_cost_estimates(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.get("/{brand_id}/arbitration-reports", response_model=list[ArbitrationReportOut])
@@ -90,4 +110,9 @@ async def list_arbitration_reports(
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_arbitration_reports(db, brand_id, limit=limit)
+    try:
+        return await svc.list_arbitration_reports(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")

@@ -7,6 +7,8 @@ from datetime import datetime, timezone, timedelta
 from celery import shared_task
 from sqlalchemy import delete, select
 
+from workers.base_task import TrackedTask
+
 from packages.db.session import async_session_factory
 
 logger = logging.getLogger(__name__)
@@ -53,6 +55,6 @@ async def _prune():
     return results
 
 
-@shared_task(name="workers.data_pruning_worker.tasks.prune_stale_data")
+@shared_task(name="workers.data_pruning_worker.tasks.prune_stale_data", base=TrackedTask)
 def prune_stale_data():
     return asyncio.run(_prune())

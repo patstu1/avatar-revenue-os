@@ -3,6 +3,7 @@ import asyncio, logging
 from celery import shared_task
 from sqlalchemy import select
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.core import Organization
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,6 @@ async def _run():
         except Exception: logger.exception("enterprise security failed %s", oid)
     return c
 
-@shared_task(name="workers.enterprise_security_worker.tasks.recompute_compliance")
+@shared_task(name="workers.enterprise_security_worker.tasks.recompute_compliance", base=TrackedTask)
 def recompute_compliance_task():
     return {"status": "completed", "orgs": asyncio.run(_run())}

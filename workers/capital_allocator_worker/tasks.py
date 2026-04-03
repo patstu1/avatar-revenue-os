@@ -4,6 +4,7 @@ import logging
 from celery import shared_task
 from sqlalchemy import select
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ async def _run():
     return count
 
 
-@shared_task(name="workers.capital_allocator_worker.tasks.recompute_capital_allocation")
+@shared_task(name="workers.capital_allocator_worker.tasks.recompute_capital_allocation", base=TrackedTask)
 def recompute_capital_allocation():
     count = asyncio.run(_run())
     return {"status": "completed", "brands_processed": count}

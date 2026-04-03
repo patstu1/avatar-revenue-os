@@ -5,8 +5,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+import structlog
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = structlog.get_logger()
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.autonomous_phase_a import (
@@ -574,7 +577,7 @@ async def run_suppression_check(db: AsyncSession, brand_id: uuid.UUID) -> dict[s
             try:
                 entity_id = uuid.UUID(str(s["affected_entity_id"]))
             except (ValueError, TypeError):
-                pass
+                logger.debug("suppression_entity_id_parse_failed", exc_info=True)
 
         db.add(SuppressionExecution(
             brand_id=brand_id,

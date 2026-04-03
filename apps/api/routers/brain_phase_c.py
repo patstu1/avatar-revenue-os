@@ -28,7 +28,12 @@ async def _require_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
 @router.get("/{brand_id}/agent-registry", response_model=list[AgentRegistryOut])
 async def list_agent_registry(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_agent_registry(db, brand_id)
+    try:
+        return await svc.list_agent_registry(db, brand_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.get("/{brand_id}/agent-runs-v2", response_model=list[AgentRunV2Out])
@@ -37,7 +42,12 @@ async def list_agent_runs_v2(
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_agent_runs_v2(db, brand_id, limit=limit)
+    try:
+        return await svc.list_agent_runs_v2(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.post("/{brand_id}/agent-mesh/recompute", response_model=RecomputeSummaryOut)
@@ -68,7 +78,12 @@ async def list_workflow_coordination(
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_workflow_coordination(db, brand_id, limit=limit)
+    try:
+        return await svc.list_workflow_coordination(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
 @router.get("/{brand_id}/shared-context-events", response_model=list[SharedContextEventOut])
@@ -77,4 +92,9 @@ async def list_shared_context_events(
     limit: int = Query(200, ge=1, le=1000),
 ):
     await _require_brand(brand_id, current_user, db)
-    return await svc.list_shared_context_events(db, brand_id, limit=limit)
+    try:
+        return await svc.list_shared_context_events(db, brand_id, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal error processing request")

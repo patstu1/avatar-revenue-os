@@ -6,6 +6,7 @@ from celery import shared_task
 from sqlalchemy import select
 
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ async def _recompute_all(bid):
         await db.commit()
 
 
-@shared_task(name="workers.pattern_memory_worker.tasks.recompute_pattern_memory")
+@shared_task(name="workers.pattern_memory_worker.tasks.recompute_pattern_memory", base=TrackedTask)
 def recompute_pattern_memory():
     asyncio.run(_run_all(_recompute_all))
     return "pattern-memory-done"

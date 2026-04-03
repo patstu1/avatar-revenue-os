@@ -1,15 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { brandsApi } from "@/lib/api";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface FFReport { id: string; family_type: string; family_key: string; failure_count: number; avg_fail_score: number; recommended_alternative: string | null; explanation: string | null; }
 interface Rule { id: string; family_type: string; family_key: string; suppression_mode: string; retest_after_days: number; reason: string | null; is_active: boolean; }
@@ -34,8 +25,8 @@ export default function FailureFamiliesPage() {
     if (!brandId) return;
     setLoading(true);
     Promise.all([
-      apiFetch(`/api/v1/brands/${brandId}/failure-families`),
-      apiFetch(`/api/v1/brands/${brandId}/suppression-rules`),
+      apiFetch<any>(`/api/v1/brands/${brandId}/failure-families`),
+      apiFetch<any>(`/api/v1/brands/${brandId}/suppression-rules`),
     ]).then(([f, r]) => { setFamilies(f); setRules(r); }).catch(() => {}).finally(() => setLoading(false));
   }, [brandId]);
 

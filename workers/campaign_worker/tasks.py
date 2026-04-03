@@ -3,6 +3,7 @@ import asyncio, logging
 from celery import shared_task
 from sqlalchemy import select
 from packages.db.session import async_session_factory
+from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,6 @@ async def _run():
         except Exception: logger.exception("campaign worker failed %s", bid)
     return c
 
-@shared_task(name="workers.campaign_worker.tasks.recompute_campaigns")
+@shared_task(name="workers.campaign_worker.tasks.recompute_campaigns", base=TrackedTask)
 def recompute_campaigns_task():
     return {"status": "completed", "brands": asyncio.run(_run())}

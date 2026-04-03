@@ -1,14 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store";
-import { brandsApi } from "@/lib/api";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:8001");
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("aro_token") : null;
-  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-async function apiFetch(path: string) { const r = await fetch(`${API}${path}`, { headers: getAuthHeaders() }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+import { apiFetch, brandsApi } from "@/lib/api";
 
 interface Report { id: string; total_actions: number; top_action_type: string | null; total_opportunity_cost: number; safe_to_wait_count: number; summary: string | null; }
 interface Action { id: string; action_type: string; action_key: string; expected_upside: number; cost_of_delay: number; urgency: number; confidence: number; composite_rank: number; rank_position: number; safe_to_wait: boolean; explanation: string | null; }
@@ -31,8 +24,8 @@ export default function OpportunityCostPage() {
   useEffect(() => {
     if (!brandId) return;
     Promise.all([
-      apiFetch(`/api/v1/brands/${brandId}/opportunity-cost`),
-      apiFetch(`/api/v1/brands/${brandId}/opportunity-cost/ranked-actions`),
+      apiFetch<any>(`/api/v1/brands/${brandId}/opportunity-cost`),
+      apiFetch<any>(`/api/v1/brands/${brandId}/opportunity-cost/ranked-actions`),
     ]).then(([r, a]) => { setReports(r); setActions(a); }).catch(() => {}).finally(() => setLoading(false));
   }, [brandId]);
 

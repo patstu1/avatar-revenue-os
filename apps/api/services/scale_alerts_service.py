@@ -16,7 +16,7 @@ from packages.db.models.accounts import CreatorAccount
 from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
 from packages.db.models.portfolio import (
-    RevenuLeakReport, ScaleRecommendation, TrustSignalReport,
+    RevenueLeakReport, ScaleRecommendation, TrustSignalReport,
 )
 from packages.db.models.scale_alerts import (
     LaunchCandidate, LaunchReadinessReport, NotificationDelivery,
@@ -56,7 +56,7 @@ async def _brand_context(db: AsyncSession, brand_id: uuid.UUID):
     scale_rec = (await db.execute(select(ScaleRecommendation).where(ScaleRecommendation.brand_id == brand_id).order_by(ScaleRecommendation.created_at.desc()).limit(1))).scalars().first()
     trust_rows = list((await db.execute(select(TrustSignalReport).where(TrustSignalReport.brand_id == brand_id))).scalars().all())
     trust_avg = round(sum(t.trust_score for t in trust_rows) / max(1, len(trust_rows)), 1) if trust_rows else 60.0
-    leak_count = (await db.execute(select(func.count()).select_from(RevenuLeakReport).where(RevenuLeakReport.brand_id == brand_id, RevenuLeakReport.is_resolved.is_(False)))).scalar() or 0
+    leak_count = (await db.execute(select(func.count()).select_from(RevenueLeakReport).where(RevenueLeakReport.brand_id == brand_id, RevenueLeakReport.is_resolved.is_(False)))).scalar() or 0
 
     acc_dicts = _acct_dicts(accounts)
     scale_dict = {}
