@@ -12,6 +12,7 @@ interface OnboardingStatus {
   is_complete: boolean;
   current_step: number;
   has_brand: boolean;
+  has_accounts: boolean;
   has_offer: boolean;
   has_content: boolean;
   first_brand_id: string | null;
@@ -53,17 +54,43 @@ const PLATFORMS = [
   { key: "tiktok", label: "TikTok", icon: "🎵" },
   { key: "instagram", label: "Instagram", icon: "📸" },
   { key: "x", label: "X (Twitter)", icon: "𝕏" },
-  { key: "linkedin", label: "LinkedIn", icon: "💼" },
+  { key: "threads", label: "Threads", icon: "🧵" },
   { key: "facebook", label: "Facebook", icon: "📘" },
+  { key: "linkedin", label: "LinkedIn", icon: "💼" },
+  { key: "reddit", label: "Reddit", icon: "🔴" },
+  { key: "snapchat", label: "Snapchat", icon: "👻" },
+  { key: "pinterest", label: "Pinterest", icon: "📌" },
+  { key: "rumble", label: "Rumble", icon: "🎬" },
+  { key: "twitch", label: "Twitch", icon: "🎮" },
+  { key: "kick", label: "Kick", icon: "⚡" },
+  { key: "clapper", label: "Clapper", icon: "👏" },
+  { key: "lemon8", label: "Lemon8", icon: "🍋" },
+  { key: "bereal", label: "BeReal", icon: "📷" },
+  { key: "bluesky", label: "Bluesky", icon: "🦋" },
+  { key: "mastodon", label: "Mastodon", icon: "🐘" },
+  { key: "telegram", label: "Telegram", icon: "✈️" },
+  { key: "discord", label: "Discord", icon: "💬" },
+  { key: "whatsapp", label: "WhatsApp", icon: "📱" },
+  { key: "wechat", label: "WeChat", icon: "🟢" },
+  { key: "quora", label: "Quora", icon: "❓" },
+  { key: "medium", label: "Medium", icon: "✍️" },
+  { key: "substack", label: "Substack", icon: "📰" },
+  { key: "spotify", label: "Spotify", icon: "🎧" },
+  { key: "apple_podcasts", label: "Apple Podcasts", icon: "🎙️" },
+  { key: "blog", label: "Blog / Website", icon: "🌐" },
+  { key: "email_newsletter", label: "Email Newsletter", icon: "📧" },
+  { key: "seo_authority", label: "SEO / Authority Site", icon: "🔍" },
 ];
 
 const MONETIZATION_METHODS = [
   { key: "affiliate", label: "Affiliate", desc: "Earn commissions promoting products" },
+  { key: "adsense", label: "Ad Revenue", desc: "YouTube/platform ad monetization" },
   { key: "product", label: "Product", desc: "Sell your own digital/physical products" },
   { key: "course", label: "Course", desc: "Sell educational content" },
   { key: "consulting", label: "Consulting", desc: "High-ticket 1:1 services" },
   { key: "membership", label: "Membership", desc: "Recurring subscription revenue" },
   { key: "sponsor", label: "Sponsorship", desc: "Brand deals and sponsorships" },
+  { key: "lead_gen", label: "Lead Gen", desc: "Capture leads for services or funnels" },
 ];
 
 const TOTAL_STEPS = 5;
@@ -220,8 +247,20 @@ function StepWelcome({
 /*  Step 2: Connect Accounts                                          */
 /* ------------------------------------------------------------------ */
 
-function StepConnect({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
+function StepConnect({
+  brandId,
+  onNext,
+  onSkip,
+}: {
+  brandId: string;
+  onNext: () => void;
+  onSkip: () => void;
+}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [usernames, setUsernames] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState<Set<string>>(new Set());
 
   const toggle = (key: string) => {
     setSelected((prev) => {
@@ -232,52 +271,102 @@ function StepConnect({ onNext, onSkip }: { onNext: () => void; onSkip: () => voi
     });
   };
 
+  const setUsername = (key: string, value: string) => {
+    setUsernames((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    const toCreate = Array.from(selected).filter(
+      (k) => usernames[k]?.trim() && !saved.has(k)
+    );
+    if (toCreate.length === 0) {
+      onNext();
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      for (const platform of toCreate) {
+        await apiFetch("/api/v1/accounts/", {
+          method: "POST",
+          body: JSON.stringify({
+            brand_id: brandId,
+            platform,
+            platform_username: usernames[platform].trim(),
+            account_type: "ORGANIC",
+          }),
+        });
+        setSaved((prev) => new Set(prev).add(platform));
+      }
+      onNext();
+    } catch (err: any) {
+      setError(err?.message || "Failed to create account");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectedPlatforms = PLATFORMS.filter((p) => selected.has(p.key));
+
   return (
-    <div className="max-w-lg mx-auto text-center">
-      <div className="mb-8">
+    <div className="max-w-2xl mx-auto text-center">
+      <div className="mb-6">
         <h2 className="text-2xl font-black text-white">Connect Your Accounts</h2>
         <p className="text-gray-400 mt-2 text-sm">
-          Connect your platforms to unlock analytics, auto-publishing, and audience intelligence.
+          Select your platforms, then enter your username for each one.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-        {PLATFORMS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => toggle(p.key)}
-            className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
-              selected.has(p.key)
-                ? "border-cyan-500 bg-cyan-950/30 shadow-[0_0_15px_rgba(34,211,238,0.15)]"
-                : "border-gray-700 bg-gray-900/60 hover:border-gray-600"
-            }`}
-          >
-            <span className="text-2xl">{p.icon}</span>
-            <span className="text-sm text-white font-medium">{p.label}</span>
-            {selected.has(p.key) && (
-              <span className="text-[10px] text-cyan-400 font-mono">SELECTED</span>
-            )}
-          </button>
-        ))}
+      <div className="max-h-[280px] overflow-y-auto pr-1 mb-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+          {PLATFORMS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => toggle(p.key)}
+              className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                selected.has(p.key)
+                  ? "border-cyan-500 bg-cyan-950/30 shadow-[0_0_15px_rgba(34,211,238,0.15)]"
+                  : "border-gray-700 bg-gray-900/60 hover:border-gray-600"
+              }`}
+            >
+              <span className="text-xl">{p.icon}</span>
+              <span className="text-xs text-white font-medium text-center leading-tight">{p.label}</span>
+              {selected.has(p.key) && (
+                <span className="text-[9px] text-cyan-400 font-mono">
+                  {saved.has(p.key) ? "SAVED" : "SELECTED"}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4 mb-6 text-left">
-        <p className="text-xs text-gray-500 font-mono uppercase mb-2">This unlocks:</p>
-        <ul className="space-y-1.5 text-sm text-gray-300">
-          <li className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-            Real-time analytics &amp; performance tracking
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-            Automated content publishing
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-            Audience intelligence &amp; growth signals
-          </li>
-        </ul>
-      </div>
+      {selectedPlatforms.length > 0 && (
+        <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-4 mb-4 text-left space-y-3">
+          <p className="text-xs text-cyan-400 font-mono uppercase">
+            Enter your username for each platform
+          </p>
+          {selectedPlatforms.map((p) => (
+            <div key={p.key} className="flex items-center gap-3">
+              <span className="text-lg w-8 text-center shrink-0">{p.icon}</span>
+              <span className="text-sm text-gray-300 w-28 shrink-0">{p.label}</span>
+              <input
+                type="text"
+                placeholder={`@username`}
+                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 outline-none transition-colors"
+                value={usernames[p.key] || ""}
+                onChange={(e) => setUsername(p.key, e.target.value)}
+                disabled={saved.has(p.key)}
+              />
+              {saved.has(p.key) && (
+                <span className="text-xs text-green-400 font-mono">✓</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
 
       <div className="flex gap-3">
         <button
@@ -287,10 +376,18 @@ function StepConnect({ onNext, onSkip }: { onNext: () => void; onSkip: () => voi
           Skip for now
         </button>
         <button
-          onClick={onNext}
-          className="flex-1 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold rounded-xl hover:from-cyan-500 hover:to-blue-500 transition-all"
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold rounded-xl hover:from-cyan-500 hover:to-blue-500 transition-all disabled:opacity-50"
         >
-          {selected.size > 0 ? `Continue with ${selected.size} platform${selected.size > 1 ? "s" : ""}` : "Continue"}
+          {saving ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Saving...
+            </span>
+          ) : selected.size > 0
+            ? `Save ${selected.size} Account${selected.size > 1 ? "s" : ""} & Continue`
+            : "Continue"}
         </button>
       </div>
     </div>
@@ -711,8 +808,9 @@ export default function OnboardingPage() {
           />
         )}
 
-        {step === 2 && (
+        {step === 2 && brandId && (
           <StepConnect
+            brandId={brandId}
             onNext={() => setStep(3)}
             onSkip={() => setStep(3)}
           />

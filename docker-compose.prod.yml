@@ -9,7 +9,7 @@ services:
       uvicorn apps.api.main:app
       --host 0.0.0.0 --port 8000
       --workers 4 --log-level ${LOG_LEVEL:-warning}
-    volumes: []
+    volumes: !reset []
     deploy:
       resources:
         limits:
@@ -24,7 +24,7 @@ services:
       celery -A workers.celery_app worker
       --loglevel=${LOG_LEVEL:-warning} --concurrency=4
       -Q default,generation,publishing,analytics,qa,learning,portfolio,scale_alerts,notifications,growth_pack,revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,mxp,creator_revenue,brain,buffer,autonomous_phase_d,cinema_studio,monetization
-    volumes: []
+    volumes: !reset []
     deploy:
       resources:
         limits:
@@ -35,7 +35,7 @@ services:
           memory: 256M
 
   scheduler:
-    volumes: []
+    volumes: !reset []
     deploy:
       resources:
         limits:
@@ -47,7 +47,7 @@ services:
 
   web:
     command: npm run start
-    volumes: []
+    volumes: !reset []
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ || exit 1"]
       interval: 15s

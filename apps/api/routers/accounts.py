@@ -10,11 +10,11 @@ from pydantic import BaseModel
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.schemas.core import CreatorAccountCreate, CreatorAccountResponse, CreatorAccountUpdate
 from apps.api.services.audit_service import log_action
-
-logger = logging.getLogger(__name__)
 from apps.api.services.crud_service import CRUDService
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.core import Brand
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 account_service = CRUDService(CreatorAccount)
@@ -53,9 +53,11 @@ async def list_accounts(
 @router.get("/{account_id}", response_model=CreatorAccountResponse)
 async def get_account(account_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     try:
-        return await account_service.get_or_404(db, account_id)
+        acct = await account_service.get_or_404(db, account_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Account not found")
+    await _verify_brand_access(acct.brand_id, current_user, db)
+    return acct
 
 
 @router.patch("/{account_id}", response_model=CreatorAccountResponse)
@@ -77,12 +79,16 @@ async def update_account(account_id: uuid.UUID, body: CreatorAccountUpdate, curr
 
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_account(account_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
-    if not await account_service.delete(db, account_id):
-        raise HTTPException(status_code=404)
+    try:
+        acct = await account_service.get_or_404(db, account_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Account not found")
+    await _verify_brand_access(acct.brand_id, current_user, db)
+    await account_service.delete(db, account_id)
     await log_action(
         db, "creator_account.deleted",
         organization_id=current_user.organization_id,
-        user_id=current_user.id, actor_type="human",
+        brand_id=acct.brand_id, user_id=current_user.id, actor_type="human",
         entity_type="creator_account", entity_id=account_id,
     )
 

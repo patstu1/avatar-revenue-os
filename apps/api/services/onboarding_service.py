@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.core import Brand
+from packages.db.models.accounts import CreatorAccount
 from packages.db.models.offers import Offer
 from packages.db.models.content import ContentBrief, Script
 from packages.db.enums import ContentType, MonetizationMethod
@@ -248,9 +249,18 @@ async def get_onboarding_status(
         )
         first_brand_id = brand_result.scalar_one_or_none()
 
+    account_count = 0
     offer_count = 0
     content_count = 0
     if first_brand_id:
+        account_result = await db.execute(
+            select(func.count()).select_from(CreatorAccount).where(
+                CreatorAccount.brand_id == first_brand_id,
+                CreatorAccount.is_active == True,  # noqa: E712
+            )
+        )
+        account_count = account_result.scalar() or 0
+
         offer_result = await db.execute(
             select(func.count()).select_from(Offer).where(
                 Offer.brand_id == first_brand_id,
@@ -267,25 +277,32 @@ async def get_onboarding_status(
         content_count = content_result.scalar() or 0
 
     has_brand = brand_count > 0
+    has_accounts = account_count > 0
     has_offer = offer_count > 0
     has_content = content_count > 0
-    is_complete = has_brand and has_offer and has_content
+    is_complete = has_brand and has_content
 
     current_step = 1
     if has_brand:
         current_step = 2
-    if has_offer:
+    if has_brand and (has_accounts or has_offer or has_content):
         current_step = 3
+    if has_brand and (has_offer or has_content):
+        current_step = 4 if not has_content else 4
     if has_content:
         current_step = 4
+    if is_complete:
+        current_step = 5
 
     return {
         "is_complete": is_complete,
         "current_step": current_step,
         "has_brand": has_brand,
+        "has_accounts": has_accounts,
         "has_offer": has_offer,
         "has_content": has_content,
         "brand_count": brand_count,
+        "account_count": account_count,
         "offer_count": offer_count,
         "content_count": content_count,
         "first_brand_id": str(first_brand_id) if first_brand_id else None,
