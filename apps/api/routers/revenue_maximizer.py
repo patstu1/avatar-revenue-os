@@ -9,6 +9,7 @@ from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.services import revenue_maximizer as rev
 from apps.api.services import revenue_engines_extended as rev_ext
 from apps.api.services import revenue_execution as rev_exec
+from apps.api.services import action_dispatcher
 
 router = APIRouter()
 
@@ -139,3 +140,17 @@ async def auto_surface(current_user: OperatorUser, db: DBSession, brand_id: uuid
     actions = await rev.auto_surface_revenue_actions(db, current_user.organization_id, brand_id)
     await db.commit()
     return {"actions_created": len(actions), "actions": actions}
+
+
+@router.post("/revenue/dispatch-autonomous")
+async def dispatch_autonomous(
+    current_user: OperatorUser, db: DBSession,
+    dry_run: bool = Query(False, description="If true, report what would be dispatched without executing"),
+    limit: int = Query(20, le=100),
+):
+    """Dispatch pending autonomous actions — executes real state changes."""
+    result = await action_dispatcher.dispatch_autonomous_actions(
+        db, current_user.organization_id, dry_run=dry_run, limit=limit,
+    )
+    await db.commit()
+    return result

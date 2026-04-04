@@ -611,6 +611,62 @@ async def _do_recompute_avenue_rankings():
 
 
 # ---------------------------------------------------------------------------
+# Revenue Maximizer Cycle (scheduled)
+# ---------------------------------------------------------------------------
+@shared_task(name="workers.monetization_worker.tasks.run_revenue_cycle", base=TrackedTask)
+def run_revenue_cycle():
+    """Run the full revenue maximizer cycle: surface actions + dispatch autonomous."""
+    return _run(_do_run_revenue_cycle())
+
+
+async def _do_run_revenue_cycle():
+    from sqlalchemy import select
+    from packages.db.models.core import Brand, Organization
+
+    factory = get_async_session_factory()
+    async with factory() as db:
+        # Get all active orgs with brands
+        orgs = (await db.execute(
+            select(Organization.id).where(Organization.is_active.is_(True))
+        )).scalars().all()
+
+        total_actions = 0
+        total_executed = 0
+
+        for org_id in orgs:
+            brands = (await db.execute(
+                select(Brand.id).where(Brand.organization_id == org_id)
+            )).scalars().all()
+
+            for brand_id in brands:
+                try:
+                    # Phase 1: Surface revenue actions from intelligence
+                    from apps.api.services.revenue_maximizer import auto_surface_revenue_actions
+                    actions = await auto_surface_revenue_actions(db, org_id, brand_id)
+                    total_actions += len(actions)
+                except Exception as e:
+                    import structlog
+                    structlog.get_logger().warning("revenue_cycle.surface_failed", brand_id=str(brand_id), error=str(e))
+
+            try:
+                # Phase 2: Dispatch autonomous actions for this org
+                from apps.api.services.action_dispatcher import dispatch_autonomous_actions
+                dispatch_result = await dispatch_autonomous_actions(db, org_id)
+                total_executed += len(dispatch_result.get("executed", []))
+            except Exception as e:
+                import structlog
+                structlog.get_logger().warning("revenue_cycle.dispatch_failed", org_id=str(org_id), error=str(e))
+
+        await db.commit()
+
+    return {
+        "orgs_processed": len(orgs),
+        "actions_surfaced": total_actions,
+        "actions_auto_executed": total_executed,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Pipeline Deal Scoring
 # ---------------------------------------------------------------------------
 @shared_task(name="workers.monetization_worker.tasks.score_pipeline_deals", base=TrackedTask)

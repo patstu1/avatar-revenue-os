@@ -827,6 +827,13 @@ app.conf.update(
             "task": "workers.monetization_worker.tasks.score_pipeline_deals",
             "schedule": crontab(minute=20, hour="*/2"),
         },
+        # --- Revenue Maximizer Cycle ---
+        # Runs every 4 hours: surfaces revenue actions from 17 engines,
+        # then dispatches autonomous actions with governance.
+        "revenue-maximizer-cycle-every-4h": {
+            "task": "workers.monetization_worker.tasks.run_revenue_cycle",
+            "schedule": crontab(minute=47, hour="*/4"),
+        },
     },
 )
 

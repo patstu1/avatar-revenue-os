@@ -79,6 +79,21 @@ async def stripe_webhook(request: Request, db: DBSession, stripe_signature: str 
         event.processed = True
         await db.flush()
 
+        # ── Write to canonical revenue ledger ──
+        try:
+            from apps.api.services.monetization_bridge import record_service_payment_to_ledger
+            await record_service_payment_to_ledger(
+                db, brand_id=brand_id, gross_amount=revenue,
+                payment_processor="stripe",
+                external_transaction_id=obj.get("payment_intent") or obj.get("id") or "",
+                webhook_ref=f"stripe:{event_id}" if event_id else None,
+                description=f"Stripe {event_type}: ${revenue:.2f}",
+                metadata={"stripe_event_id": event_id, "stripe_event_type": event_type},
+            )
+        except Exception as ledger_err:
+            import structlog
+            structlog.get_logger().warning("stripe.ledger_write_failed", error=str(ledger_err))
+
     # ── Stripe Billing: subscription & credit-pack events ──
     from apps.api.services import stripe_billing_service as sbs
     import structlog as _sl
@@ -186,6 +201,22 @@ async def shopify_webhook(request: Request, db: DBSession, x_shopify_hmac_sha256
             ))
             event.processed = True
             await db.flush()
+
+            # ── Write to canonical revenue ledger ──
+            try:
+                from apps.api.services.monetization_bridge import record_product_sale_to_ledger
+                await record_product_sale_to_ledger(
+                    db, brand_id=brand_id, gross_amount=total,
+                    payment_processor="shopify",
+                    webhook_ref=idem_key,
+                    external_transaction_id=str(order_id),
+                    description=f"Shopify order #{payload.get('order_number', order_id)}: ${total:.2f}",
+                    metadata={"shopify_order_id": str(order_id), "shopify_topic": x_shopify_topic},
+                )
+            except Exception as ledger_err:
+                import structlog
+                structlog.get_logger().warning("shopify.ledger_write_failed", error=str(ledger_err))
+
     elif brand_id and x_shopify_topic in ("orders/refunded", "refunds/create"):
         from packages.db.models.creator_revenue import CreatorRevenueEvent
         refund_amount = 0.0
@@ -211,6 +242,28 @@ async def shopify_webhook(request: Request, db: DBSession, x_shopify_hmac_sha256
             ))
             event.processed = True
             await db.flush()
+
+            # ── Write refund to canonical revenue ledger ──
+            try:
+                from apps.api.services.monetization_bridge import record_refund_to_ledger
+                # Find original ledger entry for this order
+                from packages.db.models.revenue_ledger import RevenueLedgerEntry
+                original = (await db.execute(
+                    select(RevenueLedgerEntry).where(
+                        RevenueLedgerEntry.brand_id == brand_id,
+                        RevenueLedgerEntry.external_transaction_id == str(payload.get("id", "")),
+                    )
+                )).scalar_one_or_none()
+                if original:
+                    await record_refund_to_ledger(
+                        db, brand_id=brand_id, refund_amount=refund_amount,
+                        refund_of_id=original.id,
+                        reason=f"Shopify refund: {x_shopify_topic}",
+                        webhook_ref=f"{idem_key}_refund" if idem_key else None,
+                    )
+            except Exception as ledger_err:
+                import structlog
+                structlog.get_logger().warning("shopify.refund_ledger_write_failed", error=str(ledger_err))
 
     return {"status": "accepted", "topic": x_shopify_topic, "webhook_event_id": str(event.id)}
 
