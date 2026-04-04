@@ -307,7 +307,8 @@ async def compute_packaging_recommendations(
         return []
 
     recs = []
-    sorted_offers = sorted(offers, key=lambda o: float(o.payout_amount or 0))
+    # Sort by priority-weighted payout: low-priority offers rank lower even with decent payout
+    sorted_offers = sorted(offers, key=lambda o: float(o.payout_amount or 0) * max(0.2, (o.priority or 0) / 10))
 
     for i, offer in enumerate(sorted_offers):
         payout = float(offer.payout_amount or 0)
@@ -608,15 +609,23 @@ async def compute_portfolio_allocation(
         content_score = min(1.0, content_count / 20)
         audience_score = min(1.0, followers / 50000)
         engagement_score = min(1.0, engagement * 10)
+        scale_role = getattr(acct, 'scale_role', None) or ""
 
-        portfolio_score = (
+        # Accounts with scale_role="reduced" get a penalty — the machine deprioritized them
+        scale_penalty = 0.3 if scale_role == "reduced" else 0.0
+
+        portfolio_score = max(0, (
             0.40 * revenue_score +
             0.20 * engagement_score +
             0.20 * audience_score +
             0.20 * content_score
-        )
+        ) - scale_penalty)
 
-        tier = "hero" if portfolio_score > 0.6 else "growth" if portfolio_score > 0.3 else "maintain" if portfolio_score > 0.1 else "pause"
+        # Force "reduced" accounts into pause tier regardless of score
+        if scale_role == "reduced":
+            tier = "pause"
+        else:
+            tier = "hero" if portfolio_score > 0.6 else "growth" if portfolio_score > 0.3 else "maintain" if portfolio_score > 0.1 else "pause"
 
         results.append({
             "account_id": str(acct.id),

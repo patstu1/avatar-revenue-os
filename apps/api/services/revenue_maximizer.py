@@ -100,11 +100,14 @@ async def compute_creator_monetization_fit(
         is_video_platform = platform in ("youtube", "tiktok", "instagram", "rumble", "twitch", "kick")
         is_long_form = platform in ("youtube", "blog", "medium", "substack", "spotify", "apple_podcasts")
         is_short_form = platform in ("tiktok", "instagram", "youtube", "x", "threads", "snapchat")
+        scale_role = getattr(acct, 'scale_role', None) or ""
 
         # Score each path (0.0 to 1.0)
-        scores = {}
-        base = min(1.0, followers / 50000) * 0.3 + min(1.0, engagement * 10) * 0.3 + (0.4 if health == "healthy" else 0.2)
+        # Accounts with scale_role="reduced" get a penalty across all paths
+        scale_penalty = 0.3 if scale_role == "reduced" else 0.0
+        base = max(0, min(1.0, followers / 50000) * 0.3 + min(1.0, engagement * 10) * 0.3 + (0.4 if health == "healthy" else 0.2) - scale_penalty)
 
+        scores = {}
         scores["affiliate"] = min(1.0, base * (1.2 if offer_count > 0 else 0.6) * (1.1 if is_video_platform else 0.8))
         scores["sponsor"] = min(1.0, base * (1.3 if followers > 10000 else 0.4) * (1.1 if engagement > 0.03 else 0.7) * (1.2 if sponsor_count > 0 else 0.8))
         scores["dtc"] = min(1.0, base * (1.2 if followers > 5000 else 0.5) * (0.9 if platform in ("instagram", "tiktok") else 0.6))
@@ -197,13 +200,17 @@ async def detect_revenue_opportunities(
             )
         )).scalar() or 0
         if ct == 0:
+            # Factor in priority: low-priority offers get reduced expected_upside
+            priority_factor = max(0.2, min(1.0, (offer.priority or 0) / 10))
+            base_upside = float(offer.payout_amount) * 10 if offer.payout_amount else 100
             opportunities.append({
                 "type": "orphan_offer",
                 "offer_name": offer.name[:80],
                 "payout": float(offer.payout_amount) if offer.payout_amount else 0,
+                "priority": offer.priority or 0,
                 "entity_id": str(offer.id),
                 "entity_type": "offer",
-                "expected_upside": float(offer.payout_amount) * 10 if offer.payout_amount else 100,
+                "expected_upside": base_upside * priority_factor,
                 "action": "create_content_for_offer",
                 "source": "offer_analysis",
             })
@@ -224,6 +231,10 @@ async def detect_revenue_opportunities(
     for acct in accounts:
         followers = getattr(acct, 'follower_count', 0) or 0
         engagement = getattr(acct, 'engagement_rate', 0) or 0
+        acct_scale_role = getattr(acct, 'scale_role', None) or ""
+        # Skip reduced accounts — the machine already deprioritized them
+        if acct_scale_role == "reduced":
+            continue
         if followers > 10000 and engagement > 0.02 and active_sponsors == 0:
             opportunities.append({
                 "type": "sponsor_ready",

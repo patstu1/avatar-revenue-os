@@ -172,14 +172,18 @@ async def _handle_attach_offer(db: AsyncSession, action: OperatorAction) -> dict
     if not action.entity_id:
         return {"skipped": True, "reason": "no entity_id (content_item)"}
 
-    # Find the best unassigned offer for this brand
+    # Find the best offer: weighted by EPC (70%) + priority (30%)
+    # Low-priority offers (deprioritized) score lower even with decent EPC
     from packages.db.models.offers import Offer
-    from sqlalchemy import select as sel
+    from sqlalchemy import select as sel, case as sql_case
+    offer_score = (
+        Offer.epc * 0.7 + Offer.priority * 0.03  # priority 10 → +0.3, priority 0 → +0
+    )
     best_offer = (await db.execute(
         sel(Offer).where(
             Offer.brand_id == action.brand_id,
             Offer.is_active.is_(True),
-        ).order_by(Offer.epc.desc().nullslast()).limit(1)
+        ).order_by(offer_score.desc().nullslast()).limit(1)
     )).scalar_one_or_none()
 
     if not best_offer:
@@ -368,25 +372,64 @@ async def _handle_reduce_channel(db: AsyncSession, action: OperatorAction) -> di
 
 
 async def _handle_recover_webhook(db: AsyncSession, action: OperatorAction) -> dict:
-    """Recover failed webhook: mark related webhook events for reprocessing."""
+    """Recover failed webhook: re-trigger ledger write from the original payload, then mark processed."""
     from packages.db.models.live_execution_phase2 import WebhookEvent
+    from apps.api.services.monetization_bridge import record_service_payment_to_ledger, record_product_sale_to_ledger
 
     changes = []
 
+    if not action.brand_id:
+        return {"skipped": True, "reason": "no brand_id"}
+
     # Find unprocessed webhook events for this brand
-    if action.brand_id:
-        unprocessed = (await db.execute(
-            select(WebhookEvent).where(
-                WebhookEvent.brand_id == action.brand_id,
-                WebhookEvent.processed.is_(False),
-            ).limit(5)
-        )).scalars().all()
+    unprocessed = (await db.execute(
+        select(WebhookEvent).where(
+            WebhookEvent.brand_id == action.brand_id,
+            WebhookEvent.processed.is_(False),
+        ).limit(5)
+    )).scalars().all()
 
-        for evt in unprocessed:
-            evt.processed = True  # Mark as processed so it doesn't block
-            changes.append(f"webhook {evt.external_event_id or evt.id}: marked processed (recovery)")
+    for evt in unprocessed:
+        payload = evt.raw_payload or {}
+        source = evt.source or ""
+        event_type = evt.event_type or ""
+        ext_id = evt.external_event_id or str(evt.id)
 
-    return {"recovery_executed": True, "state_changes": changes, "changes_count": len(changes)}
+        try:
+            if source == "stripe" and event_type in ("checkout.session.completed", "charge.succeeded", "payment_intent.succeeded"):
+                obj = payload.get("data", {}).get("object", {})
+                revenue = float(obj.get("amount_total", obj.get("amount", 0))) / 100.0
+                if revenue > 0:
+                    await record_service_payment_to_ledger(
+                        db, brand_id=action.brand_id, gross_amount=revenue,
+                        payment_processor="stripe",
+                        external_transaction_id=obj.get("payment_intent") or obj.get("id") or "",
+                        webhook_ref=f"stripe_recovery:{ext_id}",
+                        description=f"Recovered Stripe {event_type}: ${revenue:.2f}",
+                    )
+                    changes.append(f"stripe {ext_id}: ledger entry created (${revenue:.2f})")
+
+            elif source == "shopify" and "order" in event_type:
+                total = float(payload.get("total_price", 0))
+                if total > 0:
+                    await record_product_sale_to_ledger(
+                        db, brand_id=action.brand_id, gross_amount=total,
+                        payment_processor="shopify",
+                        external_transaction_id=str(payload.get("id", "")),
+                        webhook_ref=f"shopify_recovery:{ext_id}",
+                        description=f"Recovered Shopify order: ${total:.2f}",
+                    )
+                    changes.append(f"shopify {ext_id}: ledger entry created (${total:.2f})")
+
+            # Mark as processed only after successful ledger write
+            evt.processed = True
+            changes.append(f"webhook {ext_id}: marked processed after recovery")
+
+        except Exception as e:
+            changes.append(f"webhook {ext_id}: recovery failed ({str(e)[:100]})")
+
+    return {"recovery_executed": True, "state_changes": changes, "changes_count": len(changes),
+            "ledger_entries_created": len([c for c in changes if "ledger entry created" in c])}
 
 
 # The dispatch table: action_type → handler function
