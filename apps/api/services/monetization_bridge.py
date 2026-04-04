@@ -284,7 +284,7 @@ async def surface_monetization_actions(
     blockers = await db.execute(
         select(CreatorRevenueBlocker).where(
             CreatorRevenueBlocker.brand_id == brand_id,
-            CreatorRevenueBlocker.operator_action_needed.is_(True),
+            CreatorRevenueBlocker.operator_action_needed.isnot(None),
         ).limit(5)
     )
     for b in blockers.scalars().all():
@@ -400,7 +400,7 @@ async def attribute_revenue_event(
         event_type=event_type,
         event_value=revenue,
         attribution_model="last_click",
-        metadata_json=metadata or {"source": source},
+        raw_event=metadata or {"source": source},
     )
     db.add(event)
     await db.flush()

@@ -1,4 +1,6 @@
 """Monetization Machine Service — credits, meters, plans, packs, telemetry, ascension."""
+from __future__ import annotations
+
 import uuid
 from datetime import datetime, timedelta, timezone
 
