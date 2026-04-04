@@ -84,11 +84,17 @@ async def main():
         )
         ok("Autonomous action created", action1.status == "pending")
 
-        # 1b. Create an autonomous suppress action
+        # 1b. Create a low-EPC offer to be suppressed
+        from packages.db.models.offers import Offer as OfferModel
+        weak_offer = OfferModel(brand_id=brand.id, name="Weak Offer To Suppress",
+                                 monetization_method=MonetizationMethod.AFFILIATE,
+                                 payout_amount=5, epc=0.1, conversion_rate=0.001, is_active=True)
+        db.add(weak_offer); await db.flush()
+
         action2 = await emit_action(
             db, org_id=org.id,
             action_type="suppress_losing_offer",
-            title="Auto-suppress losing pattern",
+            title="Auto-suppress losing offer",
             category="monetization", priority="medium",
             brand_id=brand.id,
             source_module="revenue_execution",
@@ -152,15 +158,69 @@ async def main():
         )).scalar() or 0
         ok("Dispatch events emitted", dispatch_events >= 2)
 
-        # 1i. Verify suppress action also completed
+        # 1i. Verify suppress action completed AND changed state
         await db.refresh(action2)
         ok("Suppress action completed", action2.status == "completed")
+        suppress_result = action2.result or {}
+        ok("Suppress has state_changes", len(suppress_result.get("state_changes", [])) >= 1)
+
+        # Verify the weak offer was actually deactivated
+        await db.refresh(weak_offer)
+        ok("SUPPRESS EXECUTED: weak offer deactivated", weak_offer.is_active is False)
 
         # 1j. Verify low-confidence action still pending (skipped)
         await db.refresh(action3)
         ok("Low-confidence still pending (skipped)", action3.status == "pending")
 
-        # 1k. Dry run mode
+        # 1k. Test promote_winning_offer changes offer priority
+        old_priority = offer.priority or 0
+        action_promote = await emit_action(
+            db, org_id=org.id, action_type="promote_winning_offer",
+            title="Auto-promote top offer", category="monetization", priority="medium",
+            brand_id=brand.id, source_module="revenue_execution",
+            action_payload={"autonomy_level": "autonomous", "confidence": 0.8},
+        )
+        await db.flush()
+        await dispatch_autonomous_actions(db, org.id)
+        await db.refresh(offer)
+        ok("PROMOTE EXECUTED: offer priority increased", (offer.priority or 0) > old_priority)
+        await db.refresh(action_promote)
+        promote_result = action_promote.result or {}
+        ok("Promote has state_changes", len(promote_result.get("state_changes", [])) >= 1)
+
+        # 1l. Test deprioritize_low_margin reduces offer priority
+        action_depri = await emit_action(
+            db, org_id=org.id, action_type="deprioritize_low_margin",
+            title="Auto-deprioritize low margin", category="monetization", priority="medium",
+            brand_id=brand.id, source_module="revenue_execution",
+            action_payload={"autonomy_level": "autonomous", "confidence": 0.8},
+        )
+        await db.flush()
+        # Re-activate weak offer with low EPC and priority > 0 for deprioritize test
+        weak_offer.is_active = True
+        weak_offer.priority = 10
+        await db.flush()
+        old_weak_priority = weak_offer.priority
+        await dispatch_autonomous_actions(db, org.id)
+        await db.refresh(weak_offer)
+        ok("DEPRIORITIZE EXECUTED: weak offer priority reduced", (weak_offer.priority or 0) < old_weak_priority)
+
+        # 1m. Test reduce_dead_channel changes account scale_role
+        zero_rev_acct = CreatorAccount(brand_id=brand.id, platform=Platform.PINTEREST,
+                                        platform_username="@zero_rev", is_active=True, scale_role="active")
+        db.add(zero_rev_acct); await db.flush()
+        action_reduce = await emit_action(
+            db, org_id=org.id, action_type="reduce_dead_channel",
+            title="Auto-reduce dead channel", category="monetization", priority="medium",
+            brand_id=brand.id, source_module="revenue_execution",
+            action_payload={"autonomy_level": "autonomous", "confidence": 0.8},
+        )
+        await db.flush()
+        await dispatch_autonomous_actions(db, org.id)
+        await db.refresh(zero_rev_acct)
+        ok("REDUCE_CHANNEL EXECUTED: account scale_role changed", zero_rev_acct.scale_role == "reduced")
+
+        # 1n. Dry run mode
         dry_result = await dispatch_autonomous_actions(db, org.id, dry_run=True)
         ok("Dry run mode works", dry_result["dry_run"] is True)
         print()
