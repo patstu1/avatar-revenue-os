@@ -185,7 +185,7 @@ async def get_provider_health(
     providers = providers_q.scalars().all()
 
     # Blockers
-    blocker_query = select(ProviderBlocker).where(ProviderBlocker.is_resolved.is_(False))
+    blocker_query = select(ProviderBlocker).where(ProviderBlocker.resolved.is_(False))
     if brand_id:
         blocker_query = blocker_query.where(ProviderBlocker.brand_id == brand_id)
     blockers_q = await db.execute(blocker_query.limit(20))
@@ -226,7 +226,7 @@ async def get_provider_health(
             "provider_key": b.provider_key if hasattr(b, 'provider_key') else None,
             "blocker_type": b.blocker_type,
             "severity": b.severity,
-            "detail": b.detail[:200] if b.detail else None,
+            "detail": b.description[:200] if b.description else None,
             "operator_action_needed": b.operator_action_needed if hasattr(b, 'operator_action_needed') else True,
         }
         for b in blockers
@@ -256,7 +256,7 @@ async def check_provider_ready(
     """
     # Check for blockers
     blocker_query = select(ProviderBlocker).where(
-        ProviderBlocker.is_resolved.is_(False),
+        ProviderBlocker.resolved.is_(False),
     )
     if brand_id:
         blocker_query = blocker_query.where(ProviderBlocker.brand_id == brand_id)
@@ -356,7 +356,7 @@ async def surface_orchestration_actions(
     # 3. Provider blockers needing operator action
     blocker_q = await db.execute(
         select(ProviderBlocker).where(
-            ProviderBlocker.is_resolved.is_(False),
+            ProviderBlocker.resolved.is_(False),
         ).limit(5)
     )
     for b in blocker_q.scalars().all():
@@ -366,7 +366,7 @@ async def surface_orchestration_actions(
                 action_type="resolve_provider_blocker",
                 title=f"Provider blocked: {b.provider_key if hasattr(b, 'provider_key') else 'unknown'}",
                 description=f"Type: {b.blocker_type}. Severity: {b.severity}. "
-                           f"Detail: {(b.detail or '')[:200]}",
+                           f"Detail: {(b.description or '')[:200]}",
                 category="health",
                 priority="critical" if b.severity == "critical" else "high",
                 entity_type="provider_blocker",

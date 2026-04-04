@@ -183,7 +183,7 @@ async def record_generation_outcome(
         confidence=min(1.0, (quality_score or 0.5) * 1.2),
         source_type="content_lifecycle",
         source_content_id=content_item_id,
-        detail_json={
+        structured_value={
             "generation_params": generation_params,
             "quality_score": quality_score,
             "approval_status": approval_status,
@@ -327,7 +327,7 @@ async def get_governance_summary(
     # Active workflows
     active_workflows = (await db.execute(
         select(func.count()).select_from(WorkflowInstance).where(
-            WorkflowInstance.organization_id == org_id,
+            WorkflowInstance.brand_id.in_(brand_ids_q),
             WorkflowInstance.status == "in_progress",
         )
     )).scalar() or 0
@@ -344,7 +344,7 @@ async def get_governance_summary(
     gatekeeper_alerts = (await db.execute(
         select(func.count()).select_from(GatekeeperAlert).where(
             GatekeeperAlert.brand_id.in_(brand_ids_q),
-            GatekeeperAlert.is_resolved.is_(False),
+            GatekeeperAlert.resolved.is_(False),
         )
     )).scalar() or 0
 
@@ -433,7 +433,7 @@ async def surface_governance_actions(
     alerts = await db.execute(
         select(GatekeeperAlert).where(
             GatekeeperAlert.brand_id.in_(brand_ids_q),
-            GatekeeperAlert.is_resolved.is_(False),
+            GatekeeperAlert.resolved.is_(False),
             GatekeeperAlert.severity.in_(["critical", "high"]),
         ).limit(5)
     )

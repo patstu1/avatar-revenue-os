@@ -161,7 +161,7 @@ async def _get_provider_counts(db: AsyncSession, status_type: str) -> int:
     if status_type == "blocked":
         return (await db.execute(
             select(func.count(func.distinct(ProviderBlocker.provider_key))).where(
-                ProviderBlocker.is_resolved.is_(False),
+                ProviderBlocker.resolved.is_(False),
             )
         )).scalar() or 0
 
@@ -173,7 +173,7 @@ async def _get_provider_counts(db: AsyncSession, status_type: str) -> int:
 
     blocked = (await db.execute(
         select(func.count(func.distinct(ProviderBlocker.provider_key))).where(
-            ProviderBlocker.is_resolved.is_(False),
+            ProviderBlocker.resolved.is_(False),
         )
     )).scalar() or 0
 
@@ -348,7 +348,7 @@ async def _get_governance_counts(db: AsyncSession, org_id: uuid.UUID) -> dict:
     open_alerts = (await db.execute(
         select(func.count()).select_from(GatekeeperAlert).where(
             GatekeeperAlert.brand_id.in_(brand_ids_q),
-            GatekeeperAlert.is_resolved.is_(False),
+            GatekeeperAlert.resolved.is_(False),
         )
     )).scalar() or 0
 

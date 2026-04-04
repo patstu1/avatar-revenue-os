@@ -101,7 +101,7 @@ class SystemEvent(Base):
 
     # --- Consumption ---
     requires_action: Mapped[bool] = mapped_column(
-        default=False, index=True,
+        default=False,
         comment="True if this event needs operator attention (surfaces in control layer)"
     )
     action_taken: Mapped[bool] = mapped_column(
