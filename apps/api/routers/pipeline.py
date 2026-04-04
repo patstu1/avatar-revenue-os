@@ -1,4 +1,9 @@
-"""Content pipeline endpoints — Phase 3 core."""
+"""Content pipeline endpoints — Phase 3 core.
+
+Now integrated with the content lifecycle service for event emission,
+quality gates, and operator action generation. The existing pipeline
+service handles business logic; the lifecycle service adds coordination.
+"""
 import uuid
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
@@ -12,6 +17,7 @@ from apps.api.schemas.content_pipeline import (
     SimilarityReportResponse,
 )
 from apps.api.services import content_pipeline_service as cps
+from apps.api.services import content_lifecycle as lifecycle
 from apps.api.services.audit_service import log_action
 from packages.db.models.content import ContentBrief, ContentItem, MediaJob, Script
 from packages.db.models.quality import Approval
@@ -42,7 +48,9 @@ async def update_brief(brief_id: uuid.UUID, body: BriefUpdate, current_user: Ope
 @router.post("/briefs/{brief_id}/generate-scripts", response_model=ScriptResponse)
 async def generate_scripts(brief_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
     try:
-        script = await cps.generate_script(db, brief_id)
+        script = await lifecycle.generate_script_with_events(
+            db, brief_id, actor_id=str(current_user.id)
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     await log_action(db, "script.generated", organization_id=current_user.organization_id,
@@ -103,7 +111,7 @@ async def get_media_job(job_id: uuid.UUID, current_user: CurrentUser, db: DBSess
 async def finalize_media(job_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
     """Bridge a completed MediaJob into a ContentItem for QA/approval/publish."""
     try:
-        item = await cps.finalize_media_job(db, job_id)
+        item = await lifecycle.finalize_media_with_events(db, job_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     await log_action(db, "content_item.created_from_media", organization_id=current_user.organization_id,
@@ -112,16 +120,24 @@ async def finalize_media(job_id: uuid.UUID, current_user: OperatorUser, db: DBSe
     return item
 
 
-@router.post("/content/{content_id}/run-qa", response_model=QAReportResponse)
+@router.post("/content/{content_id}/run-qa")
 async def run_qa(content_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
+    """Run QA with quality gate enforcement. May block content if quality is insufficient."""
     try:
-        report = await cps.run_qa(db, content_id)
+        result = await lifecycle.run_qa_with_events(
+            db, content_id, actor_id=str(current_user.id)
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    report = result["qa_report"]
     await log_action(db, "qa.completed", organization_id=current_user.organization_id,
                      brand_id=report.brand_id, user_id=current_user.id, actor_type="system",
                      entity_type="qa_report", entity_id=report.id)
-    return report
+    return {
+        "qa_report": QAReportResponse.model_validate(report),
+        "quality_blocked": result["quality_blocked"],
+        "blocking_reasons": result["blocking_reasons"],
+    }
 
 
 @router.get("/qa/{content_id}")
@@ -143,9 +159,10 @@ async def get_qa(content_id: uuid.UUID, current_user: CurrentUser, db: DBSession
 @router.post("/content/{content_id}/approve", response_model=ApprovalResponse)
 async def approve_content(content_id: uuid.UUID, body: ApprovalAction, current_user: OperatorUser, db: DBSession):
     try:
-        approval = await cps.approve_content(db, content_id, current_user.id, body.notes)
+        result = await lifecycle.approve_with_events(db, content_id, current_user.id, body.notes)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    approval = result["approval"]
     await log_action(db, "content.approved", organization_id=current_user.organization_id,
                      brand_id=approval.brand_id, user_id=current_user.id, actor_type="human",
                      entity_type="approval", entity_id=approval.id)
@@ -155,9 +172,10 @@ async def approve_content(content_id: uuid.UUID, body: ApprovalAction, current_u
 @router.post("/content/{content_id}/reject", response_model=ApprovalResponse)
 async def reject_content(content_id: uuid.UUID, body: ApprovalAction, current_user: OperatorUser, db: DBSession):
     try:
-        approval = await cps.reject_content(db, content_id, current_user.id, body.notes)
+        result = await lifecycle.reject_with_events(db, content_id, current_user.id, body.notes)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    approval = result["approval"]
     await log_action(db, "content.rejected", organization_id=current_user.organization_id,
                      brand_id=approval.brand_id, user_id=current_user.id, actor_type="human",
                      entity_type="approval", entity_id=approval.id)
@@ -191,9 +209,13 @@ async def schedule_content(content_id: uuid.UUID, body: ScheduleRequest, current
 @router.post("/content/{content_id}/publish-now", response_model=PublishJobResponse)
 async def publish_now(content_id: uuid.UUID, body: ScheduleRequest, current_user: OperatorUser, db: DBSession):
     try:
-        job = await cps.publish_now(db, content_id, body.creator_account_id, body.platform)
+        result = await lifecycle.publish_with_events(
+            db, content_id, body.creator_account_id, body.platform,
+            actor_id=str(current_user.id),
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    job = result["job"]
     await log_action(db, "content.published", organization_id=current_user.organization_id,
                      user_id=current_user.id, actor_type="human",
                      entity_type="publish_job", entity_id=job.id)

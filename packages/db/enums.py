@@ -31,6 +31,19 @@ class Platform(str, enum.Enum):
     PINTEREST = "pinterest"
     SNAPCHAT = "snapchat"
     THREADS = "threads"
+    RUMBLE = "rumble"
+    TWITCH = "twitch"
+    KICK = "kick"
+    WHATSAPP = "whatsapp"
+    QUORA = "quora"
+    CLAPPER = "clapper"
+    LEMON8 = "lemon8"
+    BEREAL = "bereal"
+    BLUESKY = "bluesky"
+    MASTODON = "mastodon"
+    WECHAT = "wechat"
+    SPOTIFY = "spotify"
+    APPLE_PODCASTS = "apple_podcasts"
     EMAIL_NEWSLETTER = "email_newsletter"
     BLOG = "blog"
     SEO_AUTHORITY = "seo_authority"
@@ -262,3 +275,112 @@ class StudioGenerationStatus(str, enum.Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+# ---------------------------------------------------------------------------
+# Canonical Lifecycle Enums — shared across the operating system
+# These define the universal state vocabulary for major object classes.
+# ---------------------------------------------------------------------------
+
+
+class ContentLifecycle(str, enum.Enum):
+    """Unified content item lifecycle — from idea to tracked performance."""
+    DRAFT = "draft"
+    BRIEF_READY = "brief_ready"
+    GENERATING = "generating"
+    GENERATED = "generated"
+    QA_REVIEW = "qa_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PUBLISHING = "publishing"
+    PUBLISHED = "published"
+    TRACKING = "tracking"
+    UNDERPERFORMING = "underperforming"
+    ARCHIVED = "archived"
+    FAILED = "failed"
+
+
+class AccountLifecycle(str, enum.Enum):
+    """Creator account lifecycle — from creation to maturity."""
+    ONBOARDING = "onboarding"
+    ACTIVE = "active"
+    WARMING = "warming"
+    READY = "ready"
+    PRODUCING = "producing"
+    SCALING = "scaling"
+    MATURE = "mature"
+    DEGRADED = "degraded"
+    RECOVERING = "recovering"
+    SUSPENDED = "suspended"
+
+
+class OfferLifecycleStatus(str, enum.Enum):
+    """Offer lifecycle — from draft through performance-based transitions."""
+    DRAFT = "draft"
+    TESTING = "testing"
+    ACTIVE = "active"
+    PROMOTED = "promoted"
+    DECLINING = "declining"
+    PAUSED = "paused"
+    RETIRED = "retired"
+
+
+class BrandLifecycle(str, enum.Enum):
+    """Brand lifecycle — from setup to full operation."""
+    SETUP = "setup"
+    ONBOARDING = "onboarding"
+    ACTIVE = "active"
+    PRODUCING = "producing"
+    SCALING = "scaling"
+    MATURE = "mature"
+    PAUSED = "paused"
+
+
+class EventDomain(str, enum.Enum):
+    """Top-level system event domains mapping to OS layers."""
+    CONTENT = "content"
+    PUBLISHING = "publishing"
+    MONETIZATION = "monetization"
+    INTELLIGENCE = "intelligence"
+    ORCHESTRATION = "orchestration"
+    GOVERNANCE = "governance"
+    RECOVERY = "recovery"
+    ACCOUNT = "account"
+    BRAND = "brand"
+    SYSTEM = "system"
+
+
+class EventSeverity(str, enum.Enum):
+    """Event severity for control layer prioritization."""
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
+class ActionPriority(str, enum.Enum):
+    """Operator action priority."""
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class ActionCategory(str, enum.Enum):
+    """Categories of operator actions for the control layer."""
+    BLOCKER = "blocker"
+    APPROVAL = "approval"
+    OPPORTUNITY = "opportunity"
+    FAILURE = "failure"
+    HEALTH = "health"
+    MONETIZATION = "monetization"
+    GOVERNANCE = "governance"
+
+
+class ActionStatus(str, enum.Enum):
+    """Status of an operator action."""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    DISMISSED = "dismissed"
+    EXPIRED = "expired"

@@ -78,6 +78,11 @@ from apps.api.routers import (
     monetization,
     onboarding,
     revenue_machine,
+    control_layer,
+    intelligence_hub,
+    monetization_hub,
+    orchestration_hub,
+    governance_hub,
 )
 
 settings = get_settings()
@@ -240,3 +245,8 @@ app.include_router(revenue_avenues.router, prefix="/api/v1/brands", tags=["Reven
 app.include_router(monetization.router, prefix="/api/v1/monetization", tags=["Monetization Machine: Credits, Plans, Packs, Telemetry"])
 app.include_router(onboarding.router, prefix="/api/v1/onboarding", tags=["Onboarding"])
 app.include_router(revenue_machine.router, prefix="/api/v1/monetization", tags=["Revenue Machine: Operating Model, Readiness, Triggers"])
+app.include_router(control_layer.router, prefix="/api/v1", tags=["Control Layer: Operator Command Surface"])
+app.include_router(intelligence_hub.router, prefix="/api/v1", tags=["Intelligence Hub: Unified Intelligence Surface"])
+app.include_router(monetization_hub.router, prefix="/api/v1", tags=["Monetization Hub: Revenue Operations"])
+app.include_router(orchestration_hub.router, prefix="/api/v1", tags=["Orchestration Hub: Jobs, Workers, Providers"])
+app.include_router(governance_hub.router, prefix="/api/v1", tags=["Governance Hub: Approvals, Permissions, Memory"])

@@ -378,6 +378,9 @@ from packages.db.models.monetization import (
     PlanSubscription, PackPurchase, MultiplicationEvent,
     MonetizationTelemetryEvent,
 )
+from packages.db.models.system_events import (
+    SystemEvent, OperatorAction, SystemHealthSnapshot,
+)
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",
@@ -554,4 +557,7 @@ __all__ = [
     "CreditLedger", "CreditTransaction", "UsageMeterSnapshot",
     "PlanSubscription", "PackPurchase", "MultiplicationEvent",
     "MonetizationTelemetryEvent",
+    "SystemEvent",
+    "OperatorAction",
+    "SystemHealthSnapshot",
 ]
