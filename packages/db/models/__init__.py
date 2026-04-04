@@ -381,6 +381,7 @@ from packages.db.models.monetization import (
 from packages.db.models.system_events import (
     SystemEvent, OperatorAction, SystemHealthSnapshot,
 )
+from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",
@@ -560,4 +561,5 @@ __all__ = [
     "SystemEvent",
     "OperatorAction",
     "SystemHealthSnapshot",
+    "RevenueLedgerEntry",
 ]

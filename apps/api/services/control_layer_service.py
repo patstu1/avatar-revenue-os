@@ -192,11 +192,25 @@ async def _get_provider_counts(db: AsyncSession, status_type: str) -> int:
 
 
 async def _get_total_revenue_30d(db: AsyncSession, brand_ids_q, month_ago) -> float:
-    """Aggregate revenue from multiple sources for the last 30 days."""
-    from packages.db.models.creator_revenue import CreatorRevenueEvent
-    from packages.db.models.publishing import AttributionEvent, PerformanceMetric
+    """Aggregate revenue from the canonical ledger (primary) with legacy fallback."""
+    from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
-    # Performance metrics (platform-reported revenue)
+    # Primary: canonical revenue ledger
+    ledger = (await db.execute(
+        select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
+            RevenueLedgerEntry.brand_id.in_(brand_ids_q),
+            RevenueLedgerEntry.occurred_at >= month_ago,
+            RevenueLedgerEntry.is_active.is_(True),
+        )
+    )).scalar() or 0.0
+
+    if float(ledger) > 0:
+        return float(ledger)
+
+    # Fallback: legacy sources if ledger is empty
+    from packages.db.models.creator_revenue import CreatorRevenueEvent
+    from packages.db.models.publishing import PerformanceMetric
+
     perf = (await db.execute(
         select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0)).where(
             PerformanceMetric.brand_id.in_(brand_ids_q),
@@ -204,16 +218,6 @@ async def _get_total_revenue_30d(db: AsyncSession, brand_ids_q, month_ago) -> fl
         )
     )).scalar() or 0.0
 
-    # Attribution events (conversion value)
-    attr = (await db.execute(
-        select(func.coalesce(func.sum(AttributionEvent.event_value), 0.0)).where(
-            AttributionEvent.brand_id.in_(brand_ids_q),
-            AttributionEvent.event_type == "conversion",
-            AttributionEvent.created_at >= month_ago,
-        )
-    )).scalar() or 0.0
-
-    # Creator revenue events (webhook-driven)
     creator = (await db.execute(
         select(func.coalesce(func.sum(CreatorRevenueEvent.revenue), 0.0)).where(
             CreatorRevenueEvent.brand_id.in_(brand_ids_q),
@@ -221,7 +225,7 @@ async def _get_total_revenue_30d(db: AsyncSession, brand_ids_q, month_ago) -> fl
         )
     )).scalar() or 0.0
 
-    return float(perf) + float(attr) + float(creator)
+    return float(perf) + float(creator)
 
 
 async def get_pending_actions(
