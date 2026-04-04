@@ -373,7 +373,74 @@ async def surface_intelligence_actions(
         )
         actions_created.append({"type": "recovery", "action_id": str(action.id)})
 
-    # 3. Decaying patterns → "Pattern losing effectiveness" alert
+    # 3. Suppress/throttle/kill decisions → autonomous suppression actions
+    suppress_decisions = await db.execute(
+        select(BrainDecision).where(
+            BrainDecision.brand_id == brand_id,
+            BrainDecision.is_active.is_(True),
+            BrainDecision.decision_class.in_(["suppress", "throttle", "kill"]),
+        )
+    )
+    for d in suppress_decisions.scalars().all():
+        action = await emit_action(
+            db, org_id=org_id,
+            action_type="suppress_losing_offer",
+            title=f"Brain: {d.decision_class} — {d.objective[:60]}",
+            description=f"Action: {d.selected_action}. {d.explanation[:200] if d.explanation else ''}",
+            category="monetization", priority="high",
+            brand_id=brand_id, entity_type="brain_decision", entity_id=d.id,
+            source_module="brain_phase_b",
+            action_payload={"autonomy_level": "autonomous", "confidence": d.confidence or 0.7,
+                            "decision_class": d.decision_class},
+        )
+        actions_created.append({"type": d.decision_class, "action_id": str(action.id)})
+
+    # 4. Monetize decisions → attach offer or create monetization flow
+    monetize_decisions = await db.execute(
+        select(BrainDecision).where(
+            BrainDecision.brand_id == brand_id,
+            BrainDecision.is_active.is_(True),
+            BrainDecision.decision_class == "monetize",
+            BrainDecision.confidence >= 0.5,
+        )
+    )
+    for d in monetize_decisions.scalars().all():
+        action = await emit_action(
+            db, org_id=org_id,
+            action_type="attach_offer_to_content",
+            title=f"Monetize: {d.objective[:60]}",
+            description=f"Brain recommends monetization. Action: {d.selected_action}. "
+                       f"Expected upside: ${d.expected_upside:.0f}." if d.expected_upside else f"Brain: monetize {d.objective[:60]}",
+            category="monetization", priority="medium",
+            brand_id=brand_id, entity_type="brain_decision", entity_id=d.id,
+            source_module="brain_phase_b",
+            action_payload={"autonomy_level": "autonomous" if (d.confidence or 0) >= 0.7 else "assisted",
+                            "confidence": d.confidence or 0.5},
+        )
+        actions_created.append({"type": "monetize", "action_id": str(action.id)})
+
+    # 5. Test decisions → experiment launch actions
+    test_decisions = await db.execute(
+        select(BrainDecision).where(
+            BrainDecision.brand_id == brand_id,
+            BrainDecision.is_active.is_(True),
+            BrainDecision.decision_class == "test",
+        )
+    )
+    for d in test_decisions.scalars().all():
+        action = await emit_action(
+            db, org_id=org_id,
+            action_type="launch_offer_test",
+            title=f"Test: {d.objective[:60]}",
+            description=f"Brain recommends testing. {d.explanation[:200] if d.explanation else ''}",
+            category="monetization", priority="medium",
+            brand_id=brand_id, entity_type="brain_decision", entity_id=d.id,
+            source_module="brain_phase_b",
+            action_payload={"autonomy_level": "assisted", "confidence": d.confidence or 0.5},
+        )
+        actions_created.append({"type": "test", "action_id": str(action.id)})
+
+    # 6. Decaying patterns → "Pattern losing effectiveness" alert
     decay_reports = await db.execute(
         select(PatternDecayReport).where(
             PatternDecayReport.brand_id == brand_id,

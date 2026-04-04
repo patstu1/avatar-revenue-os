@@ -828,11 +828,23 @@ app.conf.update(
             "schedule": crontab(minute=20, hour="*/2"),
         },
         # --- Revenue Maximizer Cycle ---
-        # Runs every 4 hours: surfaces revenue actions from 17 engines,
-        # then dispatches autonomous actions with governance.
         "revenue-maximizer-cycle-every-4h": {
             "task": "workers.monetization_worker.tasks.run_revenue_cycle",
             "schedule": crontab(minute=47, hour="*/4"),
+        },
+        # --- Platform Analytics Ingestion ---
+        # Fetches real performance data from YouTube/TikTok/Instagram.
+        # Gracefully skips if API credentials not configured.
+        "platform-analytics-ingestion-every-6h": {
+            "task": "workers.analytics_ingestion_worker.tasks.ingest_platform_analytics",
+            "schedule": crontab(minute=13, hour="*/6"),
+        },
+        # --- Trend Signal Ingestion ---
+        # Fetches trending topics from Google Trends and YouTube.
+        # Gracefully skips if SERPAPI_KEY/YOUTUBE_API_KEY not configured.
+        "trend-signal-ingestion-every-12h": {
+            "task": "workers.analytics_ingestion_worker.tasks.ingest_trend_signals",
+            "schedule": crontab(minute=23, hour="*/12"),
         },
     },
 )
@@ -898,4 +910,5 @@ app.autodiscover_tasks([
     "workers.data_pruning_worker",
     "workers.cinema_studio_worker",
     "workers.monetization_worker",
+    "workers.analytics_ingestion_worker",
 ])

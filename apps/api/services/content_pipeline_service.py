@@ -424,16 +424,60 @@ async def run_qa(db: AsyncSession, content_id: uuid.UUID) -> QAReport:
 
     has_offer = item.offer_id is not None
     word_count = script.word_count if script else 0
+    script_text = script.full_script if script else ""
+    hook_text = script.hook_text if script else ""
+    cta_text = script.cta_text if script else ""
+    is_video = item.content_type in (ContentType.SHORT_VIDEO, ContentType.LONG_VIDEO)
+
+    # ── Compute REAL QA inputs from actual content data ──
+
+    # Originality: check for uniqueness against existing content in this brand
+    existing_titles = (await db.execute(
+        select(ContentItem.title).where(
+            ContentItem.brand_id == item.brand_id,
+            ContentItem.id != item.id,
+        ).limit(50)
+    )).scalars().all()
+    title_matches = sum(1 for t in existing_titles if t and item.title and
+                        (item.title.lower() in t.lower() or t.lower() in item.title.lower()))
+    originality_score = max(0.1, 1.0 - (title_matches * 0.2))
+
+    # Compliance: check for required elements
+    has_hook = bool(hook_text and len(hook_text.strip()) > 10)
+    has_body = bool(script_text and len(script_text.strip()) > 50)
+    has_cta = bool(cta_text and len(cta_text.strip()) > 5)
+    has_disclosure = has_offer and ("sponsor" in script_text.lower() or "ad" in script_text.lower() or "affiliate" in script_text.lower() or "partner" in script_text.lower())
+    compliance_parts = [has_hook, has_body, has_cta, not has_offer or has_disclosure]
+    compliance_score = sum(1 for p in compliance_parts if p) / len(compliance_parts)
+
+    # Brand alignment: word count quality + structure presence
+    word_quality = min(1.0, word_count / 200) if word_count > 0 else 0.1
+    structure_score = (0.3 if has_hook else 0) + (0.4 if has_body else 0) + (0.3 if has_cta else 0)
+    brand_alignment_score = (word_quality * 0.5 + structure_score * 0.5)
+
+    # Technical quality: based on content completeness and metadata
+    has_title = bool(item.title and len(item.title.strip()) > 5)
+    has_description = bool(item.description and len(item.description.strip()) > 10)
+    has_tags = bool(item.tags and len(item.tags) > 0)
+    has_platform = bool(item.platform)
+    tech_parts = [has_title, has_description or has_body, has_tags, has_platform, word_count > 30]
+    technical_quality_score = sum(1 for p in tech_parts if p) / len(tech_parts)
+
+    # Audio/visual: based on content type and asset presence
+    has_video_asset = item.video_asset_id is not None
+    has_thumbnail = item.thumbnail_asset_id is not None
+    audio_quality_score = 0.7 if (is_video and has_video_asset) else 0.4 if is_video else 0.6
+    visual_quality_score = 0.8 if has_video_asset else 0.6 if has_thumbnail else 0.3
 
     inp = QAInput(
-        originality_score=0.7,
-        compliance_score=0.85,
-        brand_alignment_score=0.75,
-        technical_quality_score=0.7,
-        audio_quality_score=0.7 if item.content_type in (ContentType.SHORT_VIDEO, ContentType.LONG_VIDEO) else 0.5,
-        visual_quality_score=0.7,
-        has_required_disclosures=True,
-        has_sponsor_metadata=not has_offer or True,
+        originality_score=round(originality_score, 3),
+        compliance_score=round(compliance_score, 3),
+        brand_alignment_score=round(brand_alignment_score, 3),
+        technical_quality_score=round(technical_quality_score, 3),
+        audio_quality_score=round(audio_quality_score, 3),
+        visual_quality_score=round(visual_quality_score, 3),
+        has_required_disclosures=has_disclosure if has_offer else True,
+        has_sponsor_metadata=not has_offer or has_disclosure,
         is_sponsored_content=has_offer,
         word_count=word_count,
     )

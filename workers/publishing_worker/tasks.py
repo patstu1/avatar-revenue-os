@@ -59,19 +59,28 @@ def publish_content(self, publish_job_id: str) -> dict:
         session.commit()
 
         content = session.get(ContentItem, job.content_item_id) if job.content_item_id else None
+        # Try publishing via Buffer → Publer → Ayrshare (fallback chain)
         publish_result = _try_buffer_publish(session, job, content)
+
+        if publish_result.get("no_buffer"):
+            # Fallback: try Publer
+            publish_result = _try_publer_publish(session, job, content)
+
+        if publish_result.get("no_publer"):
+            # Fallback: try Ayrshare
+            publish_result = _try_ayrshare_publish(session, job, content)
 
         if publish_result.get("published"):
             job.status = JobStatus.COMPLETED
             job.published_at = datetime.now(timezone.utc)
             job.error_message = None
-            job.platform_post_id = publish_result.get("buffer_post_id")
+            job.platform_post_id = publish_result.get("buffer_post_id") or publish_result.get("post_id")
             job.platform_post_url = publish_result.get("url")
             if content:
                 content.status = "published"
-        elif publish_result.get("no_buffer"):
+        elif publish_result.get("no_buffer") or publish_result.get("no_publer") or publish_result.get("no_ayrshare"):
             job.status = JobStatus.FAILED
-            job.error_message = publish_result.get("error", "No publishing channel configured")
+            job.error_message = "No publishing channel configured (Buffer, Publer, or Ayrshare). Add API keys in Settings."
         else:
             job.status = JobStatus.FAILED
             job.error_message = publish_result.get("error", "Publishing failed")
@@ -147,3 +156,71 @@ def _try_buffer_publish(session, job, content) -> dict:
         return {"no_buffer": True, "error": result.get("error", "Buffer API blocked")}
     else:
         return {"error": result.get("error", "Buffer publish failed")}
+
+
+def _try_publer_publish(session, job, content) -> dict:
+    """Fallback: publish via Publer."""
+    import asyncio
+    import os
+
+    publer_key = os.environ.get("PUBLER_API_KEY", "")
+    if not publer_key:
+        return {"no_publer": True, "error": "PUBLER_API_KEY not configured"}
+
+    text = ""
+    if content:
+        text = content.description or content.title or ""
+    if not text:
+        return {"error": "No content text"}
+
+    try:
+        from packages.clients.distributors.publer_client import PublerClient
+        client = PublerClient(api_key=publer_key)
+        platform_val = job.platform.value if hasattr(job.platform, 'value') else str(job.platform)
+
+        loop = asyncio.new_event_loop()
+        result = loop.run_until_complete(
+            client.create_post(platform=platform_val, text=text)
+        )
+        loop.close()
+
+        if result.get("success"):
+            return {"published": True, "post_id": result.get("post_id", ""), "url": result.get("url", ""),
+                    "publisher": "publer"}
+        return {"error": result.get("error", "Publer publish failed")}
+    except Exception as e:
+        return {"no_publer": True, "error": f"Publer failed: {e}"}
+
+
+def _try_ayrshare_publish(session, job, content) -> dict:
+    """Fallback: publish via Ayrshare."""
+    import asyncio
+    import os
+
+    ayrshare_key = os.environ.get("AYRSHARE_API_KEY", "")
+    if not ayrshare_key:
+        return {"no_ayrshare": True, "error": "AYRSHARE_API_KEY not configured"}
+
+    text = ""
+    if content:
+        text = content.description or content.title or ""
+    if not text:
+        return {"error": "No content text"}
+
+    try:
+        from packages.clients.distributors.ayrshare_client import AyrshareClient
+        client = AyrshareClient(api_key=ayrshare_key)
+        platform_val = job.platform.value if hasattr(job.platform, 'value') else str(job.platform)
+
+        loop = asyncio.new_event_loop()
+        result = loop.run_until_complete(
+            client.create_post(platforms=[platform_val], text=text)
+        )
+        loop.close()
+
+        if result.get("success"):
+            return {"published": True, "post_id": result.get("post_id", ""), "url": result.get("url", ""),
+                    "publisher": "ayrshare"}
+        return {"error": result.get("error", "Ayrshare publish failed")}
+    except Exception as e:
+        return {"no_ayrshare": True, "error": f"Ayrshare failed: {e}"}
