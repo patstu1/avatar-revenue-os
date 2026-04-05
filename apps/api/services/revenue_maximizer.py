@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_action, emit_event
 from packages.scoring.adaptive_calibration import get_calibration_context, normalize, relative_threshold
+from packages.scoring.ceiling_override import override_opportunity_score, override_recommendation_action, filter_suppress_decisions
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.brain_phase_b import ArbitrationReport, BrainDecision
 from packages.db.models.content import ContentItem
@@ -222,12 +223,19 @@ async def detect_revenue_opportunities(
             RecommendationQueue.brand_id == brand_id,
         ).order_by(RecommendationQueue.composite_score.desc()).limit(10)
     )
+    # Build calibration context for ceiling override
+    cal_ctx = await build_calibration_context(db, brand_id)
+
     for opp in top_opps.scalars().all():
+        # Override opportunity score if engine used fixed thresholds
+        calibrated_score = override_opportunity_score(opp.composite_score, cal_ctx)
+        calibrated_action = override_recommendation_action(opp.recommended_action, cal_ctx) if opp.recommended_action else None
+
         opportunities.append({
             "type": "scored_opportunity",
             "rank": opp.rank,
-            "composite_score": opp.composite_score,
-            "recommended_action": opp.recommended_action,
+            "composite_score": calibrated_score,
+            "recommended_action": calibrated_action or opp.recommended_action,
             "entity_id": str(opp.id),
             "expected_upside": opp.composite_score * max(total_rev_for_upside, 100),  # Scaled to actual portfolio revenue
             "source": "opportunity_scoring",
@@ -473,12 +481,23 @@ async def compute_suppression_targets(
             BrainDecision.decision_class.in_(["suppress", "throttle", "kill"]),
         ).limit(5)
     )
-    for d in suppress_decisions.scalars().all():
+    # Apply ceiling override: filter out suppress decisions that are threshold artifacts
+    raw_suppress = [
+        {"decision_class": d.decision_class, "objective": d.objective,
+         "explanation": d.explanation[:200] if d.explanation else None,
+         "expected_upside": d.expected_upside}
+        for d in suppress_decisions.scalars().all()
+    ]
+
+    cal_ctx_supp = await build_calibration_context(db, brand_id)
+    filtered = filter_suppress_decisions(raw_suppress, cal_ctx_supp)
+
+    for d in filtered:
         targets.append({
             "type": "brain_decision",
-            "decision_class": d.decision_class,
-            "objective": d.objective,
-            "explanation": d.explanation[:200] if d.explanation else None,
+            "decision_class": d["decision_class"],
+            "objective": d["objective"],
+            "explanation": d["explanation"],
             "action": "execute_suppression",
         })
 
