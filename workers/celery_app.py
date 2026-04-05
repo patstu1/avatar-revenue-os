@@ -47,8 +47,16 @@ app.conf.update(
         "buffer": {},
         "cinema_studio": {},
         "monetization": {},
+        "pipeline": {},
+        "repurposing": {},
+        "strategy_adjustment": {},
+        "outreach": {},
+        "express_publishing": {
+            "queue_arguments": {"x-max-priority": 10},
+        },
     },
     task_routes={
+        "workers.publishing_worker.express_publish": {"queue": "express_publishing"},
         "workers.generation_worker.*": {"queue": "generation"},
         "workers.publishing_worker.*": {"queue": "publishing"},
         "workers.analytics_worker.*": {"queue": "analytics"},
@@ -92,6 +100,10 @@ app.conf.update(
         "workers.buffer_worker.*": {"queue": "buffer"},
         "workers.cinema_studio_worker.*": {"queue": "cinema_studio"},
         "workers.monetization_worker.*": {"queue": "monetization"},
+        "workers.pipeline_worker.*": {"queue": "pipeline"},
+        "workers.repurposing_worker.*": {"queue": "repurposing"},
+        "workers.strategy_adjustment_worker.*": {"queue": "strategy_adjustment"},
+        "workers.outreach_worker.*": {"queue": "outreach"},
     },
     beat_schedule={
         # RECOMPUTE DEPENDENCY ORDER:
@@ -702,9 +714,9 @@ app.conf.update(
             "task": "workers.causal_attribution_worker.tasks.recompute_causal_attribution",
             "schedule": crontab(minute=45, hour="*/6"),
         },
-        "trend-light-scan-every-60s": {
+        "trend-light-scan-tick": {
             "task": "workers.trend_viral_worker.tasks.trend_light_scan",
-            "schedule": 60.0,
+            "schedule": 10.0,  # Base tick — per-brand interval is configurable via brand_guidelines.trend_scan_interval_seconds (no default; operator/GM sets it)
         },
         "trend-deep-analysis-every-5m": {
             "task": "workers.trend_viral_worker.tasks.trend_deep_analysis",
@@ -753,6 +765,11 @@ app.conf.update(
         "email-campaigns-every-8h": {
             "task": "workers.email_campaign_worker.tasks.process_email_campaigns",
             "schedule": crontab(minute=0, hour="*/8"),
+        },
+        # --- Outreach Pipeline (send emails, poll replies) ---
+        "outreach-poll-inbox-every-5m": {
+            "task": "workers.outreach_worker.tasks.poll_all_inboxes",
+            "schedule": crontab(minute="*/5"),
         },
         "offer-discovery-daily": {
             "task": "workers.offer_discovery_worker.tasks.discover_offers",
@@ -845,12 +862,29 @@ app.conf.update(
             "task": "workers.analytics_ingestion_worker.tasks.ingest_platform_analytics",
             "schedule": crontab(minute=13, hour="*/6"),
         },
+        # --- Strategy Adjustment (runs after analytics ingestion) ---
+        # Reads ALL winning/losing patterns, generates proportional briefs,
+        # deprioritizes losers, rotates offers, detects spikes, cross-pollinates.
+        "strategy-adjustment-after-analytics-every-6h": {
+            "task": "workers.strategy_adjustment_worker.tasks.adjust_all_strategies",
+            "schedule": crontab(minute=20, hour="*/6"),
+        },
         # --- Trend Signal Ingestion ---
         # Fetches trending topics from Google Trends and YouTube.
         # Gracefully skips if SERPAPI_KEY/YOUTUBE_API_KEY not configured.
         "trend-signal-ingestion-every-12h": {
             "task": "workers.analytics_ingestion_worker.tasks.ingest_trend_signals",
             "schedule": crontab(minute=23, hour="*/12"),
+        },
+        # --- Async Media Job Stale Check ---
+        "media-job-stale-check-every-10m": {
+            "task": "workers.generation_worker.check_stale_jobs",
+            "schedule": crontab(minute="*/10"),
+        },
+        # --- Health Monitor ---
+        "system-health-check-every-5m": {
+            "task": "workers.health_monitor_worker.tasks.check_system_health",
+            "schedule": crontab(minute="*/5"),
         },
     },
 )
@@ -917,4 +951,8 @@ app.autodiscover_tasks([
     "workers.cinema_studio_worker",
     "workers.monetization_worker",
     "workers.analytics_ingestion_worker",
+    "workers.strategy_adjustment_worker",
+    "workers.pipeline_worker",
+    "workers.outreach_worker",
+    "workers.health_monitor_worker",
 ])

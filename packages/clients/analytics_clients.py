@@ -23,9 +23,12 @@ class YouTubeAnalyticsClient:
 
     BASE_URL = "https://youtubeanalytics.googleapis.com/v2/reports"
 
-    def __init__(self):
-        self.api_key = os.getenv("YOUTUBE_API_KEY", "")
-        self.oauth_token = os.getenv("YOUTUBE_OAUTH_TOKEN", "")
+    def __init__(self, api_key: str | None = None, oauth_token: str | None = None):
+        self.api_key = api_key or os.getenv("YOUTUBE_API_KEY", "")
+        self.oauth_token = oauth_token or os.getenv("YOUTUBE_OAUTH_TOKEN", "")
+        if not api_key and (self.api_key or self.oauth_token):
+            logger.warning("credential_env_fallback_DEPRECATED", client="YouTubeAnalyticsClient",
+                           hint="Pass api_key from integration_manager.get_credential()")
 
     def is_configured(self) -> bool:
         return bool(self.api_key or self.oauth_token)
@@ -81,8 +84,11 @@ class TikTokAnalyticsClient:
 
     BASE_URL = "https://open.tiktokapis.com/v2"
 
-    def __init__(self):
-        self.access_token = os.getenv("TIKTOK_ACCESS_TOKEN", "")
+    def __init__(self, access_token: str | None = None):
+        self.access_token = access_token or os.getenv("TIKTOK_ACCESS_TOKEN", "")
+        if not access_token and self.access_token:
+            logger.warning("credential_env_fallback_DEPRECATED", client="TikTokAnalyticsClient",
+                           hint="Pass access_token from integration_manager.get_credential()")
 
     def is_configured(self) -> bool:
         return bool(self.access_token)
@@ -124,8 +130,11 @@ class InstagramAnalyticsClient:
 
     BASE_URL = "https://graph.facebook.com/v18.0"
 
-    def __init__(self):
-        self.access_token = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
+    def __init__(self, access_token: str | None = None):
+        self.access_token = access_token or os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
+        if not access_token and self.access_token:
+            logger.warning("credential_env_fallback_DEPRECATED", client="InstagramAnalyticsClient",
+                           hint="Pass access_token from integration_manager.get_credential()")
 
     def is_configured(self) -> bool:
         return bool(self.access_token)
@@ -162,9 +171,12 @@ class TrendSignalClient:
 
     TRENDS_URL = "https://serpapi.com/search"  # SerpAPI for Google Trends (requires key)
 
-    def __init__(self):
-        self.serp_key = os.getenv("SERPAPI_KEY", "")
-        self.rapid_key = os.getenv("RAPIDAPI_KEY", "")
+    def __init__(self, serp_key: str | None = None, rapid_key: str | None = None):
+        self.serp_key = serp_key or os.getenv("SERPAPI_KEY", "")
+        self.rapid_key = rapid_key or os.getenv("RAPIDAPI_KEY", "")
+        if not serp_key and (self.serp_key or self.rapid_key):
+            logger.warning("credential_env_fallback_DEPRECATED", client="TrendSignalClient",
+                           hint="Pass serp_key from integration_manager.get_credential()")
 
     def is_configured(self) -> bool:
         return bool(self.serp_key or self.rapid_key)
@@ -195,9 +207,9 @@ class TrendSignalClient:
             logger.error("trend_signal.fetch_failed", error=str(e))
             return {"configured": True, "error": str(e), "trends": []}
 
-    async def fetch_youtube_trending(self, *, region: str = "US") -> dict:
+    async def fetch_youtube_trending(self, *, region: str = "US", youtube_api_key: str | None = None) -> dict:
         """Fetch YouTube trending videos for topic discovery."""
-        api_key = os.getenv("YOUTUBE_API_KEY", "")
+        api_key = youtube_api_key or os.getenv("YOUTUBE_API_KEY", "")
         if not api_key:
             return {"configured": False, "error": "YOUTUBE_API_KEY not set"}
 

@@ -217,17 +217,22 @@ def _build_generation_prompt(brief: ContentBrief, brand: Optional[Brand], metada
     return "\n".join(parts)
 
 
-async def _get_ai_client(provider_key: str):
-    """Get the appropriate AI client for content generation."""
+async def _get_ai_client(provider_key: str, api_key: str | None = None):
+    """Get the appropriate AI client for content generation.
+
+    When *api_key* is supplied (loaded from the encrypted DB by the caller),
+    it is passed directly to the client constructor.  If omitted the client
+    falls back to its own os.environ lookup (transition / dev mode).
+    """
     from packages.clients.ai_clients import ClaudeContentClient, GeminiFlashClient, DeepSeekClient
 
     if provider_key == "claude":
-        return ClaudeContentClient()
+        return ClaudeContentClient(api_key=api_key)
     elif provider_key == "gemini_flash":
-        return GeminiFlashClient()
+        return GeminiFlashClient(api_key=api_key)
     elif provider_key == "deepseek":
-        return DeepSeekClient()
-    return GeminiFlashClient()
+        return DeepSeekClient(api_key=api_key)
+    return GeminiFlashClient(api_key=api_key)
 
 
 async def _enrich_brief_metadata(db: AsyncSession, brief: ContentBrief) -> dict:
@@ -399,7 +404,14 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
 
         tier = classify_task_tier(brief.target_platform or "youtube")
         provider_key = route_to_provider("text", tier)
-        client = await _get_ai_client(provider_key)
+
+        # Load credential from encrypted DB (falls back to .env)
+        db_api_key = None
+        if brand and hasattr(brand, "organization_id") and brand.organization_id:
+            from apps.api.services.integration_manager import get_credential
+            db_api_key = await get_credential(db, brand.organization_id, provider_key)
+
+        client = await _get_ai_client(provider_key, api_key=db_api_key)
 
         if brief.offer_id:
             from packages.db.models.core import Offer
@@ -480,9 +492,16 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
     try:
         from packages.clients.ai_clients import GPTImageClient, Imagen4Client
         from packages.db.models.content import Asset
-        img_client = GPTImageClient()
+        # Load image provider credentials from encrypted DB
+        _img_key = None
+        _imagen_key = None
+        if brand and hasattr(brand, "organization_id") and brand.organization_id:
+            from apps.api.services.integration_manager import get_credential as _gc
+            _img_key = await _gc(db, brand.organization_id, "openai_image")
+            _imagen_key = await _gc(db, brand.organization_id, "imagen4")
+        img_client = GPTImageClient(api_key=_img_key)
         if not img_client._is_configured():
-            img_client = Imagen4Client()
+            img_client = Imagen4Client(api_key=_imagen_key)
         if img_client._is_configured():
             img_prompt = f"Engaging social media thumbnail for: {brief.title}. Style: bold text overlay, vibrant colors, eye-catching. Platform: {brief.target_platform or 'youtube'}."
             img_result = await img_client.generate(img_prompt)

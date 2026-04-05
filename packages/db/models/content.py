@@ -98,34 +98,9 @@ class Asset(Base):
     metadata_blob: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
 
 
-class MediaJob(Base):
-    __tablename__ = "media_jobs"
-
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
-    script_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("scripts.id"), index=True
-    )
-    avatar_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("avatars.id"), index=True
-    )
-    job_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.PENDING, index=True)
-    provider: Mapped[Optional[str]] = mapped_column(String(50))
-    provider_job_id: Mapped[Optional[str]] = mapped_column(String(255))
-    input_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
-    output_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
-    output_asset_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("assets.id")
-    )
-    retries: Mapped[int] = mapped_column(Integer, default=0)
-    max_retries: Mapped[int] = mapped_column(Integer, default=3)
-    error_message: Mapped[Optional[str]] = mapped_column(Text)
-    error_details: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
-    cost: Mapped[float] = mapped_column(Float, default=0.0)
-    started_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+# MediaJob has been moved to packages.db.models.media_jobs
+# Kept here as a re-export for backward compatibility
+from packages.db.models.media_jobs import MediaJob  # noqa: F401
 
 
 class ContentItem(Base):

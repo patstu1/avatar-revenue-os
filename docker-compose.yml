@@ -154,20 +154,21 @@ services:
     networks:
       - aro-network
 
-  # ─── Celery Worker ─────────────────────────────────────────────────────
-  worker:
+  # ─── Celery Workers (dedicated per queue type) ─────────────────────────
+  worker-generation:
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.api
-    container_name: aro-worker
+    container_name: aro-worker-generation
     restart: unless-stopped
     command: >
       sh -c 'rm -f /tmp/celery-worker.pid &&
       celery -A workers.celery_app worker
       --loglevel=info --concurrency=4
       --pidfile=/tmp/celery-worker.pid
-      -Q default,generation,publishing,analytics,qa,learning,portfolio,scale_alerts,notifications,growth_pack,revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,mxp,creator_revenue,brain,buffer,autonomous_phase_d,cinema_studio,monetization'
-    environment:
+      -n worker-generation@%h
+      -Q generation,pipeline,cinema_studio'
+    environment: &worker-env
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
       REDIS_URL: ${REDIS_URL}
@@ -223,21 +224,101 @@ services:
       # --- Misc ---
       API_SECRET_KEY: ${API_SECRET_KEY}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-    volumes:
+    volumes: &worker-volumes
       - .:/app
-    healthcheck:
+    healthcheck: &worker-healthcheck
       test: ["CMD-SHELL", "test -f /tmp/celery-worker.pid && kill -0 $(cat /tmp/celery-worker.pid)"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
-    depends_on:
+    depends_on: &worker-depends
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    networks:
+      - aro-network
+
+  worker-publishing:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-publishing
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=info --concurrency=8
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-publishing@%h
+      -Q publishing,buffer'
+    environment: *worker-env
+    volumes: *worker-volumes
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    networks:
+      - aro-network
+
+  worker-analytics:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-analytics
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=info --concurrency=4
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-analytics@%h
+      -Q analytics,learning,portfolio,qa'
+    environment: *worker-env
+    volumes: *worker-volumes
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    networks:
+      - aro-network
+
+  worker-outreach:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-outreach
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=info --concurrency=4
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-outreach@%h
+      -Q outreach'
+    environment: *worker-env
+    volumes: *worker-volumes
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    networks:
+      - aro-network
+
+  worker-default:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-default
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=info --concurrency=8
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-default@%h
+      -Q default,brain,mxp,scale_alerts,notifications,monetization,repurposing,autonomous_phase_d,growth_pack,revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,creator_revenue'
+    environment: *worker-env
+    volumes: *worker-volumes
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
     networks:
       - aro-network
 

@@ -1,6 +1,7 @@
 import { api } from './api';
 
 export const gmApi = {
+  getStartupPrompt: () => api.get('/api/v1/gm/startup-prompt'),
   getMachineState: () => api.get('/api/v1/gm/machine-state'),
   listSessions: () => api.get('/api/v1/gm/sessions'),
   createSession: (title = 'GM Strategy Session') =>

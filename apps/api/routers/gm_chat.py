@@ -51,13 +51,19 @@ class GMMessageOut(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Machine State
+# Machine State & Startup
 # ---------------------------------------------------------------------------
 
 @router.get("/gm/machine-state")
 async def get_machine_state(current_user: CurrentUser, db: DBSession):
     """Scan full machine state — the GM's eyes."""
     return await gm_startup.get_machine_state(db, current_user.organization_id)
+
+
+@router.get("/gm/startup-prompt")
+async def startup_prompt(current_user: CurrentUser, db: DBSession):
+    """State-aware GM opening — returns phase, checklist, and opening message."""
+    return await gm_startup.get_startup_prompt(db, current_user.organization_id)
 
 
 # ---------------------------------------------------------------------------

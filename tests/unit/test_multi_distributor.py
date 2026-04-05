@@ -119,10 +119,10 @@ def test_router_publish_request_dataclass():
 
 def test_router_publish_result_dataclass():
     from packages.clients.distributor_router import PublishResult
-    res = PublishResult(success=True, distributor="buffer", post_id="123")
+    res = PublishResult(success=True, method="buffer", post_id="123")
     assert res.success
-    assert res.distributor == "buffer"
-    assert not res.failover_attempted
+    assert res.method == "buffer"
+    assert res.methods_tried == []
 
 
 def test_router_failover_all_unconfigured():

@@ -204,6 +204,126 @@ async def get_machine_state(
 
 
 # ---------------------------------------------------------------------------
+# Startup Prompt — state-aware opening for first-boot GM conversation
+# ---------------------------------------------------------------------------
+
+async def get_startup_prompt(
+    db: AsyncSession,
+    org_id: uuid.UUID,
+) -> dict[str, Any]:
+    """Return a state-aware GM opening message for the dashboard.
+
+    Checks machine state and returns the appropriate opening:
+    - Empty system: conversational opener asking about niche/audience/product
+    - Partial setup: status summary + what's missing
+    - Fully configured: operational status line
+    """
+    state = await get_machine_state(db, org_id)
+
+    brand_count = state["brands"]["count"]
+    account_count = state["accounts"]["count"]
+    offer_count = state["offers"]["count"]
+    has_llm = state["providers"]["has_llm"]
+    has_publishing = state["providers"]["has_publishing"]
+    provider_count = state["providers"]["configured"]
+    content_count = state["content"]["count"]
+
+    # Determine setup phase factually — the GM decides what to say
+    phase = "empty"
+    if brand_count > 0 and account_count > 0 and offer_count > 0:
+        phase = "operational"
+    elif brand_count > 0 or account_count > 0:
+        phase = "partial"
+
+    # Build checklist
+    checklist = {
+        "brand_created": brand_count > 0,
+        "ai_provider_connected": has_llm,
+        "publishing_connected": has_publishing,
+        "offer_configured": offer_count > 0,
+    }
+    completed = sum(1 for v in checklist.values() if v)
+
+    return {
+        "phase": phase,
+        "machine_state": state,
+        "checklist": checklist,
+        "checklist_progress": {"completed": completed, "total": len(checklist)},
+        "gm_opening": _build_gm_opening(phase, state),
+    }
+
+
+def _build_gm_opening(phase: str, state: dict[str, Any]) -> str:
+    """Build the GM's opening message based on system phase.
+
+    These are conversation starters, not prescriptive instructions.
+    The GM drives strategy from here via the chat.
+    """
+    if phase == "empty":
+        return (
+            "Welcome to the machine. I'm your Strategic GM — I build the revenue "
+            "blueprint, plan the account architecture, and run the scaling strategy.\n\n"
+            "Right now the system is a blank slate. Before I can build anything, "
+            "I need to understand what we're working with.\n\n"
+            "Let's start with the basics:\n"
+            "- What niche or market are you targeting?\n"
+            "- Who is the audience?\n"
+            "- What are you selling, or what do you want to monetize?\n\n"
+            "Tell me as much or as little as you want. I'll build the full launch "
+            "blueprint from there — brands, accounts, content angles, monetization "
+            "strategy, the whole architecture. You approve or adjust before anything "
+            "gets created."
+        )
+
+    if phase == "partial":
+        brands = state["brands"]["count"]
+        accounts = state["accounts"]["count"]
+        offers = state["offers"]["count"]
+        parts = []
+        if brands > 0:
+            parts.append(f"{brands} brand{'s' if brands != 1 else ''}")
+        if accounts > 0:
+            parts.append(f"{accounts} account{'s' if accounts != 1 else ''}")
+        if offers > 0:
+            parts.append(f"{offers} offer{'s' if offers != 1 else ''}")
+
+        configured = ", ".join(parts) if parts else "some entities"
+
+        missing = []
+        if brands == 0:
+            missing.append("no brands")
+        if accounts == 0:
+            missing.append("no publishing accounts")
+        if offers == 0:
+            missing.append("no monetization offers")
+        if not state["providers"]["has_llm"]:
+            missing.append("no AI provider key")
+        if not state["providers"]["has_publishing"]:
+            missing.append("no publishing connection")
+
+        missing_str = ", ".join(missing) if missing else "finishing touches"
+
+        return (
+            f"The machine has {configured} configured, but it's not fully "
+            f"operational yet — {missing_str}.\n\n"
+            "Want me to assess what's here and propose the next moves to get "
+            "this running? Or tell me what you want to change and I'll revise "
+            "the plan."
+        )
+
+    # operational
+    brands = state["brands"]["count"]
+    accounts = state["accounts"]["count"]
+    revenue = state["revenue"]["total_90d"]
+    return (
+        f"Machine is online. {brands} brand{'s' if brands != 1 else ''}, "
+        f"{accounts} account{'s' if accounts != 1 else ''}, "
+        f"${revenue:,.2f} revenue (90d).\n\n"
+        "What do you need?"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Blueprint Generation (calls Claude)
 # ---------------------------------------------------------------------------
 

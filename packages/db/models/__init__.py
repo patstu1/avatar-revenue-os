@@ -3,7 +3,8 @@ from packages.db.models.accounts import CreatorAccount, AccountPortfolio
 from packages.db.models.offers import Offer, SponsorProfile, SponsorOpportunity, LtvModel, AudienceSegment
 from packages.db.models.discovery import TopicSource, TopicCandidate, NicheCluster, TrendSignal, TopicSignal
 from packages.db.models.scoring import OpportunityScore, ProfitForecast, OfferFitScore, RecommendationQueue, SaturationReport
-from packages.db.models.content import ContentBrief, Script, ScriptVariant, Asset, MediaJob, ContentItem
+from packages.db.models.content import ContentBrief, Script, ScriptVariant, Asset, ContentItem
+from packages.db.models.media_jobs import MediaJob
 from packages.db.models.quality import QAReport, SimilarityReport, Approval
 from packages.db.models.publishing import PublishJob, PerformanceMetric, AttributionEvent, SignalIngestionRun
 from packages.db.models.experiments import Experiment, ExperimentVariant, WinnerCloneJob
@@ -383,7 +384,8 @@ from packages.db.models.system_events import (
 )
 from packages.db.models.revenue_ledger import RevenueLedgerEntry
 from packages.db.models.integration_registry import IntegrationProvider, CreatorPlatformAccount
-from packages.db.models.gm import GMSession, GMMessage, GMBlueprint
+from packages.db.models.gm import GMSession, GMMessage, GMBlueprint, GMConversation
+from packages.db.models.alert_routing import OperatorNotificationPreference, AlertDeliveryLog
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",
@@ -566,4 +568,6 @@ __all__ = [
     "RevenueLedgerEntry",
     "IntegrationProvider",
     "CreatorPlatformAccount",
+    "OperatorNotificationPreference",
+    "AlertDeliveryLog",
 ]

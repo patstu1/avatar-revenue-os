@@ -1,7 +1,7 @@
-"""Auto-publish bridge: approved content → multi-distributor publishing with failover.
+"""Auto-publish bridge: approved content → native-first publishing with aggregator fallback.
 
 Scans for approved content items, checks readiness and warmup constraints,
-publishes via the distributor router (Buffer → Publer → Ayrshare with automatic failover).
+publishes via the distributor router (native API first, then Buffer/Publer/Ayrshare failover).
 """
 from __future__ import annotations
 
@@ -187,12 +187,12 @@ async def _auto_publish_for_brand(brand_id):
                     platform=connected[0].platform,
                     publish_mode=mode,
                     status="published" if result.success else "failed",
-                    distributor_name=result.distributor if result.success else None,
+                    distributor_name=result.method if result.success else None,
                     distributor_post_id=result.post_id if result.success else None,
                     payload_json={
                         **payload,
-                        "failover_attempted": result.failover_attempted,
-                        "distributors_tried": result.distributors_tried,
+                        "publish_method": result.method,
+                        "methods_tried": result.methods_tried,
                     },
                 ))
 
@@ -201,7 +201,7 @@ async def _auto_publish_for_brand(brand_id):
                 published_direct += 1
             else:
                 failed += 1
-                logger.warning("publish failed for content %s: %s (tried: %s)", ci.id, result.error, result.distributors_tried)
+                logger.warning("publish failed for content %s: %s (tried: %s)", ci.id, result.error, result.methods_tried)
 
             created += 1
 

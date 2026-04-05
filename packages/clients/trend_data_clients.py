@@ -100,8 +100,8 @@ class GoogleTrendsClient:
                 data = json.loads(text)
                 trends = data.get("default", {}).get("trendingSearchesDays", [])
                 results = []
-                for day in trends[:2]:
-                    for t in day.get("trendingSearches", [])[:15]:
+                for day in trends:
+                    for t in day.get("trendingSearches", []):
                         results.append({
                             "source": "google_trends",
                             "title": t.get("title", {}).get("query", ""),
@@ -142,14 +142,14 @@ class RedditTrendingClient:
             logger.exception("Reddit rising fetch failed")
             return _blocked(str(e))
 
-    async def fetch_niche_trends(self, niche_subreddits: list[str], limit: int = 10) -> dict[str, Any]:
+    async def fetch_niche_trends(self, niche_subreddits: list[str], limit: int = 100) -> dict[str, Any]:
         all_posts = []
-        for sub in niche_subreddits[:5]:
+        for sub in niche_subreddits:
             result = await self.fetch_rising(sub, limit)
             if result.get("success"):
                 all_posts.extend(result["data"])
         all_posts.sort(key=lambda x: x.get("score", 0), reverse=True)
-        return {"success": True, "data": all_posts[:25]}
+        return {"success": True, "data": all_posts}
 
 
 class TikTokTrendClient:

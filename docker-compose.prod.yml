@@ -1,69 +1,115 @@
 ###############################################################################
-# AI Avatar Revenue OS — Production Docker Compose Override
-# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# AI Avatar Revenue OS — Production Docker Compose (standalone)
+# Usage: docker compose -f docker-compose.prod.yml up -d
 ###############################################################################
 
-services:
-  api:
-    command: >
-      uvicorn apps.api.main:app
-      --host 0.0.0.0 --port 8000
-      --workers 4 --log-level ${LOG_LEVEL:-warning}
-    volumes: !reset []
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 256M
+name: avatar-revenue-os
 
-  worker:
-    command: >
-      celery -A workers.celery_app worker
-      --loglevel=${LOG_LEVEL:-warning} --concurrency=4
-      -Q default,generation,publishing,analytics,qa,learning,portfolio,scale_alerts,notifications,growth_pack,revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,mxp,creator_revenue,brain,buffer,autonomous_phase_d,cinema_studio,monetization
-    volumes: !reset []
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 256M
+x-worker-env: &worker-env
+  DATABASE_URL: ${DATABASE_URL}
+  DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
+  REDIS_URL: ${REDIS_URL}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+  # --- LLM / Text AI ---
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  XAI_API_KEY: ${XAI_API_KEY:-}
+  # --- Image ---
+  FAL_API_KEY: ${FAL_API_KEY:-}
+  REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
+  # --- Video ---
+  RUNWAY_API_KEY: ${RUNWAY_API_KEY:-}
+  KLING_API_KEY: ${KLING_API_KEY:-}
+  # --- Avatar ---
+  HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
+  DID_API_KEY: ${DID_API_KEY:-}
+  TAVUS_API_KEY: ${TAVUS_API_KEY:-}
+  # --- Voice / Music ---
+  ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+  FISH_AUDIO_API_KEY: ${FISH_AUDIO_API_KEY:-}
+  MUBERT_API_KEY: ${MUBERT_API_KEY:-}
+  MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+  SUNO_API_KEY: ${SUNO_API_KEY:-}
+  # --- Publishing ---
+  BUFFER_API_KEY: ${BUFFER_API_KEY:-}
+  PUBLER_API_KEY: ${PUBLER_API_KEY:-}
+  AYRSHARE_API_KEY: ${AYRSHARE_API_KEY:-}
+  # --- Analytics ---
+  SERPAPI_KEY: ${SERPAPI_KEY:-}
+  YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+  YOUTUBE_OAUTH_TOKEN: ${YOUTUBE_OAUTH_TOKEN:-}
+  TIKTOK_ACCESS_TOKEN: ${TIKTOK_ACCESS_TOKEN:-}
+  INSTAGRAM_ACCESS_TOKEN: ${INSTAGRAM_ACCESS_TOKEN:-}
+  # --- Payments ---
+  STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+  CLICKBANK_API_KEY: ${CLICKBANK_API_KEY:-}
+  # --- Email / IMAP ---
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  IMAP_HOST: ${IMAP_HOST:-}
+  IMAP_USER: ${IMAP_USER:-}
+  IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+  # --- S3 ---
+  S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+  S3_BUCKET_NAME: ${S3_BUCKET_NAME:-avatar-revenue-os}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  # --- Notifications ---
+  SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+  SMS_API_KEY: ${SMS_API_KEY:-}
+  OPERATOR_NOTIFY_EMAIL: ${OPERATOR_NOTIFY_EMAIL:-}
+  # --- Misc ---
+  API_SECRET_KEY: ${API_SECRET_KEY}
+  LOG_LEVEL: ${LOG_LEVEL:-warning}
+  SENTRY_DSN: ${SENTRY_DSN:-}
 
-  scheduler:
-    volumes: !reset []
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
-        reservations:
-          cpus: "0.1"
-          memory: 64M
+x-worker-healthcheck: &worker-healthcheck
+  test: ["CMD-SHELL", "test -f /tmp/celery-worker.pid && kill -0 $(cat /tmp/celery-worker.pid)"]
+  interval: 15s
+  timeout: 5s
+  retries: 5
+  start_period: 30s
 
-  web:
-    command: npm run start
-    volumes: !reset []
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 128M
-
+x-worker-depends: &worker-depends
   postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  migrate:
+    condition: service_completed_successfully
+
+services:
+  # ─── PostgreSQL ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: aro-postgres
+    restart: unless-stopped
+    command: >-
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - aro_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -72,8 +118,22 @@ services:
         reservations:
           cpus: "0.5"
           memory: 512M
+    networks:
+      - aro-network
 
+  # ─── Redis ─────────────────────────────────────────────────────────────
   redis:
+    image: redis:7-alpine
+    container_name: aro-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly yes
+    volumes:
+      - aro_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -82,3 +142,317 @@ services:
         reservations:
           cpus: "0.1"
           memory: 64M
+    networks:
+      - aro-network
+
+  # ─── Database Migrations ───────────────────────────────────────────────
+  migrate:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-migrate
+    restart: "no"
+    command: >
+      sh -c "alembic upgrade head || python3 scripts/ensure_schema.py"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aro-network
+
+  # ─── FastAPI Backend ───────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-api
+    restart: unless-stopped
+    command: >
+      uvicorn apps.api.main:app
+      --host 0.0.0.0 --port 8000
+      --workers 4 --log-level ${LOG_LEVEL:-warning}
+    environment:
+      <<: *worker-env
+      API_ENV: production
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS}
+      WEBHOOK_BASE_URL: ${WEBHOOK_BASE_URL:-}
+      FRONTEND_URL: ${FRONTEND_URL:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    networks:
+      - aro-network
+
+  # ─── Celery Worker: Generation ─────────────────────────────────────────
+  worker-generation:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-generation
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=4
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-generation@%h
+      -Q generation,pipeline'
+    environment: *worker-env
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    networks:
+      - aro-network
+
+  # ─── Celery Worker: Publishing ─────────────────────────────────────────
+  worker-publishing:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-publishing
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=8
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-publishing@%h
+      -Q publishing,express_publishing'
+    environment: *worker-env
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    networks:
+      - aro-network
+
+  # ─── Celery Worker: Analytics ──────────────────────────────────────────
+  worker-analytics:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-analytics
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=4
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-analytics@%h
+      -Q analytics,learning,strategy_adjustment'
+    environment: *worker-env
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    networks:
+      - aro-network
+
+  # ─── Celery Worker: Outreach ───────────────────────────────────────────
+  worker-outreach:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-outreach
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=4
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-outreach@%h
+      -Q outreach'
+    environment: *worker-env
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    networks:
+      - aro-network
+
+  # ─── Celery Worker: Default (catch-all) ────────────────────────────────
+  worker-default:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-default
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=8
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-default@%h
+      -Q default,brain,mxp,scale_alerts,notifications,monetization,repurposing'
+    environment: *worker-env
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+    networks:
+      - aro-network
+
+  # ─── Celery Beat Scheduler ────────────────────────────────────────────
+  scheduler:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-scheduler
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celerybeat.pid &&
+      celery -A workers.celery_app beat
+      --loglevel=${LOG_LEVEL:-warning}
+      --pidfile=/tmp/celerybeat.pid'
+    environment:
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/celerybeat.pid && kill -0 $(cat /tmp/celerybeat.pid)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    networks:
+      - aro-network
+
+  # ─── Next.js Frontend ─────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    container_name: aro-web
+    restart: unless-stopped
+    command: npm run start
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    networks:
+      - aro-network
+
+  # ─── Caddy Reverse Proxy (auto HTTPS via Let's Encrypt) ───────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: aro-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - aro_caddy_data:/data
+      - aro_caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-app.nvironments.com}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    networks:
+      - aro-network
+
+volumes:
+  aro_pgdata:
+    name: aro_pgdata
+  aro_redisdata:
+    name: aro_redisdata
+  aro_caddy_data:
+    name: aro_caddy_data
+  aro_caddy_config:
+    name: aro_caddy_config
+
+networks:
+  aro-network:
+    name: aro-network
+    driver: bridge

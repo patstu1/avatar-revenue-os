@@ -173,7 +173,14 @@ async def _try_ai_generation(db: AsyncSession, brief: ContentBrief, brand) -> Op
 
         tier = classify_task_tier(brief.target_platform or "youtube")
         provider_key = route_to_provider("text", tier)
-        client = await _get_ai_client(provider_key)
+
+        # Load credential from encrypted DB (falls back to .env inside get_credential)
+        db_api_key = None
+        if brand and hasattr(brand, "organization_id") and brand.organization_id:
+            from apps.api.services.integration_manager import get_credential
+            db_api_key = await get_credential(db, brand.organization_id, provider_key)
+
+        client = await _get_ai_client(provider_key, api_key=db_api_key)
 
         if not hasattr(client, '_is_configured') or not client._is_configured():
             logger.info("AI provider %s not configured, falling back to template", provider_key)

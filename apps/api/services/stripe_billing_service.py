@@ -1,5 +1,11 @@
-"""Stripe Billing Service — Handles subscriptions, credit purchases, and checkout."""
+"""Stripe Billing Service — Handles subscriptions, credit purchases, checkout,
+and operator-facing payment processing (payment links, invoices, checkout
+sessions, subscription links) for the operator's offers and proposals.
+"""
+import os
 import uuid
+from typing import Optional
+
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +16,295 @@ from packages.db.models.monetization import (
 )
 
 logger = structlog.get_logger()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# STRIPE API KEY RESOLUTION
+# ══════════════════════════════════════════════════════════════════════
+
+async def _get_stripe_api_key(db: Optional[AsyncSession] = None, org_id: Optional[uuid.UUID] = None) -> str:
+    """Resolve Stripe API key: integration_manager DB credential first, then env/settings fallback."""
+    # Try integration_manager for org-specific key
+    if db and org_id:
+        try:
+            from apps.api.services.integration_manager import get_credential
+            db_key = await get_credential(db, org_id, "stripe")
+            if db_key:
+                return db_key
+        except Exception:
+            pass
+
+    # Fall back to settings / env
+    settings = get_settings()
+    if settings.stripe_api_key:
+        return settings.stripe_api_key
+    return os.environ.get("STRIPE_API_KEY", "")
+
+
+def _init_stripe(api_key: str):
+    """Set stripe.api_key and return the module."""
+    import stripe
+    stripe.api_key = api_key
+    return stripe
+
+
+# ══════════════════════════════════════════════════════════════════════
+# OPERATOR PAYMENT METHODS — for the operator's offers / proposals
+# ══════════════════════════════════════════════════════════════════════
+
+async def create_payment_link(
+    amount_cents: int,
+    currency: str,
+    product_name: str,
+    metadata: dict,
+    *,
+    db: Optional[AsyncSession] = None,
+    org_id: Optional[uuid.UUID] = None,
+) -> dict:
+    """Create a Stripe Payment Link for a one-time payment.
+
+    metadata must include brand_id, offer_id, content_item_id for attribution.
+    Returns {url, id} or {error}.
+    """
+    api_key = await _get_stripe_api_key(db, org_id)
+    if not api_key:
+        return {"error": "Stripe API key not configured", "url": None, "id": None}
+
+    stripe = _init_stripe(api_key)
+
+    try:
+        # Create a one-off product + price, then a payment link
+        product = stripe.Product.create(
+            name=product_name,
+            metadata=metadata,
+        )
+        price = stripe.Price.create(
+            unit_amount=amount_cents,
+            currency=currency.lower(),
+            product=product.id,
+        )
+        link = stripe.PaymentLink.create(
+            line_items=[{"price": price.id, "quantity": 1}],
+            metadata=metadata,
+        )
+        logger.info(
+            "stripe.payment_link_created",
+            link_id=link.id,
+            amount_cents=amount_cents,
+            brand_id=metadata.get("brand_id"),
+        )
+        return {"url": link.url, "id": link.id}
+    except Exception as e:
+        logger.error("stripe.payment_link_failed", error=str(e))
+        return {"error": str(e), "url": None, "id": None}
+
+
+async def create_invoice(
+    customer_email: str,
+    line_items: list[dict],
+    metadata: dict,
+    *,
+    db: Optional[AsyncSession] = None,
+    org_id: Optional[uuid.UUID] = None,
+    days_until_due: int = 30,
+) -> dict:
+    """Create and send a Stripe Invoice.
+
+    line_items: list of {description, amount_cents, quantity}.
+    Returns {invoice_url, invoice_id} or {error}.
+    """
+    api_key = await _get_stripe_api_key(db, org_id)
+    if not api_key:
+        return {"error": "Stripe API key not configured", "invoice_url": None, "invoice_id": None}
+
+    stripe = _init_stripe(api_key)
+
+    try:
+        # Find or create customer by email
+        customers = stripe.Customer.list(email=customer_email, limit=1)
+        if customers.data:
+            customer = customers.data[0]
+        else:
+            customer = stripe.Customer.create(
+                email=customer_email,
+                metadata=metadata,
+            )
+
+        # Create invoice
+        invoice = stripe.Invoice.create(
+            customer=customer.id,
+            collection_method="send_invoice",
+            days_until_due=days_until_due,
+            metadata=metadata,
+        )
+
+        # Add line items
+        for item in line_items:
+            stripe.InvoiceItem.create(
+                customer=customer.id,
+                invoice=invoice.id,
+                description=item.get("description", "Service"),
+                amount=item.get("amount_cents", 0),
+                currency=item.get("currency", "usd"),
+                quantity=item.get("quantity", 1),
+            )
+
+        # Finalize and send
+        invoice = stripe.Invoice.finalize_invoice(invoice.id)
+        stripe.Invoice.send_invoice(invoice.id)
+
+        logger.info(
+            "stripe.invoice_created",
+            invoice_id=invoice.id,
+            customer_email=customer_email,
+            brand_id=metadata.get("brand_id"),
+        )
+        return {"invoice_url": invoice.hosted_invoice_url, "invoice_id": invoice.id}
+    except Exception as e:
+        logger.error("stripe.invoice_failed", error=str(e))
+        return {"error": str(e), "invoice_url": None, "invoice_id": None}
+
+
+async def create_checkout_session_for_offer(
+    amount_cents: int,
+    currency: str,
+    product_name: str,
+    success_url: str,
+    cancel_url: str,
+    metadata: dict,
+    *,
+    db: Optional[AsyncSession] = None,
+    org_id: Optional[uuid.UUID] = None,
+) -> dict:
+    """Create a Stripe Checkout Session for a one-time offer payment.
+
+    Returns {session_url, session_id} or {error}.
+    """
+    api_key = await _get_stripe_api_key(db, org_id)
+    if not api_key:
+        return {"error": "Stripe API key not configured", "session_url": None, "session_id": None}
+
+    stripe = _init_stripe(api_key)
+
+    try:
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[{
+                "price_data": {
+                    "currency": currency.lower(),
+                    "product_data": {"name": product_name},
+                    "unit_amount": amount_cents,
+                },
+                "quantity": 1,
+            }],
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata=metadata,
+            payment_intent_data={"metadata": metadata},
+        )
+        logger.info(
+            "stripe.offer_checkout_created",
+            session_id=session.id,
+            amount_cents=amount_cents,
+            brand_id=metadata.get("brand_id"),
+        )
+        return {"session_url": session.url, "session_id": session.id}
+    except Exception as e:
+        logger.error("stripe.offer_checkout_failed", error=str(e))
+        return {"error": str(e), "session_url": None, "session_id": None}
+
+
+async def create_subscription_link(
+    price_id: str,
+    metadata: dict,
+    *,
+    db: Optional[AsyncSession] = None,
+    org_id: Optional[uuid.UUID] = None,
+) -> dict:
+    """Create a Stripe Payment Link for a recurring subscription price.
+
+    Returns {url} or {error}.
+    """
+    api_key = await _get_stripe_api_key(db, org_id)
+    if not api_key:
+        return {"error": "Stripe API key not configured", "url": None}
+
+    stripe = _init_stripe(api_key)
+
+    try:
+        link = stripe.PaymentLink.create(
+            line_items=[{"price": price_id, "quantity": 1}],
+            metadata=metadata,
+        )
+        logger.info(
+            "stripe.subscription_link_created",
+            link_id=link.id,
+            price_id=price_id,
+            brand_id=metadata.get("brand_id"),
+        )
+        return {"url": link.url}
+    except Exception as e:
+        logger.error("stripe.subscription_link_failed", error=str(e))
+        return {"error": str(e), "url": None}
+
+
+# ══════════════════════════════════════════════════════════════════════
+# OUTREACH PIPELINE HELPER
+# ══════════════════════════════════════════════════════════════════════
+
+async def generate_payment_link_for_proposal(
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    offer_id: uuid.UUID,
+    amount: float,
+    product_name: str,
+    *,
+    content_item_id: Optional[uuid.UUID] = None,
+    currency: str = "usd",
+) -> str:
+    """Create a Stripe payment link with proper attribution metadata,
+    ready for injection into outreach emails / proposals.
+
+    Returns the payment URL, or an error string starting with 'error:'.
+    """
+    metadata = {
+        "brand_id": str(brand_id),
+        "offer_id": str(offer_id),
+        "org_id": str(org_id),
+        "source": "outreach_proposal",
+    }
+    if content_item_id:
+        metadata["content_item_id"] = str(content_item_id)
+
+    amount_cents = int(round(amount * 100))
+
+    result = await create_payment_link(
+        amount_cents=amount_cents,
+        currency=currency,
+        product_name=product_name,
+        metadata=metadata,
+        db=db,
+        org_id=org_id,
+    )
+
+    if result.get("error"):
+        logger.warning(
+            "stripe.proposal_link_failed",
+            brand_id=str(brand_id),
+            offer_id=str(offer_id),
+            error=result["error"],
+        )
+        return f"error: {result['error']}"
+
+    logger.info(
+        "stripe.proposal_link_generated",
+        brand_id=str(brand_id),
+        offer_id=str(offer_id),
+        amount=amount,
+        url=result["url"],
+    )
+    return result["url"]
 
 
 async def create_checkout_session(

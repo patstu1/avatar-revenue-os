@@ -2,6 +2,9 @@
 
 This replaces .env-first credential management. Credentials are stored
 encrypted in the integration_providers table and loaded at runtime.
+
+Encryption: Fernet (AES-128-CBC + HMAC-SHA256) derived from API_SECRET_KEY
+via PBKDF2.  Falls back to .env as a transition — with deprecation warnings.
 """
 from __future__ import annotations
 
@@ -13,6 +16,9 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
 from sqlalchemy import and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,31 +26,99 @@ from packages.db.models.integration_registry import IntegrationProvider, Creator
 
 logger = structlog.get_logger()
 
-# Simple encryption using Fernet-compatible approach with API_SECRET_KEY
-def _get_cipher_key() -> bytes:
+# ── Fernet encryption helpers ───────────────────────────────────────────────
+
+_SALT = b"avatar-content-os-integration-salt-v1"  # static salt — key uniqueness from API_SECRET_KEY
+
+
+def _derive_fernet_key() -> bytes:
+    """Derive a Fernet-compatible key from API_SECRET_KEY via PBKDF2."""
+    secret = os.getenv("API_SECRET_KEY", "default-dev-key-not-for-production")
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=_SALT,
+        iterations=480_000,
+    )
+    return base64.urlsafe_b64encode(kdf.derive(secret.encode()))
+
+
+def _get_fernet() -> Fernet:
+    return Fernet(_derive_fernet_key())
+
+
+def _encrypt(value: str) -> str:
+    """Encrypt a credential value using Fernet."""
+    if not value:
+        return ""
+    return _get_fernet().encrypt(value.encode()).decode()
+
+
+def _decrypt(encrypted: str) -> str:
+    """Decrypt a credential value.  Handles both Fernet and legacy XOR."""
+    if not encrypted:
+        return ""
+    try:
+        return _get_fernet().decrypt(encrypted.encode()).decode()
+    except (InvalidToken, Exception):
+        # Fallback: try legacy XOR decryption for pre-migration credentials
+        try:
+            return _decrypt_xor_legacy(encrypted)
+        except Exception:
+            logger.warning("credential_decrypt_failed", hint="neither Fernet nor XOR succeeded")
+            return ""
+
+
+# ── Legacy XOR helpers (read-only, for migration) ──────────────────────────
+
+def _get_xor_key() -> bytes:
     secret = os.getenv("API_SECRET_KEY", "default-dev-key-not-for-production")
     return hashlib.sha256(secret.encode()).digest()
 
 
-def _encrypt(value: str) -> str:
-    """Encrypt a credential value. Uses XOR with hashed key for simplicity.
-    For production: replace with Fernet or AWS KMS."""
-    if not value:
-        return ""
-    key = _get_cipher_key()
-    encrypted = bytes(a ^ b for a, b in zip(value.encode(), (key * ((len(value) // len(key)) + 1))[:len(value)]))
-    return base64.b64encode(encrypted).decode()
-
-
-def _decrypt(encrypted: str) -> str:
-    """Decrypt a credential value."""
+def _decrypt_xor_legacy(encrypted: str) -> str:
     if not encrypted:
         return ""
-    key = _get_cipher_key()
+    key = _get_xor_key()
     data = base64.b64decode(encrypted.encode())
     decrypted = bytes(a ^ b for a, b in zip(data, (key * ((len(data) // len(key)) + 1))[:len(data)]))
     return decrypted.decode()
 
+
+# ── Provider ↔ .env key mapping ────────────────────────────────────────────
+
+PROVIDER_ENV_KEYS: dict[str, str] = {
+    "claude": "ANTHROPIC_API_KEY",
+    "gemini_flash": "GOOGLE_AI_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "openai_image": "OPENAI_API_KEY",
+    "imagen4": "GOOGLE_AI_API_KEY",
+    "flux": "FAL_API_KEY",
+    "kling": "FAL_API_KEY",
+    "wan": "FAL_API_KEY",
+    "runway": "RUNWAY_API_KEY",
+    "higgsfield": "HIGGSFIELD_API_KEY",
+    "heygen": "HEYGEN_API_KEY",
+    "did": "DID_API_KEY",
+    "synthesia": "SYNTHESIA_API_KEY",
+    "elevenlabs": "ELEVENLABS_API_KEY",
+    "fish_audio": "FISH_AUDIO_API_KEY",
+    "voxtral": "MISTRAL_API_KEY",
+    "suno": "SUNO_API_KEY",
+    "mubert": "MUBERT_API_KEY",
+    "stable_audio": "STABILITY_API_KEY",
+    "buffer": "BUFFER_API_KEY",
+    "publer": "PUBLER_API_KEY",
+    "ayrshare": "AYRSHARE_API_KEY",
+    "youtube_analytics": "YOUTUBE_API_KEY",
+    "tiktok_analytics": "TIKTOK_ACCESS_TOKEN",
+    "instagram_analytics": "INSTAGRAM_ACCESS_TOKEN",
+    "serpapi": "SERPAPI_KEY",
+    "smtp": "SMTP_PASSWORD",
+    "imap": "IMAP_PASSWORD",
+    "stripe": "STRIPE_SECRET_KEY",
+}
 
 # Default provider catalog
 DEFAULT_PROVIDERS = [
@@ -86,7 +160,11 @@ DEFAULT_PROVIDERS = [
 
 
 async def seed_provider_catalog(db: AsyncSession, org_id: uuid.UUID) -> dict:
-    """Seed the default provider catalog for an organization."""
+    """Seed the default provider catalog for an organization.
+
+    After seeding, auto-migrates any .env credentials into the encrypted DB
+    so the system can stop depending on .env for API keys.
+    """
     created = 0
     for p in DEFAULT_PROVIDERS:
         existing = (await db.execute(
@@ -108,7 +186,48 @@ async def seed_provider_catalog(db: AsyncSession, org_id: uuid.UUID) -> dict:
             ))
             created += 1
     await db.flush()
-    return {"created": created, "total_catalog": len(DEFAULT_PROVIDERS)}
+
+    # ── Auto-migrate .env credentials to DB ─────────────────────────
+    migrated = await _auto_migrate_env_credentials(db, org_id)
+
+    return {"created": created, "total_catalog": len(DEFAULT_PROVIDERS), "env_migrated": migrated}
+
+
+async def _auto_migrate_env_credentials(db: AsyncSession, org_id: uuid.UUID) -> list[str]:
+    """Check every known provider: if DB has no credential but .env does, migrate it."""
+    migrated: list[str] = []
+    for provider_key, env_var in PROVIDER_ENV_KEYS.items():
+        env_value = os.environ.get(env_var, "")
+        if not env_value:
+            continue
+
+        provider = (await db.execute(
+            select(IntegrationProvider).where(
+                IntegrationProvider.organization_id == org_id,
+                IntegrationProvider.provider_key == provider_key,
+            )
+        )).scalar_one_or_none()
+
+        if not provider:
+            continue
+        if provider.api_key_encrypted:
+            continue  # already has a DB credential
+
+        provider.api_key_encrypted = _encrypt(env_value)
+        provider.health_status = "configured"
+        provider.is_enabled = True
+        migrated.append(provider_key)
+        logger.info(
+            "env_credential_migrated",
+            provider=provider_key,
+            env_var=env_var,
+            org_id=str(org_id),
+        )
+
+    if migrated:
+        await db.flush()
+        logger.info("env_migration_complete", count=len(migrated), providers=migrated)
+    return migrated
 
 
 async def set_credential(
@@ -144,7 +263,11 @@ async def set_credential(
 
 
 async def get_credential(db: AsyncSession, org_id: uuid.UUID, provider_key: str) -> Optional[str]:
-    """Get decrypted API key for a provider. Used by services at runtime."""
+    """Get decrypted API key for a provider.
+
+    Primary: encrypted DB credential.
+    Fallback: .env variable (with deprecation warning).
+    """
     provider = (await db.execute(
         select(IntegrationProvider).where(
             IntegrationProvider.organization_id == org_id,
@@ -153,9 +276,58 @@ async def get_credential(db: AsyncSession, org_id: uuid.UUID, provider_key: str)
         )
     )).scalar_one_or_none()
 
-    if not provider or not provider.api_key_encrypted:
-        return None
-    return _decrypt(provider.api_key_encrypted)
+    if provider and provider.api_key_encrypted:
+        return _decrypt(provider.api_key_encrypted)
+
+    # Fallback: .env transition
+    env_var = PROVIDER_ENV_KEYS.get(provider_key)
+    if env_var:
+        env_value = os.environ.get(env_var, "")
+        if env_value:
+            logger.warning(
+                "credential_env_fallback_DEPRECATED",
+                provider=provider_key,
+                env_var=env_var,
+                hint="Migrate to DB credentials via Settings > Integrations",
+            )
+            return env_value
+    return None
+
+
+async def get_credential_full(
+    db: AsyncSession, org_id: uuid.UUID, provider_key: str,
+) -> dict:
+    """Get decrypted API key + oauth_token + extra_config for a provider."""
+    provider = (await db.execute(
+        select(IntegrationProvider).where(
+            IntegrationProvider.organization_id == org_id,
+            IntegrationProvider.provider_key == provider_key,
+            IntegrationProvider.is_enabled.is_(True),
+        )
+    )).scalar_one_or_none()
+
+    result: dict = {"api_key": None, "oauth_token": None, "extra_config": {}}
+
+    if provider:
+        if provider.api_key_encrypted:
+            result["api_key"] = _decrypt(provider.api_key_encrypted)
+        if provider.oauth_token_encrypted:
+            result["oauth_token"] = _decrypt(provider.oauth_token_encrypted)
+        result["extra_config"] = provider.extra_config or {}
+
+    if not result["api_key"]:
+        env_var = PROVIDER_ENV_KEYS.get(provider_key)
+        if env_var:
+            env_value = os.environ.get(env_var, "")
+            if env_value:
+                logger.warning(
+                    "credential_env_fallback_DEPRECATED",
+                    provider=provider_key,
+                    env_var=env_var,
+                )
+                result["api_key"] = env_value
+
+    return result
 
 
 async def list_providers(db: AsyncSession, org_id: uuid.UUID, category: Optional[str] = None) -> list[dict]:
@@ -231,3 +403,49 @@ async def get_provider_for_task(
         "quality_tier": best.quality_tier,
         "cost_per_unit": best.cost_per_unit,
     }
+
+
+# ── One-time migration: re-encrypt XOR → Fernet ───────────────────────────
+
+async def migrate_xor_to_fernet(db: AsyncSession) -> dict:
+    """Re-encrypt all credentials from legacy XOR to Fernet.
+
+    Safe to run multiple times — Fernet-encrypted values will decrypt
+    successfully on the first try and be skipped.
+    """
+    providers = (await db.execute(select(IntegrationProvider))).scalars().all()
+    migrated = 0
+    skipped = 0
+    errors = 0
+
+    fernet = _get_fernet()
+
+    for p in providers:
+        for field in ("api_key_encrypted", "api_secret_encrypted", "oauth_token_encrypted", "oauth_refresh_encrypted"):
+            encrypted_val = getattr(p, field)
+            if not encrypted_val:
+                continue
+
+            # Check if already Fernet-encrypted
+            try:
+                fernet.decrypt(encrypted_val.encode())
+                skipped += 1
+                continue  # already Fernet
+            except (InvalidToken, Exception):
+                pass
+
+            # Try XOR decrypt, then re-encrypt with Fernet
+            try:
+                plaintext = _decrypt_xor_legacy(encrypted_val)
+                if plaintext:
+                    setattr(p, field, _encrypt(plaintext))
+                    migrated += 1
+                else:
+                    errors += 1
+            except Exception as e:
+                logger.warning("xor_to_fernet_migration_error", provider=p.provider_key, field=field, error=str(e))
+                errors += 1
+
+    await db.flush()
+    logger.info("xor_to_fernet_migration_complete", migrated=migrated, skipped=skipped, errors=errors)
+    return {"migrated": migrated, "already_fernet": skipped, "errors": errors}

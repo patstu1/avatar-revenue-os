@@ -35,6 +35,7 @@ Usage:
         brand_id=item.brand_id,
     )
 """
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -46,6 +47,43 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from packages.db.models.system_events import OperatorAction, SystemEvent
 
 logger = structlog.get_logger()
+
+
+def _push_to_ws(org_id: Optional[uuid.UUID], event: SystemEvent):
+    """Fire-and-forget push of a SystemEvent to WebSocket clients.
+
+    Imports lazily to avoid circular imports.  Silently swallows errors
+    so that event emission is never blocked by WebSocket delivery.
+    """
+    if org_id is None:
+        return
+    try:
+        from apps.api.routers.ws_live import broadcast_system_event
+
+        payload = {
+            "id": str(event.id) if hasattr(event, "id") else None,
+            "event_domain": event.event_domain,
+            "event_type": event.event_type,
+            "event_severity": event.event_severity,
+            "entity_type": event.entity_type,
+            "entity_id": str(event.entity_id) if event.entity_id else None,
+            "previous_state": event.previous_state,
+            "new_state": event.new_state,
+            "summary": event.summary,
+            "details": event.details or {},
+            "actor_type": event.actor_type,
+            "requires_action": event.requires_action,
+            "brand_id": str(event.brand_id) if event.brand_id else None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(broadcast_system_event(org_id, payload))
+        else:
+            loop.run_until_complete(broadcast_system_event(org_id, payload))
+    except Exception:
+        logger.debug("ws.push_failed", org_id=str(org_id))
 
 
 async def emit_event(
@@ -104,6 +142,9 @@ async def emit_event(
         severity=severity,
         requires_action=requires_action,
     )
+
+    # Push to WebSocket clients in real time
+    _push_to_ws(org_id, event)
 
     return event
 

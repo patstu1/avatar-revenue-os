@@ -1,4 +1,4 @@
-"""Base task class with job persistence, retry logic, structured logging, audit trail, and system event emission."""
+"""Base task class with job persistence, error-classified retry logic, structured logging, audit trail, and system event emission."""
 from __future__ import annotations
 
 import traceback
@@ -18,6 +18,68 @@ from packages.db.session import get_sync_engine
 
 logger = structlog.get_logger()
 
+# ---------------------------------------------------------------------------
+# Error classification helpers
+# ---------------------------------------------------------------------------
+
+def _extract_http_status(exc: BaseException) -> Optional[int]:
+    """Extract an HTTP status code from common exception types."""
+    # Direct attribute (httpx, requests, aiohttp, etc.)
+    for attr in ("status_code", "status", "code"):
+        val = getattr(exc, attr, None)
+        if isinstance(val, int) and 100 <= val < 600:
+            return val
+    # Nested response object
+    resp = getattr(exc, "response", None)
+    if resp is not None:
+        for attr in ("status_code", "status"):
+            val = getattr(resp, attr, None)
+            if isinstance(val, int) and 100 <= val < 600:
+                return val
+    return None
+
+
+def _classify_error(exc: BaseException) -> str:
+    """Classify an exception into a retry category.
+
+    Returns one of: 'transient', 'auth', 'permanent', 'unknown'.
+    """
+    status = _extract_http_status(exc)
+
+    # --- Transient (retry with backoff, no ceiling) ---
+    if status in (429, 502, 503, 504):
+        return "transient"
+    exc_name = type(exc).__name__.lower()
+    exc_str = str(exc).lower()
+    transient_signals = ("timeout", "connectionerror", "connectionreset",
+                         "brokenpipe", "temporaryerror", "unavailable",
+                         "econnrefused", "econnreset", "rate limit",
+                         "too many requests", "service unavailable",
+                         "bad gateway", "gateway timeout")
+    if any(s in exc_name or s in exc_str for s in transient_signals):
+        return "transient"
+
+    # --- Auth (do NOT retry) ---
+    if status in (401, 403):
+        return "auth"
+    auth_signals = ("unauthorized", "forbidden", "invalid api key",
+                    "authentication", "auth_error", "invalid_token",
+                    "token expired", "access denied")
+    if any(s in exc_name or s in exc_str for s in auth_signals):
+        return "auth"
+
+    # --- Permanent (do NOT retry) ---
+    if status in (400, 404, 405, 409, 410, 422):
+        return "permanent"
+    permanent_signals = ("validationerror", "valueerror", "typeerror",
+                         "keyerror", "not found", "bad request",
+                         "unprocessable", "invalid input")
+    if any(s in exc_name or s in exc_str for s in permanent_signals):
+        return "permanent"
+
+    # --- Unknown (retry with backoff, emit alert after consecutive failures) ---
+    return "unknown"
+
 
 @lru_cache(maxsize=1)
 def _cached_sync_engine():
@@ -27,15 +89,18 @@ def _cached_sync_engine():
 class TrackedTask(Task):
     """Base task that persists status to system_jobs, writes audit entries, and emits system events.
 
+    Error handling uses classification to decide retry strategy:
+    - Transient (429, 502, 503, timeouts): retry with exponential backoff, no ceiling
+    - Auth (401, 403): no retry, emit alert, mark provider unhealthy
+    - Permanent (400, 404, validation): no retry, emit failure event
+    - Unknown: retry with exponential backoff, emit alert after consecutive failures
+
     System events are the horizontal integration layer — they allow the control layer,
     intelligence layer, and recovery layer to react to job state changes in real time.
     """
 
     abstract = True
-    autoretry_for = (Exception,)
-    max_retries = 3
     retry_backoff = True
-    retry_backoff_max = 600
     retry_jitter = True
 
     def before_start(self, task_id, args, kwargs):
@@ -65,24 +130,97 @@ class TrackedTask(Task):
         )
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        logger.error("worker.task.failed", task_name=self.name, task_id=task_id, error=str(exc))
+        category = _classify_error(exc)
+        status_code = _extract_http_status(exc)
+        logger.error(
+            "worker.task.failed",
+            task_name=self.name, task_id=task_id,
+            error=str(exc), error_category=category, http_status=status_code,
+        )
         now = datetime.now(timezone.utc)
-        self._persist_status(
-            task_id, JobStatus.FAILED,
-            error_message=str(exc),
-            error_traceback=traceback.format_exc(),
-            completed_at=now,
-        )
-        self._write_audit(task_id, "worker.task.failed", {"error": str(exc)})
-        self._emit_system_event(
-            task_id, "orchestration", "job.failed",
-            summary=f"Job failed: {self.name} — {str(exc)[:200]}",
-            severity="error",
-            new_state="failed",
-            previous_state="running",
-            requires_action=True,
-            details={"error": str(exc)[:500], "task_name": self.name},
-        )
+
+        if category == "transient":
+            # Retry with exponential backoff — no cap on retry count or interval
+            retry_count = self.request.retries or 0
+            backoff = min(2 ** retry_count * 5, 86400)  # grow unbounded up to 24h per step
+            self._persist_status(
+                task_id, JobStatus.RETRYING,
+                error_message=f"Transient error (retry #{retry_count + 1}): {exc}",
+            )
+            self._emit_system_event(
+                task_id, "orchestration", "job.retrying",
+                summary=f"Transient error, retrying: {self.name} — {str(exc)[:200]}",
+                severity="warning",
+                new_state="retrying",
+                previous_state="running",
+                details={"error": str(exc)[:500], "category": category,
+                         "http_status": status_code, "retry_count": retry_count + 1},
+            )
+            raise self.retry(exc=exc, countdown=backoff, max_retries=None)
+
+        elif category == "auth":
+            # Do NOT retry — emit alert, mark provider unhealthy
+            self._persist_status(
+                task_id, JobStatus.FAILED,
+                error_message=f"Auth error (no retry): {exc}",
+                error_traceback=traceback.format_exc(),
+                completed_at=now,
+            )
+            self._write_audit(task_id, "worker.task.failed.auth", {"error": str(exc)})
+            self._emit_system_event(
+                task_id, "orchestration", "job.failed.auth",
+                summary=f"Auth failure (provider unhealthy): {self.name} — {str(exc)[:200]}",
+                severity="critical",
+                new_state="failed",
+                previous_state="running",
+                requires_action=True,
+                details={"error": str(exc)[:500], "category": category,
+                         "http_status": status_code, "task_name": self.name,
+                         "action": "mark_provider_unhealthy"},
+            )
+
+        elif category == "permanent":
+            # Do NOT retry — emit failure event
+            self._persist_status(
+                task_id, JobStatus.FAILED,
+                error_message=f"Permanent error (no retry): {exc}",
+                error_traceback=traceback.format_exc(),
+                completed_at=now,
+            )
+            self._write_audit(task_id, "worker.task.failed.permanent", {"error": str(exc)})
+            self._emit_system_event(
+                task_id, "orchestration", "job.failed.permanent",
+                summary=f"Permanent failure: {self.name} — {str(exc)[:200]}",
+                severity="error",
+                new_state="failed",
+                previous_state="running",
+                requires_action=False,
+                details={"error": str(exc)[:500], "category": category,
+                         "http_status": status_code, "task_name": self.name},
+            )
+
+        else:
+            # Unknown — retry with backoff, emit alert after consecutive failures
+            retry_count = self.request.retries or 0
+            backoff = min(2 ** retry_count * 10, 86400)
+            alert_threshold = 3  # emit alert after this many consecutive retries
+            if retry_count >= alert_threshold:
+                self._emit_system_event(
+                    task_id, "orchestration", "job.consecutive_failures",
+                    summary=f"Unknown error, {retry_count + 1} consecutive failures: {self.name}",
+                    severity="critical",
+                    new_state="retrying",
+                    previous_state="running",
+                    requires_action=True,
+                    details={"error": str(exc)[:500], "category": category,
+                             "http_status": status_code, "retry_count": retry_count + 1,
+                             "task_name": self.name},
+                )
+            self._persist_status(
+                task_id, JobStatus.RETRYING,
+                error_message=f"Unknown error (retry #{retry_count + 1}): {exc}",
+            )
+            raise self.retry(exc=exc, countdown=backoff, max_retries=None)
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         logger.warning("worker.task.retry", task_name=self.name, task_id=task_id, error=str(exc))

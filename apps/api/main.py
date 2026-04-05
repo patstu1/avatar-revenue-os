@@ -1,9 +1,11 @@
 """AI Avatar Revenue OS — FastAPI Application."""
 import logging
+import os
 
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from apps.api.config import get_settings
 from apps.api.middleware import RequestIDMiddleware, SecurityHeadersMiddleware, RedirectHostFixMiddleware, register_exception_handlers
@@ -89,6 +91,7 @@ from apps.api.routers import (
     gm_chat,
     portfolio_command,
     integrations_dashboard,
+    oauth,
 )
 
 settings = get_settings()
@@ -176,6 +179,7 @@ app.include_router(expansion_pack2_phase_c.router, prefix="/api/v1/brands", tags
 app.include_router(avatars.router, prefix="/api/v1/avatars", tags=["Avatars"])
 app.include_router(offers.router, prefix="/api/v1/offers", tags=["Offers"])
 app.include_router(accounts.router, prefix="/api/v1/accounts", tags=["Creator Accounts"])
+app.include_router(oauth.router, prefix="/api/v1/oauth", tags=["OAuth Connections"])
 app.include_router(content.router, prefix="/api/v1/content", tags=["Content Pipeline"])
 app.include_router(decisions.router, prefix="/api/v1/decisions", tags=["Decisions"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["System Jobs"])
@@ -209,7 +213,7 @@ app.include_router(buffer_distribution.router, prefix="/api/v1/brands", tags=["B
 app.include_router(buffer_distribution.router_root, prefix="/api/v1", tags=["Buffer Distribution: Profile Update, Job Submit"])
 app.include_router(live_execution.router, prefix="/api/v1/brands", tags=["Live Execution: Analytics, Conversions, Experiments, CRM, Email, SMS"])
 app.include_router(live_execution_phase2.router, prefix="/api/v1/brands", tags=["Live Execution Phase 2: Webhooks, Triggers, Connectors, Buffer Expansion"])
-app.include_router(webhooks.router, prefix="/api/v1", tags=["Webhooks: Stripe, Shopify (signature-verified)"])
+app.include_router(webhooks.router, prefix="/api/v1", tags=["Webhooks: Stripe, Shopify, Media Providers"])
 app.include_router(creator_revenue.router, prefix="/api/v1/brands", tags=["Creator Revenue: Opportunities, UGC, Consulting, Premium Access"])
 app.include_router(provider_registry.router, prefix="/api/v1/brands", tags=["Provider Registry: Inventory, Readiness, Dependencies, Blockers"])
 app.include_router(copilot.router, prefix="/api/v1/brands", tags=["Operator Copilot"])
@@ -262,3 +266,11 @@ app.include_router(gm_ai.router, prefix="/api/v1", tags=["GM AI: Strategic Opera
 app.include_router(gm_chat.router, prefix="/api/v1", tags=["GM Chat: Conversational Strategic GM"])
 app.include_router(portfolio_command.router, prefix="/api/v1", tags=["Portfolio Command Center"])
 app.include_router(integrations_dashboard.router, prefix="/api/v1", tags=["Integrations Dashboard"])
+
+# --- Local media file serving (fallback when S3 is not configured) ---
+
+if not os.getenv("S3_BUCKET"):
+    from packages.media.storage import LOCAL_MEDIA_ROOT
+
+    LOCAL_MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+    app.mount("/media", StaticFiles(directory=str(LOCAL_MEDIA_ROOT)), name="media")

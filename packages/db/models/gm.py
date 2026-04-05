@@ -89,3 +89,21 @@ class GMBlueprint(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class GMConversation(Base):
+    """Brand-scoped GM operator conversation with execution history."""
+
+    __tablename__ = "gm_conversations"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    messages: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
+    actions_log: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
