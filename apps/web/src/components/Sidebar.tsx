@@ -112,6 +112,14 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
+    id: "gm",
+    label: "GM",
+    icon: Brain,
+    items: [
+      { href: "/dashboard/gm", label: "Strategic GM", icon: Brain },
+    ],
+  },
+  {
     id: "home",
     label: "Home",
     icon: LayoutDashboard,

@@ -383,6 +383,7 @@ from packages.db.models.system_events import (
 )
 from packages.db.models.revenue_ledger import RevenueLedgerEntry
 from packages.db.models.integration_registry import IntegrationProvider, CreatorPlatformAccount
+from packages.db.models.gm import GMSession, GMMessage, GMBlueprint
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",

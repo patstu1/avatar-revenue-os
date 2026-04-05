@@ -28,8 +28,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!hydrated || !isAuthenticated) return;
 
-    // Allow setup and onboarding pages without redirect loops
-    if (pathname?.startsWith('/dashboard/setup') || pathname?.startsWith('/dashboard/onboarding')) {
+    // Allow GM, setup and onboarding pages without redirect loops
+    if (pathname?.startsWith('/dashboard/gm') || pathname?.startsWith('/dashboard/setup') || pathname?.startsWith('/dashboard/onboarding')) {
       setStateChecked(true);
       return;
     }
@@ -40,8 +40,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (cancelled) return;
 
         if (state.system_state === 'empty') {
-          // Nothing configured → Control Plane Setup
-          router.replace('/dashboard/setup');
+          // Nothing configured → GM takes over
+          router.replace('/dashboard/gm');
         }
         // "partial" and "ready" both go to dashboard — no forced gate
         // Partial users see a setup banner on the dashboard instead

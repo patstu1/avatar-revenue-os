@@ -86,6 +86,7 @@ from apps.api.routers import (
     revenue_maximizer,
     growth_hub,
     gm_ai,
+    gm_chat,
     portfolio_command,
     integrations_dashboard,
 )
@@ -258,5 +259,6 @@ app.include_router(governance_hub.router, prefix="/api/v1", tags=["Governance Hu
 app.include_router(revenue_maximizer.router, prefix="/api/v1", tags=["Revenue Maximizer: Maximum Revenue Engine"])
 app.include_router(growth_hub.router, prefix="/api/v1", tags=["Growth Hub: Audience, Sponsors, Services, Quality, Adaptation"])
 app.include_router(gm_ai.router, prefix="/api/v1", tags=["GM AI: Strategic Operating Brain"])
+app.include_router(gm_chat.router, prefix="/api/v1", tags=["GM Chat: Conversational Strategic GM"])
 app.include_router(portfolio_command.router, prefix="/api/v1", tags=["Portfolio Command Center"])
 app.include_router(integrations_dashboard.router, prefix="/api/v1", tags=["Integrations Dashboard"])
