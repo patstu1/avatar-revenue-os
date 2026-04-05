@@ -8,7 +8,6 @@ __pycache__
 .pytest_cache
 celerybeat-schedule
 .next
-tests/
 docs/
 *.md
 .pre-commit-config.yaml
