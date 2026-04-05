@@ -147,6 +147,13 @@ async def record_sponsor_payment_to_ledger(
         org_id=org_id, brand_id=brand_id, entity_type="revenue_ledger", entity_id=entry.id,
         details={"gross": gross_amount, "source": "sponsor", "sponsor_id": str(sponsor_id) if sponsor_id else None},
     )
+
+    try:
+        from apps.api.services.pipeline_closer import handle_payment_received
+        await handle_payment_received(db, entry)
+    except Exception as e:
+        logger.warning("pipeline_closer.failed", error=str(e))
+
     return entry
 
 
@@ -157,8 +164,13 @@ async def record_service_payment_to_ledger(
     payment_processor: str = "stripe", webhook_ref: Optional[str] = None,
     content_item_id: Optional[uuid.UUID] = None, creator_account_id: Optional[uuid.UUID] = None,
     description: Optional[str] = None, metadata: Optional[dict] = None,
+    auto_close_pipeline: bool = True,
 ) -> RevenueLedgerEntry:
-    """Record a service/consulting payment to the canonical ledger."""
+    """Record a service/consulting payment to the canonical ledger.
+
+    When auto_close_pipeline=True, also triggers pipeline closure:
+    deal stage update, success memory, post-close actions.
+    """
     entry = RevenueLedgerEntry(
         revenue_source_type="service_fee",
         source_object_id=source_object_id,
@@ -185,6 +197,15 @@ async def record_service_payment_to_ledger(
         org_id=org_id, brand_id=brand_id, entity_type="revenue_ledger", entity_id=entry.id,
         details={"gross": gross_amount, "source": "service", "processor": payment_processor},
     )
+
+    # Auto-close pipeline: update deal stage, create memory, trigger follow-up
+    if auto_close_pipeline:
+        try:
+            from apps.api.services.pipeline_closer import handle_payment_received
+            await handle_payment_received(db, entry)
+        except Exception as e:
+            logger.warning("pipeline_closer.failed", error=str(e))
+
     return entry
 
 

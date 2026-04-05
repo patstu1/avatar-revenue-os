@@ -832,6 +832,12 @@ app.conf.update(
             "task": "workers.monetization_worker.tasks.run_revenue_cycle",
             "schedule": crontab(minute=47, hour="*/4"),
         },
+        # --- Quality Feedback + Growth Handling Loops ---
+        # Quality feedback: performance → pattern memory → better generation
+        "quality-feedback-loop-every-6h": {
+            "task": "workers.monetization_worker.tasks.run_quality_feedback_loop",
+            "schedule": crontab(minute=37, hour="*/6"),
+        },
         # --- Platform Analytics Ingestion ---
         # Fetches real performance data from YouTube/TikTok/Instagram.
         # Gracefully skips if API credentials not configured.

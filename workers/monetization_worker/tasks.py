@@ -611,6 +611,39 @@ async def _do_recompute_avenue_rankings():
 
 
 # ---------------------------------------------------------------------------
+# Quality Feedback Loop (scheduled)
+# ---------------------------------------------------------------------------
+@shared_task(name="workers.monetization_worker.tasks.run_quality_feedback_loop", base=TrackedTask)
+def run_quality_feedback_loop():
+    """Run quality feedback for all brands: performance → pattern memory → generation."""
+    return _run(_do_run_quality_feedback_loop())
+
+
+async def _do_run_quality_feedback_loop():
+    from sqlalchemy import select
+    from packages.db.models.core import Brand
+
+    factory = get_async_session_factory()
+    async with factory() as db:
+        brands = (await db.execute(select(Brand.id))).scalars().all()
+        total_winners = 0
+        total_losers = 0
+
+        for brand_id in brands:
+            try:
+                from apps.api.services.quality_feedback_loop import run_quality_feedback
+                result = await run_quality_feedback(db, brand_id)
+                total_winners += result.get("winners_updated", 0)
+                total_losers += result.get("losers_created", 0)
+            except Exception as e:
+                import structlog
+                structlog.get_logger().warning("quality_feedback.brand_failed", brand_id=str(brand_id), error=str(e))
+
+        await db.commit()
+    return {"brands_processed": len(brands), "winners_updated": total_winners, "losers_created": total_losers}
+
+
+# ---------------------------------------------------------------------------
 # Revenue Maximizer Cycle (scheduled)
 # ---------------------------------------------------------------------------
 @shared_task(name="workers.monetization_worker.tasks.run_revenue_cycle", base=TrackedTask)

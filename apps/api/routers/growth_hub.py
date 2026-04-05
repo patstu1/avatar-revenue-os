@@ -1,10 +1,57 @@
-"""Growth Hub API — audience discovery, sponsor pipeline, service sales, quality loop, platform adaptation."""
+"""Growth Hub API — audience discovery, sponsor pipeline, service sales, quality loop, platform adaptation, outreach, proposals."""
 from __future__ import annotations
 import uuid
 from fastapi import APIRouter, Query
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 
 router = APIRouter()
+
+# ── Outreach + Handling ──
+@router.post("/growth/draft-sponsor-outreach")
+async def draft_sponsor_outreach(current_user: OperatorUser, db: DBSession,
+                                   brand_id: uuid.UUID = Query(...), sponsor_id: uuid.UUID = Query(...)):
+    """Draft a complete sponsor outreach email ready to send."""
+    from apps.api.services.outreach_engine import draft_sponsor_outreach
+    return await draft_sponsor_outreach(db, brand_id, sponsor_id)
+
+@router.post("/growth/draft-service-proposal")
+async def draft_proposal(current_user: OperatorUser, db: DBSession,
+                          brand_id: uuid.UUID = Query(...), deal_id: uuid.UUID = Query(...)):
+    """Draft a service/consulting proposal."""
+    from apps.api.services.outreach_engine import draft_service_proposal
+    return await draft_service_proposal(db, brand_id, deal_id)
+
+@router.post("/growth/generate-media-kit")
+async def generate_media_kit(current_user: OperatorUser, db: DBSession, brand_id: uuid.UUID = Query(...)):
+    """Generate a sponsor media kit / one-pager."""
+    from apps.api.services.outreach_engine import generate_sponsor_media_kit
+    return await generate_sponsor_media_kit(db, brand_id)
+
+@router.post("/growth/queue-outreach-sequence")
+async def queue_outreach(current_user: OperatorUser, db: DBSession,
+                          brand_id: uuid.UUID = Query(...), sponsor_id: uuid.UUID = Query(...)):
+    """Draft outreach + queue full follow-up sequence (approval-gated)."""
+    from apps.api.services.outreach_engine import draft_sponsor_outreach, queue_outreach_sequence
+    draft = await draft_sponsor_outreach(db, brand_id, sponsor_id)
+    if "error" in draft:
+        return draft
+    result = await queue_outreach_sequence(db, current_user.organization_id, brand_id,
+                                            target_type="sponsor_profile", target_id=sponsor_id, draft=draft)
+    await db.commit()
+    return {**result, "draft": draft}
+
+@router.post("/growth/auto-create-brief")
+async def auto_create_brief(current_user: OperatorUser, db: DBSession,
+                              brand_id: uuid.UUID = Query(...),
+                              decision_class: str = Query("monetize"),
+                              objective: str = Query("Auto-generated content opportunity"),
+                              target_platform: str = Query(None)):
+    """Auto-create a content brief from a revenue opportunity."""
+    from apps.api.services.pipeline_closer import auto_create_brief_from_decision
+    result = await auto_create_brief_from_decision(db, brand_id, decision_class=decision_class,
+                                                     objective=objective, target_platform=target_platform)
+    await db.commit()
+    return result
 
 # ── Audience Growth ──
 @router.get("/growth/audience-expansion")
