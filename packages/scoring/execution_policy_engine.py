@@ -357,17 +357,17 @@ def select_monetization_route(
         elif route == "high_ticket" and has_services:
             score += conversion_intent * 0.3 if conversion_intent > 0.6 else 0
         elif route == "sponsors" and has_sponsors:
-            score += 0.2 + (0.15 if follower_count > 5000 else 0)
+            score += 0.2 + (0.15 if follower_count > 0 else 0)
         elif route == "newsletter_media":
-            score += 0.1 + (0.15 if email_list > 500 else 0)
+            score += 0.1 + (0.15 if email_list > 0 else 0)
         elif route == "recurring_subscription":
-            score += 0.15 if community_size > 50 else 0
+            score += 0.15 if community_size > 0 else 0
         elif route == "community":
-            score += 0.1 + (0.1 if community_size > 100 else 0)
+            score += 0.1 + (0.1 if community_size > 0 else 0)
         elif route == "live_events":
-            score += 0.1 if follower_count > 1000 else 0
+            score += 0.1 if follower_count > 0 else 0
         elif route == "merch_physical":
-            score += 0.1 if follower_count > 5000 else 0
+            score += 0.1 if follower_count > 0 else 0
         elif route == "licensing":
             score += 0.05
         elif route == "premium_access":

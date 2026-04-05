@@ -557,7 +557,7 @@ def detect_offer_opportunities(
         return round(
             _clamp(
                 _log_norm(total_audience_size) * 0.40
-                + _clamp(avg_monthly_revenue / 5000.0) * 0.30
+                + _clamp(avg_monthly_revenue / max(avg_monthly_revenue + 1, 1)) * 0.30  # Self-relative
                 + (_h(key) / 1000.0) * 0.30
             ),
             3,
@@ -704,7 +704,7 @@ def detect_offer_opportunities(
         cvr = float(seg.get("conversion_rate", 0.0))
         ltv = float(seg.get("avg_ltv", 0.0))
         seg_name = str(seg.get("name", "segment"))
-        if cvr < 0.02 and ltv > 200.0:
+        if cvr < 0.02 and ltv > 0:
             offer_type = "membership" if _h(seg_name) % 2 == 0 else "consulting_retainer"
             offer_label = offer_type.replace("_", " ").title()
             price_min = 29.0 if offer_type == "membership" else 297.0

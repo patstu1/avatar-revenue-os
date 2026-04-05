@@ -24,7 +24,7 @@ def score_revenue_potential(
         "expected_revenue": round(total_expected, 4),
         "affiliate_component": round(affiliate_revenue, 4),
         "ad_component": round(ad_revenue, 4),
-        "confidence": min(1.0, estimated_impressions / 10000),
+        "confidence": 0.7 if estimated_impressions > 0 else 0.3,  # Any data = moderate confidence
     }
 
 

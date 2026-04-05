@@ -63,15 +63,15 @@ def classify_bottleneck(inp: BottleneckInput) -> BottleneckResult:
     scores: list[tuple[str, float, str]] = []
 
     # Check each bottleneck dimension (higher score = worse bottleneck)
-    if inp.opportunity_score < 0.3 and inp.impressions < 1000:
+    if inp.opportunity_score < 0.3 and inp.impressions > 0:
         scores.append(("weak_opportunity_selection", 0.9 - inp.opportunity_score,
-                       "Low opportunity scores and minimal impressions — topic selection needs improvement"))
+                       "Low opportunity scores — topic selection needs improvement"))
 
-    if inp.avg_watch_pct < 0.3 and inp.views > 100:
+    if inp.avg_watch_pct < 0.3 and inp.views > 0:
         scores.append(("weak_hook_retention", 0.8 - inp.avg_watch_pct,
                        f"Avg watch {inp.avg_watch_pct:.0%} — hook/retention is weak"))
 
-    if inp.ctr < 0.02 and inp.impressions > 500:
+    if inp.ctr < 0.02 and inp.impressions > 0:
         scores.append(("weak_ctr", 0.8 - min(inp.ctr * 20, 0.8),
                        f"CTR {inp.ctr:.2%} below 2% threshold"))
 
@@ -111,11 +111,11 @@ def classify_bottleneck(inp: BottleneckInput) -> BottleneckResult:
         scores.append(("platform_mismatch", 0.7 - inp.platform_match_score,
                        f"Platform match {inp.platform_match_score:.2f} — wrong platform for this content"))
 
-    if inp.trust_score < 0.4 and inp.impressions > 1000:
+    if inp.trust_score < 0.4 and inp.impressions > 0:
         scores.append(("trust_deficit", 0.7 - inp.trust_score,
                        f"Trust score {inp.trust_score:.2f} — audience trust low"))
 
-    if inp.offer_fit_score > 0.5 and inp.conversion_rate > 0.02 and inp.revenue < 10 and inp.impressions > 1000:
+    if inp.offer_fit_score > 0.5 and inp.conversion_rate > 0.02 and inp.revenue == 0 and inp.impressions > 0:
         scores.append(("monetization_mismatch", 0.5,
                        "Good fit and conversion but low revenue — monetization method may be wrong"))
 

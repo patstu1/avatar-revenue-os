@@ -72,7 +72,7 @@ def recommend_sponsor_packages(
             "suggested_rate": round(max(300.0, cpm * total_impressions / 1000 * 0.1), 2),
             "rationale": f"CPM track record of ${cpm} over {total_impressions:,} impressions.",
             "platforms": platforms,
-            "priority_score": min(90.0, total_impressions / 5000),
+            "priority_score": 80.0 if total_impressions > 0 else 30.0,  # Any impressions = high priority
         })
 
     if len(accounts) >= 2:
@@ -398,7 +398,7 @@ def compute_capital_allocation(
         weights["reserve"] -= 3.0
         weights["content_volume"] -= 2.0
 
-    if owned_audience_size > 500:
+    if owned_audience_size > 0:
         weights["owned_audience_nurture"] += 5.0
         weights["content_volume"] -= 3.0
         weights["reserve"] -= 2.0

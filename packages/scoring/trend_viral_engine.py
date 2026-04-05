@@ -53,7 +53,7 @@ def score_opportunity(signal: dict[str, Any], brand_context: dict[str, Any]) -> 
     relevance = 0.8 if niche and niche in topic_lower else 0.4
 
     strength = float(signal.get("signal_strength", 0))
-    revenue = min(1.0, strength / 10000) * 0.6 + relevance * 0.4
+    revenue = min(1.0, strength / max(strength + 1, 1)) * 0.6 + relevance * 0.4  # Self-relative
     platform_fit = 0.7
     account_fit = 0.6
     form_fit = 0.7

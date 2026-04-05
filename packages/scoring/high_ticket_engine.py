@@ -670,10 +670,10 @@ def _identify_launch_risks(
     creation_cost: float,
 ) -> list[str]:
     risks: list[str] = []
-    if audience_size < 1000:
-        risks.append("small_audience: under 1K total audience limits reach")
-    if email_list_size < 500:
-        risks.append("small_email_list: under 500 subscribers limits direct launch power")
+    if audience_size == 0:
+        risks.append("no_audience: build audience before launching high-ticket")
+    if email_list_size == 0:
+        risks.append("no_email_list: build email list to support direct launch")
     if engagement_rate < 0.02:
         risks.append("low_engagement: audience may not be warmed up enough")
     if price > 1000 and not existing_products:

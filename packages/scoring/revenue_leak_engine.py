@@ -39,7 +39,7 @@ def detect_leaks(system_data: dict[str, Any]) -> list[dict[str, Any]]:
         rev = float(ci.get("revenue", 0))
         cvr = float(ci.get("conversion_rate", 0))
 
-        if imp > 5000 and clicks / max(imp, 1) < 0.01:
+        if imp > 0 and clicks / max(imp, 1) < 0.01:
             leaks.append(_leak("high_impressions_low_ctr", "content_item", ci, imp * 0.02, 0.7, {"impressions": imp, "ctr": clicks / max(imp, 1)}))
         if clicks > 100 and cvr < 0.005:
             leaks.append(_leak("high_clicks_low_conversion", "content_item", ci, clicks * 0.5, 0.8, {"clicks": clicks, "cvr": cvr}))

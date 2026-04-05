@@ -111,11 +111,11 @@ def _infer_state(segment: dict[str, Any], engagement: dict[str, Any]) -> tuple[s
     if purchase_count == 1 and recency_days <= 90:
         return "bought_once", round(0.60 + min(0.3, frequency * 0.5), 3)
 
-    if purchase_count >= 3 and ltv > 500 and sentiment > 0.7:
+    if purchase_count >= 3 and ltv > 0 and sentiment > 0.7:
         return "advocate", round(min(0.95, 0.65 + sentiment * 0.25), 3)
 
-    if purchase_count >= 3 and ltv > 1000:
-        return "high_ltv", round(min(0.95, 0.60 + min(0.3, ltv / 5000)), 3)
+    if purchase_count >= 3 and ltv > 0:
+        return "high_ltv", round(min(0.95, 0.60 + min(0.3, purchase_count * 0.05)), 3)
 
     if purchase_count >= 2:
         return "repeat_buyer", round(0.55 + min(0.35, frequency * 0.3), 3)

@@ -216,7 +216,7 @@ def score_pattern(
     engagement_score = min(1.0, avg_eng * 10)
     conversion_score = min(1.0, avg_cvr * 20)
     profit_score = min(1.0, avg_profit / 100) if avg_profit > 0 else 0
-    reach_score = min(1.0, total_imp / 50000)
+    reach_score = min(1.0, total_imp / max(total_imp + 1, 1))  # Self-relative: any impressions = some reach
 
     win_score = round(0.25 * engagement_score + 0.30 * conversion_score + 0.30 * profit_score + 0.15 * reach_score, 3)
     sample_penalty = max(0.3, min(1.0, n / 10))

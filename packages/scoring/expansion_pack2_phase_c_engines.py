@@ -355,9 +355,9 @@ def identify_sponsor_targets(
             estimated_deal_value = min(sponsor_budget_max, brand_total_audience_size * brand_avg_ltv * highest_fit_score * 0.01)
             
             # Determine recommended package type
-            if highest_fit_score > 0.7 and estimated_deal_value > 50000:
+            if highest_fit_score > 0.7 and estimated_deal_value > sponsor_budget_max * 0.5:
                 recommended_package_type = "premium_custom"
-            elif highest_fit_score > 0.5 and estimated_deal_value > 10000:
+            elif highest_fit_score > 0.5 and estimated_deal_value > sponsor_budget_max * 0.1:
                 recommended_package_type = "standard_tailored"
             else:
                 recommended_package_type = "basic_starter"
@@ -439,7 +439,7 @@ def generate_sponsor_outreach_sequence(
             current_explanation_parts.append(f"Industry match with '{template_target_industry}'.")
 
         # Company size match (simple heuristic for now)
-        if estimated_deal_value > 50000 and "enterprise" in template_target_size:
+        if estimated_deal_value > sponsor_budget_max * 0.5 and "enterprise" in template_target_size:
             current_score += 0.2
             current_explanation_parts.append("Template targets enterprise-level deals.")
         elif estimated_deal_value <= 50000 and "smb" in template_target_size:
@@ -468,7 +468,7 @@ def generate_sponsor_outreach_sequence(
 
         if hist_sequence_name == sequence_name.lower() and \
            (not hist_industry or hist_industry in target_company_industry.lower()) and \
-           (not hist_company_size or ("enterprise" if estimated_deal_value > 50000 else "smb") in hist_company_size):
+           (not hist_company_size or ("enterprise" if estimated_deal_value > sponsor_budget_max * 0.5 else "smb") in hist_company_size):
             
             historical_response_rate = hist_perf.get("response_rate", 0.0)
             estimated_response_rate = (estimated_response_rate + historical_response_rate) / 2 # Blend

@@ -29,7 +29,7 @@ def build_high_ticket_opportunity(
     """Score high-ticket fit from offers + economics."""
     name_l = (offer_name or "").lower()
     ticket_signal = sum(1 for k in HIGH_TICKET_KEYWORDS if k in name_l) / max(1, len(HIGH_TICKET_KEYWORDS))
-    value_signal = min(1.0, (aov + payout) / 5000.0) if (aov + payout) > 0 else 0.2
+    value_signal = 0.75 if (aov + payout) > 0 else 0.2  # Any value = positive signal
     conv_signal = min(1.0, conversion_rate * 25) if conversion_rate else 0.15
     eligibility = round(min(0.98, 0.25 + ticket_signal * 0.35 + value_signal * 0.25 + conv_signal * 0.15 + (_h(opportunity_key) % 50) / 500), 3)
 
