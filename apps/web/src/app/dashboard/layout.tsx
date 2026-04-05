@@ -7,12 +7,17 @@ import { apiFetch } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 
+interface SystemState {
+  is_complete: boolean;
+  system_state: 'empty' | 'partial' | 'ready';
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hydrated = useAuthStore((s) => s.hydrated);
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [stateChecked, setStateChecked] = useState(false);
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) {
@@ -22,32 +27,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated) return;
-    if (pathname?.startsWith('/dashboard/onboarding')) {
-      setOnboardingChecked(true);
+
+    // Allow setup and onboarding pages without redirect loops
+    if (pathname?.startsWith('/dashboard/setup') || pathname?.startsWith('/dashboard/onboarding')) {
+      setStateChecked(true);
       return;
     }
 
     let cancelled = false;
-    apiFetch<{ is_complete: boolean }>('/api/v1/onboarding/status')
-      .then((status) => {
+    apiFetch<SystemState>('/api/v1/onboarding/status')
+      .then((state) => {
         if (cancelled) return;
-        if (!status.is_complete) {
-          router.replace('/dashboard/onboarding');
+
+        if (state.system_state === 'empty') {
+          // Nothing configured → Control Plane Setup
+          router.replace('/dashboard/setup');
         }
-        setOnboardingChecked(true);
+        // "partial" and "ready" both go to dashboard — no forced gate
+        // Partial users see a setup banner on the dashboard instead
+        setStateChecked(true);
       })
       .catch(() => {
-        if (!cancelled) setOnboardingChecked(true);
+        if (!cancelled) setStateChecked(true);
       });
     return () => { cancelled = true; };
   }, [hydrated, isAuthenticated, pathname, router]);
 
-  if (!hydrated || (isAuthenticated && !onboardingChecked)) {
+  if (!hydrated || (isAuthenticated && !stateChecked)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-950">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
-          <p className="text-sm text-gray-500 font-mono">Loading...</p>
+          <p className="text-sm text-gray-500 font-mono">Initializing system...</p>
         </div>
       </div>
     );
@@ -55,9 +66,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!isAuthenticated) return null;
 
+  const isSetup = pathname?.startsWith('/dashboard/setup');
   const isOnboarding = pathname?.startsWith('/dashboard/onboarding');
 
-  if (isOnboarding) {
+  // Setup and onboarding pages render without sidebar (full screen)
+  if (isSetup || isOnboarding) {
     return (
       <div className="min-h-screen bg-gray-950 text-white">
         <main className="flex-1">

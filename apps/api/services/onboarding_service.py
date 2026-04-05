@@ -231,6 +231,16 @@ async def get_onboarding_status(
     *,
     organization_id: uuid.UUID,
 ) -> dict[str, Any]:
+    """Return system state for post-login routing.
+
+    Three possible states:
+    - "empty"   → nothing configured, show Control Plane Setup
+    - "partial" → some things configured, show Setup Checklist
+    - "ready"   → enough configured, go straight to dashboard
+    """
+    import os
+
+    # --- Brands ---
     brand_count_result = await db.execute(
         select(func.count()).select_from(Brand).where(
             Brand.organization_id == organization_id,
@@ -239,31 +249,31 @@ async def get_onboarding_status(
     )
     brand_count = brand_count_result.scalar() or 0
 
-    first_brand_id = None
-    if brand_count > 0:
-        brand_result = await db.execute(
-            select(Brand.id).where(
-                Brand.organization_id == organization_id,
-                Brand.is_active == True,  # noqa: E712
-            ).order_by(Brand.created_at).limit(1)
-        )
-        first_brand_id = brand_result.scalar_one_or_none()
-
+    # --- Creator Accounts, Offers, Content (via brand_id join) ---
     account_count = 0
     offer_count = 0
     content_count = 0
-    if first_brand_id:
-        account_result = await db.execute(
+
+    if brand_count > 0:
+        brand_ids_result = await db.execute(
+            select(Brand.id).where(
+                Brand.organization_id == organization_id,
+                Brand.is_active == True,  # noqa: E712
+            )
+        )
+        brand_ids = [r[0] for r in brand_ids_result.fetchall()]
+
+        account_count_result = await db.execute(
             select(func.count()).select_from(CreatorAccount).where(
-                CreatorAccount.brand_id == first_brand_id,
+                CreatorAccount.brand_id.in_(brand_ids),
                 CreatorAccount.is_active == True,  # noqa: E712
             )
         )
-        account_count = account_result.scalar() or 0
+        account_count = account_count_result.scalar() or 0
 
         offer_result = await db.execute(
             select(func.count()).select_from(Offer).where(
-                Offer.brand_id == first_brand_id,
+                Offer.brand_id.in_(brand_ids),
                 Offer.is_active == True,  # noqa: E712
             )
         )
@@ -271,40 +281,70 @@ async def get_onboarding_status(
 
         content_result = await db.execute(
             select(func.count()).select_from(ContentBrief).where(
-                ContentBrief.brand_id == first_brand_id,
+                ContentBrief.brand_id.in_(brand_ids),
             )
         )
         content_count = content_result.scalar() or 0
 
-    has_brand = brand_count > 0
-    has_accounts = account_count > 0
-    has_offer = offer_count > 0
-    has_content = content_count > 0
-    is_complete = has_brand and has_content
+    # --- Integrations / Provider keys configured ---
+    from apps.api.services import secrets_service
+    db_keys = await secrets_service.get_all_keys(db, organization_id)
+    providers_from_db = len([k for k, v in db_keys.items() if v])
 
-    current_step = 1
-    if has_brand:
-        current_step = 2
-    if has_brand and (has_accounts or has_offer or has_content):
-        current_step = 3
-    if has_brand and (has_offer or has_content):
-        current_step = 4 if not has_content else 4
-    if has_content:
-        current_step = 4
-    if is_complete:
-        current_step = 5
+    # Check critical env vars as fallback
+    critical_env_keys = [
+        "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_AI_API_KEY",
+        "ELEVENLABS_API_KEY", "HEYGEN_API_KEY", "BUFFER_API_KEY",
+        "STRIPE_API_KEY",
+    ]
+    providers_from_env = len([k for k in critical_env_keys if os.environ.get(k, "")])
+    providers_configured = max(providers_from_db, providers_from_env)
+
+    has_brands = brand_count > 0
+    has_accounts = account_count > 0
+    has_offers = offer_count > 0
+    has_content = content_count > 0
+    has_providers = providers_configured > 0
+
+    # --- Determine system state ---
+    # "ready": has at least one provider + one brand = go to dashboard
+    # "partial": has some things but missing critical pieces
+    # "empty": nothing at all
+    if has_providers and has_brands:
+        system_state = "ready"
+    elif has_providers or has_brands or has_accounts:
+        system_state = "partial"
+    else:
+        system_state = "empty"
+
+    # Build checklist
+    checklist = [
+        {"key": "providers", "label": "Connect AI Providers", "done": has_providers, "count": providers_configured, "priority": 1},
+        {"key": "brands", "label": "Create Brands / Projects", "done": has_brands, "count": brand_count, "priority": 2},
+        {"key": "accounts", "label": "Connect Creator Accounts", "done": has_accounts, "count": account_count, "priority": 3},
+        {"key": "offers", "label": "Add Revenue Offers", "done": has_offers, "count": offer_count, "priority": 4},
+        {"key": "content", "label": "Generate Content", "done": has_content, "count": content_count, "priority": 5},
+    ]
+    completed_steps = len([c for c in checklist if c["done"]])
+
+    # Legacy compat — is_complete means "don't force onboarding"
+    # Now: any provider or brand configured = skip forced onboarding
+    is_complete = system_state in ("ready", "partial")
 
     return {
         "is_complete": is_complete,
-        "current_step": current_step,
-        "has_brand": has_brand,
+        "system_state": system_state,
+        "checklist": checklist,
+        "completed_steps": completed_steps,
+        "total_steps": len(checklist),
+        "has_providers": has_providers,
+        "has_brands": has_brands,
         "has_accounts": has_accounts,
-        "has_offer": has_offer,
+        "has_offers": has_offers,
         "has_content": has_content,
+        "providers_configured": providers_configured,
         "brand_count": brand_count,
         "account_count": account_count,
         "offer_count": offer_count,
         "content_count": content_count,
-        "first_brand_id": str(first_brand_id) if first_brand_id else None,
-        "free_credits_remaining": FREE_CREDITS_BUDGET - content_count,
     }
