@@ -32,12 +32,12 @@ def compute_account_state(ctx: dict[str, Any]) -> dict[str, Any]:
     posting_capacity = ctx.get("posting_capacity_per_day", 1)
     output_per_week = ctx.get("output_per_week", 0.0)
 
+    # State determination: NO fixed follower/revenue thresholds.
+    # Uses engagement, profit, saturation, fatigue, and age — portfolio-agnostic signals.
     if health in ("critical", "suspended"):
         state, score, reason = "at_risk", 0.15, "Account health critical or suspended"
     elif age_days < 14:
         state, score, reason = "newborn", 0.10, f"Account is {age_days} days old"
-    elif age_days < 45 and follower_count < 500:
-        state, score, reason = "warming", 0.25, "Low followers in early warmup period"
     elif saturation > 0.75:
         state, score, reason = "saturated", 0.40, f"Saturation at {saturation:.0%}"
     elif fatigue > 0.65:
@@ -46,8 +46,12 @@ def compute_account_state(ctx: dict[str, Any]) -> dict[str, Any]:
         state, score, reason = "max_output", 0.90, "Profitable at near-capacity"
     elif profit_per_post > 8 and avg_engagement > 0.025:
         state, score, reason = "scaling", 0.75, "Good profit and engagement, scaling"
-    elif avg_engagement > 0.015 and follower_count > 200:
-        state, score, reason = "stable", 0.55, "Stable engagement and modest audience"
+    elif profit_per_post > 0:
+        state, score, reason = "stable", 0.60, "Producing profit — stable and monetizable"
+    elif avg_engagement > 0.01:
+        state, score, reason = "stable", 0.50, "Engagement present — ready for monetization"
+    elif age_days < 45:
+        state, score, reason = "warming", 0.25, f"Account is {age_days} days old, building momentum"
     else:
         state, score, reason = "warming", 0.30, "Still building momentum"
 
@@ -195,13 +199,17 @@ def compute_audience_state_v2(ctx: dict[str, Any]) -> dict[str, Any]:
     content_views = ctx.get("content_views_30d", 0)
     cta_clicks = ctx.get("cta_clicks_30d", 0)
 
-    if purchase_count >= 5 and ltv > 500 and referral_activity > 0:
+    # LTV thresholds use relative logic: "high LTV" = purchased multiple times with meaningful value
+    # No fixed dollar amount — uses purchase count + ratio instead
+    avg_purchase = ltv / max(purchase_count, 1) if purchase_count > 0 else 0
+
+    if purchase_count >= 5 and ltv > 0 and referral_activity > 0:
         state, score = "advocate", 0.95
         nba = "Activate referral program; ask for testimonials"
     elif sponsor_fit > 0.7 and purchase_count >= 2:
         state, score = "sponsor_friendly", 0.88
         nba = "Introduce sponsor packages; media kit outreach"
-    elif purchase_count >= 3 and ltv > 200:
+    elif purchase_count >= 3 and avg_purchase > 0:
         state, score = "high_ltv", 0.85
         nba = "Upsell premium tier; personalized offers"
     elif purchase_count >= 2:
