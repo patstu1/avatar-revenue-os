@@ -85,7 +85,9 @@ async def score_sponsor_fit(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]
         platform = acct.platform.value if hasattr(acct.platform, 'value') else str(acct.platform)
 
         # Sponsor readiness score
-        audience_score = min(1.0, followers / 50000)
+        # Portfolio-relative: best account in portfolio is the reference, not fixed 50K
+        max_foll = max((getattr(a, 'follower_count', 0) or 0) for a in accounts) or 1
+        audience_score = min(1.0, followers / max(max_foll, 1))
         engagement_score = min(1.0, engagement * 15)
         platform_fit = 0.8 if platform in ("youtube", "instagram", "tiktok") else 0.5 if platform in ("linkedin", "x") else 0.3
 

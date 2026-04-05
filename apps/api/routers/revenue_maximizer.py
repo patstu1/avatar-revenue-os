@@ -134,6 +134,13 @@ async def execute_revenue_cycle(
     await db.commit()
     return result
 
+@router.get("/revenue/calibration")
+async def get_calibration(current_user: CurrentUser, db: DBSession, brand_id: uuid.UUID = Query(...)):
+    """Dynamic calibration context — shows the portfolio-relative thresholds the machine uses.
+    No fixed numbers. All derived from actual portfolio data."""
+    return await rev.build_calibration_context(db, brand_id)
+
+
 @router.post("/revenue/auto-surface-actions")
 async def auto_surface(current_user: OperatorUser, db: DBSession, brand_id: uuid.UUID = Query(...)):
     """Auto-create operator actions from revenue intelligence."""

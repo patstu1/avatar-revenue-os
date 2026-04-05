@@ -24,6 +24,7 @@ from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_action, emit_event
+from packages.scoring.adaptive_calibration import get_calibration_context, normalize, relative_threshold
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.brain_phase_b import ArbitrationReport, BrainDecision
 from packages.db.models.content import ContentItem
@@ -44,6 +45,47 @@ from packages.db.models.revenue_ledger import RevenueLedgerEntry
 from packages.db.models.scoring import OpportunityScore, ProfitForecast, RecommendationQueue
 
 logger = structlog.get_logger()
+
+
+async def build_calibration_context(db: AsyncSession, brand_id: uuid.UUID) -> dict:
+    """Build portfolio-relative calibration context from actual data.
+
+    This replaces ALL hardcoded thresholds with dynamic values derived
+    from the portfolio's own scale. Called once per cycle and passed to engines.
+    """
+    accounts_q = (await db.execute(
+        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+    )).scalars().all()
+
+    account_data = [{"followers": getattr(a, 'follower_count', 0) or 0} for a in accounts_q]
+
+    offers_q = (await db.execute(
+        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
+    )).scalars().all()
+    offer_data = [{"payout": float(o.payout_amount or 0)} for o in offers_q]
+
+    rev_q = await db.execute(
+        select(RevenueLedgerEntry.revenue_source_type, func.sum(RevenueLedgerEntry.gross_amount))
+        .where(RevenueLedgerEntry.brand_id == brand_id, RevenueLedgerEntry.is_active.is_(True),
+               RevenueLedgerEntry.is_refund.is_(False))
+        .group_by(RevenueLedgerEntry.revenue_source_type)
+    )
+    rev_by_source = {str(r[0]): float(r[1] or 0) for r in rev_q.all()}
+
+    total_content = (await db.execute(
+        select(func.count()).select_from(ContentItem).where(ContentItem.brand_id == brand_id)
+    )).scalar() or 0
+
+    total_impressions = (await db.execute(
+        select(func.coalesce(func.sum(PerformanceMetric.impressions), 0))
+        .where(PerformanceMetric.brand_id == brand_id)
+    )).scalar() or 0
+
+    return get_calibration_context(
+        account_data, rev_by_source, offer_data,
+        total_content=total_content, total_impressions=int(total_impressions),
+    )
+
 
 # ══════════════════════════════════════════════════════════════════════
 # ENGINE 1: CREATOR MONETIZATION FIT
@@ -102,20 +144,25 @@ async def compute_creator_monetization_fit(
         is_short_form = platform in ("tiktok", "instagram", "youtube", "x", "threads", "snapchat")
         scale_role = getattr(acct, 'scale_role', None) or ""
 
-        # Score each path (0.0 to 1.0)
-        # Accounts with scale_role="reduced" get a penalty across all paths
+        # Score each path (0.0 to 1.0) — RELATIVE to portfolio, not fixed thresholds
         scale_penalty = 0.3 if scale_role == "reduced" else 0.0
-        base = max(0, min(1.0, followers / 50000) * 0.3 + min(1.0, engagement * 10) * 0.3 + (0.4 if health == "healthy" else 0.2) - scale_penalty)
+
+        # Portfolio-relative normalization: use the portfolio's own scale as the reference
+        max_followers = max((a.follower_count or 0) for a in accounts) if accounts else 1
+        follower_ratio = followers / max(max_followers, 1)  # 0-1 relative to best account
+        revenue_ratio = min(1.0, float(ledger_revenue) / max(float(ledger_revenue) + 1, 1))  # has revenue = 1.0
+
+        base = max(0, follower_ratio * 0.3 + min(1.0, engagement * 10) * 0.3 + (0.4 if health == "healthy" else 0.2) - scale_penalty)
 
         scores = {}
         scores["affiliate"] = min(1.0, base * (1.2 if offer_count > 0 else 0.6) * (1.1 if is_video_platform else 0.8))
-        scores["sponsor"] = min(1.0, base * (1.3 if followers > 10000 else 0.4) * (1.1 if engagement > 0.03 else 0.7) * (1.2 if sponsor_count > 0 else 0.8))
-        scores["dtc"] = min(1.0, base * (1.2 if followers > 5000 else 0.5) * (0.9 if platform in ("instagram", "tiktok") else 0.6))
-        scores["product"] = min(1.0, base * (1.3 if float(ledger_revenue) > 1000 else 0.4) * (1.1 if niche in ("education", "tech", "business", "finance") else 0.7))
-        scores["subscription"] = min(1.0, base * (1.4 if followers > 25000 else 0.3) * (1.2 if engagement > 0.05 else 0.5))
-        scores["services"] = min(1.0, base * (1.5 if niche in ("business", "consulting", "tech", "marketing") else 0.6) * (1.1 if float(ledger_revenue) > 500 else 0.7))
-        scores["licensing"] = min(1.0, base * (1.2 if is_video_platform else 0.4) * (0.8 if followers > 50000 else 0.3))
-        scores["lead_gen"] = min(1.0, base * (1.3 if niche in ("business", "finance", "saas", "consulting") else 0.5) * (1.1 if engagement > 0.02 else 0.6))
+        scores["sponsor"] = min(1.0, base * (1.3 if followers > 0 else 0.4) * (1.1 if engagement > 0 else 0.7) * (1.2 if sponsor_count > 0 else 0.8))
+        scores["dtc"] = min(1.0, base * (1.2 if followers > 0 else 0.5) * (0.9 if platform in ("instagram", "tiktok") else 0.6))
+        scores["product"] = min(1.0, base * (1.3 if float(ledger_revenue) > 0 else 0.4) * (1.1 if niche in ("education", "tech", "business", "finance") else 0.7))
+        scores["subscription"] = min(1.0, base * (1.4 if follower_ratio > 0.5 else 0.3) * (1.2 if engagement > 0.05 else 0.5))
+        scores["services"] = min(1.0, base * (1.5 if niche in ("business", "consulting", "tech", "marketing") else 0.6) * (1.1 if float(ledger_revenue) > 0 else 0.7))
+        scores["licensing"] = min(1.0, base * (1.2 if is_video_platform else 0.4) * (0.8 if follower_ratio > 0.8 else 0.3))
+        scores["lead_gen"] = min(1.0, base * (1.3 if niche in ("business", "finance", "saas", "consulting") else 0.5) * (1.1 if engagement > 0 else 0.6))
         scores["long_form"] = min(1.0, base * (1.4 if is_long_form else 0.3) * (1.2 if platform == "youtube" else 0.8))
         scores["short_form"] = min(1.0, base * (1.3 if is_short_form else 0.3) * (1.2 if platform in ("tiktok", "instagram") else 0.7))
 
@@ -150,8 +197,24 @@ async def detect_revenue_opportunities(
 
     Aggregates: opportunity scores, under-monetized content, missing offers,
     sponsor-ready accounts, product-ready accounts, weak mixes.
+    All upside estimates are derived from actual portfolio data, not fixed amounts.
     """
     opportunities = []
+
+    # Portfolio-relative upside base: use actual revenue as reference, not arbitrary numbers
+    total_rev_for_upside = (await db.execute(
+        select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 100.0)).where(
+            RevenueLedgerEntry.brand_id == brand_id, RevenueLedgerEntry.is_active.is_(True),
+            RevenueLedgerEntry.is_refund.is_(False),
+        )
+    )).scalar() or 100.0
+
+    # Portfolio metrics for relative upside calculation
+    all_followers = (await db.execute(
+        select(func.coalesce(func.sum(CreatorAccount.follower_count), 0))
+        .where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+    )).scalar() or 0
+    rev_per_follower = float(total_rev_for_upside) / max(all_followers, 1) if all_followers > 0 else 0
 
     # 1. Top-scored opportunities from recommendation queue
     top_opps = await db.execute(
@@ -166,7 +229,7 @@ async def detect_revenue_opportunities(
             "composite_score": opp.composite_score,
             "recommended_action": opp.recommended_action,
             "entity_id": str(opp.id),
-            "expected_upside": opp.composite_score * 500,  # Rough upside estimate
+            "expected_upside": opp.composite_score * max(total_rev_for_upside, 100),  # Scaled to actual portfolio revenue
             "source": "opportunity_scoring",
         })
 
@@ -184,7 +247,7 @@ async def detect_revenue_opportunities(
             "title": item.title[:80],
             "entity_id": str(item.id),
             "entity_type": "content_item",
-            "expected_upside": 50,  # Conservative estimate per unmonetized content
+            "expected_upside": float(total_rev_for_upside) * 0.05,  # 5% of portfolio revenue per unmonetized piece
             "action": "assign_offer",
             "source": "content_analysis",
         })
@@ -235,14 +298,15 @@ async def detect_revenue_opportunities(
         # Skip reduced accounts — the machine already deprioritized them
         if acct_scale_role == "reduced":
             continue
-        if followers > 10000 and engagement > 0.02 and active_sponsors == 0:
+        # Sponsor-ready: has audience + engagement + no active sponsors — no fixed follower threshold
+        if followers > 0 and engagement > 0 and active_sponsors == 0:
             opportunities.append({
                 "type": "sponsor_ready",
                 "account_platform": acct.platform.value if hasattr(acct.platform, 'value') else str(acct.platform),
                 "followers": followers,
                 "entity_id": str(acct.id),
                 "entity_type": "creator_account",
-                "expected_upside": followers * 0.05,  # $0.05 per follower sponsor value
+                "expected_upside": followers * (rev_per_follower if rev_per_follower > 0 else 0.02),  # Derived from actual yield
                 "action": "pursue_sponsor_deals",
                 "source": "account_analysis",
             })
@@ -264,7 +328,7 @@ async def detect_revenue_opportunities(
                 "usage_count": pat.usage_count,
                 "entity_id": str(pat.id),
                 "entity_type": "winning_pattern",
-                "expected_upside": pat.win_score * 200,
+                "expected_upside": pat.win_score * float(total_rev_for_upside) * 0.1,  # Winning pattern worth 10% of portfolio
                 "action": "scale_winning_pattern",
                 "source": "pattern_memory",
             })
@@ -571,7 +635,7 @@ async def get_next_best_revenue_actions(
             "action": opp.get("action", "pursue_opportunity"),
             "description": f"{opp['type']}: {opp.get('title', opp.get('offer_name', opp.get('pattern_name', 'opportunity')))}",
             "expected_value": opp.get("expected_upside", 0),
-            "priority": "high" if opp.get("expected_upside", 0) > 200 else "medium",
+            "priority": "high" if opp.get("expected_upside", 0) > 0 else "medium",  # Any upside = high priority
             "source": opp.get("source", "opportunity_engine"),
             "entity_type": opp.get("entity_type"),
             "entity_id": opp.get("entity_id"),

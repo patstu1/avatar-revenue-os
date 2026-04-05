@@ -89,7 +89,7 @@ async def handle_payment_received(
     changes.append("success memory entry created")
 
     # ── 3. Create post-close actions ──
-    if amount > 500:
+    if amount > 0:  # ANY payment triggers expansion — no fixed threshold
         # High-value payment → create expansion action
         await emit_action(
             db, org_id=org_id,

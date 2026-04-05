@@ -181,7 +181,7 @@ async def compute_margin_rankings(
 
         # True value score: weighted composite
         true_value = (
-            0.20 * min(1.0, net / 5000) +         # net revenue magnitude
+            0.20 * min(1.0, net / max(gross * 2, 1)) +  # net relative to this source's gross
             0.20 * margin +                         # margin quality
             0.15 * t["payout_speed"] +              # cash speed
             0.15 * t["repeatability"] +             # can we do it again
@@ -257,16 +257,22 @@ async def classify_creator_archetypes(
 
         # Score each archetype
         scores = {}
-        scores["affiliate_closer"] = min(1.0, 0.3 + (rev_data.get("affiliate_commission", 0) / 1000) + (0.2 if engagement > 0.03 else 0))
-        scores["sponsor_magnet"] = min(1.0, 0.2 + (followers / 100000) + (rev_data.get("sponsor_payment", 0) / 5000))
-        scores["product_seller"] = min(1.0, 0.2 + (rev_data.get("product_sale", 0) / 2000) + (0.3 if niche in ("education", "tech", "business") else 0))
-        scores["community_builder"] = min(1.0, 0.2 + (engagement * 5) + (0.2 if followers > 10000 else 0))
+        # Portfolio-relative scoring: normalize revenue by max in portfolio, not fixed amounts
+        max_source_rev = max((sum(d.values()) for d in acct_revenue.values()), default=1) or 1
+        max_foll = max((getattr(a, 'follower_count', 0) or 0) for a in accounts) or 1
+        has_rev = lambda src: min(1.0, rev_data.get(src, 0) / max(max_source_rev, 1))
+        foll_ratio = followers / max_foll
+
+        scores["affiliate_closer"] = min(1.0, 0.3 + has_rev("affiliate_commission") * 0.5 + (0.2 if engagement > 0 else 0))
+        scores["sponsor_magnet"] = min(1.0, 0.2 + foll_ratio * 0.5 + has_rev("sponsor_payment") * 0.3)
+        scores["product_seller"] = min(1.0, 0.2 + has_rev("product_sale") * 0.5 + (0.3 if niche in ("education", "tech", "business") else 0))
+        scores["community_builder"] = min(1.0, 0.2 + (engagement * 5) + (0.2 if foll_ratio > 0.3 else 0))
         scores["authority_educator"] = min(1.0, 0.2 + (0.4 if niche in ("education", "business", "finance", "tech") else 0.1) + (0.2 if platform in ("youtube", "blog") else 0))
-        scores["entertainment_monetizer"] = min(1.0, 0.2 + (rev_data.get("ad_revenue", 0) / 3000) + (0.3 if platform in ("youtube", "tiktok") else 0))
-        scores["services_consultant"] = min(1.0, 0.2 + (rev_data.get("service_fee", 0) / 3000) + (0.3 if niche in ("business", "consulting", "marketing") else 0))
-        scores["lead_gen_specialist"] = min(1.0, 0.15 + (rev_data.get("lead_gen_fee", 0) / 1000) + (0.3 if niche in ("business", "finance", "saas") else 0))
-        scores["licensing_creator"] = min(1.0, 0.1 + (0.3 if platform in ("youtube", "instagram") else 0) + (0.2 if followers > 50000 else 0))
-        scores["dtc_converter"] = min(1.0, 0.15 + (rev_data.get("product_sale", 0) / 1500) + (0.2 if platform in ("instagram", "tiktok") else 0))
+        scores["entertainment_monetizer"] = min(1.0, 0.2 + has_rev("ad_revenue") * 0.5 + (0.3 if platform in ("youtube", "tiktok") else 0))
+        scores["services_consultant"] = min(1.0, 0.2 + has_rev("service_fee") * 0.5 + (0.3 if niche in ("business", "consulting", "marketing") else 0))
+        scores["lead_gen_specialist"] = min(1.0, 0.15 + has_rev("lead_gen_fee") * 0.5 + (0.3 if niche in ("business", "finance", "saas") else 0))
+        scores["licensing_creator"] = min(1.0, 0.1 + (0.3 if platform in ("youtube", "instagram") else 0) + (0.2 if foll_ratio > 0.8 else 0))
+        scores["dtc_converter"] = min(1.0, 0.15 + has_rev("product_sale") * 0.5 + (0.2 if platform in ("instagram", "tiktok") else 0))
         scores["hybrid_multi_path"] = min(1.0, len([v for v in rev_data.values() if v > 100]) * 0.25)
 
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
@@ -605,9 +611,16 @@ async def compute_portfolio_allocation(
         platform = acct.platform.value if hasattr(acct.platform, 'value') else str(acct.platform)
 
         # Portfolio score
-        revenue_score = min(1.0, float(acct_rev) / 5000)
+        # Portfolio-relative: normalize against the best-performing account, not a fixed number
+        max_acct_rev = max((float(r) for r in [
+            (await db.execute(select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
+                RevenueLedgerEntry.creator_account_id == a.id, RevenueLedgerEntry.is_active.is_(True)
+            ))).scalar() or 0 for a in accounts[:5]  # Check top 5 for efficiency
+        ]), default=1) or 1
+        revenue_score = min(1.0, float(acct_rev) / max(max_acct_rev, 1))
         content_score = min(1.0, content_count / 20)
-        audience_score = min(1.0, followers / 50000)
+        max_foll_portfolio = max((getattr(a, 'follower_count', 0) or 0) for a in accounts) or 1
+        audience_score = min(1.0, followers / max(max_foll_portfolio, 1))
         engagement_score = min(1.0, engagement * 10)
         scale_role = getattr(acct, 'scale_role', None) or ""
 
@@ -680,7 +693,7 @@ async def detect_compounding_opportunities(
     }
 
     for platform, data in platform_rev.items():
-        if data["revenue"] > 200:
+        if data["revenue"] > 0:  # Any revenue = compounding opportunity
             targets = cascades.get(platform, [])
             existing_platforms = {p for p in platform_rev.keys()}
             for target in targets:
@@ -788,7 +801,7 @@ async def compute_durability_scores(
             0.20 * (1.0 - traits["platform_dependence"]) +
             0.15 * (1.0 - traits["copyability"]) +
             0.10 * min(1.0, max(0, growth + 0.5)) +
-            0.10 * min(1.0, recent / 1000) if recent > 0 else 0
+            0.10 * min(1.0, recent / max(sum(source_periods.get(s, {}).get("recent_30d", 0) for s in source_periods) / max(len(source_periods), 1), 1)) if recent > 0 else 0  # Relative to portfolio average
         )
 
         recommendation = "exploit" if durability_score > 0.6 else "diversify" if durability_score > 0.4 else "stabilize" if durability_score > 0.2 else "reduce"

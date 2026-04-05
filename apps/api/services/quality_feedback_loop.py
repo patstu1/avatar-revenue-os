@@ -71,10 +71,14 @@ async def run_quality_feedback(db: AsyncSession, brand_id: uuid.UUID) -> dict:
             continue
 
         rpm = (revenue / impressions * 1000) if impressions > 0 else 0
+        # Normalize against the batch: best performer in this evaluation is the reference
+        max_rpm_batch = max((float(p.revenue or 0) / max(p.impressions or 1, 1) * 1000) for _, _, p in rows if p and (p.impressions or 0) > 0) if rows else 20
+        max_imp_batch = max((p.impressions or 0) for _, _, p in rows if p) if rows else 1
+
         performance_score = (
-            0.40 * min(1.0, rpm / 20) +  # Revenue per mille
-            0.30 * min(1.0, engagement * 10) +  # Engagement rate
-            0.30 * min(1.0, impressions / 10000)  # Reach
+            0.40 * min(1.0, rpm / max(max_rpm_batch, 1)) +  # Relative to batch best RPM
+            0.30 * min(1.0, engagement * 10) +  # Engagement rate (0.1 = max)
+            0.30 * min(1.0, impressions / max(max_imp_batch, 1))  # Relative to batch best reach
         )
 
         # Extract generation parameters from script

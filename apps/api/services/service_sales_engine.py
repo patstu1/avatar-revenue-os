@@ -87,7 +87,7 @@ async def qualify_leads(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
         days_active = (datetime.now(timezone.utc) - deal.created_at).days if deal.created_at else 0
 
         qual_score = (
-            0.30 * min(1.0, value / 10000) +
+            0.30 * min(1.0, value / max(float(deal.deal_value or 1) * 2, 1)) +  # Relative to deal size, not fixed 10K
             0.25 * prob +
             0.25 * min(1.0, interactions / 10) +
             0.20 * min(1.0, days_active / 30)
