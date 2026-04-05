@@ -711,7 +711,7 @@ async def score_pipeline_deals(db: AsyncSession, brand_id: uuid.UUID) -> dict:
         recency_score = max(0, 1.0 - stale_days / 30)
         interaction_score = min(d.interactions / 10, 1.0)
         stage_score = STAGE_WEIGHTS.get(d.stage, 0.1)
-        value_score = min(d.deal_value / 10000, 1.0)
+        value_score = 0.75 if d.deal_value > 0 else 0.0  # Any deal has value — no fixed ceiling
 
         composite = round(
             recency_score * 0.3 + interaction_score * 0.2 + stage_score * 0.3 + value_score * 0.2,

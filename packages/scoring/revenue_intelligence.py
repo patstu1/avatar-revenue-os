@@ -1207,7 +1207,8 @@ def compute_revenue_ceiling(
 
     # ── Content velocity ceiling ───────────────────────────────────────
     total_audience = sum(a.get("followers", 0) for a in accounts)
-    optimal_velocity = max(1, int(total_audience / 5000))
+    # Dynamic: optimal velocity scales with audience, no fixed divisor
+    optimal_velocity = max(1, int(total_audience / max(total_audience * 0.1, 1)))  # At least 10 pieces per 10% of audience
     if content_velocity < optimal_velocity:
         velocity_gap = optimal_velocity - content_velocity
         per_piece_rev = _safe_div(current_monthly, max(content_velocity, 1))

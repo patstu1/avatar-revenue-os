@@ -52,8 +52,8 @@ def classify_account_state(inputs: dict[str, Any]) -> dict[str, Any]:
     if age_days < 7 and post_count < 5:
         return _result("newborn", 0.90, inputs, f"Account is {age_days} days old with {post_count} posts")
 
-    if age_days < 30 and impressions < 5000:
-        return _result("warming", 0.80, inputs, "Account in warm-up phase — low impressions")
+    if age_days < 30 and impressions == 0:
+        return _result("warming", 0.80, inputs, "Account in warm-up phase — no impressions yet")
 
     if saturation > 0.7:
         return _result("saturated", 0.80, inputs, f"Saturation score {saturation:.2f} is high")
@@ -64,16 +64,16 @@ def classify_account_state(inputs: dict[str, Any]) -> dict[str, Any]:
     if health == "warning" and engagement_rate < 0.02:
         return _result("weak", 0.75, inputs, "Warning health with very low engagement")
 
-    if revenue > 100 and conversion_rate > 0.03 and profit > 0:
+    if revenue > 0 and conversion_rate > 0 and profit > 0:
         return _result("monetizing", 0.85, inputs, f"Actively monetizing — ${revenue:.0f} revenue, {conversion_rate:.1%} CVR")
 
-    if impressions > 50000 and engagement_rate > 0.05 and profit > 0:
-        return _result("scaling", 0.80, inputs, "Strong reach + engagement + profit — scaling")
+    if profit > 0 and engagement_rate > 0.03:
+        return _result("scaling", 0.80, inputs, "Profitable with strong engagement — scaling")
 
-    if impressions > 20000 and engagement_rate > 0.06 and age_days > 60:
+    if engagement_rate > 0.04 and age_days > 60:
         return _result("authority_building", 0.70, inputs, "Solid engagement over time — building authority")
 
-    if engagement_rate > 0.04 or impressions > 10000:
+    if engagement_rate > 0.02 or impressions > 0:
         return _result("early_signal", 0.65, inputs, "Showing early positive signals")
 
     if age_days >= 30:

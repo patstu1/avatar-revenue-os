@@ -20,7 +20,7 @@ def _score_deal_context(deal_context: dict[str, Any]) -> dict[str, float]:
     urgency = float(deal_context.get("urgency", 0.5))
     competition = float(deal_context.get("competition_intensity", 0.5))
 
-    value_score = min(1.0, deal_value / 50000) if deal_value > 0 else 0.0
+    value_score = 0.75 if deal_value > 0 else 0.0  # Any deal has value; scoring uses other signals
     return {
         "value_score": round(value_score, 3),
         "lead_quality": round(min(1.0, max(0.0, lead_quality)), 3),
