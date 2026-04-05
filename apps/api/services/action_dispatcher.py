@@ -432,6 +432,37 @@ async def _handle_recover_webhook(db: AsyncSession, action: OperatorAction) -> d
             "ledger_entries_created": len([c for c in changes if "ledger entry created" in c])}
 
 
+async def _handle_send_outreach(db: AsyncSession, action: OperatorAction) -> dict:
+    """Actually send an outreach email via SMTP."""
+    payload = action.action_payload or {}
+    draft = payload.get("draft", {})
+
+    contact_email = draft.get("contact_email")
+    subject = draft.get("subject")
+    body = draft.get("body")
+
+    if not contact_email or not subject or not body:
+        return {"skipped": True, "reason": "Missing contact_email, subject, or body in draft"}
+
+    import os
+    smtp_host = os.environ.get("SMTP_HOST", "")
+    if not smtp_host:
+        return {"skipped": True, "reason": "SMTP_HOST not configured — email send requires SMTP credentials",
+                "draft_preserved": True, "contact": contact_email, "subject": subject}
+
+    try:
+        from packages.clients.external_clients import SmtpEmailClient
+        client = SmtpEmailClient()
+        import asyncio
+        result = await client.send_email(to=contact_email, subject=subject, body=body)
+        if result.get("success"):
+            return {"sent": True, "contact": contact_email, "subject": subject,
+                    "state_changes": [f"Email sent to {contact_email}"]}
+        return {"sent": False, "error": result.get("error", "Send failed")}
+    except Exception as e:
+        return {"sent": False, "error": str(e)[:200]}
+
+
 # The dispatch table: action_type → handler function
 DISPATCH_TABLE = {
     "attach_offer_to_content": _handle_attach_offer,
@@ -443,4 +474,6 @@ DISPATCH_TABLE = {
     "recover_failed_webhook": _handle_recover_webhook,
     "deprioritize_low_margin": _handle_deprioritize,
     "reduce_dead_channel": _handle_reduce_channel,
+    "send_outreach_email": _handle_send_outreach,
+    "send_follow_up": _handle_send_outreach,  # Same handler, different sequence step
 }

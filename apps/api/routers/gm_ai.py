@@ -8,6 +8,7 @@ import uuid
 from fastapi import APIRouter, Query
 from apps.api.deps import CurrentUser, DBSession
 from apps.api.services import gm_ai as gm
+from apps.api.services import portfolio_gm
 
 router = APIRouter()
 
@@ -28,6 +29,12 @@ async def scale_blueprint(current_user: CurrentUser, db: DBSession, brand_id: uu
 async def operating_directive(current_user: CurrentUser, db: DBSession, brand_id: uuid.UUID = Query(...)):
     """Phase 3: Current operating directive — what to do RIGHT NOW, ranked by impact."""
     return await gm.get_gm_directive(db, brand_id)
+
+
+@router.get("/gm/portfolio")
+async def portfolio_overview(current_user: CurrentUser, db: DBSession):
+    """Portfolio-level GM — cross-brand strategic view with allocation recommendations."""
+    return await portfolio_gm.get_portfolio_overview(db, current_user.organization_id)
 
 
 @router.get("/gm/status")
