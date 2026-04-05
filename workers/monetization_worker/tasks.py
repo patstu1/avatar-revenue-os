@@ -653,44 +653,103 @@ def run_revenue_cycle():
 
 
 async def _do_run_revenue_cycle():
+    """Mass-scale revenue cycle: parallel brand processing + backpressure + dedup.
+
+    Architecture:
+    1. Acquire Redis lock (backpressure — skip if prior cycle still running)
+    2. Load all orgs + brands
+    3. Process brands in parallel chunks (10 concurrent)
+    4. Dispatch autonomous actions per org
+    5. Release lock
+    """
+    import os
+    import redis
     from sqlalchemy import select
     from packages.db.models.core import Brand, Organization
 
-    factory = get_async_session_factory()
-    async with factory() as db:
-        # Get all active orgs with brands
-        orgs = (await db.execute(
-            select(Organization.id).where(Organization.is_active.is_(True))
-        )).scalars().all()
+    # ── Backpressure: Redis lock prevents overlapping cycles ──
+    redis_url = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/1")
+    lock_key = "revenue_cycle_lock"
+    lock_ttl = 3600  # Max 1 hour lock
 
+    try:
+        r = redis.from_url(redis_url)
+        acquired = r.set(lock_key, "running", nx=True, ex=lock_ttl)
+        if not acquired:
+            return {"status": "skipped", "reason": "Prior revenue cycle still running (backpressure)"}
+    except Exception:
+        pass  # If Redis unavailable, proceed without lock
+
+    try:
+        factory = get_async_session_factory()
+
+        # ── Phase 1: Surface actions for all brands (parallel chunks) ──
         total_actions = 0
         total_executed = 0
 
-        for org_id in orgs:
-            brands = (await db.execute(
-                select(Brand.id).where(Brand.organization_id == org_id)
+        async with factory() as db:
+            orgs = (await db.execute(
+                select(Organization.id).where(Organization.is_active.is_(True))
             )).scalars().all()
 
-            for brand_id in brands:
-                try:
-                    # Phase 1: Surface revenue actions from intelligence
-                    from apps.api.services.revenue_maximizer import auto_surface_revenue_actions
-                    actions = await auto_surface_revenue_actions(db, org_id, brand_id)
-                    total_actions += len(actions)
-                except Exception as e:
-                    import structlog
-                    structlog.get_logger().warning("revenue_cycle.surface_failed", brand_id=str(brand_id), error=str(e))
+        for org_id in orgs:
+            async with factory() as db:
+                brands = (await db.execute(
+                    select(Brand.id).where(Brand.organization_id == org_id)
+                )).scalars().all()
 
+            # Process brands in parallel chunks of 10
+            CHUNK_SIZE = 10
+            for i in range(0, len(brands), CHUNK_SIZE):
+                chunk = brands[i:i + CHUNK_SIZE]
+                chunk_results = await asyncio.gather(
+                    *[_process_brand(factory, org_id, brand_id) for brand_id in chunk],
+                    return_exceptions=True,
+                )
+                for result in chunk_results:
+                    if isinstance(result, dict):
+                        total_actions += result.get("actions", 0)
+                    elif isinstance(result, Exception):
+                        import structlog
+                        structlog.get_logger().warning("revenue_cycle.brand_failed", error=str(result))
+
+            # ── Phase 2: Dispatch autonomous actions for this org ──
             try:
-                # Phase 2: Dispatch autonomous actions for this org
-                from apps.api.services.action_dispatcher import dispatch_autonomous_actions
-                dispatch_result = await dispatch_autonomous_actions(db, org_id)
-                total_executed += len(dispatch_result.get("executed", []))
+                async with factory() as db:
+                    from apps.api.services.action_dispatcher import dispatch_autonomous_actions
+                    dispatch_result = await dispatch_autonomous_actions(db, org_id)
+                    total_executed += len(dispatch_result.get("executed", []))
+                    await db.commit()
             except Exception as e:
                 import structlog
                 structlog.get_logger().warning("revenue_cycle.dispatch_failed", org_id=str(org_id), error=str(e))
 
-        await db.commit()
+    finally:
+        # Release lock
+        try:
+            r.delete(lock_key)
+        except Exception:
+            pass
+
+    return {
+        "status": "completed",
+        "orgs_processed": len(orgs),
+        "actions_surfaced": total_actions,
+        "actions_auto_executed": total_executed,
+        "parallel_chunk_size": 10,
+    }
+
+
+async def _process_brand(factory, org_id, brand_id):
+    """Process a single brand's revenue intelligence. Called in parallel."""
+    async with factory() as db:
+        try:
+            from apps.api.services.revenue_maximizer import auto_surface_revenue_actions
+            actions = await auto_surface_revenue_actions(db, org_id, brand_id)
+            await db.commit()
+            return {"actions": len(actions), "brand_id": str(brand_id)}
+        except Exception as e:
+            return {"actions": 0, "brand_id": str(brand_id), "error": str(e)[:200]}
 
     return {
         "orgs_processed": len(orgs),
