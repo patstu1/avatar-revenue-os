@@ -26,6 +26,14 @@ from packages.scoring.brain_phase_d_engine import (
 )
 
 
+def _check_real_credentials() -> bool:
+    """True when at least one AI provider AND one distributor are configured."""
+    import os
+    has_ai = any(os.environ.get(k) for k in ["ANTHROPIC_API_KEY", "GOOGLE_AI_API_KEY", "DEEPSEEK_API_KEY"])
+    has_dist = any(os.environ.get(k) for k in ["BUFFER_API_KEY", "PUBLER_API_KEY", "AYRSHARE_API_KEY"])
+    return has_ai and has_dist
+
+
 # ── List helpers ──────────────────────────────────────────────────────
 
 async def list_meta_monitoring(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 20) -> list[dict]:
@@ -190,7 +198,7 @@ async def recompute_meta_monitoring(db: AsyncSession, brand_id: uuid.UUID) -> di
         "account_health_avg": acct_health_avg,
         "execution_failure_rate": mon_result["execution_failure_rate"],
         "confidence_avg": conf_avg,
-        "has_platform_credentials": False,
+        "has_platform_credentials": _check_real_credentials(),
         "active_blocker_count": dead_agents,
         "escalation_rate": mon_result["escalation_rate"],
     }

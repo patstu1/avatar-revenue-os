@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertTriangle } from 'lucide-react';
 
-interface Escalation { id: string; escalation_type: string; command: string; urgency: string; expected_upside_unlocked: number; expected_cost_of_delay: number; affected_scope: string; confidence: number; resolved: boolean; explanation: string | null; }
+interface Escalation { id: string; escalation_type: string; command: string; urgency: string; expected_upside_unlocked: number; expected_cost_of_delay: number; value_basis?: string; affected_scope: string; confidence: number; resolved: boolean; explanation: string | null; }
 
 const URG_COLORS: Record<string, string> = { critical: 'bg-red-100 text-red-800', high: 'bg-orange-100 text-orange-800', medium: 'bg-yellow-100 text-yellow-800', low: 'bg-gray-100 text-gray-800' };
 
@@ -35,8 +35,8 @@ export default function BrainEscalationsPage() {
                     <TableCell className="font-semibold">{r.escalation_type}</TableCell>
                     <TableCell className="max-w-xs">{r.command}</TableCell>
                     <TableCell><span className={`rounded px-2 py-0.5 text-xs font-semibold ${URG_COLORS[r.urgency] || 'bg-gray-100'}`}>{r.urgency}</span></TableCell>
-                    <TableCell className="text-green-700">${r.expected_upside_unlocked.toFixed(0)}</TableCell>
-                    <TableCell className="text-red-700">${r.expected_cost_of_delay.toFixed(0)}/day</TableCell>
+                    <TableCell className={r.value_basis === 'illustrative_estimate' ? 'text-green-700/60 italic' : 'text-green-700'}>{r.value_basis === 'illustrative_estimate' ? '~' : ''}${r.expected_upside_unlocked.toFixed(0)}{r.value_basis === 'illustrative_estimate' ? ' est.' : ''}</TableCell>
+                    <TableCell className={r.value_basis === 'illustrative_estimate' ? 'text-red-700/60 italic' : 'text-red-700'}>{r.value_basis === 'illustrative_estimate' ? '~' : ''}${r.expected_cost_of_delay.toFixed(0)}/day{r.value_basis === 'illustrative_estimate' ? ' est.' : ''}</TableCell>
                     <TableCell>{r.affected_scope}</TableCell>
                     <TableCell>{r.resolved ? 'Yes' : 'No'}</TableCell>
                   </TableRow>

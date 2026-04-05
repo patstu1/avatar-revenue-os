@@ -115,11 +115,12 @@ def evaluate_autonomous_readiness() -> dict[str, Any]:
         "detail": f"Missing: {', '.join(critical_missing)}" if critical_missing else "All critical providers configured",
     })
 
-    # 2. No critical dead-end flows (code-level check — these are now all wired)
+    # 2. No critical dead-end flows (not yet verified at runtime)
     conditions.append({
         "id": 2, "name": "No critical dead-end flows",
-        "passed": True,
-        "detail": "Content form→generation, expansion→alerts, gatekeeper→alerts, brain→executor all wired",
+        "passed": False,
+        "not_verified": True,
+        "detail": "Not yet verified — requires runtime flow tracing to confirm all paths are wired",
     })
 
     # 3. Publishing auto-runs
@@ -136,56 +137,73 @@ def evaluate_autonomous_readiness() -> dict[str, Any]:
         "detail": "analytics_worker.ingest_performance runs every 30min" if has_distributor else "No data sources active — configure at least one distribution service",
     })
 
-    # 5. Offer economics updated from measured data
+    # 5. Offer economics updated from measured data (not yet verified at runtime)
     conditions.append({
         "id": 5, "name": "Offer economics updated from measured data",
-        "passed": True,
-        "detail": "offer_learning runs every 6h + measured_data_cascade runs every 4h (updates Offer.conversion_rate/epc/aov)",
+        "passed": False,
+        "not_verified": True,
+        "detail": "Not yet verified — requires confirmation that offer_learning + measured_data_cascade workers ran recently",
     })
 
-    # 6. Expansion advisor on schedule
+    # 6. Expansion advisor on schedule (not yet verified at runtime)
     conditions.append({
         "id": 6, "name": "Expansion advisor runs on schedule and feeds downstream",
-        "passed": True,
-        "detail": "recompute_expansion_advisor every 4h → creates OperatorAlert + LaunchCandidate (or hold alert)",
+        "passed": False,
+        "not_verified": True,
+        "detail": "Not yet verified — requires confirmation that recompute_expansion_advisor ran recently",
     })
 
-    # 7. Kill/scale actions surfaced automatically
+    # 7. Kill/scale actions surfaced automatically (not yet verified at runtime)
     conditions.append({
         "id": 7, "name": "Kill/scale actions surfaced automatically",
-        "passed": True,
-        "detail": "detect_weak_lanes every 6h → KillLedgerEntry + OperatorAlert (escalating urgency) + winner scaling alerts",
+        "passed": False,
+        "not_verified": True,
+        "detail": "Not yet verified — requires confirmation that detect_weak_lanes ran recently",
     })
 
-    # 8. Gatekeeper no critical blockers (code architecture check)
+    # 8. Gatekeeper no critical blockers (not yet verified at runtime)
     conditions.append({
         "id": 8, "name": "Gatekeeper has no critical acceptance blockers",
-        "passed": True,
-        "detail": "Gatekeeper runs every 6h, feeds OperatorAlert for critical/high failures. Requires recompute to verify actual gate state.",
+        "passed": False,
+        "not_verified": True,
+        "detail": "Not yet verified — requires gatekeeper recompute to check actual gate state",
     })
 
-    # 9. Truth labels correct
+    # 9. Truth labels correct (not yet verified at runtime)
     conditions.append({
         "id": 9, "name": "Truth labels correctly show live/queued/blocked/recommendation-only",
-        "passed": True,
-        "detail": "All platform entries have explicit execution_truth + publish_mode. Provider registry has credential_status. Copilot carries truth_boundaries.",
+        "passed": False,
+        "not_verified": True,
+        "detail": "Not yet verified — requires runtime audit of execution_truth and publish_mode fields",
     })
 
-    # 10. Tiered routing consumed downstream
+    # 10. Tiered routing consumed downstream (not yet verified at runtime)
     conditions.append({
         "id": 10, "name": "Tiered routing consumed by downstream generation/distribution",
-        "passed": True,
-        "detail": "generation_worker reads ContentFormRecommendation + routing tier. Content routing decisions persisted. Cost reports aggregated daily.",
+        "passed": False,
+        "not_verified": True,
+        "detail": "Not yet verified — requires confirmation that generation_worker consumes routing tier",
     })
 
-    all_pass = all(c["passed"] for c in conditions)
+    verified = [c for c in conditions if not c.get("not_verified")]
+    unverified = [c for c in conditions if c.get("not_verified")]
+    verified_pass = all(c["passed"] for c in verified) if verified else False
     passing = sum(1 for c in conditions if c["passed"])
 
+    if unverified:
+        verdict = f"NOT YET AUTONOMOUS — {len(unverified)} condition(s) not yet verified, {len(conditions) - passing - len(unverified)} verified condition(s) failing" if not verified_pass else f"NOT YET AUTONOMOUS — {len(unverified)} condition(s) not yet verified (all verified checks pass)"
+        fully = False
+    else:
+        fully = all(c["passed"] for c in conditions)
+        verdict = "FULLY AUTONOMOUS FOR CURRENT SCOPE" if fully else f"NOT YET AUTONOMOUS — {len(conditions) - passing} condition(s) failing"
+
     return {
-        "fully_autonomous": all_pass,
+        "fully_autonomous": fully,
         "conditions_passing": passing,
         "conditions_total": len(conditions),
-        "verdict": "FULLY AUTONOMOUS FOR CURRENT SCOPE" if all_pass else f"NOT YET AUTONOMOUS — {len(conditions) - passing} condition(s) failing",
+        "conditions_verified": len(verified),
+        "conditions_unverified": len(unverified),
+        "verdict": verdict,
         "conditions": conditions,
         "blocking_conditions": [c for c in conditions if not c["passed"]],
     }
