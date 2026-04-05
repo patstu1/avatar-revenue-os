@@ -191,19 +191,49 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
     total_followers = sum(a["followers"] for a in accounts)
     total_revenue = revenue["total_90d"]
 
-    # ── Determine current phase ──
-    if len(accounts) == 0:
+    # ── Determine current phase from OPERATING SIGNALS, not dollar bands ──
+    # Phase is derived from what the machine can actually do, not arbitrary thresholds.
+    has_accounts = len(accounts) > 0
+    has_audience = total_followers > 0
+    has_content = scan["content"]["published"] > 0
+    has_offers = len(offers) > 0
+    has_revenue = total_revenue > 0
+    has_patterns = len(patterns["winning"]) > 0
+    has_multiple_sources = len(revenue["by_source"]) >= 2
+    has_sponsor_activity = scan["sponsors"]["active_deals"] > 0
+    monetization_density = scan["content"]["published"] - scan["content"]["unmonetized"]  # content WITH offers
+    content_velocity = scan["content"]["total"]  # total content produced
+    platform_count = len(platforms)
+    account_count = len(accounts)
+
+    # Revenue per follower (yield efficiency)
+    rev_per_follower = total_revenue / total_followers if total_followers > 0 else 0
+    # Monetization rate
+    mon_rate = monetization_density / scan["content"]["published"] if scan["content"]["published"] > 0 else 0
+
+    if not has_accounts:
         phase = "cold_start"
-    elif total_followers < 5000:
+    elif not has_content:
+        phase = "signal_formation"
+    elif not has_revenue and has_content and has_offers:
+        phase = "proof_of_monetization"
+    elif not has_revenue:
         phase = "warmup"
-    elif total_revenue < 500:
-        phase = "pre_monetization"
-    elif total_revenue < 5000:
-        phase = "early_monetization"
-    elif total_revenue < 25000:
-        phase = "scaling"
+    elif not has_patterns and has_revenue:
+        phase = "repeatable_monetization"
+    elif has_multiple_sources and has_patterns:
+        if mon_rate > 0.7 and platform_count >= 3:
+            phase = "monetization_density_optimization"
+        elif account_count >= 5 or platform_count >= 3:
+            phase = "aggressive_expansion"
+        else:
+            phase = "high_yield_scaling"
+    elif has_patterns and not has_multiple_sources:
+        phase = "channel_diversification"
+    elif has_revenue and has_patterns:
+        phase = "portfolio_compounding"
     else:
-        phase = "optimizing"
+        phase = "risk_managed_scale"
 
     # ── Platform strategy ──
     platform_plan = []
@@ -246,50 +276,60 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
 
     # ── Account archetype strategy ──
     archetype_plan = []
-    if phase in ("cold_start", "warmup"):
+    # ── Archetype strategy — derived from current operating signals ──
+    if not has_revenue:
         archetype_plan = [
-            {"archetype": "authority_educator", "count": 2, "purpose": "Build trust and audience"},
-            {"archetype": "affiliate_closer", "count": 1, "purpose": "Start monetization early"},
+            {"archetype": "authority_educator", "count": 2, "purpose": "Build trust and audience before monetization"},
+            {"archetype": "affiliate_closer", "count": 1, "purpose": "Prepare for first revenue signal"},
         ]
-    elif phase in ("pre_monetization", "early_monetization"):
+    elif not has_multiple_sources:
         archetype_plan = [
-            {"archetype": "affiliate_closer", "count": 2, "purpose": "Drive affiliate revenue"},
-            {"archetype": "authority_educator", "count": 1, "purpose": "Audience growth"},
-            {"archetype": "sponsor_magnet", "count": 1, "purpose": "Attract sponsor deals"},
+            {"archetype": "affiliate_closer", "count": 2, "purpose": "Proven revenue — scale it"},
+            {"archetype": "authority_educator", "count": 1, "purpose": "Continue audience growth"},
+            {"archetype": "sponsor_magnet", "count": 1, "purpose": "Open second revenue source"},
         ]
     else:
         archetype_plan = [
-            {"archetype": "affiliate_closer", "count": 3, "purpose": "Maximize affiliate revenue"},
-            {"archetype": "sponsor_magnet", "count": 2, "purpose": "Sponsor deal flow"},
-            {"archetype": "product_seller", "count": 1, "purpose": "Digital product revenue"},
-            {"archetype": "services_consultant", "count": 1, "purpose": "High-ticket service revenue"},
+            {"archetype": "affiliate_closer", "count": 3, "purpose": "Scale the proven conversion model"},
+            {"archetype": "sponsor_magnet", "count": 2, "purpose": "Maximize deal flow"},
+            {"archetype": "product_seller", "count": 1, "purpose": "Add digital product revenue"},
+            {"archetype": "services_consultant", "count": 1, "purpose": "Add high-ticket service revenue"},
         ]
 
-    # ── Monetization timing ──
+    # ── Monetization timing — derived from operating constraints, not dollar bands ──
     monetization_plan = {
-        "affiliate_start": "immediate" if len(offers) > 0 else "after_first_offer_created",
-        "sponsor_start": "after_10k_total_followers" if total_followers < 10000 else "immediate",
-        "service_start": "after_first_5_content_pieces" if scan["content"]["published"] < 5 else "immediate",
-        "product_start": "after_stable_affiliate_revenue" if total_revenue < 2000 else "plan_now",
+        "affiliate": "active" if has_offers and has_content else "activate_when_first_offer_and_content_exist",
+        "sponsor": "active" if has_sponsor_activity else ("pursue_now" if has_audience and has_content else "build_audience_first"),
+        "service": "active" if has_revenue else ("pursue_now" if has_content else "build_content_portfolio_first"),
+        "product": "pursue_now" if has_patterns and has_revenue else "build_after_proven_monetization_patterns",
+        "lead_gen": "pursue_now" if has_audience and has_offers else "build_audience_and_offer_base_first",
     }
 
-    # ── Expansion triggers ──
+    # ── Expansion triggers — signal-based, not threshold-based ──
     expansion_triggers = [
-        {"trigger": "account_reaches_5k_followers", "action": "add_second_account_on_platform"},
-        {"trigger": "platform_revenue_exceeds_1k_month", "action": "scale_to_3_accounts"},
-        {"trigger": "affiliate_epc_above_2", "action": "create_more_content_for_offer"},
-        {"trigger": "sponsor_deal_closes", "action": "pursue_renewal_and_similar_sponsors"},
-        {"trigger": "content_format_wins_3x", "action": "double_output_in_that_format"},
-        {"trigger": "platform_traction_gaining", "action": "increase_posting_frequency"},
-        {"trigger": "platform_traction_losing", "action": "reduce_frequency_and_adapt"},
+        {"trigger": "account_audience_growing_consistently", "action": "add_parallel_account_on_same_platform", "signal": "follower growth rate > 0"},
+        {"trigger": "platform_producing_revenue", "action": "scale_account_count_on_platform", "signal": "any ledger revenue from this platform"},
+        {"trigger": "offer_epc_above_portfolio_average", "action": "create_more_content_for_this_offer", "signal": "offer outperforms the average"},
+        {"trigger": "sponsor_deal_completed_successfully", "action": "pursue_renewal_and_similar_sponsors", "signal": "deal status = completed"},
+        {"trigger": "content_format_wins_repeatedly", "action": "double_output_in_winning_format", "signal": "3+ winning pattern instances"},
+        {"trigger": "platform_traction_gaining", "action": "increase_posting_frequency_and_offer_density", "signal": "14d vs prior 14d impression growth > 0"},
+        {"trigger": "platform_traction_losing", "action": "reduce_frequency_adapt_format_or_pivot", "signal": "14d vs prior 14d impression decline"},
+        {"trigger": "new_revenue_source_proven", "action": "expand_that_source_to_more_accounts", "signal": "first ledger entry for a new source type"},
+        {"trigger": "monetization_density_below_portfolio_average", "action": "attach_offers_to_unmonetized_content", "signal": "published content without offers"},
+        {"trigger": "revenue_per_follower_improving", "action": "scale_audience_acquisition_aggressively", "signal": "rev/follower ratio increasing quarter over quarter"},
     ]
 
-    # ── Suppress decisions ──
+    # ── Suppress decisions — based on relative underperformance, not fixed thresholds ──
     suppress_list = []
+    avg_rev_per_account = total_revenue / len(accounts) if accounts else 0
+    avg_content_per_account = scan["content"]["total"] / len(accounts) if accounts else 0
     for a in accounts:
-        if a["revenue"] == 0 and a["content_count"] > 10 and a["followers"] < 500:
+        # Suppress if: has content but produces zero revenue AND is below average on all metrics
+        if (a["revenue"] == 0 and a["content_count"] > max(5, avg_content_per_account)
+                and a["followers"] < (total_followers / max(len(accounts), 1)) * 0.2):
             suppress_list.append({"account_id": a["id"], "platform": a["platform"],
-                                   "reason": "Zero revenue after 10+ content pieces with <500 followers"})
+                                   "reason": f"Zero revenue after {a['content_count']} content pieces, "
+                                             f"audience far below portfolio average"})
     for p in patterns.get("losing", []):
         suppress_list.append({"pattern": p["name"], "type": p["type"],
                                "reason": f"Losing pattern (fail_score: {p['score']:.2f})"})
@@ -300,8 +340,8 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
         immediate_actions.append(f"Attach offers to {scan['content']['unmonetized']} unmonetized published content")
     if len(offers) == 0:
         immediate_actions.append("Create first affiliate offer — this is blocking all monetization")
-    if scan["sponsors"]["active_deals"] == 0 and total_followers > 10000:
-        immediate_actions.append("Identify and outreach first 5 sponsor targets")
+    if scan["sponsors"]["active_deals"] == 0 and has_audience and has_content:
+        immediate_actions.append("Identify and outreach sponsor targets — audience and content portfolio exist")
     if scan["actions_pending"] > 5:
         immediate_actions.append(f"Process {scan['actions_pending']} pending actions in the control layer")
     if not immediate_actions:
@@ -343,61 +383,96 @@ async def get_gm_directive(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     phase = blueprint["current_phase"]
     summary = blueprint["scan_summary"]
 
-    # Build the directive based on current phase
-    if phase == "cold_start":
-        directive = {
-            "headline": "COLD START — Build the Foundation",
-            "priority_1": "Create 2-3 creator accounts on your highest-priority platforms",
-            "priority_2": "Create your first affiliate offer (this unlocks monetization)",
-            "priority_3": "Produce first 5 content pieces to establish presence",
-            "risk_warning": "Do not try to monetize before establishing content quality and audience",
-            "timeline": "Weeks 1-4: account creation + warmup. Weeks 5-8: content ramping. Week 9+: first monetization.",
-        }
-    elif phase == "warmup":
-        directive = {
-            "headline": "WARMUP PHASE — Build Audience Before Monetizing",
-            "priority_1": f"Continue content output on {len(blueprint['platform_plan'])} platforms",
-            "priority_2": "Focus on engagement quality over follower count",
-            "priority_3": "Prepare affiliate offers for activation when audience is ready",
-            "risk_warning": "Premature monetization kills audience trust. Wait for organic traction.",
-            "timeline": "Continue warmup until 5K+ followers on primary platform, then begin monetization.",
-        }
-    elif phase == "pre_monetization":
-        directive = {
-            "headline": "PRE-MONETIZATION — Audience Ready, Begin Revenue Activation",
-            "priority_1": f"Attach offers to {summary['total_content']} existing content pieces",
-            "priority_2": "Launch first affiliate campaigns on top-performing content",
-            "priority_3": "Begin outreach to first 5 sponsor targets",
-            "risk_warning": "Start with soft monetization (affiliate links) before aggressive sells",
-            "timeline": "Weeks 1-2: offer attachment. Weeks 3-4: first revenue. Month 2: sponsor outreach.",
-        }
-    elif phase == "early_monetization":
-        directive = {
-            "headline": f"EARLY MONETIZATION — ${summary['total_revenue_90d']:,.0f} Revenue, Scaling Up",
-            "priority_1": "Double down on winning content/offer combinations",
-            "priority_2": "Expand to additional platforms per the blueprint",
-            "priority_3": "Close first sponsor deal to diversify revenue",
-            "risk_warning": "Don't over-optimize for one revenue source. Diversify.",
-            "timeline": "Target $5K/month within 60 days. Add sponsor revenue within 90 days.",
-        }
-    elif phase == "scaling":
-        directive = {
-            "headline": f"SCALING PHASE — ${summary['total_revenue_90d']:,.0f}/90d, Push for Maximum",
-            "priority_1": "Scale winning accounts to 2-3 per platform",
-            "priority_2": "Add high-ticket service revenue alongside affiliate",
-            "priority_3": "Launch digital products from winning content patterns",
-            "risk_warning": "Monitor saturation and fatigue. Suppress underperformers aggressively.",
-            "timeline": "Target $25K/month. Diversify across 3+ revenue sources.",
-        }
-    else:
-        directive = {
-            "headline": f"OPTIMIZATION — ${summary['total_revenue_90d']:,.0f}/90d, Maximize Efficiency",
-            "priority_1": "Optimize monetization mix for maximum margin",
-            "priority_2": "Expand to adjacent niches with proven patterns",
-            "priority_3": "Build recurring/subscription revenue for durability",
-            "risk_warning": "At scale, the biggest risk is platform dependence. Diversify.",
-            "timeline": "Continuous optimization. Monthly strategy reviews.",
-        }
+    # Build the directive from OPERATING REALITY, not canned dollar bands
+    phase_directives = {
+        "cold_start": {
+            "headline": "COLD START — No assets exist. Build the machine's foundation now.",
+            "priority_1": "Create accounts on the highest-priority platforms for this niche",
+            "priority_2": "Create your first monetizable offer (affiliate, service, or product)",
+            "priority_3": "Begin content production immediately — content is the fuel",
+            "risk_warning": "Speed matters. The machine generates zero value with zero assets.",
+        },
+        "signal_formation": {
+            "headline": "SIGNAL FORMATION — Accounts exist but no content published yet.",
+            "priority_1": "Produce and publish content as fast as quality allows",
+            "priority_2": "Test multiple content formats to find what gets traction",
+            "priority_3": "Prepare offers for immediate attachment once content is live",
+            "risk_warning": "Do not wait for perfection. Publish, measure, iterate.",
+        },
+        "warmup": {
+            "headline": "WARMUP — Content exists but no revenue signal yet.",
+            "priority_1": "Attach offers to all published content that lacks monetization",
+            "priority_2": "Increase content velocity — more output means faster signal",
+            "priority_3": "Begin sponsor/service outreach in parallel — don't wait for affiliate revenue",
+            "risk_warning": "If content exists without monetization, every impression is wasted revenue.",
+        },
+        "proof_of_monetization": {
+            "headline": "PROOF OF MONETIZATION — Offers live, awaiting first conversion.",
+            "priority_1": "Analyze which content/offer/platform combinations are getting clicks",
+            "priority_2": "Optimize CTAs and offer placement on highest-traffic content",
+            "priority_3": "Begin sponsor outreach — audience + content portfolio = sponsor-ready",
+            "risk_warning": "First revenue is the hardest. Push through — once proven, the model compounds.",
+        },
+        "repeatable_monetization": {
+            "headline": "REPEATABLE MONETIZATION — Revenue flowing, patterns forming. Push for diversification.",
+            "priority_1": "Identify and double down on the content/offer combinations that convert",
+            "priority_2": "Add a second revenue source (sponsor, service, or product) immediately",
+            "priority_3": "Scale content output in the winning formats and platforms",
+            "risk_warning": "Single-source revenue is fragile. Diversify NOW while momentum is building.",
+        },
+        "portfolio_compounding": {
+            "headline": "PORTFOLIO COMPOUNDING — Proven patterns active. Scale winners, suppress losers.",
+            "priority_1": "Apply winning patterns across all accounts and platforms",
+            "priority_2": "Suppress every losing pattern and underperforming offer aggressively",
+            "priority_3": "Add accounts on platforms where the model is proven",
+            "risk_warning": "Compounding works both ways. Suppress losers as aggressively as you scale winners.",
+        },
+        "channel_diversification": {
+            "headline": f"CHANNEL DIVERSIFICATION — Revenue proven but concentrated in one source.",
+            "priority_1": "Activate the next highest-potential revenue source per the blueprint",
+            "priority_2": "Expand to platforms where the niche has untapped audience",
+            "priority_3": "Begin sponsor/service pipeline if not yet active",
+            "risk_warning": "Revenue concentration is the #1 scaling risk. Diversify before scaling harder.",
+        },
+        "high_yield_scaling": {
+            "headline": f"HIGH-YIELD SCALING — Multiple revenue sources, patterns proven, scaling up.",
+            "priority_1": "Scale winning accounts — more content, more offers, more platforms",
+            "priority_2": "Launch high-ticket monetization (services, products, premium sponsors)",
+            "priority_3": "Automate everything that can be automated — the machine should handle it",
+            "risk_warning": "Monitor saturation per platform. Scale means nothing if engagement collapses.",
+        },
+        "aggressive_expansion": {
+            "headline": "AGGRESSIVE EXPANSION — {account_count} accounts, {platform_count} platforms, pushing maximum.",
+            "priority_1": "Replicate winning models to new accounts and adjacent niches",
+            "priority_2": "Maximize monetization density — every content piece should earn",
+            "priority_3": "Build recurring/subscription revenue for portfolio durability",
+            "risk_warning": "At this scale, operational efficiency matters as much as revenue. Automate aggressively.",
+        },
+        "monetization_density_optimization": {
+            "headline": "MONETIZATION DENSITY — optimizing yield per asset.",
+            "priority_1": "Optimize the revenue per content piece across all platforms",
+            "priority_2": "Test pricing, packaging, and bundling on top-performing offers",
+            "priority_3": "Build owned audience channels (email, community) for highest-yield monetization",
+            "risk_warning": "The goal is not more content — it's more revenue per content piece.",
+        },
+        "risk_managed_scale": {
+            "headline": f"RISK-MANAGED SCALE — Scaling with governance and risk controls active.",
+            "priority_1": "Continue scaling highest-yield paths while monitoring risk signals",
+            "priority_2": "Ensure platform diversification prevents single-point-of-failure",
+            "priority_3": "Build moat: owned audience, proprietary data, exclusive deals",
+            "risk_warning": "Scale without risk management is gambling. The GM watches both.",
+        },
+    }
+
+    # Resolve dynamic values in the selected directive
+    raw = phase_directives.get(phase, phase_directives["risk_managed_scale"])
+    # Replace template variables with actual values from summary
+    directive = {}
+    for k, v in raw.items():
+        if isinstance(v, str):
+            v = v.replace("{account_count}", str(summary.get("total_accounts", 0)))
+            v = v.replace("{platform_count}", str(len(blueprint.get("platform_plan", []))))
+        directive[k] = v
 
     directive["phase"] = phase
     directive["immediate_actions"] = blueprint["immediate_actions"]
@@ -444,14 +519,18 @@ async def get_gm_status(db: AsyncSession, brand_id: uuid.UUID) -> dict:
 
 
 def _status_line(health: float, revenue: float, followers: int, accounts: int) -> str:
+    """Status line derived from operating signals, not dollar bands."""
     if accounts == 0:
-        return "No accounts configured. Create your first account to begin."
-    if followers < 1000:
-        return "Warmup phase. Building initial audience. Focus on content quality."
+        return "No accounts configured. The machine has no assets to work with."
+    if followers == 0:
+        return f"{accounts} accounts created. Building initial audience. Push content now."
     if revenue == 0:
-        return f"{followers:,} followers, no revenue yet. Time to activate monetization."
-    if revenue < 1000:
-        return f"Early revenue: ${revenue:,.0f}/90d. Scaling opportunity detected."
-    if revenue < 10000:
-        return f"Growing: ${revenue:,.0f}/90d. Double down on winners, suppress losers."
-    return f"Strong: ${revenue:,.0f}/90d. Optimize mix, expand platforms, push for scale."
+        return f"{followers:,} followers across {accounts} accounts. No revenue yet — monetization activation needed."
+    # Dynamic: describe revenue relative to portfolio capacity
+    rev_per_follower = revenue / followers if followers > 0 else 0
+    rev_per_account = revenue / accounts if accounts > 0 else 0
+    if rev_per_follower < 0.01:
+        return f"${revenue:,.0f}/90d — low yield per follower. Monetization density needs improvement."
+    if rev_per_follower < 0.05:
+        return f"${revenue:,.0f}/90d — moderate yield. Scale winning paths, suppress weak ones."
+    return f"${revenue:,.0f}/90d — strong yield ({rev_per_follower:.3f}/follower). Push for maximum scale."
