@@ -102,6 +102,64 @@ async def get_portfolio_overview(db: AsyncSession, org_id: uuid.UUID) -> dict:
     }
 
 
+async def compute_portfolio_allocation(db: AsyncSession, org_id: uuid.UUID) -> dict:
+    """Deep portfolio allocator: computes % effort allocation per brand.
+
+    Ranks by marginal return and outputs actual allocation percentages,
+    not just scale/maintain labels.
+    """
+    overview = await get_portfolio_overview(db, org_id)
+    brands = overview["brands"]
+    total_rev = overview["total_revenue_90d"]
+
+    if not brands:
+        return {"allocations": [], "total_brands": 0}
+
+    # Compute marginal return score per brand
+    for b in brands:
+        rev = b["revenue_90d"]
+        accounts = max(b["accounts"], 1)
+        followers = max(b["followers"], 1)
+
+        # Marginal return: revenue efficiency × growth potential
+        efficiency = rev / accounts  # Revenue per account
+        yield_rate = rev / followers  # Revenue per follower
+        content_velocity = b["published_content"] / max(accounts, 1)  # Content per account
+        monetization_depth = 1.0 if b["active_offers"] > 0 and rev > 0 else 0.5 if b["active_offers"] > 0 else 0.2
+
+        b["marginal_score"] = round(
+            0.35 * min(1.0, efficiency / max(total_rev / max(len(brands), 1), 1)) +
+            0.25 * min(1.0, yield_rate * 100) +
+            0.20 * min(1.0, content_velocity / 5) +
+            0.20 * monetization_depth,
+            3
+        )
+
+    # Normalize to percentage allocation
+    total_score = sum(b["marginal_score"] for b in brands) or 1
+    allocations = []
+    for b in brands:
+        pct = round(b["marginal_score"] / total_score * 100, 1)
+        allocations.append({
+            "brand_id": b["brand_id"],
+            "name": b["name"],
+            "allocation_pct": pct,
+            "marginal_score": b["marginal_score"],
+            "revenue_90d": b["revenue_90d"],
+            "accounts": b["accounts"],
+            "directive": "scale_aggressively" if pct > 40 else "scale" if pct > 25 else "maintain" if pct > 10 else "reduce_or_pause",
+        })
+
+    allocations.sort(key=lambda a: a["allocation_pct"], reverse=True)
+
+    return {
+        "allocations": allocations,
+        "total_brands": len(brands),
+        "total_revenue_90d": total_rev,
+        "concentration_risk": round(max(a["allocation_pct"] for a in allocations) / 100, 2) if allocations else 0,
+    }
+
+
 def _portfolio_directive(brands: list, total_rev: float) -> str:
     if not brands:
         return "No brands configured. Create your first brand to begin."

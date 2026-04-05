@@ -37,6 +37,12 @@ async def portfolio_overview(current_user: CurrentUser, db: DBSession):
     return await portfolio_gm.get_portfolio_overview(db, current_user.organization_id)
 
 
+@router.get("/gm/portfolio-allocation")
+async def portfolio_allocation(current_user: CurrentUser, db: DBSession):
+    """Deep portfolio allocator — % effort allocation per brand by marginal return."""
+    return await portfolio_gm.compute_portfolio_allocation(db, current_user.organization_id)
+
+
 @router.get("/gm/status")
 async def gm_status(current_user: CurrentUser, db: DBSession, brand_id: uuid.UUID = Query(...)):
     """Quick status check — health, metrics, status line."""

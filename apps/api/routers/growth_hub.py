@@ -53,6 +53,36 @@ async def auto_create_brief(current_user: OperatorUser, db: DBSession,
     await db.commit()
     return result
 
+# ── Reply Ingestion ──
+@router.post("/growth/ingest-reply")
+async def ingest_email_reply(
+    current_user: OperatorUser, db: DBSession,
+    sender_email: str = Query(...), subject: str = Query(""), body: str = Query(""),
+    brand_id: uuid.UUID = Query(None),
+):
+    """Ingest an email reply: classify, match to deal, advance stage, create action."""
+    from apps.api.services.reply_ingestion import ingest_reply
+    result = await ingest_reply(db, current_user.organization_id,
+                                 sender_email=sender_email, subject=subject, body=body,
+                                 brand_id=brand_id)
+    await db.commit()
+    return result
+
+
+@router.post("/growth/poll-inbox")
+async def poll_inbox(current_user: OperatorUser, db: DBSession):
+    """Poll IMAP inbox for unread replies. Requires IMAP credentials."""
+    from apps.api.services.reply_ingestion import poll_imap_inbox
+    return await poll_imap_inbox(db, current_user.organization_id)
+
+
+@router.post("/growth/classify-reply")
+async def classify_only(subject: str = Query(""), body: str = Query("")):
+    """Classify a reply without ingesting (for testing)."""
+    from apps.api.services.reply_ingestion import classify_reply
+    return classify_reply(subject, body)
+
+
 # ── Audience Growth ──
 @router.get("/growth/audience-expansion")
 async def get_audience_expansion(current_user: CurrentUser, db: DBSession, brand_id: uuid.UUID = Query(...)):
@@ -107,6 +137,16 @@ async def surface_service_actions(current_user: OperatorUser, db: DBSession, bra
     actions = await surface_service_actions(db, current_user.organization_id, brand_id)
     await db.commit()
     return {"actions_created": len(actions), "actions": actions}
+
+# ── Parallel Content Pipeline ──
+@router.post("/growth/generate-batch")
+async def generate_batch(current_user: OperatorUser, db: DBSession, brand_id: uuid.UUID = Query(...)):
+    """Generate scripts for all draft briefs in parallel (up to 10 concurrent)."""
+    from apps.api.services.parallel_pipeline import generate_batch
+    result = await generate_batch(db, brand_id)
+    await db.commit()
+    return result
+
 
 # ── Quality Feedback Loop ──
 @router.post("/growth/quality-feedback")
