@@ -79,7 +79,6 @@ async def create_session(
         organization_id=current_user.organization_id,
         user_id=current_user.id,
         title=body.title,
-        machine_phase=state["machine_phase"],
     )
     db.add(session)
     await db.flush()
@@ -131,7 +130,6 @@ async def create_session(
         "session": {
             "id": str(session.id),
             "title": session.title,
-            "machine_phase": state["machine_phase"],
         },
         "initial_message": {
             "id": str(gm_message.id),

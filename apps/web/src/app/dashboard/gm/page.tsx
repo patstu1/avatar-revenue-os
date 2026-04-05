@@ -32,8 +32,6 @@ interface GMMessage {
 }
 
 interface MachineState {
-  machine_phase: string;
-  readiness_score: number;
   providers: { configured: number; has_llm: boolean; has_publishing: boolean };
   brands: { count: number };
   accounts: { count: number; by_platform: Record<string, number> };
@@ -46,30 +44,13 @@ interface MachineState {
 /*  Phase Badge                                                       */
 /* ------------------------------------------------------------------ */
 
-const PHASE_CONFIG: Record<string, { label: string; color: string }> = {
-  pre_ignition: { label: 'Pre-Ignition', color: 'text-gray-400 bg-gray-800' },
-  configuring: { label: 'Configuring', color: 'text-amber-300 bg-amber-900/30' },
-  first_launch: { label: 'First Launch', color: 'text-cyan-300 bg-cyan-900/30' },
-  warmup: { label: 'Warmup', color: 'text-blue-300 bg-blue-900/30' },
-  scaling: { label: 'Scaling', color: 'text-green-300 bg-green-900/30' },
-  portfolio_compounding: { label: 'Compounding', color: 'text-purple-300 bg-purple-900/30' },
-};
-
 /* ------------------------------------------------------------------ */
-/*  Machine State Bar                                                 */
+/*  Machine State Bar — factual counts only, no gates                 */
 /* ------------------------------------------------------------------ */
 
 function MachineStateBar({ state }: { state: MachineState }) {
-  const phase = PHASE_CONFIG[state.machine_phase] || PHASE_CONFIG.pre_ignition;
-
   return (
     <div className="bg-gray-900/80 border border-gray-800/60 rounded-xl px-5 py-3 flex items-center gap-6 text-xs">
-      <div className="flex items-center gap-2">
-        <div className={`w-2 h-2 rounded-full ${state.readiness_score > 50 ? 'bg-green-400' : state.readiness_score > 0 ? 'bg-amber-400' : 'bg-red-400'}`} />
-        <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${phase.color}`}>
-          {phase.label}
-        </span>
-      </div>
       <div className="flex items-center gap-1 text-gray-400">
         <Cpu size={12} /> <span>{state.providers.configured} providers</span>
       </div>
@@ -81,10 +62,6 @@ function MachineStateBar({ state }: { state: MachineState }) {
       </div>
       <div className="flex items-center gap-1 text-gray-400">
         <DollarSign size={12} /> <span>${state.revenue.total_90d.toFixed(0)}</span>
-      </div>
-      <div className="ml-auto flex items-center gap-1 text-gray-500">
-        <Shield size={12} />
-        <span>{state.readiness_score}% ready</span>
       </div>
     </div>
   );

@@ -174,40 +174,11 @@ async def get_machine_state(
         except Exception:
             pass
 
-    # --- Determine machine phase ---
-    if providers_configured == 0 and brand_count == 0:
-        machine_phase = "pre_ignition"
-    elif providers_configured > 0 and brand_count == 0:
-        machine_phase = "configuring"
-    elif brand_count > 0 and account_count == 0:
-        machine_phase = "configuring"
-    elif account_count > 0 and content_count == 0:
-        machine_phase = "first_launch"
-    elif content_count > 0 and total_revenue == 0:
-        machine_phase = "warmup"
-    elif total_revenue > 0 and total_revenue < 1000:
-        machine_phase = "scaling"
-    else:
-        machine_phase = "portfolio_compounding"
-
-    # --- Readiness score ---
-    readiness = 0
-    if providers_configured > 0:
-        readiness += 20
-    if brand_count > 0:
-        readiness += 20
-    if account_count > 0:
-        readiness += 20
-    if offer_count > 0:
-        readiness += 15
-    if has_publishing:
-        readiness += 15
-    if content_count > 0:
-        readiness += 10
+    # --- Machine state summary (factual, no gates) ---
+    # These are pure factual counts for the GM to reason from.
+    # The GM decides what phase the machine is in, not this code.
 
     return {
-        "machine_phase": machine_phase,
-        "readiness_score": readiness,
         "providers": {
             "configured": providers_configured,
             "list": provider_list,
@@ -326,7 +297,7 @@ async def revise_blueprint(
 ## OPERATOR FEEDBACK
 {operator_feedback}
 
-Revise the blueprint to incorporate this feedback while maintaining maximum-ceiling revenue optimization.
+Revise the blueprint to incorporate this feedback.
 """
     messages.append({"role": "user", "content": revision_context})
 
@@ -497,7 +468,7 @@ async def execute_blueprint_step(
                 platform_username=acct.get("username", f"user_{uuid.uuid4().hex[:6]}"),
                 niche_focus=acct.get("niche", ""),
                 scale_role=acct.get("role", "experimental"),
-                posting_capacity_per_day=acct.get("posting_capacity", 2),
+                posting_capacity_per_day=acct.get("posting_capacity", 1),
             )
             db.add(account)
             results.append(f"Created {platform_str} account: @{acct.get('username', '?')}")
