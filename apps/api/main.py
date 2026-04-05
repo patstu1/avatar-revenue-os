@@ -84,6 +84,7 @@ from apps.api.routers import (
     orchestration_hub,
     governance_hub,
     revenue_maximizer,
+    growth_hub,
 )
 
 settings = get_settings()
@@ -252,3 +253,4 @@ app.include_router(monetization_hub.router, prefix="/api/v1", tags=["Monetizatio
 app.include_router(orchestration_hub.router, prefix="/api/v1", tags=["Orchestration Hub: Jobs, Workers, Providers"])
 app.include_router(governance_hub.router, prefix="/api/v1", tags=["Governance Hub: Approvals, Permissions, Memory"])
 app.include_router(revenue_maximizer.router, prefix="/api/v1", tags=["Revenue Maximizer: Maximum Revenue Engine"])
+app.include_router(growth_hub.router, prefix="/api/v1", tags=["Growth Hub: Audience, Sponsors, Services, Quality, Adaptation"])
