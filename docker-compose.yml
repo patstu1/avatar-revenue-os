@@ -87,18 +87,55 @@ services:
       API_CORS_ORIGINS: ${API_CORS_ORIGINS}
       API_ENV: ${API_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # --- LLM / Text AI ---
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
-      TAVUS_API_KEY: ${TAVUS_API_KEY:-}
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      # --- Image ---
+      FAL_API_KEY: ${FAL_API_KEY:-}
+      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
+      # --- Video ---
+      RUNWAY_API_KEY: ${RUNWAY_API_KEY:-}
+      KLING_API_KEY: ${KLING_API_KEY:-}
+      # --- Avatar ---
       HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
-      SENTRY_DSN: ${SENTRY_DSN:-}
+      DID_API_KEY: ${DID_API_KEY:-}
+      TAVUS_API_KEY: ${TAVUS_API_KEY:-}
+      # --- Voice / Music ---
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      FISH_AUDIO_API_KEY: ${FISH_AUDIO_API_KEY:-}
+      MUBERT_API_KEY: ${MUBERT_API_KEY:-}
+      # --- Publishing ---
+      BUFFER_API_KEY: ${BUFFER_API_KEY:-}
+      PUBLER_API_KEY: ${PUBLER_API_KEY:-}
+      AYRSHARE_API_KEY: ${AYRSHARE_API_KEY:-}
+      # --- Analytics ---
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      YOUTUBE_OAUTH_TOKEN: ${YOUTUBE_OAUTH_TOKEN:-}
+      TIKTOK_ACCESS_TOKEN: ${TIKTOK_ACCESS_TOKEN:-}
+      INSTAGRAM_ACCESS_TOKEN: ${INSTAGRAM_ACCESS_TOKEN:-}
+      # --- Payments ---
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      CLICKBANK_API_KEY: ${CLICKBANK_API_KEY:-}
+      # --- Email / IMAP ---
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
+      IMAP_HOST: ${IMAP_HOST:-}
+      IMAP_USER: ${IMAP_USER:-}
+      IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+      # --- Notifications ---
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
       SMS_API_KEY: ${SMS_API_KEY:-}
       OPERATOR_NOTIFY_EMAIL: ${OPERATOR_NOTIFY_EMAIL:-}
+      # --- Monitoring ---
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - .:/app
     healthcheck:
@@ -136,18 +173,56 @@ services:
       REDIS_URL: ${REDIS_URL}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      # --- LLM / Text AI ---
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
-      TAVUS_API_KEY: ${TAVUS_API_KEY:-}
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      # --- Image ---
+      FAL_API_KEY: ${FAL_API_KEY:-}
+      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
+      # --- Video ---
+      RUNWAY_API_KEY: ${RUNWAY_API_KEY:-}
+      KLING_API_KEY: ${KLING_API_KEY:-}
+      # --- Avatar ---
       HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DID_API_KEY: ${DID_API_KEY:-}
+      TAVUS_API_KEY: ${TAVUS_API_KEY:-}
+      # --- Voice / Music ---
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      FISH_AUDIO_API_KEY: ${FISH_AUDIO_API_KEY:-}
+      MUBERT_API_KEY: ${MUBERT_API_KEY:-}
+      # --- Publishing ---
+      BUFFER_API_KEY: ${BUFFER_API_KEY:-}
+      PUBLER_API_KEY: ${PUBLER_API_KEY:-}
+      AYRSHARE_API_KEY: ${AYRSHARE_API_KEY:-}
+      # --- Analytics ---
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      YOUTUBE_OAUTH_TOKEN: ${YOUTUBE_OAUTH_TOKEN:-}
+      TIKTOK_ACCESS_TOKEN: ${TIKTOK_ACCESS_TOKEN:-}
+      INSTAGRAM_ACCESS_TOKEN: ${INSTAGRAM_ACCESS_TOKEN:-}
+      # --- Payments ---
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      CLICKBANK_API_KEY: ${CLICKBANK_API_KEY:-}
+      # --- Email / IMAP ---
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
+      IMAP_HOST: ${IMAP_HOST:-}
+      IMAP_USER: ${IMAP_USER:-}
+      IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+      # --- Notifications ---
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
       SMS_API_KEY: ${SMS_API_KEY:-}
       OPERATOR_NOTIFY_EMAIL: ${OPERATOR_NOTIFY_EMAIL:-}
+      # --- Misc ---
+      API_SECRET_KEY: ${API_SECRET_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - .:/app
     healthcheck:

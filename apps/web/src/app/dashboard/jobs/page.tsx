@@ -23,7 +23,7 @@ type OrchState = {
   jobs_by_status: Record<string, number>;
   jobs_by_queue: Record<string, number>;
   running_jobs: Array<{ id: string; job_name: string; queue: string; started_at?: string; retries: number }>;
-  recent_failures: Array<{ id: string; job_name: string; queue: string; error_message: string; retries: number; completed_at?: string }>;
+  recent_failures: Array<{ id: string; job_name: string; queue: string; error_message: string; retries: number; max_retries?: number; completed_at?: string }>;
   throughput: {
     completed_1h: number;
     completed_24h: number;

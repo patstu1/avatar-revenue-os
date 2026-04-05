@@ -53,6 +53,39 @@ class Settings(BaseSettings):
     mistral_api_key: str = ""        # Voxtral: bulk voice
     suno_api_key: str = ""           # Suno: music
     tavus_api_key: str = ""          # Tavus: optional avatar
+    groq_api_key: str = ""           # Groq: bulk text
+    xai_api_key: str = ""            # xAI Grok
+    replicate_api_token: str = ""    # Replicate
+    kling_api_key: str = ""          # Kling: video
+
+    # Publishing
+    buffer_api_key: str = ""
+    publer_api_key: str = ""
+    ayrshare_api_key: str = ""
+
+    # Analytics / Trends
+    serpapi_key: str = ""
+    youtube_api_key: str = ""
+    youtube_oauth_token: str = ""
+    tiktok_access_token: str = ""
+    instagram_access_token: str = ""
+
+    # Affiliate
+    clickbank_api_key: str = ""
+    mubert_api_key: str = ""
+
+    # Email
+    imap_host: str = ""
+    imap_user: str = ""
+    imap_password: str = ""
+
+    # Notifications
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_pass: str = ""
+    slack_webhook_url: str = ""
+    operator_notify_email: str = ""
 
     # S3
     s3_endpoint_url: str = ""

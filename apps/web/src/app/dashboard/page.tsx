@@ -615,33 +615,6 @@ export default function DashboardOverviewPage() {
         </div>
       )}
 
-      {/* ---- (cleaned up legacy section) ---- */}
-      {false && ctrl?.intelligence && (
-        <div className="bg-gray-900/80 border border-gray-800/60 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <Zap size={16} className="text-purple-400" />
-            Intelligence Layer
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-400">{ctrl.intelligence.winning_patterns}</p>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Winning Patterns</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-cyan-400">{ctrl.intelligence.active_decisions}</p>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Active Decisions</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-amber-400">{ctrl.intelligence.active_experiments}</p>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Experiments</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-red-400">{ctrl.intelligence.active_suppressions}</p>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Suppressions</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ---- Two Column: Actions + Events ---- */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
