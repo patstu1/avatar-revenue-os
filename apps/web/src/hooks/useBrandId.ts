@@ -18,8 +18,11 @@ export function useBrandId(): string | null {
     let cancelled = false;
     (async () => {
       try {
-        const res = await api.get<{ items: { id: string }[] }>('/api/v1/brands/', { params: { page: 1 } });
-        const first = res.data?.items?.[0];
+        const res = await api.get('/api/v1/brands/', { params: { page: 1 } });
+        const data = res.data;
+        // Handle both array response and {items: [...]} response
+        const brands = Array.isArray(data) ? data : data?.items ?? [];
+        const first = brands[0];
         if (!cancelled && first?.id) {
           setSelectedBrandId(first.id);
         }
