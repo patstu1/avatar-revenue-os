@@ -1,6 +1,7 @@
 """AI Avatar Revenue OS — FastAPI Application."""
 import logging
 import os
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
@@ -92,6 +93,7 @@ from apps.api.routers import (
     portfolio_command,
     integrations_dashboard,
     oauth,
+    ops,
 )
 
 settings = get_settings()
@@ -114,6 +116,37 @@ logger = structlog.get_logger()
 
 _is_dev = settings.api_env == "development"
 
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Startup: seed provider registry from env vars for all organizations."""
+    try:
+        from packages.db.session import async_session_factory
+        from apps.api.services import provider_registry_service as prs
+        from sqlalchemy import select, text
+
+        async with async_session_factory() as db:
+            # Get all organizations
+            result = await db.execute(text("SELECT id FROM organizations LIMIT 100"))
+            org_ids = [row[0] for row in result.fetchall()]
+
+            if org_ids:
+                # Get first brand per org to run audit (provider registry is global but needs a brand_id)
+                result = await db.execute(text("SELECT id FROM brands LIMIT 1"))
+                row = result.fetchone()
+                if row:
+                    brand_id = row[0]
+                    await prs.audit_providers(db, brand_id)
+                    await db.commit()
+                    logger.info("provider_registry_seeded", brand_id=str(brand_id))
+            else:
+                logger.info("no_organizations_found_skipping_provider_seed")
+    except Exception as e:
+        logger.warning("provider_registry_seed_failed", error=str(e))
+
+    yield
+
+
 app = FastAPI(
     title="AI Avatar Revenue OS",
     description="Production-grade autonomous content monetization platform",
@@ -121,6 +154,7 @@ app = FastAPI(
     docs_url="/docs" if _is_dev else None,
     redoc_url="/redoc" if _is_dev else None,
     redirect_slashes=True,
+    lifespan=lifespan,
 )
 
 # --- Middleware (order matters: first added = outermost) ---
@@ -158,6 +192,7 @@ if settings.sentry_dsn:
 # --- Routers ---
 
 app.include_router(health.router, tags=["Health"])
+app.include_router(ops.router, tags=["Operations"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(organizations.router, prefix="/api/v1/organizations", tags=["Organizations"])
 app.include_router(brands.router, prefix="/api/v1/brands", tags=["Brands"])

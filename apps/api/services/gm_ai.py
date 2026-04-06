@@ -943,8 +943,11 @@ async def _exec_add_account(
         return {"status": "approval_required", "action_id": str(action.id)}
 
     from packages.db.enums import Platform, AccountType
+    _platform_aliases = {"x": "twitter", "twitter/x": "twitter", "x/twitter": "twitter"}
+    raw = params["platform"].lower().strip()
+    raw = _platform_aliases.get(raw, raw)
     try:
-        platform = Platform(params["platform"].lower())
+        platform = Platform(raw)
     except ValueError:
         platform = Platform.YOUTUBE
 

@@ -76,7 +76,7 @@ x-worker-healthcheck: &worker-healthcheck
   interval: 15s
   timeout: 5s
   retries: 5
-  start_period: 30s
+  start_period: 45s
 
 x-worker-depends: &worker-depends
   postgres:
@@ -201,10 +201,15 @@ services:
         reservations:
           cpus: "0.5"
           memory: 256M
+    ports:
+      - "8001:8000"
     networks:
       - aro-network
 
-  # ─── Celery Worker: Generation ─────────────────────────────────────────
+  # ─── Celery Worker: Generation (HEAVY — LLM + media dispatch) ─────────
+  # Rationale: generation tasks hold large LLM payloads and media configs
+  # in memory. Concurrency 2 prevents OOM with 1G limit. max-tasks-per-child
+  # forces child recycling to prevent memory leaks.
   worker-generation:
     build:
       context: .
@@ -213,8 +218,10 @@ services:
     restart: unless-stopped
     command: >
       sh -c 'rm -f /tmp/celery-worker.pid &&
+      echo "[worker-generation] Starting: queues=generation,pipeline concurrency=2 max-tasks=200" &&
       celery -A workers.celery_app worker
-      --loglevel=${LOG_LEVEL:-warning} --concurrency=4
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=2
+      --max-tasks-per-child=200
       --pidfile=/tmp/celery-worker.pid
       -n worker-generation@%h
       -Q generation,pipeline'
@@ -232,7 +239,9 @@ services:
     networks:
       - aro-network
 
-  # ─── Celery Worker: Publishing ─────────────────────────────────────────
+  # ─── Celery Worker: Publishing (MEDIUM — API calls, no heavy compute) ─
+  # Rationale: publishing tasks are I/O-bound (API uploads to Buffer,
+  # YouTube, etc). Concurrency 4 is safe. 512M is enough.
   worker-publishing:
     build:
       context: .
@@ -241,8 +250,10 @@ services:
     restart: unless-stopped
     command: >
       sh -c 'rm -f /tmp/celery-worker.pid &&
+      echo "[worker-publishing] Starting: queues=publishing,express_publishing concurrency=4 max-tasks=500" &&
       celery -A workers.celery_app worker
-      --loglevel=${LOG_LEVEL:-warning} --concurrency=8
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=4
+      --max-tasks-per-child=500
       --pidfile=/tmp/celery-worker.pid
       -n worker-publishing@%h
       -Q publishing,express_publishing'
@@ -260,7 +271,9 @@ services:
     networks:
       - aro-network
 
-  # ─── Celery Worker: Analytics ──────────────────────────────────────────
+  # ─── Celery Worker: Analytics (MEDIUM — DB reads + LLM scoring) ──────
+  # Rationale: analytics tasks do DB aggregation + some LLM calls for
+  # scoring. Concurrency 2 keeps memory manageable.
   worker-analytics:
     build:
       context: .
@@ -269,8 +282,10 @@ services:
     restart: unless-stopped
     command: >
       sh -c 'rm -f /tmp/celery-worker.pid &&
+      echo "[worker-analytics] Starting: queues=analytics,learning,strategy_adjustment concurrency=2 max-tasks=300" &&
       celery -A workers.celery_app worker
-      --loglevel=${LOG_LEVEL:-warning} --concurrency=4
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=2
+      --max-tasks-per-child=300
       --pidfile=/tmp/celery-worker.pid
       -n worker-analytics@%h
       -Q analytics,learning,strategy_adjustment'
@@ -281,14 +296,16 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 768M
         reservations:
           cpus: "0.25"
           memory: 128M
     networks:
       - aro-network
 
-  # ─── Celery Worker: Outreach ───────────────────────────────────────────
+  # ─── Celery Worker: Outreach (LIGHT — SMTP/IMAP, small payloads) ────
+  # Rationale: outreach tasks are email sends — lightweight. Concurrency 2
+  # is safe. 256M is plenty.
   worker-outreach:
     build:
       context: .
@@ -297,8 +314,10 @@ services:
     restart: unless-stopped
     command: >
       sh -c 'rm -f /tmp/celery-worker.pid &&
+      echo "[worker-outreach] Starting: queues=outreach concurrency=2 max-tasks=500" &&
       celery -A workers.celery_app worker
-      --loglevel=${LOG_LEVEL:-warning} --concurrency=4
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=2
+      --max-tasks-per-child=500
       --pidfile=/tmp/celery-worker.pid
       -n worker-outreach@%h
       -Q outreach'
@@ -316,7 +335,11 @@ services:
     networks:
       - aro-network
 
-  # ─── Celery Worker: Default (catch-all) ────────────────────────────────
+  # ─── Celery Worker: Default (catch-all — MANY queues, OOM risk) ──────
+  # Rationale: This worker handles 7 queues including brain (LLM-heavy)
+  # and mxp (complex scoring). Previous config was 8 concurrency / 1G =
+  # OOM on startup when brain+mxp tasks ran simultaneously.
+  # Fix: concurrency 3, 1.5G limit, max-tasks-per-child=150 for leak prevention.
   worker-default:
     build:
       context: .
@@ -325,8 +348,10 @@ services:
     restart: unless-stopped
     command: >
       sh -c 'rm -f /tmp/celery-worker.pid &&
+      echo "[worker-default] Starting: queues=default,brain,mxp,scale_alerts,notifications,monetization,repurposing concurrency=3 max-tasks=150" &&
       celery -A workers.celery_app worker
-      --loglevel=${LOG_LEVEL:-warning} --concurrency=8
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=3
+      --max-tasks-per-child=150
       --pidfile=/tmp/celery-worker.pid
       -n worker-default@%h
       -Q default,brain,mxp,scale_alerts,notifications,monetization,repurposing'
@@ -337,10 +362,10 @@ services:
       resources:
         limits:
           cpus: "2.0"
-          memory: 1G
+          memory: 1536M
         reservations:
           cpus: "0.5"
-          memory: 256M
+          memory: 384M
     networks:
       - aro-network
 

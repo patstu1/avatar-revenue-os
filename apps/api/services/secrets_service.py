@@ -3,6 +3,7 @@ import base64
 import hashlib
 import os
 import uuid
+from typing import Optional
 from datetime import datetime, timezone
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -87,7 +88,7 @@ async def save_key(
     organization_id: uuid.UUID,
     provider_name: str,
     api_key: str,
-    user_id: uuid.UUID | None = None,
+    user_id: Optional[uuid.UUID] = None,
 ) -> ProviderSecret:
     encrypted = encrypt_value(api_key)
     now = datetime.now(timezone.utc)
@@ -120,7 +121,7 @@ async def save_key(
 
 async def get_key(
     db: AsyncSession, organization_id: uuid.UUID, provider_name: str
-) -> str | None:
+) -> Optional[str]:
     stmt = select(ProviderSecret).where(
         ProviderSecret.organization_id == organization_id,
         ProviderSecret.provider_name == provider_name,

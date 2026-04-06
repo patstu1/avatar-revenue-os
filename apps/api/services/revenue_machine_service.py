@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Revenue Machine Service — The capstone operating model bridge.
 
 Gathers real DB data (credits, plans, telemetry, transactions, content,
