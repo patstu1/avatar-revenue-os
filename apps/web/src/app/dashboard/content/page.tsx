@@ -915,7 +915,7 @@ export default function ContentKanbanPage() {
     return KANBAN_COLUMNS.map((col) => ({
       column: col,
       items: filteredItems
-        .filter((item) => (col.statuses as string[]).includes(item.status))
+        .filter((item) => (col.statuses as readonly string[]).includes(item.status))
         .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()),
     }));
   }, [filteredItems]);
