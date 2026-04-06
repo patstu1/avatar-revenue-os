@@ -915,13 +915,13 @@ export default function ContentKanbanPage() {
     return KANBAN_COLUMNS.map((col) => ({
       column: col,
       items: filteredItems
-        .filter((item) => col.statuses.includes(item.status))
+        .filter((item) => (col.statuses as string[]).includes(item.status))
         .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()),
     }));
   }, [filteredItems]);
 
   // Items that don't fit any column (failed, rejected, etc.)
-  const allColumnStatuses = KANBAN_COLUMNS.flatMap((c) => c.statuses);
+  const allColumnStatuses: string[] = KANBAN_COLUMNS.flatMap((c) => c.statuses);
   const orphanedItems = filteredItems.filter((item) => !allColumnStatuses.includes(item.status));
 
   /* ---- Mutations ---- */
