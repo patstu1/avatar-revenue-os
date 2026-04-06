@@ -697,8 +697,13 @@ export default function RevenueIntelligencePage() {
     setLoadingForecast(true);
     setErrorForecast("");
     try {
-      const data = await apiFetch<ForecastData>(`/api/v1/brands/${brandId}/intelligence/forecast`);
-      setForecast(data);
+      const data = await apiFetch<ForecastData & { status?: string }>(`/api/v1/brands/${brandId}/intelligence/forecast`);
+      if (data?.status === "insufficient_data" || !data?.points) {
+        setForecast(null);
+        setErrorForecast("Not enough data yet — need at least 14 days of activity to generate forecasts.");
+      } else {
+        setForecast(data);
+      }
     } catch (e: any) {
       setErrorForecast(e.message || "Failed to load forecast");
     } finally {
