@@ -73,5 +73,6 @@ class MediaJob(Base):
 
     # ── Cost & timing ────────────────────────────────────────────────
     cost: Mapped[float] = mapped_column(Float, server_default="0", nullable=False)
+    dispatched_at: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     started_at: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     completed_at: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

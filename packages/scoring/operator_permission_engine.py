@@ -13,6 +13,7 @@ AUTONOMY_MODES = ["fully_autonomous", "autonomous_notify", "guarded_approval", "
 
 DEFAULT_POLICIES = {
     "content_generation": {"mode": "fully_autonomous", "approval_role": None, "override_role": "brand_admin"},
+    "publish": {"mode": "autonomous_notify", "approval_role": "brand_admin", "override_role": "org_admin"},
     "content_publish": {"mode": "autonomous_notify", "approval_role": "brand_admin", "override_role": "org_admin"},
     "campaign_launch": {"mode": "guarded_approval", "approval_role": "brand_admin", "override_role": "org_admin"},
     "campaign_suppress": {"mode": "autonomous_notify", "approval_role": None, "override_role": "brand_admin"},
