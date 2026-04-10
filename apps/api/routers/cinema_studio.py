@@ -5,11 +5,14 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from apps.api.deps import CurrentUser, DBSession, OperatorUser, require_brand_access
+from fastapi.responses import Response
+
 from apps.api.schemas.cinema_studio import (
     CharacterBibleCreate,
     CharacterBibleResponse,
     CharacterBibleUpdate,
     GenerationTrigger,
+    PortraitGenerationResponse,
     StudioActivityResponse,
     StudioDashboardStats,
     StudioGenerationResponse,
@@ -22,6 +25,8 @@ from apps.api.schemas.cinema_studio import (
     StylePresetCreate,
     StylePresetResponse,
     StylePresetUpdate,
+    VoiceGenerationRequest,
+    VoiceGenerationResponse,
 )
 from apps.api.services import cinema_studio_service as svc
 from apps.api.services.audit_service import log_action
@@ -286,6 +291,110 @@ async def delete_character(
         db, "studio_character.deleted", organization_id=current_user.organization_id,
         brand_id=brand_id, user_id=current_user.id, actor_type="human",
         entity_type="character_bible", entity_id=character_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Character Portrait Generation (real — GPT Image 1, gpt-image-1)
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/{brand_id}/studio/characters/{character_id}/generate-portrait",
+    response_model=PortraitGenerationResponse,
+)
+async def generate_portrait(
+    brand_id: uuid.UUID,
+    character_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Generate a photorealistic DSLR portrait for a character.
+
+    Uses OpenAI gpt-image-1 with Stori Studio-grade prompt engineering:
+    RAW photo, Sony A7R IV, 85mm f/1.4, Rembrandt lighting, 8K.
+    Result is persisted on the character's image_url field.
+    """
+    await require_brand_access(brand_id, current_user, db)
+    try:
+        char = await svc.generate_character_portrait(db, character_id, brand_id)
+    except ValueError as e:
+        _raise_for_svc_error(e)
+    await log_action(
+        db, "studio_portrait.generated", organization_id=current_user.organization_id,
+        brand_id=brand_id, user_id=current_user.id, actor_type="human",
+        entity_type="character_bible", entity_id=char.id,
+    )
+    return PortraitGenerationResponse(
+        character_id=char.id,
+        image_url=char.image_url,
+        prompt_used=svc._build_portrait_prompt(char),
+        provider="gpt-image-1",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Character Voice Generation (real — ElevenLabs TTS)
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/{brand_id}/studio/characters/{character_id}/generate-voice",
+    response_model=VoiceGenerationResponse,
+)
+async def generate_voice(
+    brand_id: uuid.UUID,
+    character_id: uuid.UUID,
+    body: VoiceGenerationRequest,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Generate speech audio for a character using ElevenLabs TTS.
+
+    Returns metadata about the generated audio. The audio bytes are
+    available at the /stream variant endpoint.
+    """
+    await require_brand_access(brand_id, current_user, db)
+    try:
+        result = await svc.generate_character_voice(
+            db, character_id, brand_id, text=body.text, voice_id=body.voice_id,
+        )
+    except ValueError as e:
+        _raise_for_svc_error(e)
+    await log_action(
+        db, "studio_voice.generated", organization_id=current_user.organization_id,
+        brand_id=brand_id, user_id=current_user.id, actor_type="human",
+        entity_type="character_bible", entity_id=character_id,
+    )
+    return VoiceGenerationResponse(
+        character_id=character_id,
+        character_name=result["character_name"],
+        voice_id=result["voice_id"],
+        char_count=result["char_count"],
+        content_type=result["content_type"],
+    )
+
+
+@router.post(
+    "/{brand_id}/studio/characters/{character_id}/generate-voice/stream",
+)
+async def generate_voice_stream(
+    brand_id: uuid.UUID,
+    character_id: uuid.UUID,
+    body: VoiceGenerationRequest,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Generate speech audio and return the raw audio/mpeg bytes."""
+    await require_brand_access(brand_id, current_user, db)
+    try:
+        result = await svc.generate_character_voice(
+            db, character_id, brand_id, text=body.text, voice_id=body.voice_id,
+        )
+    except ValueError as e:
+        _raise_for_svc_error(e)
+    return Response(
+        content=result["audio_bytes"],
+        media_type="audio/mpeg",
+        headers={"Content-Disposition": f"inline; filename=\"{character_id}_voice.mp3\""},
     )
 
 

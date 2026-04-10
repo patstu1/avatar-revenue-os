@@ -1,8 +1,50 @@
 """Celery application configuration with split queues and beat schedule."""
+import asyncio
 import os
 
 from celery import Celery
 from celery.schedules import crontab
+
+# ---------------------------------------------------------------------------
+# Patch asyncio.run for Celery workers: dispose async DB pool after each run.
+#
+# Problem: Workers call asyncio.run(some_async_task()). When the event loop
+# is destroyed, any asyncpg connections borrowed from the SQLAlchemy pool
+# are abandoned mid-transaction (the ROLLBACK never reaches postgres).
+# These pile up as "idle in transaction" on the postgres side.
+#
+# Fix: After each asyncio.run(), dispose the async engine's pool so all
+# connections are properly closed with ROLLBACK before the loop dies.
+# ---------------------------------------------------------------------------
+_original_asyncio_run = asyncio.run
+
+
+def _patched_asyncio_run(coro, **kwargs):
+    """asyncio.run replacement that reuses a persistent event loop.
+
+    Standard asyncio.run() creates and destroys a loop each time.
+    With asyncpg, destroying the loop orphans TCP connections mid-transaction
+    ('idle in transaction' on postgres). This patch reuses a single loop
+    per worker process so connections stay valid and get properly returned
+    to the pool with ROLLBACK via _AutoRollbackSession.close().
+    """
+    from packages.db.session import _get_worker_loop
+    loop = _get_worker_loop()
+    return loop.run_until_complete(coro)
+
+
+# Apply the patch immediately at import time — this module is loaded by
+# every worker process before any task modules.
+asyncio.run = _patched_asyncio_run
+
+# Also register a Celery worker_process_init signal to re-apply in case
+# of prefork worker pool (each child re-imports).
+from celery.signals import worker_process_init
+
+@worker_process_init.connect
+def _patch_asyncio_on_fork(**kwargs):
+    import asyncio as _asyncio
+    _asyncio.run = _patched_asyncio_run
 
 broker_url = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/1")
 result_backend = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/2")

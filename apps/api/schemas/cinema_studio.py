@@ -166,6 +166,30 @@ class CharacterBibleResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Portrait + Voice generation
+# ---------------------------------------------------------------------------
+
+class VoiceGenerationRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=5000)
+    voice_id: str = "21m00Tcm4TlvDq8ikWAM"
+
+
+class PortraitGenerationResponse(BaseModel):
+    character_id: uuid.UUID
+    image_url: str
+    prompt_used: str
+    provider: str = "gpt-image-1"
+
+
+class VoiceGenerationResponse(BaseModel):
+    character_id: uuid.UUID
+    character_name: str
+    voice_id: str
+    char_count: int
+    content_type: str
+
+
+# ---------------------------------------------------------------------------
 # StylePreset
 # ---------------------------------------------------------------------------
 
@@ -255,6 +279,31 @@ class StudioActivityResponse(BaseModel):
 # Dashboard stats
 # ---------------------------------------------------------------------------
 
+class RevenueItemResponse(BaseModel):
+    media_job_id: str
+    lane: str
+    monetization_method: str
+    offer_name: Optional[str] = None
+    offer_url: Optional[str] = None
+    revenue_estimate: float = 0.0
+    content_family: Optional[str] = None
+
+
+class PublishTruth(BaseModel):
+    content_approved: int = 0
+    content_published: int = 0
+    content_pending_media: int = 0
+    content_media_complete: int = 0
+    content_qa_complete: int = 0
+    content_draft: int = 0
+    publish_jobs_pending: int = 0
+    publish_jobs_submitted: int = 0
+    publish_jobs_queued: int = 0
+    publish_jobs_published: int = 0
+    publish_jobs_failed: int = 0
+    publish_jobs_scheduled: int = 0
+
+
 class StudioDashboardStats(BaseModel):
     total_projects: int = 0
     total_scenes: int = 0
@@ -264,3 +313,7 @@ class StudioDashboardStats(BaseModel):
     processing_generations: int = 0
     failed_generations: int = 0
     recent_activity: list[StudioActivityResponse] = Field(default_factory=list)
+    lane_distribution: dict = Field(default_factory=dict)
+    monetization_distribution: dict = Field(default_factory=dict)
+    revenue_items: list[RevenueItemResponse] = Field(default_factory=list)
+    publish_truth: PublishTruth = Field(default_factory=PublishTruth)

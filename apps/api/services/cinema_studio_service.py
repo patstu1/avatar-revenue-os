@@ -392,6 +392,186 @@ async def trigger_generation(
 
 
 # ---------------------------------------------------------------------------
+# Portrait Generation — real, uses GPTImageClient (gpt-image-1)
+# ---------------------------------------------------------------------------
+
+def _build_portrait_prompt(char: CharacterBible) -> str:
+    """Build a photorealistic DSLR portrait prompt from character bible fields.
+
+    Ported from Stori Studio portrait.ts — identical prompt engineering,
+    same negative prompt list, same quality ceiling (gpt-image-1 8K).
+    """
+    parts: list[str] = [
+        "RAW photo",
+        "DSLR portrait photography",
+        "Sony A7R IV",
+        "85mm f/1.4 prime lens",
+        "photorealistic",
+        "hyperrealistic skin texture",
+        "natural pores and subsurface scattering",
+        "professional studio headshot",
+    ]
+
+    gender = getattr(char, "gender", "other") or "other"
+    if gender == "non_binary":
+        parts.append("non-binary person")
+    elif gender == "male":
+        parts.append("man")
+    elif gender == "female":
+        parts.append("woman")
+    else:
+        parts.append("person")
+
+    if char.age:
+        parts.append(f"{char.age} years old")
+    if char.ethnicity:
+        parts.append(f"{char.ethnicity} ethnicity")
+    if char.hair_color and char.hair_style:
+        parts.append(f"{char.hair_color} {char.hair_style} hair")
+    elif char.hair_color:
+        parts.append(f"{char.hair_color} hair")
+    elif char.hair_style:
+        parts.append(f"{char.hair_style} hair")
+    if char.eye_color:
+        parts.append(f"{char.eye_color} eyes")
+    if char.build:
+        parts.append(f"{char.build} build")
+    if char.description:
+        parts.append(char.description[:180])
+    if char.personality:
+        parts.append(f"natural expression conveying {char.personality[:80]}")
+
+    role = getattr(char, "role", "supporting") or "supporting"
+    if role == "protagonist":
+        parts.append("confident heroic presence, warm approachable expression")
+    elif role == "antagonist":
+        parts.append("commanding intense gaze, cool composed authority")
+    elif role == "supporting":
+        parts.append("genuine warm expression, trustworthy presence")
+
+    parts.extend([
+        "Rembrandt three-point lighting",
+        "key light at 45 degrees",
+        "subtle fill light",
+        "gentle rim light for depth",
+        "sharp focus on eyes with natural catchlights",
+        "soft bokeh background",
+        "neutral gradient studio backdrop",
+        "chest-up framing",
+        "8K ultra-detailed",
+        "editorial photography quality",
+        "no text",
+        "no watermarks",
+        "no logos",
+    ])
+
+    negative = [
+        "cartoon", "anime", "illustration", "3D render", "CGI",
+        "plastic skin", "fake", "artificial", "blurry", "low quality",
+        "overexposed", "underexposed", "oversaturated", "deformed",
+        "distorted", "ugly", "bad anatomy", "watermark", "text",
+        "logo", "uncanny valley",
+    ]
+
+    return f"{', '.join(parts)}. Avoid: {', '.join(negative)}."
+
+
+async def generate_character_portrait(
+    db: AsyncSession,
+    character_id: uuid.UUID,
+    brand_id: uuid.UUID,
+) -> CharacterBible:
+    """Generate a photorealistic portrait for a character using GPT Image 1.
+
+    Uses the same prompt-engineering technique as Stori Studio's portrait.ts
+    but calls through our existing GPTImageClient (packages/clients/ai_clients.py).
+    """
+    from packages.clients.ai_clients import GPTImageClient
+
+    char = await get_character(db, character_id, brand_id=brand_id)
+    prompt = _build_portrait_prompt(char)
+
+    client = GPTImageClient()
+    result = await client.generate(prompt, size="1024x1536", quality="high")
+
+    if not result.get("success"):
+        error = result.get("error", "Unknown portrait generation error")
+        logger.error("portrait_generation_failed", character_id=str(character_id), error=error)
+        raise ValueError(f"Portrait generation failed: {error}")
+
+    image_url = result["data"]["image_url"]
+    char.image_url = image_url
+    await db.flush()
+    await db.refresh(char)
+
+    await _log_activity(
+        db, brand_id, "portrait_generated", char.id, char.name,
+        metadata={"provider": "gpt-image-1", "size": "1024x1536"},
+    )
+
+    logger.info(
+        "portrait_generated",
+        character_id=str(character_id),
+        brand_id=str(brand_id),
+        provider="gpt-image-1",
+    )
+    return char
+
+
+# ---------------------------------------------------------------------------
+# Voice Generation — real, uses ElevenLabsClient
+# ---------------------------------------------------------------------------
+
+async def generate_character_voice(
+    db: AsyncSession,
+    character_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    text: str,
+    voice_id: str = "21m00Tcm4TlvDq8ikWAM",
+) -> dict:
+    """Generate speech audio for a character using ElevenLabs TTS.
+
+    Returns the audio bytes and metadata. The caller (router) is responsible
+    for streaming them back or persisting as an Asset.
+    """
+    from packages.clients.ai_clients import ElevenLabsClient
+
+    char = await get_character(db, character_id, brand_id=brand_id)
+
+    client = ElevenLabsClient()
+    result = await client.generate(text=text, voice_id=voice_id)
+
+    if not result.get("success"):
+        error = result.get("error", "Unknown voice generation error")
+        logger.error("voice_generation_failed", character_id=str(character_id), error=error)
+        raise ValueError(f"Voice generation failed: {error}")
+
+    await _log_activity(
+        db, brand_id, "voice_generated", char.id, char.name,
+        metadata={
+            "provider": "elevenlabs",
+            "voice_id": voice_id,
+            "char_count": len(text),
+        },
+    )
+
+    logger.info(
+        "voice_generated",
+        character_id=str(character_id),
+        brand_id=str(brand_id),
+        voice_id=voice_id,
+    )
+
+    return {
+        "audio_bytes": result["data"]["audio_bytes"],
+        "content_type": result["data"]["content_type"],
+        "voice_id": voice_id,
+        "character_name": char.name,
+        "char_count": len(text),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Dashboard stats
 # ---------------------------------------------------------------------------
 
@@ -434,6 +614,75 @@ async def dashboard_stats(db: AsyncSession, brand_id: uuid.UUID) -> dict:
         .limit(20)
     )).scalars().all()
 
+    # ── Revenue path distribution from completed generations ──────
+    from packages.db.models.content import ContentItem, MediaJob
+    completed_jobs = (await db.execute(
+        select(MediaJob)
+        .where(
+            MediaJob.brand_id == brand_id,
+            MediaJob.job_type == "studio_video",
+            MediaJob.status == "completed",
+        )
+        .order_by(desc(MediaJob.completed_at))
+        .limit(100)
+    )).scalars().all()
+
+    lane_counts = {"heygen": 0, "compositor": 0, "unknown": 0}
+    monetization_counts: dict = {}
+    revenue_items = []
+
+    for job in completed_jobs:
+        out = job.output_config or {}
+        lane = out.get("lane", "unknown")
+        lane_counts[lane] = lane_counts.get(lane, 0) + 1
+
+        mon = out.get("monetization", {})
+        method = mon.get("monetization_method", "none")
+        monetization_counts[method] = monetization_counts.get(method, 0) + 1
+
+        if mon.get("offer_name") or mon.get("monetization_method"):
+            revenue_items.append({
+                "media_job_id": str(job.id),
+                "lane": lane,
+                "monetization_method": method,
+                "offer_name": mon.get("offer_name"),
+                "offer_url": mon.get("offer_url"),
+                "revenue_estimate": mon.get("revenue_estimate", 0),
+                "content_family": mon.get("content_family"),
+            })
+
+    # ── Publish truth — real status from content items + publish jobs ─
+    from packages.db.models.buffer_distribution import BufferPublishJob
+
+    content_statuses = (await db.execute(
+        select(ContentItem.status, func.count())
+        .where(ContentItem.brand_id == brand_id)
+        .group_by(ContentItem.status)
+    )).all()
+    content_status_map = {row[0]: row[1] for row in content_statuses}
+
+    publish_statuses = (await db.execute(
+        select(BufferPublishJob.status, func.count())
+        .where(BufferPublishJob.brand_id == brand_id)
+        .group_by(BufferPublishJob.status)
+    )).all()
+    publish_status_map = {row[0]: row[1] for row in publish_statuses}
+
+    publish_truth = {
+        "content_approved": content_status_map.get("approved", 0),
+        "content_published": content_status_map.get("published", 0),
+        "content_pending_media": content_status_map.get("pending_media", 0),
+        "content_media_complete": content_status_map.get("media_complete", 0),
+        "content_qa_complete": content_status_map.get("qa_complete", 0),
+        "content_draft": content_status_map.get("draft", 0),
+        "publish_jobs_pending": publish_status_map.get("pending", 0),
+        "publish_jobs_submitted": publish_status_map.get("submitted", 0),
+        "publish_jobs_queued": publish_status_map.get("queued", 0),
+        "publish_jobs_published": publish_status_map.get("published", 0),
+        "publish_jobs_failed": publish_status_map.get("failed", 0),
+        "publish_jobs_scheduled": publish_status_map.get("scheduled", 0),
+    }
+
     return {
         "total_projects": total_projects,
         "total_scenes": total_scenes,
@@ -443,4 +692,8 @@ async def dashboard_stats(db: AsyncSession, brand_id: uuid.UUID) -> dict:
         "processing_generations": processing_generations,
         "failed_generations": failed_generations,
         "recent_activity": list(recent),
+        "lane_distribution": lane_counts,
+        "monetization_distribution": monetization_counts,
+        "revenue_items": revenue_items[:20],
+        "publish_truth": publish_truth,
     }

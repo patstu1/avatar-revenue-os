@@ -99,6 +99,7 @@ PROVIDER_ENV_KEYS: dict[str, str] = {
     "wan": "FAL_API_KEY",
     "runway": "RUNWAY_API_KEY",
     "higgsfield": "HIGGSFIELD_API_KEY",
+    "tavus": "TAVUS_API_KEY",
     "heygen": "HEYGEN_API_KEY",
     "did": "DID_API_KEY",
     "synthesia": "SYNTHESIA_API_KEY",
@@ -135,7 +136,8 @@ DEFAULT_PROVIDERS = [
     {"key": "kling", "name": "Kling AI (via fal.ai)", "category": "video", "tier": "standard", "cost": 0.07, "priority": 5},
     {"key": "runway", "name": "Runway Gen-4 Turbo", "category": "video", "tier": "hero", "cost": 0.10, "priority": 1},
     # Avatar
-    {"key": "heygen", "name": "HeyGen", "category": "avatar", "tier": "hero", "cost": 0.033, "priority": 1},
+    {"key": "tavus", "name": "Tavus", "category": "avatar", "tier": "hero", "cost": 0.05, "priority": 1},
+    {"key": "heygen", "name": "HeyGen", "category": "avatar", "tier": "hero", "cost": 0.033, "priority": 2},
     {"key": "did", "name": "D-ID", "category": "avatar", "tier": "standard", "cost": 0.02, "priority": 5},
     # Voice
     {"key": "elevenlabs", "name": "ElevenLabs", "category": "voice", "tier": "hero", "cost": 0.0003, "priority": 1},

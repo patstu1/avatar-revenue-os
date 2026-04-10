@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 def _run_async(coro):
-    return asyncio.run(coro)
+    from packages.db.session import worker_async_run
+    return worker_async_run(coro)
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_offer_ladders")

@@ -10,7 +10,8 @@ from packages.db.session import get_async_session_factory
 
 def _run(coro):
     """Run an async coroutine from a synchronous Celery task."""
-    return asyncio.run(coro)
+    from packages.db.session import worker_async_run
+    return worker_async_run(coro)
 
 
 # ---------------------------------------------------------------------------

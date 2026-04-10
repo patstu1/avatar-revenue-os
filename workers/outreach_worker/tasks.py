@@ -31,16 +31,9 @@ logger = logging.getLogger(__name__)
 
 
 def _run_async(coro):
-    """Run an async coroutine from sync Celery task context."""
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                return pool.submit(asyncio.run, coro).result()
-        return loop.run_until_complete(coro)
-    except RuntimeError:
-        return asyncio.run(coro)
+    """Run an async coroutine from sync Celery task context with proper DB cleanup."""
+    from packages.db.session import worker_async_run
+    return worker_async_run(coro)
 
 
 async def _get_smtp_credentials(db, org_id: uuid.UUID) -> dict:

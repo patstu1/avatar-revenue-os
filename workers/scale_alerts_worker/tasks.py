@@ -22,7 +22,8 @@ MAX_DELIVERY_ATTEMPTS = 5
 
 
 def _run_async(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    from packages.db.session import worker_async_run
+    return worker_async_run(coro)
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.scale_alerts_worker.tasks.recompute_all_alerts")

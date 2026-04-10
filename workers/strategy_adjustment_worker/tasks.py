@@ -47,7 +47,8 @@ PLATFORM_CONTENT_TYPES = {
 
 
 def _run(coro):
-    return asyncio.run(coro)
+    from packages.db.session import worker_async_run
+    return worker_async_run(coro)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

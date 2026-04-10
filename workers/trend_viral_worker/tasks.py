@@ -165,10 +165,20 @@ async def _light_scan():
 
     now = datetime.now(timezone.utc)
 
+    # Load brand data while session is open, extract what we need, then close
     async with async_session_factory() as db:
-        brands = list((await db.execute(
+        raw_brands = list((await db.execute(
             select(Brand).where(Brand.is_active.is_(True))
         )).scalars().all())
+        # Extract needed fields while still attached to session
+        brands = [
+            {
+                "id": b.id,
+                "niche": b.niche or "general",
+                "guidelines": b.brand_guidelines or {},
+            }
+            for b in raw_brands
+        ]
 
     c = 0
     skipped_no_interval = 0
@@ -176,9 +186,9 @@ async def _light_scan():
     viral_triggered = 0
 
     for brand in brands:
-        bid = brand.id
+        bid = brand["id"]
         # ── Per-brand configurable scan interval ──────────────────────
-        guidelines = brand.brand_guidelines or {}
+        guidelines = brand["guidelines"]
         interval_seconds = guidelines.get("trend_scan_interval_seconds")
         if interval_seconds is None:
             # No interval configured — operator/GM has not set it. Skip.
@@ -219,7 +229,7 @@ async def _light_scan():
                     ).order_by(ViralOpportunity.composite_score.desc())
                 )).scalars().all())
 
-                niche = brand.niche or "general"
+                niche = brand["niche"]
 
                 for opp in hot_opps:
                     try:
@@ -263,11 +273,13 @@ def trend_light_scan():
     No default interval ships with the system — the operator or GM configures it per brand.
     Brands without a configured interval are not scanned.
     """
-    result = asyncio.run(_light_scan())
+    from packages.db.session import worker_async_run
+    result = worker_async_run(_light_scan())
     return {"status": "completed", **result}
 
 
 @shared_task(name="workers.trend_viral_worker.tasks.trend_deep_analysis", base=TrackedTask)
 def trend_deep_analysis():
     """Runs every 5 minutes — full scoring + opportunity creation."""
-    return {"status": "completed", "brands": asyncio.run(_deep_analysis())}
+    from packages.db.session import worker_async_run
+    return {"status": "completed", "brands": worker_async_run(_deep_analysis())}

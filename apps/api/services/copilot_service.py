@@ -129,6 +129,55 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
     provider_audit = build_provider_summary()
     quick = build_quick_status(all_blockers, failed_items, pending_actions, provider_audit)
 
+    # ── Runtime truth: real counts from live DB ──────────────────
+    from packages.db.models.content import ContentItem
+    from packages.db.models.offers import Offer
+    from packages.db.models.accounts import CreatorAccount
+    from packages.db.models.buffer_distribution import BufferProfile, BufferPublishJob
+
+    content_count = (await db.execute(
+        select(func.count(ContentItem.id)).where(ContentItem.brand_id == brand_id)
+    )).scalar() or 0
+    published_count = (await db.execute(
+        select(func.count(ContentItem.id)).where(ContentItem.brand_id == brand_id, ContentItem.status == "published")
+    )).scalar() or 0
+    offer_count = (await db.execute(
+        select(func.count(Offer.id)).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
+    )).scalar() or 0
+    account_count = (await db.execute(
+        select(func.count(CreatorAccount.id)).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+    )).scalar() or 0
+    buffer_channel_count = (await db.execute(
+        select(func.count(BufferProfile.id)).where(BufferProfile.brand_id == brand_id, BufferProfile.is_active.is_(True))
+    )).scalar() or 0
+    buffer_connected_count = (await db.execute(
+        select(func.count(BufferProfile.id)).where(
+            BufferProfile.brand_id == brand_id,
+            BufferProfile.is_active.is_(True),
+            BufferProfile.credential_status == "connected",
+        )
+    )).scalar() or 0
+    publish_job_count = (await db.execute(
+        select(func.count(BufferPublishJob.id)).where(
+            BufferPublishJob.brand_id == brand_id,
+            BufferPublishJob.status == "published",
+        )
+    )).scalar() or 0
+
+    quick["runtime_truth"] = {
+        "content_count": content_count,
+        "published_count": published_count,
+        "offer_count": offer_count,
+        "creator_account_count": account_count,
+        "buffer_channel_count": buffer_channel_count,
+        "buffer_connected_count": buffer_connected_count,
+        "total_publishing_accounts": account_count + buffer_channel_count,
+        "publish_jobs_published": publish_job_count,
+        "has_publishing_capability": buffer_connected_count > 0,
+        "has_content": content_count > 0,
+        "has_offers": offer_count > 0,
+    }
+
     winning_pattern_rows = list((await db.execute(
         select(WinningPatternMemory)
         .where(WinningPatternMemory.brand_id == brand_id, WinningPatternMemory.is_active.is_(True))
@@ -426,15 +475,43 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         current_accounts = list((await db.execute(
             select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
         )).scalars().all())
+
+        # Also count Buffer-connected channels as publishing accounts
+        from packages.db.models.buffer_distribution import BufferProfile
+        buffer_channels = list((await db.execute(
+            select(BufferProfile).where(
+                BufferProfile.brand_id == brand_id,
+                BufferProfile.is_active.is_(True),
+            )
+        )).scalars().all())
+
         quick["current_accounts"] = [
-            {"platform": getattr(a.platform, 'value', str(a.platform)), "username": a.platform_username, "niche": a.niche_focus or "general"}
+            {"platform": getattr(a.platform, 'value', str(a.platform)), "username": a.platform_username, "niche": a.niche_focus or "general", "source": "creator_account"}
             for a in current_accounts
         ]
+        # Add Buffer channels not already covered by creator accounts
+        creator_platforms = set(getattr(a.platform, 'value', str(a.platform)) for a in current_accounts)
+        for bp in buffer_channels:
+            bp_platform = getattr(bp.platform, 'value', str(bp.platform))
+            quick["current_accounts"].append({
+                "platform": bp_platform,
+                "username": bp.display_name,
+                "niche": "general",
+                "source": "buffer_profile",
+                "buffer_profile_id": bp.buffer_profile_id,
+                "credential_status": bp.credential_status,
+            })
 
         covered_platforms = set(getattr(a.platform, 'value', str(a.platform)) for a in current_accounts)
+        covered_platforms |= set(getattr(bp.platform, 'value', str(bp.platform)) for bp in buffer_channels)
         all_platforms = {"youtube", "tiktok", "instagram", "x", "linkedin"}
         missing_platforms = all_platforms - covered_platforms
         quick["missing_platforms"] = list(missing_platforms)
+
+        # Real publishing capability summary
+        connected_buffer = [bp for bp in buffer_channels if bp.credential_status == "connected"]
+        quick["publishing_channels_connected"] = len(connected_buffer)
+        quick["publishing_ready"] = len(connected_buffer) > 0
 
         brand_obj = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
         niche = brand_obj.niche if brand_obj else "general"

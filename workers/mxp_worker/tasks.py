@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def _run_async(coro):
-    return asyncio.run(coro)
+    from packages.db.session import worker_async_run
+    return worker_async_run(coro)
 
 
 # ---------------------------------------------------------------------------

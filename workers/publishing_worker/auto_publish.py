@@ -174,10 +174,22 @@ async def _auto_publish_for_brand(brand_id):
 
             result = await publish_with_failover(request)
 
-            content_ctx = {"caption": ci.title or "", "title": ci.title or "", "media_url": None, "link_url": None}
+            content_ctx = {
+                "caption": ci.title or "",
+                "title": ci.title or "",
+                "media_url": media_urls[0] if media_urls else None,
+                "link_url": offer_link,
+            }
             profile_ctx = {"platform": platform, "buffer_profile_id": profile_ids[0] if profile_ids else ""}
             payload = build_publish_payload(content_ctx, profile_ctx)
             mode = determine_publish_mode(content_ctx, profile_ctx)
+
+            # Extract lane metadata from asset if available
+            asset_lane = None
+            if ci.video_asset_id:
+                _asset = (await db.execute(select(Asset).where(Asset.id == ci.video_asset_id))).scalar_one_or_none()
+                if _asset and _asset.metadata_blob:
+                    asset_lane = _asset.metadata_blob.get("lane")
 
             if connected:
                 db.add(BufferPublishJob(
@@ -193,6 +205,14 @@ async def _auto_publish_for_brand(brand_id):
                         **payload,
                         "publish_method": result.method,
                         "methods_tried": result.methods_tried,
+                        "monetization": {
+                            "offer_id": str(ci.offer_id) if ci.offer_id else None,
+                            "monetization_method": ci.monetization_method,
+                            "offer_url": offer_link,
+                            "cta_type": ci.cta_type,
+                            "offer_angle": ci.offer_angle,
+                            "lane": asset_lane,
+                        },
                     },
                 ))
 
