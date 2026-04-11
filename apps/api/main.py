@@ -94,6 +94,9 @@ from apps.api.routers import (
     integrations_dashboard,
     oauth,
     ops,
+    brain_ops,
+    ai_command,
+    leads,
 )
 
 settings = get_settings()
@@ -249,6 +252,7 @@ app.include_router(buffer_distribution.router_root, prefix="/api/v1", tags=["Buf
 app.include_router(live_execution.router, prefix="/api/v1/brands", tags=["Live Execution: Analytics, Conversions, Experiments, CRM, Email, SMS"])
 app.include_router(live_execution_phase2.router, prefix="/api/v1/brands", tags=["Live Execution Phase 2: Webhooks, Triggers, Connectors, Buffer Expansion"])
 app.include_router(webhooks.router, prefix="/api/v1", tags=["Webhooks: Stripe, Shopify, Media Providers"])
+app.include_router(leads.router, prefix="/api/v1", tags=["Lead Capture: Public offer page submissions"])
 app.include_router(creator_revenue.router, prefix="/api/v1/brands", tags=["Creator Revenue: Opportunities, UGC, Consulting, Premium Access"])
 app.include_router(provider_registry.router, prefix="/api/v1/brands", tags=["Provider Registry: Inventory, Readiness, Dependencies, Blockers"])
 app.include_router(copilot.router, prefix="/api/v1/brands", tags=["Operator Copilot"])
@@ -301,6 +305,8 @@ app.include_router(gm_ai.router, prefix="/api/v1", tags=["GM AI: Strategic Opera
 app.include_router(gm_chat.router, prefix="/api/v1", tags=["GM Chat: Conversational Strategic GM"])
 app.include_router(portfolio_command.router, prefix="/api/v1", tags=["Portfolio Command Center"])
 app.include_router(integrations_dashboard.router, prefix="/api/v1", tags=["Integrations Dashboard"])
+app.include_router(brain_ops.router, prefix="/api/v1", tags=["Brain Operations: Runtime State"])
+app.include_router(ai_command.router, prefix="/api/v1/brands", tags=["AI Command Center: Provider Stack, Quality, Experiments, Budget, Health, Activity"])
 
 # --- Local media file serving (fallback when S3 is not configured) ---
 
