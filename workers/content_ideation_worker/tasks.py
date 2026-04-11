@@ -82,9 +82,22 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
             ).order_by(WinningPatternMemory.win_score.desc()).limit(5)
         )).scalars().all())
 
+        # Load YouTube API key from encrypted DB for trend fetching
+        yt_api_key = ""
+        if brand and brand.organization_id:
+            try:
+                from packages.clients.credential_loader import load_credential
+                from packages.db.session import get_sync_engine
+                from sqlalchemy.orm import Session as SyncSession
+                _eng = get_sync_engine()
+                with SyncSession(_eng) as _ss:
+                    yt_api_key = load_credential(_ss, brand.organization_id, "gemini_flash") or ""
+            except Exception:
+                pass
+
         trend_signals = []
         try:
-            yt = YouTubeTrendingClient()
+            yt = YouTubeTrendingClient(api_key=yt_api_key)
             yt_result = await yt.fetch_trending()
             if yt_result.get("success"):
                 for item in yt_result["data"]:
@@ -117,6 +130,16 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
 
         from packages.scoring.revenue_optimization_engine import rank_briefs_by_revenue, should_prioritize_monetized
         from packages.scoring.niche_research_engine import NICHE_DATABASE as _ND
+        from packages.db.models.offers import Offer
+
+        # Select best active offer for this brand to attach to new briefs
+        best_offer = (await db.execute(
+            select(Offer).where(
+                Offer.brand_id == brand_id,
+                Offer.is_active.is_(True),
+            ).order_by(Offer.payout_amount.desc()).limit(1)
+        )).scalar_one_or_none()
+        default_offer_id = best_offer.id if best_offer else None
 
         niche_info = next((n for n in _ND if n["niche"] == niche), None)
         offer_payout = niche_info.get("youtube_cpm_range", (5, 15))[1] if niche_info else 10
@@ -160,6 +183,7 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
             brief = ContentBrief(
                 brand_id=brand_id,
                 creator_account_id=acct_id,
+                offer_id=default_offer_id,
                 title=title,
                 content_type=ct,
                 target_platform=platform,
