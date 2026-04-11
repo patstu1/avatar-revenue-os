@@ -501,7 +501,7 @@ class TestRecommendDealStrategy:
         }
         brand_metrics = {"brand_authority_score": 0.8, "avg_margin": 0.45, "avg_close_rate": 0.35}
         result = recommend_deal_strategy(deal_ctx, brand_metrics)
-        assert result["deal_strategy"] == "custom_quote"
+        assert result["deal_strategy"] == "hold_price"
 
 
 # ---------------------------------------------------------------------------

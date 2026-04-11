@@ -191,7 +191,7 @@ def estimate_owned_audience_value(
     total = total_email + total_subscriber + total_membership
 
     actions: list[dict] = []
-    if opt_in_count < max(total_subscribers * 2, 1):  # Relative to current subscriber base
+    if opt_in_count < max(subscriber_count * 2, 1):  # Relative to current subscriber base
         actions.append({
             "channel": "email",
             "action": "Add lead magnet to top 5 performing content pieces.",

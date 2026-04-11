@@ -134,7 +134,7 @@ def test_router_failover_all_unconfigured():
         req = PublishRequest(text="Test", platform="youtube")
         result = asyncio.run(publish_with_failover(req))
         assert not result.success
-        assert "No distribution service configured" in result.error
+        assert "No publishing service configured" in result.error
     finally:
         if old_buffer: os.environ["BUFFER_API_KEY"] = old_buffer
         if old_publer: os.environ["PUBLER_API_KEY"] = old_publer

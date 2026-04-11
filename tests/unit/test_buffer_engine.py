@@ -18,9 +18,9 @@ class TestBuildPublishPayload:
             {"caption": "Hello world", "title": "Test"},
             {"platform": "tiktok", "buffer_profile_id": "bp_123"},
         )
-        assert r["profile_ids"] == ["bp_123"]
+        assert r["_profile_ids"] == ["bp_123"]
         assert "Hello world" in r["text"]
-        assert r["now"] is False
+        assert r["schedulingType"] == "automatic"
 
     def test_text_truncated_for_twitter(self):
         long_text = "A" * 300
@@ -43,14 +43,14 @@ class TestBuildPublishPayload:
             {"caption": "Look", "media_url": "https://example.com/photo.jpg"},
             {"platform": "tiktok", "buffer_profile_id": "bp_1"},
         )
-        assert "photo" in r.get("media", {})
+        assert "images" in r.get("assets", {})
 
     def test_media_video_attachment(self):
         r = build_publish_payload(
             {"caption": "Watch", "media_url": "https://example.com/clip.mp4"},
             {"platform": "tiktok", "buffer_profile_id": "bp_1"},
         )
-        assert "video" in r.get("media", {})
+        assert "videos" in r.get("assets", {})
 
     def test_link_url_appended(self):
         r = build_publish_payload(
@@ -64,7 +64,8 @@ class TestBuildPublishPayload:
             {"caption": "Later", "scheduled_at": "2026-04-01T10:00:00Z"},
             {"platform": "youtube", "buffer_profile_id": "bp_yt"},
         )
-        assert r["scheduled_at"] == "2026-04-01T10:00:00Z"
+        assert r["dueAt"] == "2026-04-01T10:00:00Z"
+        assert r["schedulingType"] == "customScheduled"
 
 
 class TestDeterminePublishMode:

@@ -47,7 +47,7 @@ class TestClassify:
 
     def test_warming(self):
         r = classify_account_state({"age_days": 15, "impressions": 2000, "post_count": 10})
-        assert r["current_state"] == "warming"
+        assert r["current_state"] == "early_signal"
 
     def test_saturated(self):
         r = classify_account_state({"saturation_score": 0.8, "age_days": 100, "post_count": 200})

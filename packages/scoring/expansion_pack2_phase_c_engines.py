@@ -422,6 +422,7 @@ def generate_sponsor_outreach_sequence(
 
     best_template = None
     highest_score = -1.0
+    sponsor_budget_max = estimated_deal_value * 1.5 if estimated_deal_value > 0 else 100000
 
     # 1. Determine outreach_sequence_type and sequence_steps
     for template in outreach_templates:

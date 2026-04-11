@@ -70,25 +70,29 @@ def test_configured_count_by_priority():
     assert counts[0]["total"] >= 3
 
 
-def test_readiness_condition_2_dead_ends_pass():
+def test_readiness_condition_2_dead_ends_not_verified():
     r = evaluate_autonomous_readiness()
     cond2 = next(c for c in r["conditions"] if c["id"] == 2)
-    assert cond2["passed"] is True
+    assert cond2["passed"] is False
+    assert cond2.get("not_verified") is True
 
 
-def test_readiness_condition_5_offer_learning_pass():
+def test_readiness_condition_5_offer_learning_not_verified():
     r = evaluate_autonomous_readiness()
     cond5 = next(c for c in r["conditions"] if c["id"] == 5)
-    assert cond5["passed"] is True
+    assert cond5["passed"] is False
+    assert cond5.get("not_verified") is True
 
 
-def test_readiness_condition_6_expansion_pass():
+def test_readiness_condition_6_expansion_not_verified():
     r = evaluate_autonomous_readiness()
     cond6 = next(c for c in r["conditions"] if c["id"] == 6)
-    assert cond6["passed"] is True
+    assert cond6["passed"] is False
+    assert cond6.get("not_verified") is True
 
 
-def test_readiness_condition_7_kill_scale_pass():
+def test_readiness_condition_7_kill_scale_not_verified():
     r = evaluate_autonomous_readiness()
     cond7 = next(c for c in r["conditions"] if c["id"] == 7)
-    assert cond7["passed"] is True
+    assert cond7["passed"] is False
+    assert cond7.get("not_verified") is True

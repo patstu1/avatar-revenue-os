@@ -206,6 +206,7 @@ def score_consulting_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, 
     content_count = brand_ctx.get("content_count", 0)
     offer_count = brand_ctx.get("offer_count", 0)
 
+    avg_payout = _avg_payout(brand_ctx)
     base_confidence = min(0.8, 0.25 + (content_count / 30) * 0.15 + (offer_count / 5) * 0.15)
 
     service_configs = [
@@ -323,7 +324,7 @@ def detect_creator_revenue_blockers(brand_ctx: dict[str, Any]) -> list[dict[str,
             "description": "No offers defined. Consulting credibility requires at least one live offer.",
             "operator_action_needed": "Create at least one offer in the Offer Catalog.",
         })
-    if brand_ctx.get("audience_size", 0) == 0:
+    if brand_ctx.get("audience_size", 0) < 1000:
         blockers.append({
             "avenue_type": "premium_access",
             "blocker_type": "audience_too_small",
@@ -423,6 +424,7 @@ def score_licensing_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, A
     niche = brand_ctx.get("niche", "general")
     offer_count = brand_ctx.get("offer_count", 0)
     audience_size = brand_ctx.get("audience_size", 0)
+    avg_payout = brand_ctx.get("avg_payout", 1000)
 
     base_confidence = min(0.75, 0.2 + (content_count / 40) * 0.2 + (0.1 if has_avatar else 0))
 
@@ -479,6 +481,7 @@ def score_syndication_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str,
     audience_size = brand_ctx.get("audience_size", 0)
     niche = brand_ctx.get("niche", "general")
     account_count = brand_ctx.get("account_count", 0)
+    avg_payout = brand_ctx.get("avg_payout", 1000)
 
     base_confidence = min(0.7, 0.15 + (content_count / 30) * 0.2 + (account_count / 5) * 0.1)
 
@@ -531,6 +534,7 @@ def score_data_product_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str
     niche = brand_ctx.get("niche", "general")
     audience_size = brand_ctx.get("audience_size", 0)
     offer_count = brand_ctx.get("offer_count", 0)
+    avg_payout = brand_ctx.get("avg_payout", 1000)
 
     base_confidence = min(0.7, 0.15 + (content_count / 50) * 0.15 + (audience_size / 20000) * 0.15)
 

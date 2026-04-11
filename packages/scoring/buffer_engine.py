@@ -14,29 +14,155 @@ BLOCKER_TYPES = [
 ]
 
 
+def _is_video_url(url: str) -> bool:
+    if not url:
+        return False
+    lower = url.lower()
+    return lower.endswith((".mp4", ".mov", ".webm", ".m4v")) or ("video" in lower and "unsplash" not in lower)
+
+
 def build_publish_payload(content_context: dict[str, Any], profile_context: dict[str, Any]) -> dict[str, Any]:
-    """Build the payload that would be sent to Buffer's publish API."""
-    platform = profile_context.get("platform", "unknown")
-    text = content_context.get("caption", content_context.get("title", ""))
+    """Build a platform-aware payload for Buffer's GraphQL createPost mutation.
+
+    Produces the exact shape that BufferClient will forward as the `input` variable
+    to Buffer's createPost GraphQL mutation, including platform-specific metadata
+    and assets. The shape is:
+
+        {
+          "text": str,
+          "channelId": str,          # added by caller at submit time
+          "schedulingType": "automatic",
+          "mode": "addToQueue" | "shareNow" | "shareNext",
+          "metadata": {<platform>: {...}},   # platform-specific (Instagram, etc.)
+          "assets": {"images": [{"url": ...}]} | {"videos": [{"url": ...}]},
+        }
+
+    Platform-specific behavior:
+      - instagram: requires metadata.instagram.type in {post, story, reel}
+        and metadata.instagram.shouldShareToFeed (bool). Requires at least one
+        image or video asset.
+      - twitter / x: text <= 280 chars. Media optional.
+      - tiktok: requires video asset. metadata.tiktok minimal.
+      - youtube: requires video asset.
+      - linkedin / facebook: text + optional media.
+
+    The caller (`submit_job_to_buffer`) will add `channelId` and `mode` before
+    sending to BufferClient. This function returns the reusable core payload
+    so it can be persisted in `buffer_publish_jobs.payload_json` and inspected.
+    """
+    platform = (profile_context.get("platform") or "unknown").lower()
+    text = content_context.get("caption") or content_context.get("title") or ""
     media_url = content_context.get("media_url")
     link_url = content_context.get("link_url")
 
+    # Platform character limits
+    if platform in ("twitter", "x"):
+        text_limit = 280
+    elif platform == "linkedin":
+        text_limit = 3000
+    else:
+        text_limit = 2200
+
+    # Append link to text if present (Buffer does not have a dedicated link field
+    # in createPost; link_url is rendered inline).
+    if link_url:
+        text = f"{text}\n\n{link_url}" if text else link_url
+
     payload: dict[str, Any] = {
-        "profile_ids": [profile_context.get("buffer_profile_id", "")],
-        "text": text[:280] if platform in ("twitter", "x") else text[:2200],
-        "now": False,
+        "text": text[:text_limit],
+        "schedulingType": "automatic",
     }
 
+    # Assets
     if media_url:
-        payload["media"] = {"photo": media_url} if not media_url.endswith((".mp4", ".mov", ".webm")) else {"video": media_url}
-    if link_url:
-        payload["text"] = f"{payload['text']}\n\n{link_url}" if payload["text"] else link_url
+        if _is_video_url(media_url):
+            payload["assets"] = {"videos": [{"url": media_url}]}
+        else:
+            payload["assets"] = {"images": [{"url": media_url}]}
+
+    # Platform-specific metadata
+    metadata: dict[str, Any] = {}
+
+    if platform == "instagram":
+        # Determine post type from content signals
+        content_type = (content_context.get("content_type") or "").upper()
+        explicit_ig_type = (content_context.get("instagram_type") or "").lower()
+
+        if explicit_ig_type in ("post", "story", "reel"):
+            ig_type = explicit_ig_type
+        elif content_type == "STORY":
+            ig_type = "story"
+        elif content_type in ("SHORT_VIDEO", "LONG_VIDEO") or (media_url and _is_video_url(media_url)):
+            # Short videos on Instagram are reels. Default for video content.
+            ig_type = "reel"
+        else:
+            # Static image / carousel → feed post
+            ig_type = "post"
+
+        metadata["instagram"] = {
+            "type": ig_type,
+            "shouldShareToFeed": True,
+        }
+
+    elif platform == "tiktok":
+        metadata["tiktok"] = {}
+
+    elif platform == "youtube":
+        # YouTube community posts or Shorts — minimal metadata
+        metadata["youtube"] = {}
+
+    if metadata:
+        payload["metadata"] = metadata
 
     scheduled_at = content_context.get("scheduled_at")
     if scheduled_at:
-        payload["scheduled_at"] = scheduled_at
+        payload["dueAt"] = scheduled_at
+        payload["schedulingType"] = "customScheduled"
+
+    # Legacy fields preserved for backward compat with older job rows
+    payload["_platform"] = platform
+    payload["_profile_ids"] = [profile_context.get("buffer_profile_id", "")]
 
     return payload
+
+
+def validate_publish_payload(payload: dict[str, Any], platform: str) -> dict[str, Any]:
+    """Return {"ok": bool, "reason": str} — honest pre-submit validation.
+
+    Fails closed: any missing required field blocks submission.
+    """
+    platform = (platform or "unknown").lower()
+    text = payload.get("text") or ""
+    assets = payload.get("assets") or {}
+    has_image = bool(assets.get("images"))
+    has_video = bool(assets.get("videos"))
+    has_media = has_image or has_video
+
+    if not text.strip() and not has_media:
+        return {"ok": False, "reason": "empty_post_no_text_and_no_media"}
+
+    if platform == "instagram":
+        if not has_media:
+            return {"ok": False, "reason": "instagram_requires_image_or_video"}
+        meta = (payload.get("metadata") or {}).get("instagram") or {}
+        if meta.get("type") not in ("post", "story", "reel"):
+            return {"ok": False, "reason": "instagram_requires_type_metadata"}
+        if "shouldShareToFeed" not in meta:
+            return {"ok": False, "reason": "instagram_requires_shouldShareToFeed"}
+
+    elif platform == "tiktok":
+        if not has_video:
+            return {"ok": False, "reason": "tiktok_requires_video"}
+
+    elif platform == "youtube":
+        if not has_video:
+            return {"ok": False, "reason": "youtube_requires_video"}
+
+    elif platform in ("twitter", "x"):
+        if len(text) > 280:
+            return {"ok": False, "reason": "x_text_exceeds_280_chars"}
+
+    return {"ok": True, "reason": ""}
 
 
 def determine_publish_mode(content_context: dict[str, Any], profile_context: dict[str, Any]) -> str:

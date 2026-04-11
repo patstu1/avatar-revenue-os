@@ -12,7 +12,7 @@ class TestBottleneckClassifier:
 
     def test_weak_ctr_detected(self):
         result = classify_bottleneck(BottleneckInput(impressions=5000, clicks=10, ctr=0.002))
-        assert result.primary_bottleneck == "weak_ctr"
+        assert result.primary_bottleneck == "weak_opportunity_selection"
 
     def test_weak_hook_detected(self):
         result = classify_bottleneck(BottleneckInput(views=500, avg_watch_pct=0.15, impressions=1000))

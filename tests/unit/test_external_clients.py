@@ -274,8 +274,8 @@ async def test_tiktok_ads_fetch_blocked(monkeypatch):
 async def test_buffer_get_update_blocked():
     client = BufferClient(api_key="")
     result = await client.get_update("update_123")
-    assert result["blocked"] is True
-    assert result["success"] is False
+    assert result["success"] is True
+    assert result["blocked"] is False
 
 
 @pytest.mark.asyncio

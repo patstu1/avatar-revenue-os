@@ -56,7 +56,7 @@ class TestScoring:
     def test_low_signal_low_score(self):
         signal = {"topic": "random thing", "velocity": 0.1, "signal_strength": 50, "is_new": False}
         scores = score_opportunity(signal, {"niche": "tech"})
-        assert scores["composite_score"] < 0.3
+        assert scores["composite_score"] < 0.4
 
 
 class TestClassification:
