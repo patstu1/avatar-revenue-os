@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useBrandId } from '@/hooks/useBrandId';
 import { fetchBrainMemory, recomputeBrainMemory } from '@/lib/brain-phase-a-api';
-import { fetchPatterns, recomputePatterns } from '@/lib/pattern-memory-api';
+import { fetchPatterns, recomputePatterns, type WinningPattern } from '@/lib/pattern-memory-api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Brain, RefreshCcw } from 'lucide-react';
@@ -22,14 +22,6 @@ interface MemoryLink {
   id: string;
   link_type: string;
   strength: number;
-}
-
-interface WinningPattern {
-  id: string;
-  pattern_key: string;
-  performance_band: string;
-  confidence: number;
-  reuse_count: number;
 }
 
 export default function LearningMemoryPage() {
@@ -186,23 +178,25 @@ export default function LearningMemoryPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Pattern</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Performance Band</TableHead>
                     <TableHead>Confidence</TableHead>
-                    <TableHead>Reuse Count</TableHead>
+                    <TableHead>Usage</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {patterns.slice(0, 20).map(p => (
                     <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.pattern_key}</TableCell>
+                      <TableCell className="font-medium">{p.pattern_name}</TableCell>
+                      <TableCell>{p.pattern_type}</TableCell>
                       <TableCell>{p.performance_band}</TableCell>
                       <TableCell>{(p.confidence * 100).toFixed(0)}%</TableCell>
-                      <TableCell>{p.reuse_count}</TableCell>
+                      <TableCell>{p.usage_count}</TableCell>
                     </TableRow>
                   ))}
                   {patterns.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
                         No winning patterns detected yet.
                       </TableCell>
                     </TableRow>
