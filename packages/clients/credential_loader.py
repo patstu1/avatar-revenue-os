@@ -41,9 +41,12 @@ from apps.api.services.integration_manager import (
 def load_credential(session: Session, org_id: uuid.UUID, provider_key: str) -> Optional[str]:
     """Synchronous: get decrypted API key for a provider.
 
-    Primary: encrypted DB credential.
-    Fallback: .env variable (with deprecation warning).
+    Lookup order:
+    1. integration_providers (primary credential store)
+    2. provider_secrets (dashboard-set credentials via secrets_service)
+    3. .env variable (legacy fallback)
     """
+    # 1. Check integration_providers
     provider = session.execute(
         select(IntegrationProvider).where(
             IntegrationProvider.organization_id == org_id,
@@ -55,7 +58,22 @@ def load_credential(session: Session, org_id: uuid.UUID, provider_key: str) -> O
     if provider and provider.api_key_encrypted:
         return _decrypt(provider.api_key_encrypted)
 
-    # Fallback: .env transition
+    # 2. Check provider_secrets (set via dashboard secrets_service — uses different encryption)
+    try:
+        from sqlalchemy import text
+        from apps.api.services.secrets_service import decrypt_value as _decrypt_secrets
+        ps_row = session.execute(
+            text("SELECT encrypted_value FROM provider_secrets WHERE organization_id = :oid AND provider_name = :pname"),
+            {"oid": str(org_id), "pname": provider_key},
+        ).fetchone()
+        if ps_row and ps_row[0]:
+            val = _decrypt_secrets(ps_row[0])
+            if val:
+                return val
+    except Exception:
+        pass
+
+    # 3. Fallback: .env transition
     env_var = PROVIDER_ENV_KEYS.get(provider_key)
     if env_var:
         env_value = os.environ.get(env_var, "")

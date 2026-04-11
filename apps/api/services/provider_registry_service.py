@@ -26,8 +26,48 @@ from packages.scoring.provider_registry_engine import (
 # ---------------------------------------------------------------------------
 
 async def audit_providers(db: AsyncSession, brand_id: uuid.UUID) -> dict:
-    """Run the full provider audit, persist all rows, return summary."""
+    """Run the full provider audit, persist all rows, return summary.
+
+    The engine-level audit checks env vars only. Here we also check
+    DB-stored credentials (provider_secrets + integration_providers)
+    and upgrade credential_status to 'configured' if a real key exists
+    in either store.
+    """
     audited = audit_all_providers()
+
+    # ── Check DB credentials (both stores) to fix env-only limitations ──
+    from packages.db.models.provider_registry import ProviderRegistryEntry as _  # noqa
+    from sqlalchemy import text
+
+    # Build map of providers with DB credentials
+    db_cred_providers: set[str] = set()
+
+    # Check provider_secrets (secrets_service store)
+    try:
+        ps_rows = await db.execute(text(
+            "SELECT provider_name FROM provider_secrets WHERE length(encrypted_value) > 0"
+        ))
+        for row in ps_rows:
+            db_cred_providers.add(row[0])
+    except Exception:
+        pass
+
+    # Check integration_providers (integration_manager store)
+    try:
+        ip_rows = await db.execute(text(
+            "SELECT provider_key FROM integration_providers WHERE api_key_encrypted IS NOT NULL AND length(api_key_encrypted) > 0"
+        ))
+        for row in ip_rows:
+            db_cred_providers.add(row[0])
+    except Exception:
+        pass
+
+    # Upgrade credential_status for providers that have DB credentials
+    for p in audited:
+        if p["credential_status"] == "not_configured" and p["provider_key"] in db_cred_providers:
+            p["credential_status"] = "configured"
+            p["is_ready"] = True
+            p["missing_keys"] = []
 
     # ── Registry entries (upsert by provider_key) ──────────────────────
     for p in audited:

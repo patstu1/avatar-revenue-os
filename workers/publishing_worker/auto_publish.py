@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 
 from celery import shared_task
 from sqlalchemy import select, func
@@ -27,13 +26,29 @@ async def _auto_publish_for_brand(brand_id):
     from packages.clients.distributor_router import any_distributor_configured, publish_with_failover, PublishRequest
 
     async with async_session_factory() as db:
-        if not any_distributor_configured():
-            return {"brand_id": str(brand_id), "skipped": True, "reason": "No distribution service configured (set BUFFER_API_KEY, PUBLER_API_KEY, or AYRSHARE_API_KEY)"}
+        # Load aggregator credentials from encrypted DB
+        agg_creds = {}
+        brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
+        org_id = brand.organization_id if brand else None
+        if org_id:
+            try:
+                from apps.api.services.integration_manager import get_credential
+                from apps.api.services import secrets_service
+                for prov_key in ("buffer", "publer", "ayrshare"):
+                    # Check integration_providers first, then provider_secrets
+                    key = await get_credential(db, org_id, prov_key)
+                    if not key:
+                        key = await secrets_service.get_key(db, org_id, prov_key)
+                    if key:
+                        agg_creds[prov_key] = key
+            except Exception as e:
+                logger.warning("auto_publish_cred_load_failed", error=str(e))
+
+        if not any_distributor_configured(creds=agg_creds):
+            return {"brand_id": str(brand_id), "skipped": True, "reason": "No publishing service configured - add API keys in Settings > Integrations"}
 
         try:
             from apps.api.services.permission_enforcement import enforce_permission, PermissionDenied
-            brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
-            org_id = brand.organization_id if brand else None
             if org_id:
                 await enforce_permission(db, org_id, "auto_publish")
         except PermissionDenied as e:
@@ -54,8 +69,11 @@ async def _auto_publish_for_brand(brand_id):
             select(ContentItem).where(
                 ContentItem.brand_id == brand_id,
                 ContentItem.status == "approved",
-            ).order_by(ContentItem.created_at.desc()).limit(20)
+            ).order_by(ContentItem.created_at.desc()).limit(50)
         )).scalars().all())
+        # NOTE: auto_publish worker picks up ALL approved items including
+        # auto_approved ones from the publish policy engine. The Approval
+        # record tracks whether it was auto or manual.
 
         existing_ids = set(r[0] for r in (await db.execute(
             select(BufferPublishJob.content_item_id).where(
@@ -172,7 +190,7 @@ async def _auto_publish_for_brand(brand_id):
                 media_urls=media_urls or None, link_url=offer_link,
             )
 
-            result = await publish_with_failover(request)
+            result = await publish_with_failover(request, creds=agg_creds)
 
             content_ctx = {"caption": ci.title or "", "title": ci.title or "", "media_url": None, "link_url": None}
             profile_ctx = {"platform": platform, "buffer_profile_id": profile_ids[0] if profile_ids else ""}
