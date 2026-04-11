@@ -76,6 +76,7 @@ from apps.api.routers import (
     trend_viral,
     cinema_studio,
     proof_gallery,
+    leads,
     ws_live,
     revenue_intelligence,
     revenue_avenues,
@@ -286,6 +287,7 @@ app.include_router(causal_attribution.router, prefix="/api/v1/brands", tags=["Ca
 app.include_router(trend_viral.router, prefix="/api/v1/brands", tags=["Trend / Viral Opportunity Engine"])
 app.include_router(cinema_studio.router, prefix="/api/v1/brands", tags=["Cinema Studio"])
 app.include_router(proof_gallery.router, prefix="/api/v1", tags=["Proof Gallery"])
+app.include_router(leads.router, prefix="/api/v1", tags=["Leads"])
 app.include_router(ws_live.router, prefix="/api/v1", tags=["WebSocket: Live Revenue Streaming"])
 app.include_router(revenue_intelligence.router, prefix="/api/v1/brands", tags=["Revenue Intelligence: Elite"])
 app.include_router(revenue_avenues.router, prefix="/api/v1/brands", tags=["Revenue Avenues: SaaS, Pipeline, Launches"])
