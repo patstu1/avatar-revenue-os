@@ -39,6 +39,24 @@ LOCAL_MEDIA_ROOT = Path(os.getenv(
 ))
 LOCAL_MEDIA_URL_PREFIX = "/media"
 
+def _public_base_url() -> str:
+    """Resolve the public base URL for local media.
+
+    Priority: MEDIA_PUBLIC_URL > DOMAIN-based > relative path.
+    External services (Ayrshare, TikTok) need absolute public URLs.
+    """
+    explicit = os.getenv("MEDIA_PUBLIC_URL")
+    if explicit:
+        return explicit.rstrip("/")
+    domain = os.getenv("DOMAIN", "")
+    if domain and domain != "localhost":
+        scheme = "https" if not domain.startswith("http") else ""
+        return f"{scheme}://{domain}" if scheme else domain
+    api_url = os.getenv("NEXT_PUBLIC_API_URL", "")
+    if api_url:
+        return api_url.rstrip("/")
+    return ""
+
 # ---------------------------------------------------------------------------
 # MediaStorage
 # ---------------------------------------------------------------------------
@@ -260,19 +278,29 @@ class MediaStorage:
 
     # -- Local internals ----------------------------------------------------
 
+    def _local_public_url(self, key: str) -> str:
+        """Build a public URL for a locally stored file."""
+        base = _public_base_url()
+        relative = f"{LOCAL_MEDIA_URL_PREFIX}/{key}"
+        if base:
+            return f"{base}{relative}"
+        return relative
+
     def _local_save_file(self, local_path: Path, key: str) -> str:
         dest = LOCAL_MEDIA_ROOT / key
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(str(local_path), str(dest))
-        logger.info("Local save OK: %s -> %s", local_path, dest)
-        return f"{LOCAL_MEDIA_URL_PREFIX}/{key}"
+        url = self._local_public_url(key)
+        logger.info("Local save OK: %s -> %s (url=%s)", local_path, dest, url)
+        return url
 
     def _local_save_bytes(self, data: bytes, key: str) -> str:
         dest = LOCAL_MEDIA_ROOT / key
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(data)
-        logger.info("Local save OK: key=%s size=%d -> %s", key, len(data), dest)
-        return f"{LOCAL_MEDIA_URL_PREFIX}/{key}"
+        url = self._local_public_url(key)
+        logger.info("Local save OK: key=%s size=%d -> %s (url=%s)", key, len(data), dest, url)
+        return url
 
     def _local_delete(self, key: str) -> bool:
         dest = LOCAL_MEDIA_ROOT / key
