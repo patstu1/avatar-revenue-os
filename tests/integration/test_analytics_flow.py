@@ -33,7 +33,7 @@ async def test_click_tracking(api_client, sample_org_data):
     response = await api_client.post("/api/v1/analytics/events/track-click", json={
         "brand_id": bid, "offer_id": offer_id, "platform": "youtube",
         "tracking_id": "utm_test_click",
-    })
+    }, headers=headers)
     assert response.status_code == 200
     assert response.json()["event_type"] == "click"
 
@@ -44,7 +44,7 @@ async def test_conversion_tracking(api_client, sample_org_data):
     response = await api_client.post("/api/v1/analytics/events/track-conversion", json={
         "brand_id": bid, "offer_id": offer_id, "event_type": "purchase",
         "event_value": 49.99, "tracking_id": "conv_test",
-    })
+    }, headers=headers)
     assert response.status_code == 200
     assert response.json()["event_type"] == "purchase"
     assert response.json()["event_value"] == 49.99

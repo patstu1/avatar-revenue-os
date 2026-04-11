@@ -244,9 +244,9 @@ async def get_intelligence_summary(
         "kill_ledger": [
             {
                 "id": str(k.id),
-                "killed_entity_type": k.killed_entity_type,
-                "killed_entity_id": str(k.killed_entity_id) if k.killed_entity_id else None,
-                "reason": k.reason,
+                "killed_entity_type": k.scope_type,
+                "killed_entity_id": str(k.scope_id) if k.scope_id else None,
+                "reason": k.kill_reason,
             }
             for k in kill_entries
         ],
@@ -544,7 +544,7 @@ async def check_kill_ledger(
     )
 
     if entity_type:
-        query = query.where(KillLedgerEntry.killed_entity_type == entity_type)
+        query = query.where(KillLedgerEntry.scope_type == entity_type)
 
     results = await db.execute(query.limit(50))
     entries = results.scalars().all()
@@ -572,8 +572,8 @@ async def check_kill_ledger(
             "kill_entries": [
                 {
                     "id": str(e.id),
-                    "killed_entity_type": e.killed_entity_type,
-                    "reason": e.reason,
+                    "killed_entity_type": e.scope_type,
+                    "reason": e.kill_reason,
                     "created_at": e.created_at.isoformat() if e.created_at else None,
                 }
                 for e in matches

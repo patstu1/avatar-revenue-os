@@ -16,7 +16,7 @@ import packages.db.models  # noqa: F401
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://avataros:avataros_dev_2026@postgres:5432/avatar_revenue_os_test",
+    "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os_test",
 )
 
 

@@ -1,4 +1,8 @@
-"""E2E smoke test fixtures — seeded org, brand, accounts, offers, mocks."""
+"""E2E smoke test fixtures — seeded org, brand, accounts, offers, mocks.
+
+Skip reasons are machine-readable via pytest markers for CI/CD parsing.
+Format: SKIP:<category>:<detail>
+"""
 from __future__ import annotations
 
 import os
@@ -22,20 +26,28 @@ import packages.db.models  # noqa: F401 — force model registration
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://avataros:avataros_dev_2026@postgres:5432/avatar_revenue_os_test",
+    "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os_test",
 )
+
+# Track whether DB is reachable so we can give explicit skip reasons
+_DB_AVAILABLE: Optional[bool] = None
+_DB_SKIP_REASON: str = ""
 
 
 @pytest_asyncio.fixture(scope="session")
 async def e2e_engine():
     """Session-scoped engine — tables created once per test run."""
+    global _DB_AVAILABLE, _DB_SKIP_REASON
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        _DB_AVAILABLE = True
     except Exception as exc:
+        _DB_AVAILABLE = False
+        _DB_SKIP_REASON = f"SKIP:missing_database:Test database unreachable ({TEST_DATABASE_URL!r}): {exc}"
         await engine.dispose()
-        pytest.skip(f"Test database unreachable ({TEST_DATABASE_URL!r}): {exc}")
+        pytest.skip(_DB_SKIP_REASON)
     yield engine
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -49,6 +61,13 @@ async def db(e2e_engine) -> AsyncGenerator[AsyncSession, None]:
     async with factory() as session:
         yield session
         await session.rollback()
+
+
+def _skip_if_no_db(reason_suffix: str = ""):
+    """Helper to skip with machine-readable reason when DB is unavailable."""
+    if _DB_AVAILABLE is False:
+        detail = reason_suffix or "test database not reachable"
+        pytest.skip(f"SKIP:missing_database:{detail}")
 
 
 # ---------------------------------------------------------------------------

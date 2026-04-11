@@ -33,7 +33,10 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-LOCAL_MEDIA_ROOT = Path(os.getenv("LOCAL_MEDIA_ROOT", "/app/media"))
+LOCAL_MEDIA_ROOT = Path(os.getenv(
+    "LOCAL_MEDIA_ROOT",
+    "/app/media" if os.path.isdir("/app") else str(Path.home() / ".cache/avatar-revenue-os/media"),
+))
 LOCAL_MEDIA_URL_PREFIX = "/media"
 
 # ---------------------------------------------------------------------------
