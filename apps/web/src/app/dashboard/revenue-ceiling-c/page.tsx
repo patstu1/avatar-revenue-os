@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from "next/link";
 import {
   Handshake,
@@ -6,6 +9,8 @@ import {
   Repeat,
   ShieldCheck,
 } from "lucide-react";
+import { useBrandId } from '@/hooks/useBrandId';
+import { revenueCeilingPhaseCApi } from '@/lib/revenue-ceiling-phase-c-api';
 
 const CARDS = [
   {
@@ -41,6 +46,20 @@ const CARDS = [
 ] as const;
 
 export default function RevenueCeilingPhaseCHub() {
+  const brandId = useBrandId();
+  const [stats, setStats] = useState({ recurring: 0, sponsors: 0, promotions: 0 });
+
+  useEffect(() => {
+    if (!brandId) return;
+    Promise.all([
+      revenueCeilingPhaseCApi.recurringRevenue(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      revenueCeilingPhaseCApi.sponsorInventory(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      revenueCeilingPhaseCApi.paidPromotionCandidates(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+    ]).then(([recurring, sponsors, promotions]) => {
+      setStats({ recurring: recurring.length, sponsors: sponsors.length, promotions: promotions.length });
+    });
+  }, [brandId]);
+
   return (
     <div className="space-y-6 pb-16">
       <div>
@@ -54,6 +73,23 @@ export default function RevenueCeilingPhaseCHub() {
           catalog, content, and performance signals.
         </p>
       </div>
+
+      {brandId && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.recurring}</p>
+            <p className="text-xs text-gray-500">Recurring Models</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.sponsors}</p>
+            <p className="text-xs text-gray-500">Sponsor Inventory</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.promotions}</p>
+            <p className="text-xs text-gray-500">Promotion Candidates</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {CARDS.map(({ href, label, desc, Icon }) => (

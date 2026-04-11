@@ -1,5 +1,10 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from "next/link";
 import { Compass, HandCoins, Shield, Target, Users } from "lucide-react";
+import { useBrandId } from '@/hooks/useBrandId';
+import { expansionPack2PhaseCApi } from '@/lib/expansion-pack2-phase-c-api';
 
 const CARDS = [
   {
@@ -29,6 +34,21 @@ const CARDS = [
 ] as const;
 
 export default function ExpansionPack2PhaseCHub() {
+  const brandId = useBrandId();
+  const [stats, setStats] = useState({ referrals: 0, gaps: 0, sponsors: 0, guardrails: 0 });
+
+  useEffect(() => {
+    if (!brandId) return;
+    Promise.all([
+      expansionPack2PhaseCApi.referralPrograms(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      expansionPack2PhaseCApi.competitiveGaps(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      expansionPack2PhaseCApi.sponsorTargets(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      expansionPack2PhaseCApi.profitGuardrails(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+    ]).then(([referrals, gaps, sponsors, guardrails]) => {
+      setStats({ referrals: referrals.length, gaps: gaps.length, sponsors: sponsors.length, guardrails: guardrails.length });
+    });
+  }, [brandId]);
+
   return (
     <div className="space-y-6 pb-16">
       <div>
@@ -42,6 +62,27 @@ export default function ExpansionPack2PhaseCHub() {
           healthy and growing.
         </p>
       </div>
+
+      {brandId && (
+        <div className="grid grid-cols-4 gap-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.referrals}</p>
+            <p className="text-xs text-gray-500">Referral Programs</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.gaps}</p>
+            <p className="text-xs text-gray-500">Competitive Gaps</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.sponsors}</p>
+            <p className="text-xs text-gray-500">Sponsor Targets</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.guardrails}</p>
+            <p className="text-xs text-gray-500">Guardrail Reports</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {CARDS.map(({ href, label, desc, Icon }) => (

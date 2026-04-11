@@ -1,5 +1,10 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from "next/link";
 import { Package, Phone, Target, Users } from "lucide-react";
+import { useBrandId } from '@/hooks/useBrandId';
+import { expansionPack2PhaseAApi } from '@/lib/expansion-pack2-phase-a-api';
 
 const CARDS = [
   {
@@ -23,6 +28,20 @@ const CARDS = [
 ] as const;
 
 export default function ExpansionPack2PhaseAHub() {
+  const brandId = useBrandId();
+  const [stats, setStats] = useState({ leads: 0, closerActions: 0, offers: 0 });
+
+  useEffect(() => {
+    if (!brandId) return;
+    Promise.all([
+      expansionPack2PhaseAApi.leadOpportunities(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      expansionPack2PhaseAApi.leadCloserActions(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      expansionPack2PhaseAApi.ownedOfferRecommendations(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+    ]).then(([leads, closer, offers]) => {
+      setStats({ leads: leads.length, closerActions: closer.length, offers: offers.length });
+    });
+  }, [brandId]);
+
   return (
     <div className="space-y-6 pb-16">
       <div>
@@ -36,6 +55,23 @@ export default function ExpansionPack2PhaseAHub() {
           content performance.
         </p>
       </div>
+
+      {brandId && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.leads}</p>
+            <p className="text-xs text-gray-500">Lead Opportunities</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.closerActions}</p>
+            <p className="text-xs text-gray-500">Closer Actions</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.offers}</p>
+            <p className="text-xs text-gray-500">Offer Recommendations</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {CARDS.map(({ href, label, desc, Icon }) => (

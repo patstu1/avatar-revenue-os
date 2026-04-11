@@ -1,5 +1,10 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from "next/link";
 import { DollarSign, Layers, Package, Repeat } from "lucide-react";
+import { useBrandId } from '@/hooks/useBrandId';
+import { expansionPack2PhaseBApi } from '@/lib/expansion-pack2-phase-b-api';
 
 const CARDS = [
   {
@@ -23,6 +28,20 @@ const CARDS = [
 ] as const;
 
 export default function ExpansionPack2PhaseBHub() {
+  const brandId = useBrandId();
+  const [stats, setStats] = useState({ pricing: 0, bundles: 0, retention: 0 });
+
+  useEffect(() => {
+    if (!brandId) return;
+    Promise.all([
+      expansionPack2PhaseBApi.pricingRecommendations(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      expansionPack2PhaseBApi.bundleRecommendations(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      expansionPack2PhaseBApi.retentionRecommendations(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+    ]).then(([pricing, bundles, retention]) => {
+      setStats({ pricing: pricing.length, bundles: bundles.length, retention: retention.length });
+    });
+  }, [brandId]);
+
   return (
     <div className="space-y-6 pb-16">
       <div>
@@ -36,6 +55,23 @@ export default function ExpansionPack2PhaseBHub() {
           campaigns.
         </p>
       </div>
+
+      {brandId && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.pricing}</p>
+            <p className="text-xs text-gray-500">Pricing Recommendations</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.bundles}</p>
+            <p className="text-xs text-gray-500">Bundle Recommendations</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.retention}</p>
+            <p className="text-xs text-gray-500">Retention Actions</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {CARDS.map(({ href, label, desc, Icon }) => (

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   BarChart3,
@@ -7,6 +8,8 @@ import {
   Package,
   TrendingUp,
 } from 'lucide-react';
+import { useBrandId } from '@/hooks/useBrandId';
+import { revenueCeilingPhaseBApi } from '@/lib/revenue-ceiling-phase-b-api';
 
 const PAGES = [
   {
@@ -36,6 +39,20 @@ const PAGES = [
 ];
 
 export default function RevenueCeilingPhaseBHub() {
+  const brandId = useBrandId();
+  const [stats, setStats] = useState({ highTicket: 0, products: 0, upsells: 0 });
+
+  useEffect(() => {
+    if (!brandId) return;
+    Promise.all([
+      revenueCeilingPhaseBApi.highTicketOpportunities(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      revenueCeilingPhaseBApi.productOpportunities(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+      revenueCeilingPhaseBApi.upsellRecommendations(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
+    ]).then(([ht, prod, ups]) => {
+      setStats({ highTicket: ht.length, products: prod.length, upsells: ups.length });
+    });
+  }, [brandId]);
+
   return (
     <div className="space-y-6 pb-16">
       <div>
@@ -48,6 +65,23 @@ export default function RevenueCeilingPhaseBHub() {
           catalog, content, and performance signals.
         </p>
       </div>
+
+      {brandId && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.highTicket}</p>
+            <p className="text-xs text-gray-500">High-Ticket Opps</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.products}</p>
+            <p className="text-xs text-gray-500">Product Opps</p>
+          </div>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-white">{stats.upsells}</p>
+            <p className="text-xs text-gray-500">Upsell Recommendations</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {PAGES.map(({ href, label, description, icon: Icon }) => (
