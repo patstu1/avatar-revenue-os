@@ -384,17 +384,19 @@ class DistributorAdapter:
 class BufferAdapter(DistributorAdapter):
     name = "buffer"
 
-    def is_configured(self) -> bool:
+    def is_configured(self, creds: dict | None = None) -> bool:
+        if creds and creds.get("buffer"):
+            return True
         return bool(os.environ.get("BUFFER_API_KEY"))
 
     def supports_platform(self, platform: str) -> bool:
         return platform.lower() not in ("reddit", "pinterest")
 
-    async def publish(self, request: PublishRequest) -> PublishResult:
+    async def publish(self, request: PublishRequest, api_key: str | None = None) -> PublishResult:
         from packages.clients.external_clients import BufferClient
-        client = BufferClient()
+        client = BufferClient(api_key=api_key)
         if not client._is_configured():
-            return PublishResult(success=False, method=self.name, error="BUFFER_API_KEY not configured")
+            return PublishResult(success=False, method=self.name, error="Buffer not configured — add API key in Settings > Integrations")
 
         result = await client.create_update(
             profile_ids=request.profile_ids,
@@ -415,14 +417,16 @@ class BufferAdapter(DistributorAdapter):
 class PublerAdapter(DistributorAdapter):
     name = "publer"
 
-    def is_configured(self) -> bool:
+    def is_configured(self, creds: dict | None = None) -> bool:
+        if creds and creds.get("publer"):
+            return True
         return bool(os.environ.get("PUBLER_API_KEY"))
 
-    async def publish(self, request: PublishRequest) -> PublishResult:
+    async def publish(self, request: PublishRequest, api_key: str | None = None) -> PublishResult:
         from packages.clients.publer_client import PublerClient
-        client = PublerClient()
+        client = PublerClient(api_key=api_key)
         if not client._is_configured():
-            return PublishResult(success=False, method=self.name, error="PUBLER_API_KEY not configured")
+            return PublishResult(success=False, method=self.name, error="Publer not configured — add API key in Settings > Integrations")
 
         account_ids = request.profile_ids or []
         result = await client.create_post(
@@ -445,14 +449,16 @@ class PublerAdapter(DistributorAdapter):
 class AyrshareAdapter(DistributorAdapter):
     name = "ayrshare"
 
-    def is_configured(self) -> bool:
+    def is_configured(self, creds: dict | None = None) -> bool:
+        if creds and creds.get("ayrshare"):
+            return True
         return bool(os.environ.get("AYRSHARE_API_KEY"))
 
-    async def publish(self, request: PublishRequest) -> PublishResult:
+    async def publish(self, request: PublishRequest, api_key: str | None = None) -> PublishResult:
         from packages.clients.ayrshare_client import AyrshareClient
-        client = AyrshareClient()
+        client = AyrshareClient(api_key=api_key)
         if not client._is_configured():
-            return PublishResult(success=False, method=self.name, error="AYRSHARE_API_KEY not configured")
+            return PublishResult(success=False, method=self.name, error="Ayrshare not configured — add API key in Settings > Integrations")
 
         platform_key = PLATFORM_MAP_AYRSHARE.get(request.platform.lower(), request.platform.lower())
         result = await client.create_post(
@@ -556,6 +562,26 @@ def _load_native_credentials(session, account, org_id) -> Optional[dict]:
     }
 
 
+# ── Aggregator credential loading ─────────────────────────────────────────
+
+def _load_aggregator_credentials(session, org_id) -> dict[str, str | None]:
+    """Load credentials for aggregator providers from encrypted DB.
+
+    Uses credential_loader (DB-first, .env fallback) so aggregator adapters
+    don't need to call os.environ directly.
+    """
+    if not session or not org_id:
+        return {}
+    try:
+        from packages.clients.credential_loader import load_credential
+        return {
+            key: load_credential(session, org_id, key)
+            for key in ("buffer", "publer", "ayrshare")
+        }
+    except Exception:
+        return {}
+
+
 # ── Core routing function ─────────────────────────────────────────────────
 
 async def route_and_publish(db_session, publish_job, content_item, account, org_id) -> PublishResult:
@@ -608,7 +634,8 @@ async def route_and_publish(db_session, publish_job, content_item, account, org_
             logger.exception("publish.native_unexpected platform=%s", platform_lower)
 
     # ── Phase 2: Aggregator fallback ───────────────────────────────────
-    ordered = get_priority_order(platform)
+    aggregator_creds = _load_aggregator_credentials(db_session, org_id)
+    ordered = _get_aggregator_order_with_creds(platform, aggregator_creds)
     last_error = ""
 
     for adapter in ordered:
@@ -621,7 +648,7 @@ async def route_and_publish(db_session, publish_job, content_item, account, org_
                 media_urls=_resolve_media_urls(content_item),
                 scheduled_at=publish_job.scheduled_at.isoformat() if publish_job.scheduled_at else None,
             )
-            result = await adapter.publish(request)
+            result = await adapter.publish(request, api_key=aggregator_creds.get(adapter.name))
             if result.success:
                 _success_count[adapter.name] = _success_count.get(adapter.name, 0) + 1
                 result.methods_tried = methods_tried
@@ -684,6 +711,28 @@ def _resolve_media_urls(content_item) -> Optional[list[str]]:
     return None
 
 
+# ── Aggregator ordering with DB credentials ──────────────────────────────
+
+def _get_aggregator_order_with_creds(platform: str, creds: dict) -> list[DistributorAdapter]:
+    """Return aggregators ordered by reliability, considering DB credentials."""
+    available = [
+        a for a in _AGGREGATOR_REGISTRY
+        if a.is_configured(creds=creds) and a.supports_platform(platform)
+    ]
+    if not available:
+        return []
+
+    def reliability(adapter: DistributorAdapter) -> float:
+        s = _success_count.get(adapter.name, 0)
+        f = _failure_count.get(adapter.name, 0)
+        total = s + f
+        if total == 0:
+            return 0.5
+        return s / total
+
+    return sorted(available, key=reliability, reverse=True)
+
+
 # ── Legacy-compatible functions (used by auto_publish.py and others) ──────
 
 def get_configured_distributors() -> list[DistributorAdapter]:
@@ -713,13 +762,21 @@ def get_priority_order(platform: str) -> list[DistributorAdapter]:
     return sorted(available, key=reliability, reverse=True)
 
 
-async def publish_with_failover(request: PublishRequest) -> PublishResult:
-    """Legacy: aggregator-only publish with failover. Used by auto_publish bridge."""
-    ordered = get_priority_order(request.platform)
+async def publish_with_failover(request: PublishRequest, creds: dict | None = None) -> PublishResult:
+    """Aggregator-only publish with failover. Used by auto_publish bridge.
+
+    If *creds* dict is provided (loaded from encrypted DB), adapters use
+    those credentials. Otherwise falls back to env vars.
+    """
+    if creds:
+        ordered = _get_aggregator_order_with_creds(request.platform, creds)
+    else:
+        ordered = get_priority_order(request.platform)
+
     if not ordered:
         return PublishResult(
             success=False, method="none",
-            error="No distribution service configured. Set BUFFER_API_KEY, PUBLER_API_KEY, or AYRSHARE_API_KEY.",
+            error="No publishing service configured. Add API keys in Settings > Integrations.",
         )
 
     tried: list[str] = []
@@ -728,7 +785,7 @@ async def publish_with_failover(request: PublishRequest) -> PublishResult:
     for adapter in ordered:
         tried.append(adapter.name)
         try:
-            result = await adapter.publish(request)
+            result = await adapter.publish(request, api_key=creds.get(adapter.name) if creds else None)
             if result.success:
                 _success_count[adapter.name] = _success_count.get(adapter.name, 0) + 1
                 result.methods_tried = tried
@@ -750,8 +807,10 @@ async def publish_with_failover(request: PublishRequest) -> PublishResult:
     )
 
 
-def any_distributor_configured() -> bool:
+def any_distributor_configured(creds: dict | None = None) -> bool:
     """Check if at least one distribution method is available."""
+    if creds:
+        return any(creds.get(a.name) for a in _AGGREGATOR_REGISTRY)
     return len(get_configured_distributors()) > 0
 
 

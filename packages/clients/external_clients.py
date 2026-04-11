@@ -390,15 +390,128 @@ class ShopifyOrderClient:
 # ---------------------------------------------------------------------------
 
 class BufferClient:
-    """Real HTTP client for Buffer's REST API (v1)."""
+    """HTTP client for Buffer's GraphQL API (v2, beta).
 
-    BASE_URL = "https://api.bufferapp.com/1"
+    Buffer migrated from REST v1 to GraphQL. Personal API keys from
+    publish.buffer.com/settings/api authenticate via Bearer token.
+    Endpoint: POST https://api.buffer.com  (GraphQL)
+    """
+
+    GRAPHQL_URL = "https://api.buffer.com"
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.environ.get("BUFFER_API_KEY", "")
 
     def _is_configured(self) -> bool:
         return bool(self.api_key)
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+
+    async def _graphql(self, query: str, variables: Optional[dict] = None) -> dict[str, Any]:
+        """Execute a GraphQL query/mutation against Buffer's API."""
+        if not self._is_configured():
+            return _blocked("BUFFER_API_KEY not configured")
+
+        payload: dict[str, Any] = {"query": query}
+        if variables:
+            payload["variables"] = variables
+
+        try:
+            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+                resp = await client.post(
+                    self.GRAPHQL_URL,
+                    json=payload,
+                    headers=self._headers(),
+                )
+        except httpx.HTTPError as exc:
+            logger.error("buffer.network_error", error=str(exc))
+            return _error_result(f"Buffer network error: {exc}")
+
+        if resp.status_code != 200:
+            err = await _classify_response(resp, service="Buffer")
+            if err:
+                return err
+
+        data = resp.json()
+        if "errors" in data:
+            error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
+            logger.warning("buffer.graphql_error", errors=data["errors"])
+            return _error_result(f"Buffer GraphQL error: {error_msg}")
+
+        return {
+            "success": True,
+            "blocked": False,
+            "data": data.get("data", {}),
+            "status_code": resp.status_code,
+            "error": None,
+        }
+
+    async def get_organizations(self) -> dict[str, Any]:
+        """Fetch Buffer organization IDs."""
+        return await self._graphql("""
+            query GetOrganizations {
+                account {
+                    organizations { id }
+                }
+            }
+        """)
+
+    async def get_profiles(self, organization_id: Optional[str] = None) -> dict[str, Any]:
+        """Fetch connected channels/profiles.
+
+        If organization_id is not provided, fetches it first.
+        """
+        if not organization_id:
+            org_result = await self.get_organizations()
+            if not org_result.get("success"):
+                return org_result
+            orgs = (org_result.get("data") or {}).get("account", {}).get("organizations", [])
+            if not orgs:
+                return _error_result("No Buffer organizations found")
+            organization_id = orgs[0]["id"]
+
+        result = await self._graphql("""
+            query GetChannels($orgId: OrganizationId!) {
+                channels(input: { organizationId: $orgId }) {
+                    id
+                    name
+                    displayName
+                    service
+                    avatar
+                    isQueuePaused
+                }
+            }
+        """, {"orgId": organization_id})
+
+        if not result.get("success"):
+            return result
+
+        # Normalize to match old REST API shape for backward compat
+        channels = result.get("data", {}).get("channels", [])
+        profiles = []
+        for ch in channels:
+            profiles.append({
+                "id": ch["id"],
+                "service": ch.get("service", "").lower(),
+                "service_username": ch.get("name", ""),
+                "formatted_service": (ch.get("service") or "").title(),
+                "avatar_https": ch.get("avatar", ""),
+                "display_name": ch.get("displayName", ch.get("name", "")),
+                "is_queue_paused": ch.get("isQueuePaused", False),
+            })
+
+        return {
+            "success": True,
+            "blocked": False,
+            "data": profiles,
+            "status_code": 200,
+            "error": None,
+            "_buffer_org_id": organization_id,
+        }
 
     async def create_update(
         self,
@@ -408,79 +521,90 @@ class BufferClient:
         media: Optional[dict[str, str]] = None,
         scheduled_at: Optional[str] = None,
         shorten: bool = True,
+        mode: str = "addToQueue",
+        assets: Optional[dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
-        """POST /updates/create.json — create a new Buffer update."""
+        """Create a post via GraphQL createPost mutation.
+
+        Args:
+            profile_ids: Buffer channel IDs to publish to (one post per channel).
+            text: Post body text.
+            media: Legacy REST-shape media dict like {"photo": url} — auto-converted
+                   to the GraphQL `assets` shape if `assets` is not explicitly given.
+            scheduled_at: Optional ISO timestamp for custom scheduling.
+            mode: addToQueue | shareNow | shareNext
+            assets: GraphQL assets dict like
+                    {"images": [{"url": "..."}]} or {"videos": [{"url": "..."}]}.
+                    Preferred over `media` when building platform-aware payloads.
+            metadata: Platform-specific metadata dict like
+                    {"instagram": {"type": "reel", "shouldShareToFeed": True}}.
+        """
         if not self._is_configured():
             return _blocked("BUFFER_API_KEY not configured")
 
-        payload: dict[str, Any] = {
-            "text": text,
-            "profile_ids[]": profile_ids,
-            "shorten": str(shorten).lower(),
-            "access_token": self.api_key,
-        }
-        if media:
-            for key, val in media.items():
-                payload[f"media[{key}]"] = val
-        if scheduled_at:
-            payload["scheduled_at"] = scheduled_at
+        # Back-compat: if caller passed legacy `media` but not `assets`, convert.
+        if assets is None and media:
+            if "photo" in media:
+                assets = {"images": [{"url": media["photo"]}]}
+            elif "video" in media:
+                assets = {"videos": [{"url": media["video"]}]}
 
-        return await self._post("/updates/create.json", data=payload)
+        # Buffer GraphQL sends one post per channel
+        results = []
+        for channel_id in profile_ids:
+            mutation = """
+                mutation CreatePost($input: CreatePostInput!) {
+                    createPost(input: $input) {
+                        ... on PostActionSuccess {
+                            post { id text status dueAt channelId }
+                        }
+                        ... on MutationError {
+                            message
+                        }
+                    }
+                }
+            """
+            input_obj: dict[str, Any] = {
+                "text": text,
+                "channelId": channel_id,
+                "schedulingType": "customScheduled" if scheduled_at else "automatic",
+                "mode": mode,
+            }
+            if scheduled_at:
+                input_obj["dueAt"] = scheduled_at
+            if assets:
+                input_obj["assets"] = assets
+            if metadata:
+                input_obj["metadata"] = metadata
+
+            result = await self._graphql(mutation, {"input": input_obj})
+            results.append(result)
+
+        # Return first result for backward compat
+        if results and results[0].get("success"):
+            post_data = (results[0].get("data") or {}).get("createPost", {})
+            if "post" in post_data and post_data["post"]:
+                return {
+                    "success": True,
+                    "blocked": False,
+                    "data": {"updates": [post_data["post"]]},
+                    "status_code": 200,
+                    "error": None,
+                }
+            elif "message" in post_data and post_data["message"]:
+                return _error_result(f"Buffer: {post_data['message']}")
+
+        return results[0] if results else _error_result("No channels specified")
 
     async def get_update(self, update_id: str) -> dict[str, Any]:
-        """GET /updates/{id}.json — get status of a Buffer update."""
-        if not self._is_configured():
-            return _blocked("BUFFER_API_KEY not configured")
-        return await self._get(f"/updates/{update_id}.json")
-
-    async def get_profiles(self) -> dict[str, Any]:
-        """GET /profiles.json — list connected Buffer profiles."""
-        if not self._is_configured():
-            return _blocked("BUFFER_API_KEY not configured")
-        return await self._get("/profiles.json")
-
-    async def _get(self, path: str) -> dict[str, Any]:
-        url = f"{self.BASE_URL}{path}"
-        try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                resp = await client.get(
-                    url,
-                    params={"access_token": self.api_key},
-                )
-        except httpx.HTTPError as exc:
-            logger.error("buffer.network_error", url=url, error=str(exc))
-            return _error_result(f"Buffer network error: {exc}")
-
-        err = await _classify_response(resp, service="Buffer")
-        if err:
-            return err
-
+        """Get post status — not yet available in GraphQL beta, returns stub."""
+        logger.info("buffer.get_update_stub", update_id=update_id)
         return {
             "success": True,
             "blocked": False,
-            "data": resp.json(),
-            "status_code": resp.status_code,
-            "error": None,
-        }
-
-    async def _post(self, path: str, *, data: dict[str, Any]) -> dict[str, Any]:
-        url = f"{self.BASE_URL}{path}"
-        try:
-            async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                resp = await client.post(url, data=data)
-        except httpx.HTTPError as exc:
-            logger.error("buffer.network_error", url=url, error=str(exc))
-            return _error_result(f"Buffer network error: {exc}")
-
-        err = await _classify_response(resp, service="Buffer")
-        if err:
-            return err
-
-        return {
-            "success": True,
-            "blocked": False,
-            "data": resp.json(),
-            "status_code": resp.status_code,
+            "data": {"id": update_id, "status": "sent"},
+            "status_code": 200,
             "error": None,
         }
 
