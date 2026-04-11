@@ -9,8 +9,8 @@ from apps.api.services.operator_permission_service import check_action
 logger = logging.getLogger(__name__)
 
 ACTION_MAP = {
-    "publish_content": "publish",
-    "auto_publish": "publish",
+    "publish_content": "content_publish",
+    "auto_publish": "content_publish",
     "generate_content": "content_generation",
     "launch_campaign": "campaign_launch",
     "publish_landing_page": "landing_page_publish",
