@@ -26,7 +26,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuth: (user, token) => {
     localStorage.setItem('aro_token', token);
     localStorage.setItem('aro_user', JSON.stringify(user));
-    document.cookie = `aro_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+    document.cookie = `aro_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax; Secure`;
     set({ user, token, isAuthenticated: true, hydrated: true });
   },
   logout: () => {
@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
-        document.cookie = `aro_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+        document.cookie = `aro_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax; Secure`;
         set({ user, token, isAuthenticated: true, hydrated: true });
       } catch {
         set({ user: null, token: null, isAuthenticated: false, hydrated: true });
