@@ -279,18 +279,13 @@ async def get_credential(db: AsyncSession, org_id: uuid.UUID, provider_key: str)
     if provider and provider.api_key_encrypted:
         return _decrypt(provider.api_key_encrypted)
 
-    # Fallback: .env transition
-    env_var = PROVIDER_ENV_KEYS.get(provider_key)
-    if env_var:
-        env_value = os.environ.get(env_var, "")
-        if env_value:
-            logger.warning(
-                "credential_env_fallback_DEPRECATED",
-                provider=provider_key,
-                env_var=env_var,
-                hint="Migrate to DB credentials via Settings > Integrations",
-            )
-            return env_value
+    # No env fallback — all credentials must be stored in DB via the dashboard.
+    # If the key is missing, the operator needs to configure it through
+    # Settings > Integrations.
+    if not provider:
+        logger.warning("credential_missing", provider=provider_key, hint="Provider not found in integration_providers table")
+    else:
+        logger.warning("credential_not_configured", provider=provider_key, hint="Configure via Settings > Integrations")
     return None
 
 

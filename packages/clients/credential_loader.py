@@ -58,33 +58,12 @@ def load_credential(session: Session, org_id: uuid.UUID, provider_key: str) -> O
     if provider and provider.api_key_encrypted:
         return _decrypt(provider.api_key_encrypted)
 
-    # 2. Check provider_secrets (set via dashboard secrets_service — uses different encryption)
-    try:
-        from sqlalchemy import text
-        from apps.api.services.secrets_service import decrypt_value as _decrypt_secrets
-        ps_row = session.execute(
-            text("SELECT encrypted_value FROM provider_secrets WHERE organization_id = :oid AND provider_name = :pname"),
-            {"oid": str(org_id), "pname": provider_key},
-        ).fetchone()
-        if ps_row and ps_row[0]:
-            val = _decrypt_secrets(ps_row[0])
-            if val:
-                return val
-    except Exception:
-        pass
-
-    # 3. Fallback: .env transition
-    env_var = PROVIDER_ENV_KEYS.get(provider_key)
-    if env_var:
-        env_value = os.environ.get(env_var, "")
-        if env_value:
-            logger.warning(
-                "credential_env_fallback_DEPRECATED",
-                provider=provider_key,
-                env_var=env_var,
-                hint="Migrate to DB credentials via Settings > Integrations",
-            )
-            return env_value
+    # No env fallback — all credentials must be in the DB (integration_providers).
+    # Configure via Settings > Integrations in the dashboard.
+    if not provider:
+        logger.warning("credential_missing", provider=provider_key, hint="Not found in integration_providers")
+    else:
+        logger.warning("credential_not_configured", provider=provider_key, hint="Configure via Settings > Integrations")
     return None
 
 

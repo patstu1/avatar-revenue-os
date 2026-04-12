@@ -28,20 +28,15 @@ from packages.scoring.buffer_engine import (
 
 logger = structlog.get_logger()
 
-BUFFER_API_KEY_ENV = "BUFFER_API_KEY"
-
-
-def _has_buffer_api_key() -> bool:
-    return bool(os.environ.get(BUFFER_API_KEY_ENV))
-
-
 async def _resolve_buffer_api_key(db: AsyncSession, organization_id: uuid.UUID) -> str:
-    """Check DB-stored key first (set via dashboard), then fall back to env var."""
-    from apps.api.services import secrets_service
-    db_key = await secrets_service.get_key(db, organization_id, "buffer")
-    if db_key:
-        return db_key
-    return os.environ.get(BUFFER_API_KEY_ENV, "")
+    """Resolve Buffer API key from the integration_providers table (dashboard-managed).
+
+    All credentials are stored encrypted in the DB and managed via the
+    Integrations dashboard.  No .env fallback — if the key isn't in the DB,
+    the operator needs to configure it through Settings > Integrations.
+    """
+    from apps.api.services.integration_manager import get_credential
+    return await get_credential(db, organization_id, "buffer") or ""
 
 
 # ── Profile CRUD ──────────────────────────────────────────────────────
@@ -289,7 +284,7 @@ async def submit_job_to_buffer(db: AsyncSession, job_id: uuid.UUID) -> dict[str,
     brand_q = await db.execute(select(Brand).where(Brand.id == job.brand_id))
     brand = brand_q.scalar_one_or_none()
     org_id = brand.organization_id if brand else None
-    buffer_api_key = await _resolve_buffer_api_key(db, org_id) if org_id else os.environ.get(BUFFER_API_KEY_ENV, "")
+    buffer_api_key = await _resolve_buffer_api_key(db, org_id) if org_id else ""
 
     attempt = BufferPublishAttempt(
         job_id=job.id,
@@ -528,15 +523,21 @@ async def run_status_sync(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, in
     failed = 0
     published = 0
 
+    # Resolve org to check for DB-stored Buffer API key
+    from packages.db.models.core import Brand
+    brand_row = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
+    _org_id = brand_row.organization_id if brand_row else None
+    _buffer_key = await _resolve_buffer_api_key(db, _org_id) if _org_id else ""
+
     for job in jobs:
-        if not _has_buffer_api_key():
+        if not _buffer_key:
             # Without API key, we simulate based on job age
             if job.status == "submitted":
                 job.status = "queued"
                 updated += 1
         else:
             from packages.clients.external_clients import BufferClient
-            client = BufferClient()
+            client = BufferClient(api_key=_buffer_key)
 
             if job.buffer_post_id:
                 result = await client.get_update(job.buffer_post_id)
@@ -564,7 +565,7 @@ async def run_status_sync(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, in
         jobs_failed=failed,
         jobs_published=published,
         sync_mode="pull",
-        details_json={"has_api_key": _has_buffer_api_key()},
+        details_json={"has_api_key": bool(_buffer_key)},
     )
     db.add(sync_record)
     await db.flush()
@@ -609,7 +610,13 @@ async def recompute_blockers(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
         for p in profiles
     ]
 
-    brand_ctx = {"has_buffer_api_key": _has_buffer_api_key()}
+    # Resolve org to check for DB-stored Buffer API key
+    from packages.db.models.core import Brand as _Brand
+    _brand_row = (await db.execute(select(_Brand).where(_Brand.id == brand_id))).scalar_one_or_none()
+    _org_id = _brand_row.organization_id if _brand_row else None
+    _has_key = bool(await _resolve_buffer_api_key(db, _org_id)) if _org_id else False
+
+    brand_ctx = {"has_buffer_api_key": _has_key}
     detected = detect_buffer_blockers(profile_dicts, brand_ctx)
 
     created = 0
