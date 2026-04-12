@@ -201,6 +201,8 @@ services:
         reservations:
           cpus: "0.5"
           memory: 256M
+    volumes:
+      - aro_media:/app/media
     ports:
       - "8001:8000"
     networks:
@@ -228,6 +230,8 @@ services:
     environment: *worker-env
     healthcheck: *worker-healthcheck
     depends_on: *worker-depends
+    volumes:
+      - aro_media:/app/media
     deploy:
       resources:
         limits:
@@ -472,6 +476,8 @@ volumes:
     name: aro_pgdata
   aro_redisdata:
     name: aro_redisdata
+  aro_media:
+    name: aro_media
   aro_caddy_data:
     name: aro_caddy_data
   aro_caddy_config:
