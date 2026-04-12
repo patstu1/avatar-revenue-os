@@ -59,7 +59,7 @@ RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuse
 
 WORKDIR /app
 COPY . .
-RUN chown -R appuser:appuser /app
+RUN mkdir -p /app/media && chown -R appuser:appuser /app
 
 USER appuser
 

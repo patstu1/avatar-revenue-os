@@ -70,6 +70,7 @@ x-worker-env: &worker-env
   API_SECRET_KEY: ${API_SECRET_KEY}
   LOG_LEVEL: ${LOG_LEVEL:-warning}
   SENTRY_DSN: ${SENTRY_DSN:-}
+  DOMAIN: ${DOMAIN:-app.nvironments.com}
 
 x-worker-healthcheck: &worker-healthcheck
   test: ["CMD-SHELL", "test -f /tmp/celery-worker.pid && kill -0 $(cat /tmp/celery-worker.pid)"]
