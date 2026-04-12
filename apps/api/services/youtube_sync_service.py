@@ -1,3 +1,4 @@
+from __future__ import annotations
 """YouTube Analytics sync service — pulls channel stats via YouTube Data API v3."""
 import logging
 from datetime import datetime, timezone

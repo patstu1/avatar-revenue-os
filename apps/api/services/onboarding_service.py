@@ -249,10 +249,11 @@ async def get_onboarding_status(
     )
     brand_count = brand_count_result.scalar() or 0
 
-    # --- Creator Accounts, Offers, Content (via brand_id join) ---
+    # --- Creator Accounts, Offers, Content, Buffer Profiles (via brand_id join) ---
     account_count = 0
     offer_count = 0
     content_count = 0
+    buffer_profile_count = 0
 
     if brand_count > 0:
         brand_ids_result = await db.execute(
@@ -286,6 +287,16 @@ async def get_onboarding_status(
         )
         content_count = content_result.scalar() or 0
 
+        # Canonical "publishing connected" check: mapped Buffer profiles
+        from packages.db.models.buffer_distribution import BufferProfile
+        bp_result = await db.execute(
+            select(func.count()).select_from(BufferProfile).where(
+                BufferProfile.brand_id.in_(brand_ids),
+                BufferProfile.is_active == True,  # noqa: E712
+            )
+        )
+        buffer_profile_count = bp_result.scalar() or 0
+
     # --- Integrations / Provider keys configured ---
     from apps.api.services import secrets_service
     db_keys = await secrets_service.get_all_keys(db, organization_id)
@@ -301,7 +312,11 @@ async def get_onboarding_status(
     providers_configured = max(providers_from_db, providers_from_env)
 
     has_brands = brand_count > 0
-    has_accounts = account_count > 0
+    # "Accounts/publishing connected" is canonically satisfied by either:
+    #   (a) >=1 active creator_accounts row OR
+    #   (b) >=1 active buffer_profiles row (Buffer is the primary distributor)
+    has_publishing = (account_count > 0) or (buffer_profile_count > 0)
+    has_accounts = has_publishing  # legacy compat
     has_offers = offer_count > 0
     has_content = content_count > 0
     has_providers = providers_configured > 0
@@ -312,16 +327,17 @@ async def get_onboarding_status(
     # "empty": nothing at all
     if has_providers and has_brands:
         system_state = "ready"
-    elif has_providers or has_brands or has_accounts:
+    elif has_providers or has_brands or has_publishing:
         system_state = "partial"
     else:
         system_state = "empty"
 
     # Build checklist
+    total_channels = account_count + buffer_profile_count
     checklist = [
         {"key": "providers", "label": "Connect AI Providers", "done": has_providers, "count": providers_configured, "priority": 1},
         {"key": "brands", "label": "Create Brands / Projects", "done": has_brands, "count": brand_count, "priority": 2},
-        {"key": "accounts", "label": "Connect Creator Accounts", "done": has_accounts, "count": account_count, "priority": 3},
+        {"key": "accounts", "label": "Connect Publishing Channels", "done": has_publishing, "count": total_channels, "priority": 3},
         {"key": "offers", "label": "Add Revenue Offers", "done": has_offers, "count": offer_count, "priority": 4},
         {"key": "content", "label": "Generate Content", "done": has_content, "count": content_count, "priority": 5},
     ]
@@ -345,6 +361,8 @@ async def get_onboarding_status(
         "providers_configured": providers_configured,
         "brand_count": brand_count,
         "account_count": account_count,
+        "buffer_profile_count": buffer_profile_count,
+        "publishing_channel_count": total_channels,
         "offer_count": offer_count,
         "content_count": content_count,
     }

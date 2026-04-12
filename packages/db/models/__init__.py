@@ -386,6 +386,8 @@ from packages.db.models.revenue_ledger import RevenueLedgerEntry
 from packages.db.models.integration_registry import IntegrationProvider, CreatorPlatformAccount
 from packages.db.models.gm import GMSession, GMMessage, GMBlueprint, GMConversation
 from packages.db.models.alert_routing import OperatorNotificationPreference, AlertDeliveryLog
+from packages.db.models.publish_policy import PublishPolicyRule
+from packages.db.models.revenue_assignment import RevenueAssignment
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",
@@ -570,4 +572,6 @@ __all__ = [
     "CreatorPlatformAccount",
     "OperatorNotificationPreference",
     "AlertDeliveryLog",
+    "PublishPolicyRule",
+    "RevenueAssignment",
 ]

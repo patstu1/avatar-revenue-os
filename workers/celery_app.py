@@ -716,7 +716,7 @@ app.conf.update(
         },
         "trend-light-scan-tick": {
             "task": "workers.trend_viral_worker.tasks.trend_light_scan",
-            "schedule": 10.0,  # Base tick — per-brand interval is configurable via brand_guidelines.trend_scan_interval_seconds (no default; operator/GM sets it)
+            "schedule": 60.0,  # Every 60s — reasonable scan rate without hammering APIs
         },
         "trend-deep-analysis-every-5m": {
             "task": "workers.trend_viral_worker.tasks.trend_deep_analysis",

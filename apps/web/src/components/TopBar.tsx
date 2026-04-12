@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MessageCircle, Bell, ClipboardCheck, Activity } from "lucide-react";
+import BrandSwitcher from "./BrandSwitcher";
 
 const ROUTE_LABELS: Record<string, string> = {
   "dashboard": "Home",
@@ -243,7 +244,8 @@ export default function TopBar() {
         {crumbs.length === 0 && <span className="text-gray-300 font-medium">Home</span>}
       </nav>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-3">
+        <BrandSwitcher />
         {UTILITY_ITEMS.map((item) => (
           <Link
             key={item.href}

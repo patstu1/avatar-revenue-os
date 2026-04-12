@@ -76,3 +76,10 @@ class Approval(Base):
         UUID(as_uuid=True), ForeignKey("similarity_reports.id")
     )
     reviewed_at: Mapped[Optional[str]] = mapped_column(String(50))
+    publish_policy_tier: Mapped[Optional[str]] = mapped_column(
+        String(30), nullable=True, index=True,
+        comment="Tier from publish policy engine: auto_publish, sample_review, manual_approval, block",
+    )
+    sample_flagged: Mapped[bool] = mapped_column(Boolean, default=False,
+        comment="If sample_review tier, whether this item was selected for async post-publish review.",
+    )

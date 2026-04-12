@@ -38,7 +38,8 @@ export default function MaxOutputPage() {
     setError(null);
     try {
       const res = await api.get(`/api/v1/brands/${brandId}/account-output`);
-      setReports(res.data);
+      const data = res.data;
+      setReports(Array.isArray(data) ? data : []);
     } catch {
       setError('Failed to load account output reports.');
     } finally {
@@ -123,14 +124,14 @@ export default function MaxOutputPage() {
                           {truncId(r.account_id)}
                         </TableCell>
                         <TableCell className="text-xs">{r.platform}</TableCell>
-                        <TableCell className="text-right text-xs">{r.current_output_per_week.toFixed(1)}</TableCell>
-                        <TableCell className="text-right text-xs">{r.recommended_output_per_week.toFixed(1)}</TableCell>
-                        <TableCell className="text-right text-xs">{r.max_safe_output_per_week.toFixed(1)}</TableCell>
-                        <TableCell className="text-right text-xs">{r.max_profitable_output_per_week.toFixed(1)}</TableCell>
+                        <TableCell className="text-right text-xs">{Number(r.current_output_per_week ?? 0).toFixed(1)}</TableCell>
+                        <TableCell className="text-right text-xs">{Number(r.recommended_output_per_week ?? 0).toFixed(1)}</TableCell>
+                        <TableCell className="text-right text-xs">{Number(r.max_safe_output_per_week ?? 0).toFixed(1)}</TableCell>
+                        <TableCell className="text-right text-xs">{Number(r.max_profitable_output_per_week ?? 0).toFixed(1)}</TableCell>
                         <TableCell className={`text-xs ${isThrottled ? 'text-amber-400' : 'text-muted-foreground'}`}>
                           {r.throttle_reason ?? '—'}
                         </TableCell>
-                        <TableCell className="text-right text-xs">{r.confidence.toFixed(2)}</TableCell>
+                        <TableCell className="text-right text-xs">{Number(r.confidence ?? 0).toFixed(2)}</TableCell>
                       </TableRow>
                     );
                   })}

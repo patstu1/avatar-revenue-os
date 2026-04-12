@@ -490,11 +490,11 @@ export default function GrowthCommanderPage() {
                     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
                       <div className="rounded-lg border border-gray-800 bg-gray-800/30 p-3">
                         <div className="text-gray-500 text-xs">Expected upside</div>
-                        <div className="text-brand-300 font-semibold tabular-nums">${cmd.expected_upside.toLocaleString()}</div>
+                        <div className="text-brand-300 font-semibold tabular-nums">${Number(cmd.expected_upside ?? 0).toLocaleString()}</div>
                       </div>
                       <div className="rounded-lg border border-gray-800 bg-gray-800/30 p-3">
                         <div className="text-gray-500 text-xs">Cost</div>
-                        <div className="text-white font-semibold tabular-nums">${cmd.expected_cost.toLocaleString()}</div>
+                        <div className="text-white font-semibold tabular-nums">${Number(cmd.expected_cost ?? 0).toLocaleString()}</div>
                       </div>
                       <div className="rounded-lg border border-gray-800 bg-gray-800/30 p-3">
                         <div className="text-gray-500 text-xs">Time to signal</div>

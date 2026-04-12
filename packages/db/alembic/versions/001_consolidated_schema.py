@@ -17,16 +17,32 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """Create all tables from SQLAlchemy models using metadata.create_all."""
+    """Create all tables from SQLAlchemy models using metadata.create_all.
+
+    Idempotent: create_all with checkfirst=True (the default) skips
+    tables that already exist.
+    """
     from packages.db.base import Base
     import packages.db.models  # noqa: F401 — registers all models
 
     bind = op.get_bind()
-    Base.metadata.create_all(bind=bind)
+    Base.metadata.create_all(bind=bind, checkfirst=True)
 
 
 def downgrade() -> None:
-    """Drop all tables."""
+    """Drop all tables — DISABLED in production.
+
+    This downgrade is intentionally guarded. Running drop_all on a
+    production database is catastrophic. If you genuinely need to
+    tear down the schema, set the env var ALLOW_DESTRUCTIVE_DOWNGRADE=1.
+    """
+    import os
+    if os.environ.get("ALLOW_DESTRUCTIVE_DOWNGRADE") != "1":
+        raise RuntimeError(
+            "Downgrade of 001_consolidated is blocked. "
+            "This would DROP ALL TABLES. Set ALLOW_DESTRUCTIVE_DOWNGRADE=1 "
+            "if you really mean it."
+        )
     from packages.db.base import Base
     import packages.db.models  # noqa: F401
 

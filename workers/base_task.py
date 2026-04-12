@@ -95,6 +95,10 @@ class TrackedTask(Task):
     - Permanent (400, 404, validation): no retry, emit failure event
     - Unknown: retry with exponential backoff, emit alert after consecutive failures
 
+    Guardrails:
+    - Failure circuit breaker: trips after 10 failures/hour per provider
+    - Records failures for circuit breaker tracking on every on_failure
+
     System events are the horizontal integration layer — they allow the control layer,
     intelligence layer, and recovery layer to react to job state changes in real time.
     """
@@ -128,6 +132,8 @@ class TrackedTask(Task):
             new_state="completed",
             previous_state="running",
         )
+        # Clear circuit breaker failures on success
+        self._guardrail_clear_failures()
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         category = _classify_error(exc)
@@ -138,6 +144,9 @@ class TrackedTask(Task):
             error=str(exc), error_category=category, http_status=status_code,
         )
         now = datetime.now(timezone.utc)
+
+        # Record failure for circuit breaker
+        self._guardrail_record_failure()
 
         if category == "transient":
             # Retry with exponential backoff — no cap on retry count or interval
@@ -321,6 +330,49 @@ class TrackedTask(Task):
                 session.commit()
         except Exception:
             logger.exception("worker.emit_event.failed", task_id=task_id, event_type=event_type)
+
+
+    # ── Guardrail integration ──────────────────────────────────────────
+
+    def _get_guardrail_engine(self):
+        try:
+            from packages.guardrails.execution_guardrails import GuardrailEngine
+            return GuardrailEngine()
+        except Exception:
+            return None
+
+    def _guardrail_lane(self) -> str:
+        """Derive the lane name from the queue or task name."""
+        queue = getattr(self, "queue", None) or "default"
+        return queue
+
+    def _guardrail_provider(self) -> str:
+        """Derive the provider from the task name (e.g. 'generation_worker' -> 'generation')."""
+        name = self.name or ""
+        # Extract worker type: workers.generation_worker.tasks.foo -> generation
+        parts = name.split(".")
+        if len(parts) >= 2:
+            worker_part = parts[1]  # e.g. 'generation_worker'
+            return worker_part.replace("_worker", "")
+        return "unknown"
+
+    def _guardrail_record_failure(self):
+        """Record a failure for circuit breaker tracking."""
+        try:
+            engine = self._get_guardrail_engine()
+            if engine:
+                engine.record_failure(self._guardrail_lane(), self._guardrail_provider())
+        except Exception:
+            pass
+
+    def _guardrail_clear_failures(self):
+        """Clear failure counter on success."""
+        try:
+            engine = self._get_guardrail_engine()
+            if engine:
+                engine.clear_failures(self._guardrail_lane(), self._guardrail_provider())
+        except Exception:
+            pass
 
 
 BaseTask = TrackedTask

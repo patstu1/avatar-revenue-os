@@ -9,6 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from packages.db.alembic.migration_safety import safe_create_table
+
 revision = "002_cinema_studio"
 down_revision = "001_consolidated"
 branch_labels = None
@@ -16,14 +18,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    conn = op.get_bind()
-    inspector = sa.inspect(conn)
-    existing = set(inspector.get_table_names())
-
-    if "style_presets" in existing:
-        return
-
-    op.create_table(
+    safe_create_table(
         "style_presets",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=True, index=True),
@@ -37,7 +32,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
 
-    op.create_table(
+    safe_create_table(
         "studio_projects",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
@@ -52,7 +47,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
 
-    op.create_table(
+    safe_create_table(
         "character_bibles",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
@@ -73,7 +68,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
 
-    op.create_table(
+    safe_create_table(
         "studio_scenes",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("studio_projects.id", ondelete="SET NULL"), index=True),
@@ -96,7 +91,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
 
-    op.create_table(
+    safe_create_table(
         "studio_generations",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("scene_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("studio_scenes.id", ondelete="CASCADE"), nullable=False, index=True),
@@ -116,7 +111,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
 
-    op.create_table(
+    safe_create_table(
         "studio_activity",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
@@ -130,9 +125,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("studio_activity")
-    op.drop_table("studio_generations")
-    op.drop_table("studio_scenes")
-    op.drop_table("character_bibles")
-    op.drop_table("studio_projects")
-    op.drop_table("style_presets")
+    from packages.db.alembic.migration_safety import safe_drop_table
+    safe_drop_table("studio_activity")
+    safe_drop_table("studio_generations")
+    safe_drop_table("studio_scenes")
+    safe_drop_table("character_bibles")
+    safe_drop_table("studio_projects")
+    safe_drop_table("style_presets")

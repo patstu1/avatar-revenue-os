@@ -8,6 +8,10 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
+from packages.db.alembic.migration_safety import (
+    safe_create_table, safe_create_index, safe_drop_table,
+)
+
 revision = "004_monetization"
 down_revision = "b6587e9c03b5"
 branch_labels = None
@@ -16,7 +20,7 @@ depends_on = None
 
 def upgrade() -> None:
     # ── 1. credit_ledgers ─────────────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "credit_ledgers",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
@@ -32,10 +36,10 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_credit_ledgers_organization_id", "credit_ledgers", ["organization_id"])
+    safe_create_index("ix_credit_ledgers_organization_id", "credit_ledgers", ["organization_id"])
 
     # ── 2. credit_transactions ────────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "credit_transactions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
@@ -52,14 +56,14 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_credit_transactions_organization_id", "credit_transactions", ["organization_id"])
-    op.create_index("ix_credit_transactions_user_id", "credit_transactions", ["user_id"])
-    op.create_index("ix_credit_transactions_transaction_type", "credit_transactions", ["transaction_type"])
-    op.create_index("ix_credit_transactions_meter_type", "credit_transactions", ["meter_type"])
-    op.create_index("ix_credit_transactions_transacted_at", "credit_transactions", ["transacted_at"])
+    safe_create_index("ix_credit_transactions_organization_id", "credit_transactions", ["organization_id"])
+    safe_create_index("ix_credit_transactions_user_id", "credit_transactions", ["user_id"])
+    safe_create_index("ix_credit_transactions_transaction_type", "credit_transactions", ["transaction_type"])
+    safe_create_index("ix_credit_transactions_meter_type", "credit_transactions", ["meter_type"])
+    safe_create_index("ix_credit_transactions_transacted_at", "credit_transactions", ["transacted_at"])
 
     # ── 3. usage_meter_snapshots ──────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "usage_meter_snapshots",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
@@ -75,11 +79,11 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_usage_meter_snapshots_organization_id", "usage_meter_snapshots", ["organization_id"])
-    op.create_index("ix_usage_meter_snapshots_meter_type", "usage_meter_snapshots", ["meter_type"])
+    safe_create_index("ix_usage_meter_snapshots_organization_id", "usage_meter_snapshots", ["organization_id"])
+    safe_create_index("ix_usage_meter_snapshots_meter_type", "usage_meter_snapshots", ["meter_type"])
 
     # ── 4. plan_subscriptions ─────────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "plan_subscriptions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
@@ -100,12 +104,12 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_plan_subscriptions_organization_id", "plan_subscriptions", ["organization_id"])
-    op.create_index("ix_plan_subscriptions_plan_tier", "plan_subscriptions", ["plan_tier"])
-    op.create_index("ix_plan_subscriptions_status", "plan_subscriptions", ["status"])
+    safe_create_index("ix_plan_subscriptions_organization_id", "plan_subscriptions", ["organization_id"])
+    safe_create_index("ix_plan_subscriptions_plan_tier", "plan_subscriptions", ["plan_tier"])
+    safe_create_index("ix_plan_subscriptions_status", "plan_subscriptions", ["status"])
 
     # ── 5. pack_purchases ─────────────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "pack_purchases",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
@@ -123,14 +127,14 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_pack_purchases_organization_id", "pack_purchases", ["organization_id"])
-    op.create_index("ix_pack_purchases_user_id", "pack_purchases", ["user_id"])
-    op.create_index("ix_pack_purchases_pack_type", "pack_purchases", ["pack_type"])
-    op.create_index("ix_pack_purchases_pack_id", "pack_purchases", ["pack_id"])
-    op.create_index("ix_pack_purchases_status", "pack_purchases", ["status"])
+    safe_create_index("ix_pack_purchases_organization_id", "pack_purchases", ["organization_id"])
+    safe_create_index("ix_pack_purchases_user_id", "pack_purchases", ["user_id"])
+    safe_create_index("ix_pack_purchases_pack_type", "pack_purchases", ["pack_type"])
+    safe_create_index("ix_pack_purchases_pack_id", "pack_purchases", ["pack_id"])
+    safe_create_index("ix_pack_purchases_status", "pack_purchases", ["status"])
 
     # ── 6. multiplication_events ──────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "multiplication_events",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
@@ -146,12 +150,12 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_multiplication_events_organization_id", "multiplication_events", ["organization_id"])
-    op.create_index("ix_multiplication_events_user_id", "multiplication_events", ["user_id"])
-    op.create_index("ix_multiplication_events_event_type", "multiplication_events", ["event_type"])
+    safe_create_index("ix_multiplication_events_organization_id", "multiplication_events", ["organization_id"])
+    safe_create_index("ix_multiplication_events_user_id", "multiplication_events", ["user_id"])
+    safe_create_index("ix_multiplication_events_event_type", "multiplication_events", ["event_type"])
 
     # ── 7. monetization_telemetry ─────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "monetization_telemetry",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
@@ -165,13 +169,13 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_monetization_telemetry_organization_id", "monetization_telemetry", ["organization_id"])
-    op.create_index("ix_monetization_telemetry_user_id", "monetization_telemetry", ["user_id"])
-    op.create_index("ix_monetization_telemetry_event_name", "monetization_telemetry", ["event_name"])
-    op.create_index("ix_monetization_telemetry_occurred_at", "monetization_telemetry", ["occurred_at"])
+    safe_create_index("ix_monetization_telemetry_organization_id", "monetization_telemetry", ["organization_id"])
+    safe_create_index("ix_monetization_telemetry_user_id", "monetization_telemetry", ["user_id"])
+    safe_create_index("ix_monetization_telemetry_event_name", "monetization_telemetry", ["event_name"])
+    safe_create_index("ix_monetization_telemetry_occurred_at", "monetization_telemetry", ["occurred_at"])
 
     # ── 8. subscriptions ──────────────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "subscriptions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id", ondelete="CASCADE"), nullable=False),
@@ -192,15 +196,15 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_subscriptions_brand_id", "subscriptions", ["brand_id"])
-    op.create_index("ix_subscriptions_customer_id", "subscriptions", ["customer_id"])
-    op.create_index("ix_subscriptions_plan_name", "subscriptions", ["plan_name"])
-    op.create_index("ix_subscriptions_plan_tier", "subscriptions", ["plan_tier"])
-    op.create_index("ix_subscriptions_status", "subscriptions", ["status"])
-    op.create_index("ix_subscriptions_stripe_subscription_id", "subscriptions", ["stripe_subscription_id"])
+    safe_create_index("ix_subscriptions_brand_id", "subscriptions", ["brand_id"])
+    safe_create_index("ix_subscriptions_customer_id", "subscriptions", ["customer_id"])
+    safe_create_index("ix_subscriptions_plan_name", "subscriptions", ["plan_name"])
+    safe_create_index("ix_subscriptions_plan_tier", "subscriptions", ["plan_tier"])
+    safe_create_index("ix_subscriptions_status", "subscriptions", ["status"])
+    safe_create_index("ix_subscriptions_stripe_subscription_id", "subscriptions", ["stripe_subscription_id"])
 
     # ── 9. subscription_events ────────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "subscription_events",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id", ondelete="CASCADE"), nullable=False),
@@ -219,14 +223,14 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_subscription_events_brand_id", "subscription_events", ["brand_id"])
-    op.create_index("ix_subscription_events_subscription_id", "subscription_events", ["subscription_id"])
-    op.create_index("ix_subscription_events_customer_id", "subscription_events", ["customer_id"])
-    op.create_index("ix_subscription_events_event_type", "subscription_events", ["event_type"])
-    op.create_index("ix_subscription_events_event_at", "subscription_events", ["event_at"])
+    safe_create_index("ix_subscription_events_brand_id", "subscription_events", ["brand_id"])
+    safe_create_index("ix_subscription_events_subscription_id", "subscription_events", ["subscription_id"])
+    safe_create_index("ix_subscription_events_customer_id", "subscription_events", ["customer_id"])
+    safe_create_index("ix_subscription_events_event_type", "subscription_events", ["event_type"])
+    safe_create_index("ix_subscription_events_event_at", "subscription_events", ["event_at"])
 
     # ── 10. saas_metric_snapshots ─────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "saas_metric_snapshots",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id", ondelete="CASCADE"), nullable=False),
@@ -252,12 +256,12 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_saas_metric_snapshots_brand_id", "saas_metric_snapshots", ["brand_id"])
-    op.create_index("ix_saas_metric_snapshots_period", "saas_metric_snapshots", ["period"])
-    op.create_index("ix_saas_metric_snapshots_snapshot_date", "saas_metric_snapshots", ["snapshot_date"])
+    safe_create_index("ix_saas_metric_snapshots_brand_id", "saas_metric_snapshots", ["brand_id"])
+    safe_create_index("ix_saas_metric_snapshots_period", "saas_metric_snapshots", ["period"])
+    safe_create_index("ix_saas_metric_snapshots_snapshot_date", "saas_metric_snapshots", ["snapshot_date"])
 
     # ── 11. high_ticket_deals ─────────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "high_ticket_deals",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id", ondelete="CASCADE"), nullable=False),
@@ -278,13 +282,13 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_high_ticket_deals_brand_id", "high_ticket_deals", ["brand_id"])
-    op.create_index("ix_high_ticket_deals_stage", "high_ticket_deals", ["stage"])
-    op.create_index("ix_high_ticket_deals_product_type", "high_ticket_deals", ["product_type"])
-    op.create_index("ix_high_ticket_deals_source", "high_ticket_deals", ["source"])
+    safe_create_index("ix_high_ticket_deals_brand_id", "high_ticket_deals", ["brand_id"])
+    safe_create_index("ix_high_ticket_deals_stage", "high_ticket_deals", ["stage"])
+    safe_create_index("ix_high_ticket_deals_product_type", "high_ticket_deals", ["product_type"])
+    safe_create_index("ix_high_ticket_deals_source", "high_ticket_deals", ["source"])
 
     # ── 12. product_launches ──────────────────────────────────────────
-    op.create_table(
+    safe_create_table(
         "product_launches",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id", ondelete="CASCADE"), nullable=False),
@@ -304,9 +308,9 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("ix_product_launches_brand_id", "product_launches", ["brand_id"])
-    op.create_index("ix_product_launches_product_type", "product_launches", ["product_type"])
-    op.create_index("ix_product_launches_launch_phase", "product_launches", ["launch_phase"])
+    safe_create_index("ix_product_launches_brand_id", "product_launches", ["brand_id"])
+    safe_create_index("ix_product_launches_product_type", "product_launches", ["product_type"])
+    safe_create_index("ix_product_launches_launch_phase", "product_launches", ["launch_phase"])
 
 
 def downgrade() -> None:
@@ -324,4 +328,4 @@ def downgrade() -> None:
         "credit_transactions",
         "credit_ledgers",
     ]:
-        op.drop_table(table)
+        safe_drop_table(table)

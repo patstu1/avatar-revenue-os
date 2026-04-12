@@ -568,8 +568,14 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
 
 
 async def score_and_approve_content(db: AsyncSession, content_item_id: uuid.UUID) -> dict[str, Any]:
-    """Score content through quality governor, auto-approve if passing."""
+    """Score content through quality governor, auto-approve if passing.
+
+    Enforces the publish-readiness contract before flipping to `approved`.
+    Items that pass QA but lack required media are parked in `pending_media`
+    with an honest blocker reason, so they cannot flow into publish jobs.
+    """
     from apps.api.services.quality_governor_service import score_content_item
+    from apps.api.services.publish_readiness import check_publish_readiness
 
     ci = (await db.execute(select(ContentItem).where(ContentItem.id == content_item_id))).scalar_one_or_none()
     if not ci:
@@ -580,6 +586,19 @@ async def score_and_approve_content(db: AsyncSession, content_item_id: uuid.UUID
     await db.refresh(ci)
     if ci.status == "quality_blocked":
         return {"success": True, "approved": False, "status": "quality_blocked", "reason": "Quality gate failed"}
+
+    # Readiness gate — before approval can happen, media must be linked and public.
+    readiness = await check_publish_readiness(db, ci)
+    if not readiness.ok:
+        ci.status = "pending_media"
+        await db.flush()
+        return {
+            "success": True,
+            "approved": False,
+            "status": "pending_media",
+            "reason": readiness.reason,
+            "detail": readiness.detail,
+        }
 
     ci.status = "approved"
     await db.flush()

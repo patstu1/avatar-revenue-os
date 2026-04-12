@@ -384,3 +384,11 @@ class ActionStatus(str, enum.Enum):
     COMPLETED = "completed"
     DISMISSED = "dismissed"
     EXPIRED = "expired"
+
+
+class PublishPolicyTier(str, enum.Enum):
+    """Outcome tiers for the publish policy engine."""
+    AUTO_PUBLISH = "auto_publish"
+    SAMPLE_REVIEW = "sample_review"
+    MANUAL_APPROVAL = "manual_approval"
+    BLOCK = "block"

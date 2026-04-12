@@ -125,9 +125,12 @@ def recompute_audience_states():
 
 async def _recompute_brain_decisions():
     from apps.api.services import brain_phase_b_service as svc
+    from apps.api.services.intelligence_bridge import surface_intelligence_actions
+    from apps.api.services.action_dispatcher import dispatch_autonomous_actions
 
     async with async_session_factory() as db:
         brand_ids = await _all_brand_ids(db)
+
     for bid in brand_ids:
         try:
             async with async_session_factory() as db:
@@ -136,6 +139,51 @@ async def _recompute_brain_decisions():
                 logger.info("brain.decisions_recomputed", brand_id=str(bid), **result)
         except Exception:
             logger.exception("brain.decision_recompute_failed", brand_id=str(bid))
+
+    # ── Bridge: convert fresh decisions into OperatorActions ──────────
+    for bid in brand_ids:
+        try:
+            async with async_session_factory() as db:
+                brand = (await db.execute(
+                    select(Brand).where(Brand.id == bid)
+                )).scalar_one_or_none()
+                if not brand or not brand.organization_id:
+                    continue
+
+                actions = await surface_intelligence_actions(
+                    db, brand.organization_id, bid
+                )
+                await db.commit()
+                if actions:
+                    logger.info(
+                        "brain.actions_surfaced",
+                        brand_id=str(bid),
+                        count=len(actions),
+                    )
+        except Exception:
+            logger.exception("brain.action_surface_failed", brand_id=str(bid))
+
+    # ── Dispatch: execute autonomous actions that meet confidence gate ─
+    surfaced_orgs: set[uuid.UUID] = set()
+    for bid in brand_ids:
+        try:
+            async with async_session_factory() as db:
+                brand = (await db.execute(
+                    select(Brand).where(Brand.id == bid)
+                )).scalar_one_or_none()
+                if brand and brand.organization_id and brand.organization_id not in surfaced_orgs:
+                    surfaced_orgs.add(brand.organization_id)
+                    dispatch_result = await dispatch_autonomous_actions(
+                        db, brand.organization_id
+                    )
+                    await db.commit()
+                    logger.info(
+                        "brain.autonomous_dispatch",
+                        org_id=str(brand.organization_id),
+                        **dispatch_result,
+                    )
+        except Exception:
+            logger.exception("brain.autonomous_dispatch_failed", brand_id=str(bid))
 
 
 @shared_task(base=BaseTask, name="workers.brain_worker.tasks.recompute_brain_decisions")

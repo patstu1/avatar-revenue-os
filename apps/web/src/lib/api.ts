@@ -62,7 +62,12 @@ export const authApi = {
 };
 
 export const brandsApi = {
-  list: (page = 1) => api.get('/api/v1/brands/', { params: { page } }),
+  list: (page = 1) => api.get('/api/v1/brands/', { params: { page } }).then((r) => {
+    // Normalize: ensure r.data is always an array regardless of backend shape
+    const d = r.data;
+    r.data = Array.isArray(d) ? d : d?.items ?? [];
+    return r;
+  }),
   get: (id: string) => api.get(`/api/v1/brands/${id}`),
   create: (data: any) => api.post('/api/v1/brands/', data),
   update: (id: string, data: any) => api.patch(`/api/v1/brands/${id}`, data),

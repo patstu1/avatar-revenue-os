@@ -19,13 +19,20 @@ logger = logging.getLogger(__name__)
 
 
 async def _process_pending_briefs():
-    """Find all pending briefs and run the full autonomous pipeline."""
+    """Find all pending briefs for ACTIVE brands and run the full autonomous pipeline.
+
+    Inactive/archived brands are skipped — their briefs will not be processed
+    until the brand is reactivated.
+    """
     from apps.api.services.content_generation_service import full_pipeline
 
     async with async_session_factory() as db:
         briefs = list((await db.execute(
-            select(ContentBrief).where(
+            select(ContentBrief)
+            .join(Brand, Brand.id == ContentBrief.brand_id)
+            .where(
                 ContentBrief.status.in_(["draft", "ready", "pending_generation"]),
+                Brand.is_active.is_(True),
             ).order_by(ContentBrief.created_at.asc()).limit(20)
         )).scalars().all())
 

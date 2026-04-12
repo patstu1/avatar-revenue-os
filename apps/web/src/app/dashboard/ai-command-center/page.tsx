@@ -609,7 +609,8 @@ export default function AICommandCenterPage() {
     setLoadingKey("providers", true);
     setErrorKey("providers", "");
     try {
-      setProviders(await apiFetch<AIProviderStatus[]>(`/api/v1/brands/${brandId}/ai-command/providers`));
+      const raw = await apiFetch<any>(`/api/v1/brands/${brandId}/ai-command/providers`);
+      setProviders(Array.isArray(raw) ? raw : []);
     } catch (e: any) { setErrorKey("providers", e.message || "Failed"); }
     finally { setLoadingKey("providers", false); }
   }, [brandId]);
@@ -629,7 +630,8 @@ export default function AICommandCenterPage() {
     setLoadingKey("experiments", true);
     setErrorKey("experiments", "");
     try {
-      setExperiments(await apiFetch<Experiment[]>(`/api/v1/brands/${brandId}/ai-command/experiments`));
+      const raw = await apiFetch<any>(`/api/v1/brands/${brandId}/ai-command/experiments`);
+      setExperiments(Array.isArray(raw) ? raw : []);
     } catch (e: any) { setErrorKey("experiments", e.message || "Failed"); }
     finally { setLoadingKey("experiments", false); }
   }, [brandId]);
@@ -659,7 +661,8 @@ export default function AICommandCenterPage() {
     setLoadingKey("activity", true);
     setErrorKey("activity", "");
     try {
-      setActivity(await apiFetch<ActivityEvent[]>(`/api/v1/brands/${brandId}/ai-command/activity`));
+      const raw = await apiFetch<any>(`/api/v1/brands/${brandId}/ai-command/activity`);
+      setActivity(Array.isArray(raw) ? raw : []);
     } catch (e: any) { setErrorKey("activity", e.message || "Failed"); }
     finally { setLoadingKey("activity", false); }
   }, [brandId]);

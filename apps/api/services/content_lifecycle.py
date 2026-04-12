@@ -33,9 +33,10 @@ from apps.api.services import governance_bridge as gov
 from apps.api.services import intelligence_bridge as intel
 from apps.api.services import orchestration_bridge as orch
 from apps.api.services.event_bus import emit_action, emit_event
+from apps.api.services.publish_policy_engine import evaluate_publish_policy
 from packages.db.models.content import ContentBrief, ContentItem, MediaJob, Script
 from packages.db.models.core import Brand
-from packages.db.models.quality import QAReport
+from packages.db.models.quality import Approval, QAReport
 
 logger = structlog.get_logger()
 
@@ -284,36 +285,133 @@ async def run_qa_with_events(
             },
         )
     else:
-        # QA passed — create approval action
-        await _transition_content(
-            db, item, "qa_complete",
-            org_id=org_id, correlation_id=correlation_id,
-            summary=f"QA passed: {item.title[:60]} (score: {qa_report.composite_score:.2f})",
-            details={
-                "qa_score": qa_report.composite_score,
-                "qa_status": qa_report.qa_status.value,
-                "similarity_score": sim_report.max_similarity_score,
-            },
+        # QA passed — evaluate publish policy to determine tier
+        policy_result = await evaluate_publish_policy(
+            db, item,
+            qa_score=qa_report.composite_score,
+            confidence=qa_report.qa_status.value if qa_report.qa_status else None,
         )
+        tier = policy_result.tier
 
-        # Create approval action
-        await emit_action(
-            db, org_id=org_id,
-            action_type="approve_content",
-            title=f"Review & approve: {item.title[:60]}",
-            description=f"Content passed QA (score: {qa_report.composite_score:.2f}). "
-                       f"Review and approve for publishing.",
-            category="approval",
-            priority="medium",
-            brand_id=item.brand_id,
-            entity_type="content_item",
-            entity_id=item.id,
-            source_module="content_lifecycle",
-            action_payload={
-                "qa_score": qa_report.composite_score,
-                "qa_report_id": str(qa_report.id),
-            },
-        )
+        if tier == "block":
+            # Policy says block — treat like quality_blocked
+            await _transition_content(
+                db, item, "quality_blocked",
+                org_id=org_id, correlation_id=correlation_id,
+                severity="warning",
+                summary=f"Content blocked by publish policy: {item.title[:60]} — {policy_result.explanation}",
+                details={
+                    "qa_score": qa_report.composite_score,
+                    "publish_policy_tier": tier,
+                    "matched_rule": policy_result.rule_name,
+                    "explanation": policy_result.explanation,
+                },
+                requires_action=True,
+            )
+            await emit_action(
+                db, org_id=org_id,
+                action_type="review_blocked_content",
+                title=f"Policy blocked: {item.title[:60]}",
+                description=f"Publish policy rule '{policy_result.rule_name}' blocked this content. "
+                           f"{policy_result.explanation}",
+                category="blocker",
+                priority="high",
+                brand_id=item.brand_id,
+                entity_type="content_item",
+                entity_id=item.id,
+                source_module="publish_policy_engine",
+                action_payload={
+                    "qa_report_id": str(qa_report.id),
+                    "publish_policy_tier": tier,
+                    "matched_rule": policy_result.rule_name,
+                    "factors": policy_result.factors,
+                },
+            )
+
+        elif tier in ("auto_publish", "sample_review"):
+            # Auto-approve — no human in the loop
+            await _transition_content(
+                db, item, "approved",
+                org_id=org_id, correlation_id=correlation_id,
+                summary=f"Auto-approved ({tier}): {item.title[:60]} (QA: {qa_report.composite_score:.2f}, rule: {policy_result.rule_name})",
+                details={
+                    "qa_score": qa_report.composite_score,
+                    "publish_policy_tier": tier,
+                    "matched_rule": policy_result.rule_name,
+                    "auto_approved": True,
+                    "sample_flagged": policy_result.sample_flagged,
+                },
+            )
+
+            # Create Approval record for audit + worker pickup
+            approval = Approval(
+                content_item_id=item.id,
+                brand_id=item.brand_id,
+                status="approved",
+                decision_mode="full_auto",
+                auto_approved=True,
+                review_notes=f"Auto-approved by publish policy rule: {policy_result.rule_name}",
+                qa_report_id=qa_report.id,
+                publish_policy_tier=tier,
+                sample_flagged=policy_result.sample_flagged,
+                reviewed_at=datetime.now(timezone.utc).isoformat(),
+            )
+            db.add(approval)
+
+            # If sample review AND this item was flagged, create async review action
+            if tier == "sample_review" and policy_result.sample_flagged:
+                await emit_action(
+                    db, org_id=org_id,
+                    action_type="review_published_content",
+                    title=f"Sample review: {item.title[:60]}",
+                    description=f"This content was auto-published but flagged for sample review "
+                               f"by rule '{policy_result.rule_name}'. Review post-publish.",
+                    category="approval",
+                    priority="low",
+                    brand_id=item.brand_id,
+                    entity_type="content_item",
+                    entity_id=item.id,
+                    source_module="publish_policy_engine",
+                    action_payload={
+                        "qa_score": qa_report.composite_score,
+                        "publish_policy_tier": tier,
+                        "sample_flagged": True,
+                        "matched_rule": policy_result.rule_name,
+                    },
+                )
+
+        else:
+            # manual_approval (or any unrecognized tier) — hold for human
+            await _transition_content(
+                db, item, "qa_complete",
+                org_id=org_id, correlation_id=correlation_id,
+                summary=f"QA passed, awaiting manual approval: {item.title[:60]} (score: {qa_report.composite_score:.2f})",
+                details={
+                    "qa_score": qa_report.composite_score,
+                    "qa_status": qa_report.qa_status.value,
+                    "publish_policy_tier": tier,
+                    "matched_rule": policy_result.rule_name,
+                },
+            )
+            await emit_action(
+                db, org_id=org_id,
+                action_type="approve_content",
+                title=f"Review & approve: {item.title[:60]}",
+                description=f"Content passed QA (score: {qa_report.composite_score:.2f}) but "
+                           f"publish policy rule '{policy_result.rule_name}' requires manual approval.",
+                category="approval",
+                priority="medium",
+                brand_id=item.brand_id,
+                entity_type="content_item",
+                entity_id=item.id,
+                source_module="publish_policy_engine",
+                action_payload={
+                    "qa_score": qa_report.composite_score,
+                    "qa_report_id": str(qa_report.id),
+                    "publish_policy_tier": tier,
+                    "matched_rule": policy_result.rule_name,
+                },
+            )
 
     return {
         "qa_report": qa_report,

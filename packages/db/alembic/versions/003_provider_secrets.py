@@ -8,6 +8,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from packages.db.alembic.migration_safety import safe_create_table
+
 revision = "003_provider_secrets"
 down_revision = "002_cinema_studio"
 branch_labels = None
@@ -15,14 +17,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    conn = op.get_bind()
-    inspector = sa.inspect(conn)
-    existing = set(inspector.get_table_names())
-
-    if "provider_secrets" in existing:
-        return
-
-    op.create_table(
+    safe_create_table(
         "provider_secrets",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("organization_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False, index=True),
@@ -37,4 +32,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("provider_secrets")
+    from packages.db.alembic.migration_safety import safe_drop_table
+    safe_drop_table("provider_secrets")

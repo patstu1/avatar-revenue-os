@@ -2,6 +2,14 @@
 
 These tests use a real (test) database via conftest.py fixtures, eager Celery,
 and mocked external APIs. Each test proves a critical integration path works.
+
+Skip reason format: SKIP:<category>:<detail>
+Categories:
+  - missing_database: test DB not reachable (container not running)
+  - missing_credentials: external API keys required but not set
+  - missing_external_account: external platform account required
+  - missing_binary: system binary (e.g. ffmpeg) not installed
+  - intentionally_gated: test requires manual precondition
 """
 from __future__ import annotations
 
@@ -95,8 +103,6 @@ async def test_content_pipeline_end_to_end(db, api, seed, webhook_payloads, mock
     assert refreshed.provider_job_id == provider_job_id
 
     # -- Step 4: Simulate webhook callback --
-    # The webhook updates the MediaJob status; we simulate this at the DB level
-    # since the Stripe webhook route requires signature verification
     refreshed.status = "completed"
     refreshed.completed_at = datetime.now(timezone.utc)
     refreshed.output_url = "https://cdn.test/video_e2e.mp4"
@@ -141,6 +147,7 @@ async def test_native_publish_fallback(db):
     mock_job.creator_account_id = uuid.uuid4()
     mock_job.publish_config = {}
     mock_job.retries = 0
+    mock_job.scheduled_at = None
 
     mock_content = MagicMock()
     mock_content.title = "Fallback Test"
@@ -155,7 +162,8 @@ async def test_native_publish_fallback(db):
 
     org_id = uuid.uuid4()
 
-    # Mock native to raise TransientError, aggregator to succeed
+    # Mock the native YouTube adapter to raise TransientError
+    # and mock an aggregator to succeed
     agg_result = PublishResult(
         success=True,
         method="buffer",
@@ -164,14 +172,22 @@ async def test_native_publish_fallback(db):
         methods_tried=["native_youtube", "buffer"],
     )
 
-    with patch(
-        "packages.clients.distributor_router._try_native_publish",
-        new_callable=AsyncMock,
-        side_effect=TransientError("YouTube 429 rate limited"),
+    # Patch the NATIVE_ADAPTERS dict entry directly (dict stores func references)
+    native_raiser = AsyncMock(side_effect=TransientError("YouTube 429 rate limited"))
+
+    mock_aggregator = MagicMock()
+    mock_aggregator.name = "buffer"
+    mock_aggregator.publish = AsyncMock(return_value=agg_result)
+
+    with patch.dict(
+        "packages.clients.distributor_router.NATIVE_ADAPTERS",
+        {"youtube": native_raiser},
     ), patch(
-        "packages.clients.distributor_router._try_aggregator_chain",
-        new_callable=AsyncMock,
-        return_value=agg_result,
+        "packages.clients.distributor_router._load_native_credentials",
+        return_value={"access_token": "fake"},
+    ), patch(
+        "packages.clients.distributor_router.get_priority_order",
+        return_value=[mock_aggregator],
     ):
         result = await route_and_publish(db, mock_job, mock_content, mock_account, org_id)
 
@@ -192,7 +208,7 @@ async def test_ffmpeg_video_cutting():
     try:
         subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
     except (FileNotFoundError, subprocess.CalledProcessError):
-        pytest.skip("ffmpeg not installed")
+        pytest.skip("SKIP:missing_binary:ffmpeg not installed on this host")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         source_path = os.path.join(tmpdir, "test_source.mp4")
@@ -420,7 +436,7 @@ async def test_strategy_adjustment(db, seed):
     )).scalars().all()
 
     if not accounts:
-        pytest.skip("No creator accounts from seed fixture")
+        pytest.skip("SKIP:intentionally_gated:No creator accounts from seed fixture — seed may have changed")
 
     # Insert winning patterns with different scores
     patterns = []

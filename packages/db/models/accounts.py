@@ -31,6 +31,9 @@ class CreatorAccount(Base):
     monetization_focus: Mapped[Optional[str]] = mapped_column(String(100))
 
     posting_capacity_per_day: Mapped[int] = mapped_column(Integer, default=1)
+    hourly_post_limit: Mapped[int] = mapped_column(Integer, default=5,
+        comment="Max posts per hour for this account. Platform-specific rate limiting.",
+    )
     account_health: Mapped[HealthStatus] = mapped_column(
         Enum(HealthStatus), default=HealthStatus.HEALTHY
     )

@@ -34,6 +34,12 @@ class Offer(Base):
     platform_restrictions: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     priority: Mapped[int] = mapped_column(Integer, default=0)
+    rotation_weight: Mapped[float] = mapped_column(Float, default=1.0,
+        comment="Weight for weighted random selection during offer rotation at publish time. Higher = more likely selected.",
+    )
+    cta_template: Mapped[Optional[str]] = mapped_column(Text, nullable=True,
+        comment="Default CTA text template for this offer. Use {url} as placeholder for tracking URL.",
+    )
 
 
 class SponsorProfile(Base):

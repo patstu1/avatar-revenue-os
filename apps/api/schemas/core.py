@@ -51,9 +51,12 @@ class BrandResponse(BaseModel):
     organization_id: uuid.UUID
     name: str
     slug: str
-    description: Optional[str]
-    niche: Optional[str]
-    sub_niche: Optional[str]
+    description: Optional[str] = None
+    niche: Optional[str] = None
+    sub_niche: Optional[str] = None
+    target_audience: Optional[str] = None
+    tone_of_voice: Optional[str] = None
+    brand_guidelines: Optional[dict] = None
     decision_mode: str
     is_active: bool
     created_at: datetime

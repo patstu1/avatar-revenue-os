@@ -54,12 +54,12 @@ export default function UpsideCostPage() {
                 {rows.map(r => (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs max-w-xs truncate">{r.scope_label}</TableCell>
-                    <TableCell className="text-green-700">${r.expected_upside.toFixed(0)}</TableCell>
-                    <TableCell className="text-red-700">${r.expected_cost.toFixed(0)}</TableCell>
-                    <TableCell className={r.net_value >= 0 ? 'text-green-700 font-semibold' : 'text-red-700 font-semibold'}>${r.net_value.toFixed(0)}</TableCell>
-                    <TableCell>{r.expected_payback_days}d</TableCell>
-                    <TableCell>{(r.operational_burden * 100).toFixed(0)}%</TableCell>
-                    <TableCell>{(r.concentration_risk * 100).toFixed(0)}%</TableCell>
+                    <TableCell className="text-green-400">${Number(r.expected_upside ?? 0).toFixed(0)}</TableCell>
+                    <TableCell className="text-red-400">${Number(r.expected_cost ?? 0).toFixed(0)}</TableCell>
+                    <TableCell className={(r.net_value ?? 0) >= 0 ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>${Number(r.net_value ?? 0).toFixed(0)}</TableCell>
+                    <TableCell>{r.expected_payback_days ?? 0}d</TableCell>
+                    <TableCell>{(Number(r.operational_burden ?? 0) * 100).toFixed(0)}%</TableCell>
+                    <TableCell>{(Number(r.concentration_risk ?? 0) * 100).toFixed(0)}%</TableCell>
                   </TableRow>
                 ))}
                 {rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No estimates.</TableCell></TableRow>}

@@ -13,7 +13,7 @@ services:
     image: postgres:16-alpine
     container_name: aro-postgres
     restart: unless-stopped
-    command: postgres -c max_connections=200 -c shared_buffers=128MB
+    command: postgres -c max_connections=500 -c shared_buffers=256MB
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -79,7 +79,9 @@ services:
       --reload --log-level info"
     ports:
       - "8001:8000"
+    env_file: .env
     environment:
+      # Infrastructure vars use Docker-internal hostnames — override .env values
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
       REDIS_URL: ${REDIS_URL}
@@ -87,53 +89,11 @@ services:
       API_CORS_ORIGINS: ${API_CORS_ORIGINS}
       API_ENV: ${API_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      # --- LLM / Text AI ---
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      GROQ_API_KEY: ${GROQ_API_KEY:-}
-      XAI_API_KEY: ${XAI_API_KEY:-}
-      # --- Image ---
-      FAL_API_KEY: ${FAL_API_KEY:-}
-      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
-      # --- Video ---
-      RUNWAY_API_KEY: ${RUNWAY_API_KEY:-}
-      KLING_API_KEY: ${KLING_API_KEY:-}
-      # --- Avatar ---
-      HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
-      DID_API_KEY: ${DID_API_KEY:-}
-      TAVUS_API_KEY: ${TAVUS_API_KEY:-}
-      # --- Voice / Music ---
-      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
-      FISH_AUDIO_API_KEY: ${FISH_AUDIO_API_KEY:-}
-      MUBERT_API_KEY: ${MUBERT_API_KEY:-}
-      # --- Publishing ---
-      BUFFER_API_KEY: ${BUFFER_API_KEY:-}
-      PUBLER_API_KEY: ${PUBLER_API_KEY:-}
-      AYRSHARE_API_KEY: ${AYRSHARE_API_KEY:-}
-      # --- Analytics ---
-      SERPAPI_KEY: ${SERPAPI_KEY:-}
-      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
-      YOUTUBE_OAUTH_TOKEN: ${YOUTUBE_OAUTH_TOKEN:-}
-      TIKTOK_ACCESS_TOKEN: ${TIKTOK_ACCESS_TOKEN:-}
-      INSTAGRAM_ACCESS_TOKEN: ${INSTAGRAM_ACCESS_TOKEN:-}
-      # --- Payments ---
-      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      CLICKBANK_API_KEY: ${CLICKBANK_API_KEY:-}
-      # --- Email / IMAP ---
-      SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      IMAP_HOST: ${IMAP_HOST:-}
-      IMAP_USER: ${IMAP_USER:-}
-      IMAP_PASSWORD: ${IMAP_PASSWORD:-}
-      # --- Notifications ---
-      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
-      SMS_API_KEY: ${SMS_API_KEY:-}
-      OPERATOR_NOTIFY_EMAIL: ${OPERATOR_NOTIFY_EMAIL:-}
+      # All provider secrets (AI, publishing, payments, etc.) are loaded
+      # directly from .env via env_file above. This prevents shell env
+      # variables (e.g. empty ANTHROPIC_API_KEY from dev tools) from
+      # overriding the real values in .env.
       # --- Monitoring ---
       SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
@@ -168,58 +128,16 @@ services:
       --pidfile=/tmp/celery-worker.pid
       -n worker-generation@%h
       -Q generation,pipeline,cinema_studio'
+    env_file: .env
     environment: &worker-env
+      # Infrastructure vars use Docker-internal hostnames — override .env values
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}
       REDIS_URL: ${REDIS_URL}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-      # --- LLM / Text AI ---
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      GROQ_API_KEY: ${GROQ_API_KEY:-}
-      XAI_API_KEY: ${XAI_API_KEY:-}
-      # --- Image ---
-      FAL_API_KEY: ${FAL_API_KEY:-}
-      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
-      # --- Video ---
-      RUNWAY_API_KEY: ${RUNWAY_API_KEY:-}
-      KLING_API_KEY: ${KLING_API_KEY:-}
-      # --- Avatar ---
-      HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
-      DID_API_KEY: ${DID_API_KEY:-}
-      TAVUS_API_KEY: ${TAVUS_API_KEY:-}
-      # --- Voice / Music ---
-      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
-      FISH_AUDIO_API_KEY: ${FISH_AUDIO_API_KEY:-}
-      MUBERT_API_KEY: ${MUBERT_API_KEY:-}
-      # --- Publishing ---
-      BUFFER_API_KEY: ${BUFFER_API_KEY:-}
-      PUBLER_API_KEY: ${PUBLER_API_KEY:-}
-      AYRSHARE_API_KEY: ${AYRSHARE_API_KEY:-}
-      # --- Analytics ---
-      SERPAPI_KEY: ${SERPAPI_KEY:-}
-      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
-      YOUTUBE_OAUTH_TOKEN: ${YOUTUBE_OAUTH_TOKEN:-}
-      TIKTOK_ACCESS_TOKEN: ${TIKTOK_ACCESS_TOKEN:-}
-      INSTAGRAM_ACCESS_TOKEN: ${INSTAGRAM_ACCESS_TOKEN:-}
-      # --- Payments ---
-      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      CLICKBANK_API_KEY: ${CLICKBANK_API_KEY:-}
-      # --- Email / IMAP ---
-      SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      IMAP_HOST: ${IMAP_HOST:-}
-      IMAP_USER: ${IMAP_USER:-}
-      IMAP_PASSWORD: ${IMAP_PASSWORD:-}
-      # --- Notifications ---
-      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
-      SMS_API_KEY: ${SMS_API_KEY:-}
+      # All provider secrets loaded from .env via env_file above.
       OPERATOR_NOTIFY_EMAIL: ${OPERATOR_NOTIFY_EMAIL:-}
       # --- Misc ---
       API_SECRET_KEY: ${API_SECRET_KEY}
@@ -255,6 +173,7 @@ services:
       --pidfile=/tmp/celery-worker.pid
       -n worker-publishing@%h
       -Q publishing,buffer'
+    env_file: .env
     environment: *worker-env
     volumes: *worker-volumes
     healthcheck: *worker-healthcheck
@@ -275,6 +194,7 @@ services:
       --pidfile=/tmp/celery-worker.pid
       -n worker-analytics@%h
       -Q analytics,learning,portfolio,qa'
+    env_file: .env
     environment: *worker-env
     volumes: *worker-volumes
     healthcheck: *worker-healthcheck
@@ -295,6 +215,7 @@ services:
       --pidfile=/tmp/celery-worker.pid
       -n worker-outreach@%h
       -Q outreach'
+    env_file: .env
     environment: *worker-env
     volumes: *worker-volumes
     healthcheck: *worker-healthcheck
@@ -315,6 +236,7 @@ services:
       --pidfile=/tmp/celery-worker.pid
       -n worker-default@%h
       -Q default,brain,mxp,scale_alerts,notifications,monetization,repurposing,autonomous_phase_d,growth_pack,revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,creator_revenue'
+    env_file: .env
     environment: *worker-env
     volumes: *worker-volumes
     healthcheck: *worker-healthcheck
@@ -334,7 +256,9 @@ services:
       celery -A workers.celery_app beat
       --loglevel=info
       --pidfile=/tmp/celerybeat.pid'
+    env_file: .env
     environment:
+      # Infrastructure vars — Docker-internal hostnames override .env
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
       DATABASE_URL_SYNC: ${DATABASE_URL_SYNC}

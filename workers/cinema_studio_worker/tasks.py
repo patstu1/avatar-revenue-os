@@ -77,11 +77,11 @@ def process_studio_generation(self, generation_id: str, brand_id: str) -> dict:
         gen.status = "processing"
         gen.progress = 10
         media_job.status = JobStatus.RUNNING
-        media_job.started_at = datetime.now(timezone.utc).isoformat()
+        media_job.dispatched_at = datetime.now(timezone.utc).isoformat()
         session.commit()
 
         provider = media_job.provider or "runway"
-        input_config = media_job.input_config or {}
+        input_config = media_job.input_payload or {}
 
         gen.progress = 50
         session.commit()
@@ -91,7 +91,7 @@ def process_studio_generation(self, generation_id: str, brand_id: str) -> dict:
 
         media_job.status = JobStatus.COMPLETED
         media_job.completed_at = datetime.now(timezone.utc).isoformat()
-        media_job.output_config = {
+        media_job.output_payload = {
             "provider": provider,
             "scene_title": scene.title,
             "note": "awaiting_provider_credentials",
@@ -172,7 +172,7 @@ def process_studio_generation(self, generation_id: str, brand_id: str) -> dict:
         session.flush()
 
         asset.content_item_id = item.id
-        media_job.output_asset_id = asset.id
+        media_job.content_item_id = item.id
 
         gen.status = "completed"
         gen.progress = 100
@@ -225,13 +225,86 @@ def process_studio_generation(self, generation_id: str, brand_id: str) -> dict:
         }
 
 
+def _sync_check_publish_readiness(session, item) -> tuple[bool, str, str]:
+    """Sync port of publish_readiness.check_publish_readiness for Celery workers.
+
+    Returns (ok, reason_code, detail). Keeps the contract identical to the
+    async version in apps/api/services/publish_readiness.py — if you change
+    one, change the other.
+    """
+    from packages.db.models.content import Asset
+
+    ct = (getattr(item.content_type, "value", None) or str(item.content_type or "")).lower()
+    platform = (getattr(item.platform, "value", None) or str(item.platform or "")).lower()
+    has_text = bool((item.title or "").strip() or (getattr(item, "description", None) or "").strip())
+
+    TEXT_ONLY = {"text_post"}
+    VIDEO_REQ = {"short_video", "long_video", "live_stream"}
+    IMAGE_REQ = {"static_image", "carousel"}
+    ANY_MEDIA = VIDEO_REQ | IMAGE_REQ | {"story"}
+    MEDIA_PLATFORMS = {"instagram", "tiktok", "youtube"}
+
+    def _load(asset_id):
+        if not asset_id:
+            return None
+        return session.execute(select(Asset).where(Asset.id == asset_id)).scalar_one_or_none()
+
+    def _public(path):
+        return bool(path) and (path.startswith("http://") or path.startswith("https://"))
+
+    if ct in TEXT_ONLY:
+        if not has_text:
+            return False, "empty_text_and_no_media", "text_post has no text"
+        if platform in MEDIA_PLATFORMS:
+            return False, "unsupported_platform_contract", f"text_post cannot publish on {platform}"
+        return True, "ok", "text-only post ready"
+
+    if ct not in ANY_MEDIA:
+        return False, "unsupported_content_type", f"content_type '{ct}' not supported"
+
+    video_asset = _load(item.video_asset_id)
+    thumb_asset = _load(item.thumbnail_asset_id)
+
+    if ct in VIDEO_REQ:
+        if not video_asset:
+            return False, "missing_video_asset", f"{ct} requires video_asset_id"
+        if not _public(video_asset.file_path):
+            return False, "media_asset_not_public", f"video asset file_path is not public http(s)"
+        if platform == "instagram":
+            mime = video_asset.mime_type or ""
+            path_lower = (video_asset.file_path or "").lower()
+            is_video = mime.startswith("video/") or path_lower.endswith((".mp4", ".mov", ".webm", ".m4v"))
+            if not is_video:
+                return False, "invalid_asset_mime_type", f"instagram {ct} requires a video file"
+        return True, "ok", "video asset linked and public"
+
+    if ct in IMAGE_REQ:
+        asset = thumb_asset or video_asset
+        if not asset:
+            return False, "missing_image_asset", f"{ct} requires an image asset"
+        if not _public(asset.file_path):
+            return False, "media_asset_not_public", "image asset file_path is not public http(s)"
+        return True, "ok", "image asset linked and public"
+
+    if ct == "story":
+        asset = video_asset or thumb_asset
+        if not asset:
+            return False, "missing_any_media", "story requires at least one linked asset"
+        if not _public(asset.file_path):
+            return False, "media_asset_not_public", "story asset file_path is not public http(s)"
+        return True, "ok", "story asset linked and public"
+
+    return False, "unsupported_content_type", f"content_type '{ct}' unhandled"
+
+
 @app.task(base=TrackedTask, bind=True, name="workers.cinema_studio_worker.tasks.auto_approve_studio_content")
 def auto_approve_studio_content(self) -> dict:
     """Auto-approve studio content that passed QA with high composite scores.
 
-    Runs every 2 minutes via beat schedule. Mirrors the logic in
-    content_pipeline_service._determine_approval_mode but operates
-    autonomously on studio-originated content.
+    Runs every 2 minutes via beat schedule. Enforces the publish-readiness
+    contract before marking anything approved. Items that pass QA but fail
+    readiness are parked in `pending_media` with an honest reason recorded on
+    the associated Approval row.
     """
     from sqlalchemy.orm import Session
     from packages.db.session import get_sync_engine
@@ -244,6 +317,7 @@ def auto_approve_studio_content(self) -> dict:
     engine = get_sync_engine()
     approved_count = 0
     skipped_count = 0
+    parked_count = 0
 
     with Session(engine) as session:
         qa_complete_items = session.execute(
@@ -290,6 +364,27 @@ def auto_approve_studio_content(self) -> dict:
                 skipped_count += 1
                 continue
 
+            # Readiness gate — must come before status flip to approved
+            ok, reason, detail = _sync_check_publish_readiness(session, item)
+            if not ok:
+                approval = Approval(
+                    content_item_id=item.id,
+                    brand_id=item.brand_id,
+                    status=ApprovalStatus.REVISION_REQUESTED,
+                    decision_mode="readiness_gate",
+                    auto_approved=False,
+                    review_notes=f"readiness_blocker={reason}: {detail}",
+                )
+                session.add(approval)
+                item.status = "pending_media"
+                parked_count += 1
+                logger.info(
+                    "studio.auto_approve.parked_pending_media",
+                    content_item_id=str(item.id),
+                    reason=reason,
+                )
+                continue
+
             is_high_confidence = qa_report.composite_score >= 0.8
             decision_mode = "full_auto" if is_high_confidence else "guarded_auto"
 
@@ -317,6 +412,7 @@ def auto_approve_studio_content(self) -> dict:
     return {
         "approved": approved_count,
         "skipped": skipped_count,
+        "parked_pending_media": parked_count,
         "checked": len(qa_complete_items) if 'qa_complete_items' in dir() else 0,
     }
 
@@ -353,9 +449,9 @@ def sync_studio_generations(self) -> dict:
             if job.status == JobStatus.COMPLETED and gen.status != "completed":
                 gen.status = "completed"
                 gen.progress = 100
-                if job.output_asset_id:
-                    gen.video_url = f"/api/v1/assets/{job.output_asset_id}/stream"
-                    gen.thumbnail_url = f"/api/v1/assets/{job.output_asset_id}/thumbnail"
+                if job.content_item_id:
+                    gen.video_url = f"/api/v1/content/{job.content_item_id}/stream"
+                    gen.thumbnail_url = f"/api/v1/content/{job.content_item_id}/thumbnail"
                 scene = session.get(StudioScene, gen.scene_id)
                 if scene:
                     scene.status = "completed"

@@ -205,8 +205,10 @@ async def _auto_publish_for_brand(brand_id):
                     platform=connected[0].platform,
                     publish_mode=mode,
                     status="published" if result.success else "failed",
-                    distributor_name=result.method if result.success else None,
+                    distributor_name=result.method or "unknown",
                     distributor_post_id=result.post_id if result.success else None,
+                    buffer_post_id=result.post_id if result.success else None,
+                    error_message=result.error if not result.success else None,
                     payload_json={
                         **payload,
                         "publish_method": result.method,
@@ -258,4 +260,17 @@ async def _run_auto_publish():
 
 @shared_task(name="workers.publishing_worker.tasks.auto_publish_approved_content")
 def auto_publish_approved_content():
-    return asyncio.run(_run_auto_publish())
+    import packages.db.session as db_session_mod
+
+    # Reset cached async engine so a fresh one binds to the new loop.
+    # Celery fork workers reuse processes — each task needs its own loop+engine.
+    if db_session_mod._async_engine is not None:
+        db_session_mod._async_engine.sync_engine.dispose()
+        db_session_mod._async_engine = None
+        db_session_mod._async_session_factory = None
+
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(_run_auto_publish())
+    finally:
+        loop.close()

@@ -398,10 +398,31 @@ class BufferAdapter(DistributorAdapter):
         if not client._is_configured():
             return PublishResult(success=False, method=self.name, error="Buffer not configured — add API key in Settings > Integrations")
 
+        # Append CTA link to post text if present
+        post_text = request.text
+        if request.link_url:
+            post_text = f"{post_text}\n\n{request.link_url}"
+
+        # Build media/assets for Buffer GraphQL API
+        media = None
+        if request.media_urls:
+            url = request.media_urls[0]
+            if any(url.lower().endswith(ext) for ext in (".mp4", ".mov", ".avi", ".webm")):
+                media = {"video": url}
+            else:
+                media = {"photo": url}
+
+        # Instagram requires explicit type metadata
+        platform_lower = request.platform.lower()
+        metadata = None
+        if platform_lower == "instagram":
+            metadata = {"instagram": {"type": "post", "shouldShareToFeed": True}}
+
         result = await client.create_update(
             profile_ids=request.profile_ids,
-            text=request.text,
-            media={"link": request.media_urls[0]} if request.media_urls else None,
+            text=post_text,
+            media=media,
+            metadata=metadata,
             scheduled_at=request.scheduled_at,
         )
         if result.get("success"):

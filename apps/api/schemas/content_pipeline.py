@@ -61,16 +61,15 @@ class ScriptUpdate(BaseModel):
 class MediaJobResponse(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    script_id: Optional[uuid.UUID]
-    avatar_id: Optional[uuid.UUID]
+    script_id: Optional[uuid.UUID] = None
     job_type: str
     status: str
-    provider: Optional[str]
-    provider_job_id: Optional[str]
-    retries: int
-    max_retries: int
-    error_message: Optional[str]
-    cost: float
+    provider: Optional[str] = None
+    provider_job_id: Optional[str] = None
+    quality_tier: str = "standard"
+    retry_count: int = 0
+    error_message: Optional[str] = None
+    output_url: Optional[str] = None
     created_at: datetime
     model_config = {"from_attributes": True}
 

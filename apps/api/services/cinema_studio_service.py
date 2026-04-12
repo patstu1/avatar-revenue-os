@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Cinema Studio service: CRUD for projects, scenes, characters, styles, generations.
 
 Generation trigger bridges into the existing MediaJob pipeline so scene metadata
@@ -349,12 +350,11 @@ async def trigger_generation(
     media_job = MediaJob(
         brand_id=brand_id,
         script_id=None,
-        avatar_id=None,
         job_type="studio_video",
         status=JobStatus.PENDING,
         provider=model,
-        input_config=input_config,
-        output_config={},
+        input_payload=input_config,
+        output_payload={},
     )
     db.add(media_job)
     await db.flush()

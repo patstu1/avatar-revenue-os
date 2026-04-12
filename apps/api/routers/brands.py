@@ -33,8 +33,25 @@ async def create_brand(body: BrandCreate, current_user: CurrentUser, db: DBSessi
 
 
 @router.get("/", response_model=list[BrandResponse])
-async def list_brands(current_user: CurrentUser, db: DBSession, page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=100)):
-    result = await brand_service.list(db, page=page, page_size=page_size, filters={"organization_id": current_user.organization_id})
+async def list_brands(
+    current_user: CurrentUser,
+    db: DBSession,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    include_archived: bool = Query(
+        False,
+        description="Include archived (is_active=false) brands. Default false so operator views show only live brands.",
+    ),
+):
+    """List brands for the current organization.
+
+    Default: only active/live brands (is_active=true).
+    Pass ?include_archived=true for admin/audit access to archived brands.
+    """
+    filters: dict = {"organization_id": current_user.organization_id}
+    if not include_archived:
+        filters["is_active"] = True
+    result = await brand_service.list(db, page=page, page_size=page_size, filters=filters)
     return result["items"]
 
 

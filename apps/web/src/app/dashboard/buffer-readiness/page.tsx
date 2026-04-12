@@ -1,12 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { brandsApi } from '@/lib/api';
 import { lec2Api } from '@/lib/live-execution-phase2-api';
+import { useBrandId } from '@/hooks/useBrandId';
 import { CheckCircle2, RefreshCw } from 'lucide-react';
-
-type Brand = { id: string; name: string };
 
 type CapabilityRow = {
   id: string;
@@ -30,38 +27,23 @@ function asList<T>(data: unknown): T[] {
 
 export default function BufferReadinessPage() {
   const qc = useQueryClient();
-  const [brandId, setBrandId] = useState('');
-
-  const { data: brands, isLoading: brandsLoading, isError: brandsError, error: brandsErr } = useQuery({
-    queryKey: ['brands'],
-    queryFn: () => brandsApi.list().then((r) => r.data as Brand[]),
-  });
-
-  useEffect(() => {
-    if (brands?.length && !brandId) setBrandId(String(brands[0].id));
-  }, [brands, brandId]);
+  const brandId = useBrandId();
 
   const { data: capsRaw, isLoading } = useQuery({
     queryKey: ['lec2-buffer-capabilities', brandId],
-    queryFn: () => lec2Api.bufferCapabilities(brandId).then((r) => r.data),
+    queryFn: () => lec2Api.bufferCapabilities(brandId!).then((r) => r.data),
     enabled: Boolean(brandId),
   });
 
   const recomputeMut = useMutation({
-    mutationFn: () => lec2Api.recomputeBufferCapabilities(brandId),
+    mutationFn: () => lec2Api.recomputeBufferCapabilities(brandId!),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['lec2-buffer-capabilities', brandId] }),
   });
 
   const rows = asList<CapabilityRow>(capsRaw);
 
-  if (brandsLoading) {
-    return <div className="card py-12 text-center text-gray-500">Loading…</div>;
-  }
-  if (brandsError) {
-    return <div className="card border-red-900/50 text-red-300 py-8 text-center">{errMessage(brandsErr)}</div>;
-  }
-  if (!brands?.length) {
-    return <div className="card text-center py-12 text-gray-500">Create a brand to view buffer readiness.</div>;
+  if (!brandId) {
+    return <div className="card text-center py-12 text-gray-500">No active brand selected. Use the brand switcher in the top bar.</div>;
   }
 
   return (
@@ -92,15 +74,8 @@ export default function BufferReadinessPage() {
         <div className="card border-emerald-900/50 text-emerald-300 text-sm">Recompute complete.</div>
       )}
 
-      <div className="card max-w-xl">
-        <label className="stat-label block mb-2 text-gray-400 text-xs font-medium uppercase tracking-wider">Brand</label>
-        <select className="input-field w-full" value={brandId} onChange={(e) => setBrandId(e.target.value)} aria-label="Select brand">
-          {brands.map((b) => (
-            <option key={b.id} value={String(b.id)}>
-              {b.name}
-            </option>
-          ))}
-        </select>
+      <div className="card">
+        <p className="text-xs text-gray-500">Scoped to the active brand (use the top-bar switcher to change brand).</p>
       </div>
 
       <div className="card">

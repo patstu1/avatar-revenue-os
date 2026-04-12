@@ -21,6 +21,7 @@ from packages.db.enums import (
     ActorType, ApprovalStatus, ConfidenceLevel, ContentType, DecisionMode,
     DecisionType, JobStatus, Platform, QAStatus, RecommendedAction,
 )
+from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import Asset, ContentBrief, ContentItem, MediaJob, Script, ScriptVariant
 from packages.db.models.core import Avatar, AvatarProviderProfile, Brand, VoiceProviderProfile
 from packages.db.models.decisions import PublishDecision
@@ -319,13 +320,11 @@ async def generate_media(db: AsyncSession, script_id: uuid.UUID) -> MediaJob:
     job = MediaJob(
         brand_id=brief.brand_id,
         script_id=script.id,
-        avatar_id=avatar.id if avatar else None,
         job_type="avatar_video",
         status=JobStatus.PENDING,
         provider=provider,
-        input_config={"script_text": script.full_script[:500], "duration_hint": script.estimated_duration_seconds},
-        retries=0,
-        max_retries=3,
+        input_payload={"script_text": script.full_script[:500], "duration_hint": script.estimated_duration_seconds},
+        retry_count=0,
     )
     db.add(job)
     script.status = "media_queued"
@@ -397,9 +396,8 @@ async def finalize_media_job(db: AsyncSession, job_id: uuid.UUID, *, output_conf
     db.add(item)
 
     asset.content_item_id = item.id
-    job.output_asset_id = asset.id
     if output_config:
-        job.output_config = output_config
+        job.output_payload = output_config
 
     if brief:
         brief.status = "media_complete"
@@ -579,10 +577,39 @@ async def _determine_approval_mode(qa_score: float, confidence: str, blocking_is
 
 
 async def approve_content(db: AsyncSession, content_id: uuid.UUID, user_id: uuid.UUID, notes: str = "") -> Approval:
+    """Approve a content item for publishing.
+
+    Enforces the publish-readiness contract: an item cannot become `approved`
+    unless it satisfies `publish_readiness.check_publish_readiness`. Items that
+    fail are moved to `pending_media` with an explicit blocker reason stored
+    in `approvals.review_notes`.
+    """
+    from apps.api.services.publish_readiness import check_publish_readiness
+
     item = await _ensure_content_item(db, content_id)
     qa = (await db.execute(
         select(QAReport).where(QAReport.content_item_id == content_id).order_by(QAReport.created_at.desc())
     )).scalars().first()
+
+    readiness = await check_publish_readiness(db, item)
+
+    if not readiness.ok:
+        # Record a REVISION_REQUESTED approval with the readiness blocker reason,
+        # and park the item in pending_media so recompute will not pick it up.
+        approval = Approval(
+            content_item_id=item.id, brand_id=item.brand_id,
+            requested_by=user_id, reviewed_by=user_id,
+            status=ApprovalStatus.REVISION_REQUESTED,
+            decision_mode="readiness_gate", auto_approved=False,
+            review_notes=f"readiness_blocker={readiness.reason}: {readiness.detail}",
+            qa_report_id=qa.id if qa else None,
+            reviewed_at=datetime.now(timezone.utc).isoformat(),
+        )
+        db.add(approval)
+        item.status = "pending_media"
+        await db.flush()
+        await db.refresh(approval)
+        return approval
 
     approval = Approval(
         content_item_id=item.id, brand_id=item.brand_id,
@@ -644,6 +671,22 @@ async def schedule_publish(
     if item.status not in ("approved", "scheduled"):
         raise ValueError(f"Content must be approved before publishing (current: {item.status})")
 
+    # Build monetization context for this publish
+    monetization_config = {}
+    try:
+        from apps.api.services.attribution_builder import build_publish_monetization_context
+        account = await db.get(CreatorAccount, creator_account_id) if creator_account_id else None
+        brand = await db.get(Brand, item.brand_id) if item.brand_id else None
+        if account:
+            monetization_config = await build_publish_monetization_context(
+                db, item, account,
+                brand_slug=getattr(brand, "slug", "") if brand else "",
+            )
+    except Exception as exc:
+        logger.warning("monetization_context_build_failed", error=str(exc), exc_info=True)
+        import traceback
+        traceback.print_exc()
+
     job = PublishJob(
         content_item_id=item.id,
         creator_account_id=creator_account_id,
@@ -651,6 +694,7 @@ async def schedule_publish(
         platform=Platform(platform),
         status=JobStatus.PENDING,
         scheduled_at=scheduled_at or datetime.now(timezone.utc),
+        publish_config=monetization_config,
     )
     db.add(job)
 

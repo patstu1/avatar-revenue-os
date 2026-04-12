@@ -155,39 +155,37 @@ async def get_system_health(db: AsyncSession, org_id: uuid.UUID) -> dict:
 
 
 async def _get_provider_counts(db: AsyncSession, status_type: str) -> int:
-    """Count providers by health status."""
-    from packages.db.models.provider_registry import ProviderBlocker, ProviderRegistryEntry
+    """Count providers by health status from the canonical IntegrationProvider table.
 
-    if status_type == "blocked":
+    Health states set by health_monitor_worker: healthy, configured, unconfigured,
+    auth_failed, unreachable.
+    """
+    from packages.db.models.integration_registry import IntegrationProvider
+
+    if status_type == "healthy":
         return (await db.execute(
-            select(func.count(func.distinct(ProviderBlocker.provider_key))).where(
-                ProviderBlocker.resolved.is_(False),
+            select(func.count()).select_from(IntegrationProvider).where(
+                IntegrationProvider.is_enabled.is_(True),
+                IntegrationProvider.health_status.in_(["healthy", "configured"]),
             )
         )).scalar() or 0
 
-    total = (await db.execute(
-        select(func.count()).select_from(ProviderRegistryEntry).where(
-            ProviderRegistryEntry.is_active.is_(True),
-        )
-    )).scalar() or 0
-
-    blocked = (await db.execute(
-        select(func.count(func.distinct(ProviderBlocker.provider_key))).where(
-            ProviderBlocker.resolved.is_(False),
-        )
-    )).scalar() or 0
-
-    missing_creds = (await db.execute(
-        select(func.count()).select_from(ProviderRegistryEntry).where(
-            ProviderRegistryEntry.is_active.is_(True),
-            ProviderRegistryEntry.credential_status == "missing",
-        )
-    )).scalar() or 0
-
     if status_type == "degraded":
-        return max(0, missing_creds - blocked)
-    if status_type == "healthy":
-        return max(0, total - blocked - missing_creds)
+        return (await db.execute(
+            select(func.count()).select_from(IntegrationProvider).where(
+                IntegrationProvider.is_enabled.is_(True),
+                IntegrationProvider.health_status.in_(["auth_failed", "unconfigured"]),
+            )
+        )).scalar() or 0
+
+    if status_type == "blocked":
+        return (await db.execute(
+            select(func.count()).select_from(IntegrationProvider).where(
+                IntegrationProvider.is_enabled.is_(True),
+                IntegrationProvider.health_status == "unreachable",
+            )
+        )).scalar() or 0
+
     return 0
 
 

@@ -20,6 +20,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import and_, case, desc, func, select
 
 from apps.api.deps import CurrentUser, DBSession
+from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
 from packages.db.models.offers import SponsorOpportunity
@@ -28,6 +29,98 @@ from packages.db.models.system import SystemJob
 from packages.db.models.system_events import OperatorAction, SystemEvent
 
 router = APIRouter()
+
+
+@router.get("/portfolio/overview")
+async def portfolio_overview(current_user: CurrentUser, db: DBSession):
+    """Portfolio overview for the dashboard — real aggregation across all brands."""
+    org_id = current_user.organization_id
+    now = datetime.now(timezone.utc)
+    day_30 = now - timedelta(days=30)
+
+    # Brands
+    brands_result = (await db.execute(
+        select(Brand).where(Brand.organization_id == org_id, Brand.is_active == True)
+    )).scalars().all()
+
+    # Revenue 30d
+    rev_total = (await db.execute(
+        select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0))
+        .join(Brand, RevenueLedgerEntry.brand_id == Brand.id)
+        .where(Brand.organization_id == org_id,
+               RevenueLedgerEntry.occurred_at >= day_30)
+    )).scalar() or 0
+
+    # Accounts
+    accounts_result = (await db.execute(
+        select(CreatorAccount)
+        .join(Brand, CreatorAccount.brand_id == Brand.id)
+        .where(Brand.organization_id == org_id, CreatorAccount.is_active == True)
+    )).scalars().all()
+    total_followers = sum(a.follower_count or 0 for a in accounts_result)
+    active_accounts = len(accounts_result)
+
+    # Published content
+    published_count = (await db.execute(
+        select(func.count(ContentItem.id))
+        .join(Brand, ContentItem.brand_id == Brand.id)
+        .where(Brand.organization_id == org_id, ContentItem.status == "published")
+    )).scalar() or 0
+
+    # Pending actions
+    pending_actions = (await db.execute(
+        select(func.count(OperatorAction.id))
+        .where(OperatorAction.organization_id == org_id, OperatorAction.status == "pending")
+    )).scalar() or 0
+
+    # Per-brand performance
+    brand_perfs = []
+    for brand in brands_result:
+        b_rev = (await db.execute(
+            select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0))
+            .where(RevenueLedgerEntry.brand_id == brand.id,
+                   RevenueLedgerEntry.occurred_at >= day_30)
+        )).scalar() or 0
+
+        b_content = (await db.execute(
+            select(func.count(ContentItem.id))
+            .where(ContentItem.brand_id == brand.id)
+        )).scalar() or 0
+
+        b_accounts = sum(1 for a in accounts_result if str(a.brand_id) == str(brand.id))
+
+        brand_perfs.append({
+            "id": str(brand.id),
+            "name": brand.name,
+            "revenue": float(b_rev),
+            "content_count": b_content,
+            "account_count": b_accounts,
+            "trajectory": "growing" if float(b_rev) > 0 else "flat",
+        })
+
+    # Revenue series (last 30 days, daily)
+    rev_series_result = (await db.execute(
+        select(
+            func.date_trunc('day', RevenueLedgerEntry.occurred_at).label('day'),
+            func.sum(RevenueLedgerEntry.gross_amount).label('revenue'),
+        )
+        .join(Brand, RevenueLedgerEntry.brand_id == Brand.id)
+        .where(Brand.organization_id == org_id,
+               RevenueLedgerEntry.occurred_at >= day_30)
+        .group_by('day')
+        .order_by('day')
+    )).all()
+    revenue_series = [{"date": str(r.day.date()), "revenue": float(r.revenue)} for r in rev_series_result]
+
+    return {
+        "total_revenue": float(rev_total),
+        "total_followers": total_followers,
+        "content_published": published_count,
+        "active_accounts": active_accounts,
+        "pending_actions": pending_actions,
+        "brands": brand_perfs,
+        "revenue_series": revenue_series,
+    }
 
 
 @router.get("/command/portfolio")

@@ -237,20 +237,18 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
             media_job = MediaJob(
                 brand_id=script.brand_id,
                 script_id=script.id,
-                avatar_id=avatar.id if avatar else None,
                 job_type="avatar_video",
                 status=JobStatus.PENDING,
                 provider=provider,
-                input_config={"script_text": script.full_script[:500], "duration_hint": script.estimated_duration_seconds},
-                retries=0,
-                max_retries=3,
+                input_payload={"script_text": script.full_script[:500], "duration_hint": script.estimated_duration_seconds},
+                retry_count=0,
             )
             session.add(media_job)
             session.flush()
 
         media_job.status = JobStatus.RUNNING
         from datetime import datetime, timezone
-        media_job.started_at = datetime.now(timezone.utc).isoformat()
+        media_job.dispatched_at = datetime.now(timezone.utc).isoformat()
         session.commit()
 
         provider_result = _call_media_provider_sync(provider, script, avatar)
@@ -258,21 +256,22 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
         if provider_result and provider_result.get("success"):
             media_job.status = JobStatus.COMPLETED
             media_job.completed_at = datetime.now(timezone.utc).isoformat()
-            media_job.output_config = {
+            media_job.output_payload = {
                 "provider": provider,
                 "model": provider_result.get("model", provider),
                 "output_url": provider_result.get("url", ""),
                 "source": "ai_provider",
             }
+            media_job.output_url = provider_result.get("url", "")
         elif provider_result and provider_result.get("blocked"):
             media_job.status = JobStatus.FAILED
             media_job.error_message = provider_result.get("error", "Provider not configured")
-            media_job.output_config = {"provider": provider, "blocked": True, "error": provider_result.get("error")}
+            media_job.output_payload = {"provider": provider, "blocked": True, "error": provider_result.get("error")}
         else:
             error_msg = provider_result.get("error", "Unknown provider error") if provider_result else "No provider available"
             media_job.status = JobStatus.FAILED
             media_job.error_message = error_msg
-            media_job.output_config = {"provider": provider, "error": error_msg}
+            media_job.output_payload = {"provider": provider, "error": error_msg}
 
         if media_job.status != JobStatus.COMPLETED:
             session.commit()
@@ -283,7 +282,7 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
                 "error": media_job.error_message or "Provider unavailable",
             }
 
-        output_url = (media_job.output_config or {}).get("output_url", f"media/{media_job.id}/output")
+        output_url = media_job.output_url or (media_job.output_payload or {}).get("output_url", f"media/{media_job.id}/output")
 
         brief = None
         if script.brief_id:
@@ -316,7 +315,8 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
         session.flush()
 
         asset.content_item_id = item.id
-        media_job.output_asset_id = asset.id
+        # Asset linkage tracked via content_item_id
+        media_job.content_item_id = item.id
 
         if brief:
             brief.status = "media_complete"
@@ -536,17 +536,14 @@ def _resolve_provider_and_credential(
     if routed and routed.get("api_key"):
         return routed["provider_key"], routed["api_key"]
 
-    # Attempt 3: iterate known providers for the category, try .env fallback
-    import os
-    from apps.api.services.integration_manager import PROVIDER_ENV_KEYS
+    # Attempt 3: iterate known providers for the category via credential_loader
+    # (load_credential handles DB-first with .env fallback internally)
     client_map = _build_provider_client_map()
     for pkey, (_cls, cat) in client_map.items():
         if cat == category:
-            env_var = PROVIDER_ENV_KEYS.get(pkey)
-            if env_var:
-                env_val = os.environ.get(env_var, "")
-                if env_val:
-                    return pkey, env_val
+            cred = load_credential(session, org_id, pkey)
+            if cred:
+                return pkey, cred
 
     return preferred_provider or "fallback", None
 
@@ -762,14 +759,9 @@ def poll_media_job(self, media_job_id: str, backoff_seconds: float = 5) -> dict:
             session.commit()
             return {"media_job_id": media_job_id, "status": "failed", "error": "no provider_job_id"}
 
-        # ── Load credential ────────────────────────────────────────────
+        # ── Load credential (DB-first, .env fallback handled by credential_loader)
         from packages.clients.credential_loader import load_credential
         api_key = load_credential(session, media_job.org_id, provider_key)
-        if not api_key:
-            import os
-            from apps.api.services.integration_manager import PROVIDER_ENV_KEYS
-            env_var = PROVIDER_ENV_KEYS.get(provider_key)
-            api_key = os.environ.get(env_var, "") if env_var else ""
 
         client_map = _build_provider_client_map()
         client_info = client_map.get(provider_key)
@@ -921,11 +913,7 @@ def check_stale_jobs(self) -> dict:
             # Try to poll provider for current status
             from packages.clients.credential_loader import load_credential
             api_key = load_credential(session, job.org_id, job.provider)
-            if not api_key:
-                import os
-                from apps.api.services.integration_manager import PROVIDER_ENV_KEYS
-                env_var = PROVIDER_ENV_KEYS.get(job.provider)
-                api_key = os.environ.get(env_var, "") if env_var else ""
+
 
             client_map = _build_provider_client_map()
             client_info = client_map.get(job.provider)

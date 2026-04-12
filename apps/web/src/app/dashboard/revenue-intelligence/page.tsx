@@ -100,6 +100,22 @@ interface OfferRanking {
   monthly_revenue: number;
 }
 
+/* ──────────────────────────────────── Null-safe formatters ──────────────────────────────────── */
+
+function fmtNum(v: number | null | undefined, digits = 0): string {
+  if (v === null || v === undefined || Number.isNaN(v)) return "0";
+  return Number(v).toLocaleString(undefined, { maximumFractionDigits: digits });
+}
+
+function fmtCurrency(v: number | null | undefined): string {
+  return `$${fmtNum(v)}`;
+}
+
+function safeNum(v: number | null | undefined, fallback = 0): number {
+  if (v === null || v === undefined || Number.isNaN(v)) return fallback;
+  return v;
+}
+
 /* ──────────────────────────────────── SVG Chart Helpers ──────────────────────────────────── */
 
 function MiniSparkline({ data, color, height = 40, width = 120 }: { data: number[]; color: string; height?: number; width?: number }) {
@@ -398,10 +414,10 @@ function ContentLTVTable({ items }: { items: ContentLTV[] }) {
                   {expanded.has(item.content_id) ? <ChevronUp className="w-3.5 h-3.5 text-gray-500" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-500" />}
                 </td>
                 <td className="py-3 px-3 text-white font-medium max-w-[240px] truncate">{item.title}</td>
-                <td className="py-3 px-3 text-right text-gray-400 font-mono text-xs">{item.age_days}d</td>
-                <td className="py-3 px-3 text-right text-gray-300 font-mono">${item.revenue_30d.toLocaleString()}</td>
-                <td className="py-3 px-3 text-right text-cyan-300 font-mono font-bold">${item.revenue_90d.toLocaleString()}</td>
-                <td className="py-3 px-3 text-right text-gray-300 font-mono">${item.revenue_365d.toLocaleString()}</td>
+                <td className="py-3 px-3 text-right text-gray-400 font-mono text-xs">{safeNum(item.age_days)}d</td>
+                <td className="py-3 px-3 text-right text-gray-300 font-mono">{fmtCurrency(item.revenue_30d)}</td>
+                <td className="py-3 px-3 text-right text-cyan-300 font-mono font-bold">{fmtCurrency(item.revenue_90d)}</td>
+                <td className="py-3 px-3 text-right text-gray-300 font-mono">{fmtCurrency(item.revenue_365d)}</td>
                 <td className="py-3 px-3 text-center">
                   <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-mono font-bold ${evergreenColor(item.evergreen_score)}`}>
                     {item.evergreen_score}
@@ -448,16 +464,28 @@ function ContentLTVTable({ items }: { items: ContentLTV[] }) {
   );
 }
 
-function RevenueCeilingPanel({ data }: { data: RevenueCeilingData }) {
-  const pct = data.efficiency_pct;
-  const gap = data.theoretical_ceiling - data.current_monthly;
+function RevenueCeilingPanel({ data }: { data: RevenueCeilingData | null | undefined }) {
+  if (!data) {
+    return (
+      <div className="text-center py-8 text-gray-500 text-sm">
+        No revenue ceiling data yet for this brand. Run recompute or wait for the scheduler.
+      </div>
+    );
+  }
+
+  const pct = safeNum(data.efficiency_pct);
+  const currentMonthly = safeNum(data.current_monthly);
+  const theoreticalCeiling = safeNum(data.theoretical_ceiling);
+  const gap = theoreticalCeiling - currentMonthly;
+  const bottlenecks = Array.isArray(data.bottlenecks) ? data.bottlenecks : [];
+  const opportunities = Array.isArray(data.opportunities) ? data.opportunities : [];
 
   return (
     <div className="space-y-6">
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-gray-400">
-            ${data.current_monthly.toLocaleString()} <span className="text-gray-600">of</span> ${data.theoretical_ceiling.toLocaleString()}
+            {fmtCurrency(currentMonthly)} <span className="text-gray-600">of</span> {fmtCurrency(theoreticalCeiling)}
           </span>
           <span className={`text-sm font-bold font-mono ${pct >= 70 ? "text-green-400" : pct >= 40 ? "text-amber-400" : "text-red-400"}`}>{pct.toFixed(1)}%</span>
         </div>
@@ -468,24 +496,24 @@ function RevenueCeilingPanel({ data }: { data: RevenueCeilingData }) {
           />
           <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_8px,rgba(0,0,0,0.1)_8px,rgba(0,0,0,0.1)_16px)]" />
         </div>
-        <p className="text-xs text-gray-500 mt-1 font-mono">Revenue gap: ${gap.toLocaleString()}/mo unrealized</p>
+        <p className="text-xs text-gray-500 mt-1 font-mono">Revenue gap: {fmtCurrency(gap)}/mo unrealized</p>
       </div>
 
-      {data.bottlenecks.length > 0 && (
+      {bottlenecks.length > 0 && (
         <div>
           <h4 className="text-[10px] text-gray-500 font-mono uppercase tracking-wider mb-3">Bottlenecks by Impact</h4>
           <div className="space-y-2">
-            {data.bottlenecks.sort((a, b) => b.impact_amount - a.impact_amount).map((b, i) => (
+            {bottlenecks.slice().sort((a, b) => safeNum(b.impact_amount) - safeNum(a.impact_amount)).map((b, i) => (
               <div key={i} className="flex items-center gap-3 bg-gray-800/30 rounded-lg px-4 py-3">
                 <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 font-mono text-xs font-bold">
-                  #{b.priority}
+                  #{b.priority ?? i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white font-medium">{b.category}</p>
-                  <p className="text-xs text-gray-500 truncate">{b.description}</p>
+                  <p className="text-sm text-white font-medium">{b.category ?? "—"}</p>
+                  <p className="text-xs text-gray-500 truncate">{b.description ?? ""}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-red-400 font-mono font-bold">-${b.impact_amount.toLocaleString()}</p>
+                  <p className="text-sm text-red-400 font-mono font-bold">-{fmtCurrency(b.impact_amount)}</p>
                   <p className="text-[10px] text-gray-500">per month</p>
                 </div>
               </div>
@@ -494,21 +522,21 @@ function RevenueCeilingPanel({ data }: { data: RevenueCeilingData }) {
         </div>
       )}
 
-      {data.opportunities.length > 0 && (
+      {opportunities.length > 0 && (
         <div>
           <h4 className="text-[10px] text-gray-500 font-mono uppercase tracking-wider mb-3">Top Opportunities</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {data.opportunities.map((opp, i) => (
+            {opportunities.map((opp, i) => (
               <div key={i} className="bg-green-950/10 border border-green-900/20 rounded-lg px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-white font-medium">{opp.name}</p>
+                  <p className="text-sm text-white font-medium">{opp.name ?? "—"}</p>
                   <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${opp.effort === "low" ? "bg-green-500/10 text-green-400" : opp.effort === "medium" ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"}`}>
-                    {opp.effort.toUpperCase()}
+                    {(opp.effort ?? "unknown").toUpperCase()}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 mt-1.5">
-                  <span className="text-green-400 font-mono font-bold text-sm">+${opp.expected_lift.toLocaleString()}/mo</span>
-                  <span className="text-[10px] text-gray-500 font-mono">{opp.timeline_days}d timeline</span>
+                  <span className="text-green-400 font-mono font-bold text-sm">+{fmtCurrency(opp.expected_lift)}/mo</span>
+                  <span className="text-[10px] text-gray-500 font-mono">{safeNum(opp.timeline_days)}d timeline</span>
                 </div>
               </div>
             ))}
@@ -552,9 +580,9 @@ function AnomalyAlerts({ alerts, onDismiss }: { alerts: AnomalyAlert[]; onDismis
             </button>
           </div>
           <div className="flex items-center gap-4 mt-2 text-[10px] font-mono">
-            <span className="text-gray-500">Expected: ${a.expected.toLocaleString()}</span>
-            <span className={a.type === "spike" ? "text-green-400" : "text-red-400"}>Actual: ${a.actual.toLocaleString()}</span>
-            <span className="text-gray-500">{a.deviation_pct > 0 ? "+" : ""}{a.deviation_pct.toFixed(1)}%</span>
+            <span className="text-gray-500">Expected: {fmtCurrency(a.expected)}</span>
+            <span className={a.type === "spike" ? "text-green-400" : "text-red-400"}>Actual: {fmtCurrency(a.actual)}</span>
+            <span className="text-gray-500">{safeNum(a.deviation_pct) > 0 ? "+" : ""}{safeNum(a.deviation_pct).toFixed(1)}%</span>
           </div>
           <div className="mt-2 bg-gray-800/40 rounded px-3 py-2">
             <p className="text-[10px] text-cyan-400 font-mono">RECOMMENDED: {a.recommended_action}</p>
@@ -621,8 +649,8 @@ function OfferRankingsTable({ offers }: { offers: OfferRanking[] }) {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-lg font-black text-cyan-300 font-mono">{offer.overall_score}</p>
-                <p className="text-[10px] text-gray-500">${offer.monthly_revenue.toLocaleString()}/mo</p>
+                <p className="text-lg font-black text-cyan-300 font-mono">{safeNum(offer.overall_score)}</p>
+                <p className="text-[10px] text-gray-500">{fmtCurrency(offer.monthly_revenue)}/mo</p>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4 mt-3">
@@ -744,8 +772,13 @@ export default function RevenueIntelligencePage() {
     setLoadingCeiling(true);
     setErrorCeiling("");
     try {
-      const data = await apiFetch<RevenueCeilingData>(`/api/v1/brands/${brandId}/intelligence/revenue-ceiling`);
-      setCeiling(data);
+      const data = await apiFetch<RevenueCeilingData & { status?: string }>(`/api/v1/brands/${brandId}/intelligence/revenue-ceiling`);
+      if (data?.status === "insufficient_data" || data?.current_monthly === undefined) {
+        setCeiling(null);
+        setErrorCeiling("Not enough revenue data yet to calculate ceiling analysis.");
+      } else {
+        setCeiling(data);
+      }
     } catch (e: any) {
       setErrorCeiling(e.message || "Failed to load revenue ceiling");
     } finally {

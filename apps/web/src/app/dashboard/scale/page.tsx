@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { brandsApi } from '@/lib/api';
+import { useBrandId } from '@/hooks/useBrandId';
 import { ScaleCommandCenter, scaleApi } from '@/lib/scale-api';
 import {
   scaleAlertsApi,
@@ -29,8 +29,6 @@ import {
   XCircle,
 } from 'lucide-react';
 
-type Brand = { id: string; name: string };
-
 function errMessage(e: unknown) {
   if (e && typeof e === 'object' && 'response' in e) {
     const d = (e as { response?: { data?: { detail?: string } } }).response?.data?.detail;
@@ -45,18 +43,7 @@ function humanizeKey(k: string) {
 
 export default function ScaleCommandCenterPage() {
   const queryClient = useQueryClient();
-  const [selectedBrandId, setSelectedBrandId] = useState('');
-
-  const { data: brands, isLoading: brandsLoading, isError: brandsError, error: brandsErr } = useQuery({
-    queryKey: ['brands'],
-    queryFn: () => brandsApi.list().then((r) => r.data as Brand[]),
-  });
-
-  useEffect(() => {
-    if (brands?.length && !selectedBrandId) {
-      setSelectedBrandId(String(brands[0].id));
-    }
-  }, [brands, selectedBrandId]);
+  const selectedBrandId = useBrandId() || '';
 
   const {
     data: center,
@@ -135,30 +122,10 @@ export default function ScaleCommandCenterPage() {
     },
   });
 
-  const selectedBrand = useMemo(
-    () => brands?.find((b) => String(b.id) === selectedBrandId),
-    [brands, selectedBrandId]
-  );
-
-  if (brandsLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-8 w-96 bg-gray-800 rounded animate-pulse" />
-        <div className="card py-12 text-center text-gray-500">Loading…</div>
-      </div>
-    );
-  }
-
-  if (brandsError) {
-    return (
-      <div className="card border-red-900/50 text-red-300 py-8 text-center">{errMessage(brandsErr)}</div>
-    );
-  }
-
-  if (!brands?.length) {
+  if (!selectedBrandId) {
     return (
       <div className="card text-center py-12 text-gray-500">
-        Create a brand to open the AI Scale Command Center.
+        No active brand selected. Use the brand switcher in the top bar.
       </div>
     );
   }
@@ -208,21 +175,8 @@ export default function ScaleCommandCenterPage() {
         </div>
       </div>
 
-      <div className="card max-w-xl">
-        <label className="stat-label block mb-2">Brand</label>
-        <select
-          className="input-field w-full"
-          value={selectedBrandId}
-          onChange={(e) => setSelectedBrandId(e.target.value)}
-          aria-label="Select brand for scale command center"
-        >
-          {brands.map((b) => (
-            <option key={b.id} value={String(b.id)}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-        {selectedBrand && <p className="text-sm text-gray-500 mt-2">Viewing: {selectedBrand.name}</p>}
+      <div className="card">
+        <p className="text-xs text-gray-500">Scoped to the active brand (use the top-bar switcher to change brand).</p>
       </div>
 
       {(recMut.isError || allocMut.isError) && (
@@ -428,7 +382,7 @@ export default function ScaleCommandCenterPage() {
                             {a.severity && (
                               <span className="text-[10px] uppercase text-gray-500">{a.severity}</span>
                             )}
-                            <span className="text-gray-500 text-xs">Urgency {a.urgency.toFixed(0)}</span>
+                            <span className="text-gray-500 text-xs">Urgency {Number(a.urgency ?? 0).toFixed(0)}</span>
                           </div>
                           <p className="text-white font-medium mt-1">{a.title}</p>
                           <p className="text-gray-500 text-xs mt-1">{a.summary}</p>
@@ -477,7 +431,7 @@ export default function ScaleCommandCenterPage() {
                       {readiness && (
                         <>
                           <p className="text-3xl font-bold text-white">
-                            {readiness.launch_readiness_score.toFixed(0)}
+                            {Number(readiness.launch_readiness_score ?? 0).toFixed(0)}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">{readiness.explanation}</p>
                           <p className="text-xs text-brand-300 mt-2">

@@ -279,3 +279,15 @@ async def list_briefs(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSess
         .order_by(ContentBrief.created_at.desc()).offset((page - 1) * 50).limit(50)
     )
     return list(result.scalars().all())
+
+
+@router.delete("/content/{content_id}", status_code=204)
+async def delete_content(content_id: uuid.UUID, current_user: OperatorUser, db: DBSession):
+    item = await db.get(ContentItem, content_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Content item not found")
+    await db.delete(item)
+    await db.flush()
+    await log_action(db, "content.deleted", organization_id=current_user.organization_id,
+                     brand_id=item.brand_id, user_id=current_user.id, actor_type="human",
+                     entity_type="content_item", entity_id=content_id)

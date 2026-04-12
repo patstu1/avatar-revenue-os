@@ -57,12 +57,25 @@ async def _submit_pending_jobs():
 
 
 async def _sync_buffer_statuses():
-    """Sync Buffer post statuses for all active brands."""
+    """Sync Buffer post statuses + ingest real external links from Buffer GraphQL API.
+
+    Two-step:
+      1. Run per-brand status sync (legacy compatibility)
+      2. Run per-org sync_published_posts_from_buffer to ingest external platform URLs
+         into publish_jobs and content_items
+    """
+    from sqlalchemy import select
     from apps.api.services import buffer_distribution_service as svc
+    from packages.db.models.core import Brand, Organization
 
     async with async_session_factory() as db:
         brand_ids = await _all_brand_ids(db)
+        org_ids_q = await db.execute(
+            select(Organization.id).where(Organization.is_active.is_(True))
+        )
+        org_ids = [r[0] for r in org_ids_q.all()]
 
+    # Step 1: per-brand status sync (legacy)
     for bid in brand_ids:
         try:
             async with async_session_factory() as db:
@@ -71,6 +84,16 @@ async def _sync_buffer_statuses():
                 logger.info("buffer.status_sync_done", brand_id=str(bid), **result)
         except Exception:
             logger.exception("buffer.status_sync_failed", brand_id=str(bid))
+
+    # Step 2: per-org Buffer post ingestion (real URLs)
+    for oid in org_ids:
+        try:
+            async with async_session_factory() as db:
+                result = await svc.sync_published_posts_from_buffer(db, oid)
+                await db.commit()
+                logger.info("buffer.post_ingest_done", org_id=str(oid), **result)
+        except Exception:
+            logger.exception("buffer.post_ingest_failed", org_id=str(oid))
 
 
 @shared_task(base=BaseTask, name="workers.buffer_worker.tasks.submit_pending_jobs")

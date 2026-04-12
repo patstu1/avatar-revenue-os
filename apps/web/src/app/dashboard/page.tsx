@@ -621,7 +621,7 @@ export default function DashboardOverviewPage() {
   const { data: eventsFeed } = useQuery({
     queryKey: ['system-events-feed'],
     queryFn: () =>
-      apiFetch<SystemEvent[]>('/api/v1/system-events?limit=50').catch(() => null),
+      apiFetch<SystemEvent[]>('/api/v1/control-layer/events?limit=50').catch(() => null),
     refetchInterval: 15_000,
   });
 
@@ -629,7 +629,7 @@ export default function DashboardOverviewPage() {
   const { data: actionsFeed } = useQuery({
     queryKey: ['operator-actions-feed'],
     queryFn: () =>
-      apiFetch<OperatorAction[]>('/api/v1/operator-actions?status=pending&limit=30').catch(() => null),
+      apiFetch<OperatorAction[]>('/api/v1/control-layer/actions?limit=30').catch(() => null),
     refetchInterval: 15_000,
   });
 
