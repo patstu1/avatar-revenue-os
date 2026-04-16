@@ -11,7 +11,7 @@ from sqlalchemy import select, func
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from packages.db.models.content import ContentBrief
 from packages.db.models.core import Brand
 
@@ -81,5 +81,5 @@ async def _cleanup_stuck_briefs():
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_generation_worker.tasks.process_pending_briefs")
 def process_pending_briefs(self):
     """Celery task with auto-retry: process all pending content briefs through AI generation."""
-    asyncio.run(_cleanup_stuck_briefs())
-    return asyncio.run(_process_pending_briefs())
+    run_async(_cleanup_stuck_briefs())
+    return run_async(_process_pending_briefs())

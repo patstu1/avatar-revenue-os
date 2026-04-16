@@ -12,7 +12,7 @@ import uuid
 from celery import shared_task
 from sqlalchemy import select
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
@@ -38,7 +38,7 @@ async def _run():
 @shared_task(name="workers.causal_attribution_worker.tasks.recompute_causal_attribution", base=TrackedTask)
 def recompute_causal_attribution():
     """Sweep all brands — 6-hour safety net."""
-    return {"status": "completed", "brands": asyncio.run(_run())}
+    return {"status": "completed", "brands": run_async(_run())}
 
 
 @shared_task(name="workers.causal_attribution_worker.tasks.attribute_revenue_for_content_item", base=TrackedTask)
@@ -49,7 +49,7 @@ def attribute_revenue_for_content_item(content_item_id: str):
     Runs the attribution service scoped to the brand of the content item.
     This is the fast path — the 6-hour sweep handles anything this misses.
     """
-    return asyncio.run(_attribute_single_item(content_item_id))
+    return run_async(_attribute_single_item(content_item_id))
 
 
 async def _attribute_single_item(content_item_id_str: str):

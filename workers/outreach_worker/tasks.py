@@ -24,7 +24,7 @@ from sqlalchemy import and_, desc, select, update
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +38,10 @@ def _run_async(coro):
         if loop.is_running():
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as pool:
-                return pool.submit(asyncio.run, coro).result()
+                return pool.submit(run_async, coro).result()
         return loop.run_until_complete(coro)
     except RuntimeError:
-        return asyncio.run(coro)
+        return run_async(coro)
 
 
 async def _get_smtp_credentials(db, org_id: uuid.UUID) -> dict:

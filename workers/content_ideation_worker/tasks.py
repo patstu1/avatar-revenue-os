@@ -13,7 +13,7 @@ from sqlalchemy import select, func
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from packages.db.models.content import ContentBrief
 from packages.db.models.core import Brand
 from packages.db.models.accounts import CreatorAccount
@@ -266,4 +266,4 @@ async def _run_ideation():
 
 @shared_task(name="workers.content_ideation_worker.tasks.ideate_content", base=TrackedTask)
 def ideate_content():
-    return asyncio.run(_run_ideation())
+    return run_async(_run_ideation())

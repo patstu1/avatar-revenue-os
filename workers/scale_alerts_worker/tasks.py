@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory, get_sync_engine
+from packages.db.session import async_session_factory, get_sync_engine, run_async
 from packages.db.models.core import Brand
 from packages.db.models.scale_alerts import NotificationDelivery
 from packages.notifications.adapters import EmailAdapter, NotificationPayload, SlackWebhookAdapter, SMSAdapter
@@ -47,7 +47,7 @@ def recompute_all_alerts(self) -> dict:
                 total["errors"].append({"brand_id": str(bid), "error": str(e)})
         return total
 
-    return asyncio.run(_run())
+    return run_async(_run())
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.scale_alerts_worker.tasks.recompute_all_launch_candidates")
@@ -71,7 +71,7 @@ def recompute_all_launch_candidates(self) -> dict:
                 total["errors"].append({"brand_id": str(bid), "error": str(e)})
         return total
 
-    return asyncio.run(_run())
+    return run_async(_run())
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.scale_alerts_worker.tasks.recompute_all_blockers")
@@ -95,7 +95,7 @@ def recompute_all_blockers(self) -> dict:
                 total["errors"].append({"brand_id": str(bid), "error": str(e)})
         return total
 
-    return asyncio.run(_run())
+    return run_async(_run())
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.scale_alerts_worker.tasks.recompute_all_readiness")
@@ -118,7 +118,7 @@ def recompute_all_readiness(self) -> dict:
                 total["errors"].append({"brand_id": str(bid), "error": str(e)})
         return total
 
-    return asyncio.run(_run())
+    return run_async(_run())
 
 
 def _adapters():
@@ -172,7 +172,7 @@ def process_notification_deliveries(self) -> dict:
                 continue
 
             nd.attempts = (nd.attempts or 0) + 1
-            ok, err = asyncio.run(adapter.send(payload, recipient))
+            ok, err = run_async(adapter.send(payload, recipient))
             if ok:
                 nd.status = "delivered"
                 nd.delivered_at = datetime.now(timezone.utc).isoformat()

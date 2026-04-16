@@ -5,7 +5,7 @@ import logging
 from celery import shared_task
 from sqlalchemy import select
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
@@ -48,17 +48,17 @@ async def _recompute_blockers(bid):
 
 @shared_task(name="workers.content_form_worker.tasks.recompute_content_forms", base=TrackedTask)
 def recompute_content_forms():
-    asyncio.run(_run_all(_recompute_recs))
+    run_async(_run_all(_recompute_recs))
     return "content-forms-done"
 
 
 @shared_task(name="workers.content_form_worker.tasks.recompute_content_form_mix", base=TrackedTask)
 def recompute_content_form_mix():
-    asyncio.run(_run_all(_recompute_mix))
+    run_async(_run_all(_recompute_mix))
     return "content-form-mix-done"
 
 
 @shared_task(name="workers.content_form_worker.tasks.recompute_content_form_blockers", base=TrackedTask)
 def recompute_content_form_blockers():
-    asyncio.run(_run_all(_recompute_blockers))
+    run_async(_run_all(_recompute_blockers))
     return "content-form-blockers-done"

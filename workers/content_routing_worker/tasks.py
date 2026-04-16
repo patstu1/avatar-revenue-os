@@ -3,7 +3,7 @@ import asyncio
 import logging
 from celery import shared_task
 from sqlalchemy import select
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
@@ -29,5 +29,5 @@ async def _daily_cost_rollup(bid):
 
 @shared_task(name="workers.content_routing_worker.tasks.daily_cost_rollup", base=TrackedTask)
 def daily_cost_rollup():
-    asyncio.run(_run_all(_daily_cost_rollup))
+    run_async(_run_all(_daily_cost_rollup))
     return "cost-rollup-done"

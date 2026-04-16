@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import AsyncSessionLocal
+from packages.db.session import AsyncSessionLocal, run_async
 
 
 async def _sync_analytics(brand_id: uuid.UUID) -> None:
@@ -64,35 +64,35 @@ async def _run_all_brands(coro_factory):
 
 @shared_task(name="workers.live_execution_worker.tasks.sync_analytics", base=TrackedTask)
 def sync_analytics() -> str:
-    asyncio.run(_run_all_brands(_sync_analytics))
+    run_async(_run_all_brands(_sync_analytics))
     return "analytics-sync-done"
 
 
 @shared_task(name="workers.live_execution_worker.tasks.sync_experiment_truth", base=TrackedTask)
 def sync_experiment_truth() -> str:
-    asyncio.run(_run_all_brands(_sync_experiment_truth))
+    run_async(_run_all_brands(_sync_experiment_truth))
     return "experiment-truth-sync-done"
 
 
 @shared_task(name="workers.live_execution_worker.tasks.run_crm_sync", base=TrackedTask)
 def run_crm_sync() -> str:
-    asyncio.run(_run_all_brands(_run_crm_sync))
+    run_async(_run_all_brands(_run_crm_sync))
     return "crm-sync-done"
 
 
 @shared_task(name="workers.live_execution_worker.tasks.execute_emails", base=TrackedTask)
 def execute_emails() -> str:
-    asyncio.run(_run_all_brands(_execute_emails))
+    run_async(_run_all_brands(_execute_emails))
     return "email-execution-done"
 
 
 @shared_task(name="workers.live_execution_worker.tasks.execute_sms", base=TrackedTask)
 def execute_sms() -> str:
-    asyncio.run(_run_all_brands(_execute_sms))
+    run_async(_run_all_brands(_execute_sms))
     return "sms-execution-done"
 
 
 @shared_task(name="workers.live_execution_worker.tasks.recompute_messaging_blockers", base=TrackedTask)
 def recompute_messaging_blockers() -> str:
-    asyncio.run(_run_all_brands(_recompute_blockers))
+    run_async(_run_all_brands(_recompute_blockers))
     return "messaging-blockers-done"

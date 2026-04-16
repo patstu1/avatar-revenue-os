@@ -5,7 +5,7 @@ import logging
 from celery import shared_task
 from sqlalchemy import select
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
@@ -55,19 +55,19 @@ async def _recompute_scale(bid):
 
 @shared_task(name="workers.monster_ops_worker.tasks.recompute_expansion_advisor", base=TrackedTask)
 def recompute_expansion_advisor():
-    asyncio.run(_run_all(_recompute_expansion))
+    run_async(_run_all(_recompute_expansion))
     return "expansion-advisor-done"
 
 
 @shared_task(name="workers.monster_ops_worker.tasks.recompute_gatekeeper", base=TrackedTask)
 def recompute_gatekeeper():
-    asyncio.run(_run_all(_recompute_gatekeeper))
+    run_async(_run_all(_recompute_gatekeeper))
     return "gatekeeper-done"
 
 
 @shared_task(name="workers.monster_ops_worker.tasks.recompute_scale_engine", base=TrackedTask)
 def recompute_scale_engine():
-    asyncio.run(_run_all(_recompute_scale))
+    run_async(_run_all(_recompute_scale))
     return "scale-engine-done"
 
 
@@ -80,7 +80,7 @@ async def _run_offer_learning(bid):
 
 @shared_task(name="workers.monster_ops_worker.tasks.run_offer_learning", base=TrackedTask)
 def run_offer_learning_task():
-    asyncio.run(_run_all(_run_offer_learning))
+    run_async(_run_all(_run_offer_learning))
     return "offer-learning-done"
 
 
@@ -233,13 +233,13 @@ async def _trigger_expansion_from_saturation(bid):
 
 @shared_task(name="workers.monster_ops_worker.tasks.detect_weak_lanes", base=TrackedTask)
 def detect_weak_lanes():
-    asyncio.run(_run_all(_detect_weak_lanes))
+    run_async(_run_all(_detect_weak_lanes))
     return "weak-lanes-done"
 
 
 @shared_task(name="workers.monster_ops_worker.tasks.trigger_saturation_expansion", base=TrackedTask)
 def trigger_saturation_expansion():
-    asyncio.run(_run_all(_trigger_expansion_from_saturation))
+    run_async(_run_all(_trigger_expansion_from_saturation))
     return "saturation-expansion-done"
 
 
@@ -266,5 +266,5 @@ async def _daily_operator_digest(bid):
 
 @shared_task(name="workers.monster_ops_worker.tasks.daily_operator_digest", base=TrackedTask)
 def daily_operator_digest():
-    asyncio.run(_run_all(_daily_operator_digest))
+    run_async(_run_all(_daily_operator_digest))
     return "daily-digest-done"

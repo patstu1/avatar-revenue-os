@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.autonomous_farm import AccountWarmupPlan
 from packages.scoring.engagement_automation_engine import generate_engagement_plan
@@ -57,4 +57,4 @@ async def _run_engagement():
 
 @shared_task(name="workers.engagement_worker.tasks.run_engagement", base=TrackedTask)
 def run_engagement():
-    return asyncio.run(_run_engagement())
+    return run_async(_run_engagement())

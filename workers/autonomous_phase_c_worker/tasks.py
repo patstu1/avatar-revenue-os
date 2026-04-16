@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from packages.db.models.core import Brand
 from apps.api.services import autonomous_phase_c_service as svc
 from apps.api.services import autonomous_phase_c_lifecycle as lifecycle
@@ -44,7 +44,7 @@ def run_funnel_execution(self) -> dict:
     async def _go():
         return await _run_per_brand(svc.recompute_funnel_execution)
 
-    n, err = asyncio.run(_go())
+    n, err = run_async(_go())
     return {"status": "completed", "brands_processed": n, "errors": err}
 
 
@@ -53,7 +53,7 @@ def run_paid_operator(self) -> dict:
     async def _go():
         return await _run_per_brand(svc.recompute_paid_operator)
 
-    n, err = asyncio.run(_go())
+    n, err = run_async(_go())
     return {"status": "completed", "brands_processed": n, "errors": err}
 
 
@@ -62,7 +62,7 @@ def run_sponsor_autonomy(self) -> dict:
     async def _go():
         return await _run_per_brand(svc.recompute_sponsor_autonomy)
 
-    n, err = asyncio.run(_go())
+    n, err = run_async(_go())
     return {"status": "completed", "brands_processed": n, "errors": err}
 
 
@@ -71,7 +71,7 @@ def run_retention_autonomy(self) -> dict:
     async def _go():
         return await _run_per_brand(svc.recompute_retention_autonomy)
 
-    n, err = asyncio.run(_go())
+    n, err = run_async(_go())
     return {"status": "completed", "brands_processed": n, "errors": err}
 
 
@@ -80,7 +80,7 @@ def run_recovery_autonomy(self) -> dict:
     async def _go():
         return await _run_per_brand(svc.recompute_recovery_autonomy)
 
-    n, err = asyncio.run(_go())
+    n, err = run_async(_go())
     return {"status": "completed", "brands_processed": n, "errors": err}
 
 
@@ -90,7 +90,7 @@ def execute_approved_actions(self) -> dict:
     async def _go():
         return await _run_per_brand(lifecycle.execute_approved_actions)
 
-    n, err = asyncio.run(_go())
+    n, err = run_async(_go())
     return {"status": "completed", "brands_processed": n, "errors": err}
 
 
@@ -100,5 +100,5 @@ def notify_operators(self) -> dict:
     async def _go():
         return await _run_per_brand(lifecycle.notify_operator_review_items)
 
-    n, err = asyncio.run(_go())
+    n, err = run_async(_go())
     return {"status": "completed", "brands_processed": n, "errors": err}

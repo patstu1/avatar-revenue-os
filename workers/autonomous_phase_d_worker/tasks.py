@@ -10,7 +10,7 @@ from sqlalchemy import select
 from workers.base_task import TrackedTask
 
 from packages.db.models.core import Brand
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 
 logger = structlog.get_logger()
 
@@ -39,7 +39,7 @@ def run_agent_orchestration():
             except Exception:
                 logger.exception("phase_d.agent_orchestration.error", brand_id=str(bid))
 
-    asyncio.run(_inner())
+    run_async(_inner())
 
 
 @shared_task(name="workers.autonomous_phase_d_worker.tasks.run_revenue_pressure", base=TrackedTask)
@@ -58,7 +58,7 @@ def run_revenue_pressure():
             except Exception:
                 logger.exception("phase_d.revenue_pressure.error", brand_id=str(bid))
 
-    asyncio.run(_inner())
+    run_async(_inner())
 
 
 @shared_task(name="workers.autonomous_phase_d_worker.tasks.run_blocker_detection", base=TrackedTask)
@@ -77,7 +77,7 @@ def run_blocker_detection():
             except Exception:
                 logger.exception("phase_d.blocker_detection.error", brand_id=str(bid))
 
-    asyncio.run(_inner())
+    run_async(_inner())
 
 
 @shared_task(name="workers.autonomous_phase_d_worker.tasks.run_escalation_generation", base=TrackedTask)
@@ -96,4 +96,4 @@ def run_escalation_generation():
             except Exception:
                 logger.exception("phase_d.escalation_generation.error", brand_id=str(bid))
 
-    asyncio.run(_inner())
+    run_async(_inner())

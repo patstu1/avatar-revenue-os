@@ -7,7 +7,7 @@ import uuid
 import structlog
 from celery import shared_task
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from workers.base_task import BaseTask
 
 logger = structlog.get_logger()
@@ -98,9 +98,9 @@ async def _sync_buffer_statuses():
 
 @shared_task(base=BaseTask, name="workers.buffer_worker.tasks.submit_pending_jobs")
 def submit_pending_jobs():
-    asyncio.run(_submit_pending_jobs())
+    run_async(_submit_pending_jobs())
 
 
 @shared_task(base=BaseTask, name="workers.buffer_worker.tasks.sync_buffer_statuses")
 def sync_buffer_statuses():
-    asyncio.run(_sync_buffer_statuses())
+    run_async(_sync_buffer_statuses())

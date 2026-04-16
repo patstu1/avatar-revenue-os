@@ -5,12 +5,12 @@ from datetime import datetime, timedelta, timezone
 from celery import shared_task
 
 from workers.base_task import TrackedTask
-from packages.db.session import get_async_session_factory
+from packages.db.session import get_async_session_factory, run_async
 
 
 def _run(coro):
     """Run an async coroutine from a synchronous Celery task."""
-    return asyncio.run(coro)
+    return run_async(coro)
 
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from celery import shared_task
 from sqlalchemy import select
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
@@ -98,5 +98,5 @@ async def _run():
 
 @shared_task(name="workers.failure_family_worker.tasks.recompute_failure_families", base=TrackedTask)
 def recompute_failure_families_task():
-    count, kills = asyncio.run(_run())
+    count, kills = run_async(_run())
     return {"status": "completed", "brands_processed": count, "kill_entries_created": kills}

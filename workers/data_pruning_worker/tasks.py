@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 
 logger = logging.getLogger(__name__)
 
@@ -57,4 +57,4 @@ async def _prune():
 
 @shared_task(name="workers.data_pruning_worker.tasks.prune_stale_data", base=TrackedTask)
 def prune_stale_data():
-    return asyncio.run(_prune())
+    return run_async(_prune())

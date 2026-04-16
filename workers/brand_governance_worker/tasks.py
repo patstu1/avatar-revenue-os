@@ -2,7 +2,7 @@
 import asyncio, logging
 from celery import shared_task
 from sqlalchemy import select
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 logger = logging.getLogger(__name__)
@@ -21,4 +21,4 @@ async def _run():
 
 @shared_task(name="workers.brand_governance_worker.tasks.recompute_brand_governance", base=TrackedTask)
 def recompute_brand_governance():
-    return {"status": "completed", "brands": asyncio.run(_run())}
+    return {"status": "completed", "brands": run_async(_run())}

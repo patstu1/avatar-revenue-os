@@ -75,6 +75,38 @@ def get_sync_engine():
     )
 
 
+def run_async(coro):
+    """Run an async coroutine safely from a Celery prefork worker.
+
+    Celery's prefork pool reuses OS processes. asyncio.run() creates a new
+    event loop per call, but SQLAlchemy's async engine caches connections
+    bound to the previous loop. This causes 'Future attached to a different
+    loop' errors on the second task execution in the same process.
+
+    Fix: dispose the cached engine before creating a new loop. The engine
+    is lazily recreated by get_async_engine() on the next use.
+
+    Every Celery worker task that calls async code MUST use this function
+    instead of bare asyncio.run().
+    """
+    import asyncio
+
+    global _async_engine, _async_session_factory
+    if _async_engine is not None:
+        try:
+            _async_engine.sync_engine.dispose()
+        except Exception:
+            pass
+        _async_engine = None
+        _async_session_factory = None
+
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
 def __getattr__(name: str):
     """Lazy module-level attribute access (PEP 562) for backward compatibility."""
     if name == "async_engine":

@@ -2,7 +2,7 @@
 import asyncio, logging
 from celery import shared_task
 from sqlalchemy import select
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Organization
 logger = logging.getLogger(__name__)
@@ -25,5 +25,5 @@ async def _run():
 
 @shared_task(name="workers.recovery_engine_worker.tasks.scan_recovery", base=TrackedTask)
 def scan_recovery():
-    result = asyncio.run(_run())
+    result = run_async(_run())
     return {"status": "completed", **result}

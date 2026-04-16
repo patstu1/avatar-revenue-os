@@ -9,7 +9,7 @@ from sqlalchemy import select, update
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
@@ -88,4 +88,4 @@ async def _send_pending_emails():
 
 @shared_task(name="workers.email_campaign_worker.tasks.process_email_campaigns", base=TrackedTask)
 def process_email_campaigns():
-    return asyncio.run(_send_pending_emails())
+    return run_async(_send_pending_emails())

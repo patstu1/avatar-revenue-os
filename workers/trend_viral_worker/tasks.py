@@ -6,7 +6,7 @@ EVERY active platform and dispatch via express_publish for fastest time-to-publi
 import asyncio, logging, uuid
 from celery import shared_task
 from sqlalchemy import select
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 from packages.db.models.accounts import CreatorAccount
@@ -272,11 +272,11 @@ def trend_light_scan():
     (currently 600s). To disable scanning for a specific brand, set the value to a very
     high number or pause the brand entirely.
     """
-    result = asyncio.run(_light_scan())
+    result = run_async(_light_scan())
     return {"status": "completed", **result}
 
 
 @shared_task(name="workers.trend_viral_worker.tasks.trend_deep_analysis", base=TrackedTask)
 def trend_deep_analysis():
     """Runs every 5 minutes — full scoring + opportunity creation."""
-    return {"status": "completed", "brands": asyncio.run(_deep_analysis())}
+    return {"status": "completed", "brands": run_async(_deep_analysis())}

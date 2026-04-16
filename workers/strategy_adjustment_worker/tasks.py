@@ -20,7 +20,7 @@ from celery import shared_task
 from sqlalchemy import select, func, update, and_, or_
 
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from packages.db.models.content import ContentBrief
 from packages.db.models.core import Brand
 from packages.db.models.accounts import CreatorAccount
@@ -47,7 +47,7 @@ PLATFORM_CONTENT_TYPES = {
 
 
 def _run(coro):
-    return asyncio.run(coro)
+    return run_async(coro)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

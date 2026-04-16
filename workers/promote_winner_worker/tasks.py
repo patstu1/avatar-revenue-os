@@ -5,7 +5,7 @@ import logging
 from celery import shared_task
 from sqlalchemy import select
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.promote_winner import ActiveExperiment
 
@@ -102,5 +102,5 @@ async def _evaluate_active():
 
 @shared_task(name="workers.promote_winner_worker.tasks.evaluate_and_promote", base=TrackedTask)
 def evaluate_and_promote():
-    count = asyncio.run(_evaluate_active())
+    count = run_async(_evaluate_active())
     return {"status": "completed", "experiments_evaluated": count}

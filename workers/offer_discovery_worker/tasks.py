@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from packages.db.models.core import Brand, Offer
 
 logger = logging.getLogger(__name__)
@@ -157,4 +157,4 @@ async def _run_discovery():
 
 @shared_task(name="workers.offer_discovery_worker.tasks.discover_offers", base=TrackedTask)
 def discover_offers():
-    return asyncio.run(_run_discovery())
+    return run_async(_run_discovery())

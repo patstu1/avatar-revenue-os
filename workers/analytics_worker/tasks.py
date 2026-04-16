@@ -3,6 +3,7 @@ import logging
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
+from packages.db.session import run_async
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ def scan_trends(self) -> dict:
                 return results
 
             try:
-                fetched_signals = asyncio.run(_gather_trends())
+                fetched_signals = run_async(_gather_trends())
             except Exception:
                 logger.warning("trend gathering failed for brand %s", brand_id, exc_info=True)
 
@@ -140,7 +141,7 @@ def ingest_performance(self) -> dict:
                     platform_val = account.platform.value if hasattr(account.platform, 'value') else str(account.platform)
                     if platform_val in ("youtube", "tiktok", "instagram", "twitter", "facebook", "linkedin"):
                         client = BufferClient()
-                        result = asyncio.run(client.get_profiles())
+                        result = run_async(client.get_profiles())
                         if result.get("success") and result.get("data"):
                             profiles = result["data"] if isinstance(result["data"], list) else []
                             for prof in profiles:

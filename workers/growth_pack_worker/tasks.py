@@ -4,7 +4,7 @@ import uuid
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from apps.api.services import growth_pack_service as gps
 from apps.api.services import growth_commander_service as gcs
 from sqlalchemy import select
@@ -38,9 +38,9 @@ def recompute_all_growth_pack(self) -> dict:
             n += 1
         return {"brands_processed": n}
 
-    return asyncio.run(inner())
+    return run_async(inner())
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.growth_pack_worker.tasks.recompute_brand_growth_pack")
 def recompute_brand_growth_pack(self, brand_id: str) -> dict:
-    return asyncio.run(_run_brand(uuid.UUID(brand_id)))
+    return run_async(_run_brand(uuid.UUID(brand_id)))

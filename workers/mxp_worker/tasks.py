@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory
+from packages.db.session import async_session_factory, run_async
 from packages.db.models.core import Brand
 from apps.api.services import experiment_decision_service
 from apps.api.services import contribution_service
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def _run_async(coro):
-    return asyncio.run(coro)
+    return run_async(coro)
 
 
 # ---------------------------------------------------------------------------

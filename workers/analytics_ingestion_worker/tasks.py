@@ -17,13 +17,13 @@ import structlog
 from celery import shared_task
 
 from workers.base_task import TrackedTask
-from packages.db.session import get_async_session_factory
+from packages.db.session import get_async_session_factory, run_async
 
 logger = structlog.get_logger()
 
 
 def _run(coro):
-    return asyncio.run(coro)
+    return run_async(coro)
 
 
 def _load_analytics_credentials(session, org_id: uuid.UUID) -> dict:
