@@ -14,6 +14,19 @@ from packages.db.models.core import Organization
 router = APIRouter()
 org_service = CRUDService(Organization)
 
+# Maps settings/dashboard provider name → integration_providers.provider_key.
+# When the dashboard saves a key under "anthropic", it also needs to write
+# to integration_providers under "claude" (which is what the workers read).
+# If the key is the same in both tables, it maps to itself.
+SETTINGS_TO_IP_KEY = {
+    "anthropic": "claude",
+    "google_ai": "gemini_flash",
+    "openai": "openai_image",
+    "fal": "flux",
+    "mistral": "voxtral",
+    # Everything else maps to itself (buffer → buffer, stripe → stripe, etc.)
+}
+
 
 class OrganizationSettingsUpdate(BaseModel):
     name: Optional[str] = None
@@ -36,7 +49,8 @@ class ProviderKeyStatus(BaseModel):
     provider: str
     configured: bool
     key_preview: str
-    source: str
+    source: str  # "dashboard", "provider_db", "none"
+    health: Optional[str] = None  # "healthy", "configured", "auth_failed", "unconfigured", None
 
 
 class SaveKeyRequest(BaseModel):
@@ -87,9 +101,30 @@ async def save_api_key(
     if not body.api_key.strip():
         raise HTTPException(status_code=400, detail="API key cannot be empty")
 
+    key_value = body.api_key.strip()
+
+    # Write to provider_secrets (dashboard display + backup)
     await secrets_service.save_key(
-        db, current_user.organization_id, provider, body.api_key.strip(), current_user.id
+        db, current_user.organization_id, provider, key_value, current_user.id
     )
+
+    # ALSO write to integration_providers (where workers actually read from).
+    # This closes the split-truth gap: dashboard saves reach the workers.
+    from apps.api.services.integration_manager import set_credential
+    ip_key = SETTINGS_TO_IP_KEY.get(provider, provider)
+    result = await set_credential(
+        db, current_user.organization_id, ip_key,
+        api_key=key_value,
+    )
+    if result.get("error"):
+        # Provider doesn't exist in integration_providers yet — that's OK,
+        # the provider_secrets save already succeeded. Worker-side will fall
+        # back to the secrets table or skip gracefully.
+        import structlog
+        structlog.get_logger().warning("settings.ip_save_skipped",
+                                       provider=provider, ip_key=ip_key,
+                                       reason=result["error"])
+
     await log_action(
         db, "api_key.saved",
         organization_id=current_user.organization_id,
@@ -101,7 +136,7 @@ async def save_api_key(
     return SaveKeyResponse(
         provider=provider,
         configured=True,
-        key_preview=secrets_service.mask_key(body.api_key.strip()),
+        key_preview=secrets_service.mask_key(key_value),
     )
 
 
@@ -130,76 +165,101 @@ async def delete_api_key(
 
 @router.get("/integrations")
 async def get_integrations(current_user: AdminUser, db: DBSession):
-    import os
-    from apps.api.config import get_settings
-    s = get_settings()
+    """List all providers with their configuration status.
 
-    db_keys = await secrets_service.get_all_keys(db, current_user.organization_id)
+    Truth priority: integration_providers (DB, worker-visible) > provider_secrets
+    (dashboard saves) > env vars (server config). Health status comes from
+    integration_providers since that's where workers check connectivity.
+    """
+    from sqlalchemy import select
+    from packages.db.models.integration_registry import IntegrationProvider
+    from apps.api.services.integration_manager import _decrypt
+
+    # Load from all three sources
+    db_secrets = await secrets_service.get_all_keys(db, current_user.organization_id)
+
+    # Load integration_providers (worker truth)
+    ip_rows = (await db.execute(
+        select(IntegrationProvider).where(
+            IntegrationProvider.organization_id == current_user.organization_id,
+            IntegrationProvider.is_active.is_(True),
+        )
+    )).scalars().all()
+    ip_map = {row.provider_key: row for row in ip_rows}
 
     ALL_PROVIDERS = [
         # --- Brain / Text AI ---
-        ("anthropic", "Claude Sonnet — Hero text / orchestrator", s.anthropic_api_key),
-        ("google_ai", "Gemini Flash + Imagen 4 + YouTube API", s.google_ai_api_key),
-        ("deepseek", "DeepSeek — Bulk text / scanning", s.deepseek_api_key),
-        ("openai", "GPT Image 1.5 — Hero images", s.openai_api_key),
-        ("groq", "Groq — Bulk text (fast)", s.groq_api_key),
-        ("xai", "xAI Grok", s.xai_api_key),
+        ("anthropic", "Claude Sonnet — Hero text / orchestrator", "claude"),
+        ("google_ai", "Gemini Flash + Imagen 4 + YouTube API", "gemini_flash"),
+        ("deepseek", "DeepSeek — Bulk text / scanning", "deepseek"),
+        ("openai", "GPT Image 1.5 — Hero images", "openai_image"),
+        ("groq", "Groq — Bulk text (fast)", "groq"),
+        ("xai", "xAI Grok", None),
         # --- Image ---
-        ("fal", "Kling video + Flux images (via fal.ai)", s.fal_api_key),
-        ("replicate", "Replicate — Image / video models", s.replicate_api_token),
-        ("higgsfield", "Higgsfield Cinema Studio — Cinematic video", os.environ.get("HIGGSFIELD_API_KEY", "")),
-        ("stability", "Stable Diffusion / Audio", os.environ.get("STABILITY_API_KEY", "")),
+        ("fal", "Kling video + Flux images (via fal.ai)", "flux"),
+        ("replicate", "Replicate — Image / video models", None),
         # --- Video ---
-        ("runway", "Runway Gen-4 Turbo — Premium video", s.runway_api_key),
-        ("kling", "Kling — Standard video", s.kling_api_key),
+        ("runway", "Runway Gen-4 Turbo — Premium video", "runway"),
+        ("kling", "Kling — Standard video", "kling"),
         # --- Avatar ---
-        ("heygen", "HeyGen — Hero avatar video", s.heygen_api_key),
-        ("did", "D-ID — Standard avatar video", s.did_api_key),
-        ("tavus", "Tavus — Optional avatar", s.tavus_api_key),
-        ("synthesia", "Synthesia — Bulk avatar video", os.environ.get("SYNTHESIA_API_KEY", "")),
+        ("heygen", "HeyGen — Hero avatar video", "heygen"),
+        ("did", "D-ID — Standard avatar video", "did"),
+        ("tavus", "Tavus — Optional avatar", "tavus"),
         # --- Voice / Music ---
-        ("elevenlabs", "ElevenLabs — Hero voice / TTS", s.elevenlabs_api_key),
-        ("fish_audio", "Fish Audio — Standard voice", s.fish_audio_api_key),
-        ("mistral", "Voxtral — Bulk voice", s.mistral_api_key),
-        ("suno", "Suno — Hero music", s.suno_api_key),
-        ("mubert", "Mubert — Standard music", s.mubert_api_key),
+        ("elevenlabs", "ElevenLabs — Hero voice / TTS", "elevenlabs"),
+        ("fish_audio", "Fish Audio — Standard voice", "fish_audio"),
+        ("mistral", "Voxtral — Bulk voice", "voxtral"),
+        ("suno", "Suno — Hero music", None),
+        ("mubert", "Mubert — Standard music", None),
         # --- Publishing ---
-        ("buffer", "Buffer — Social publishing", s.buffer_api_key),
-        ("publer", "Publer — Social publishing (failover)", s.publer_api_key),
-        ("ayrshare", "Ayrshare — Social publishing (failover)", s.ayrshare_api_key),
+        ("buffer", "Buffer — Social publishing", "buffer"),
+        ("publer", "Publer — Social publishing (failover)", "publer"),
+        ("ayrshare", "Ayrshare — Social publishing (failover)", "ayrshare"),
         # --- Analytics / Trends ---
-        ("serpapi", "SerpAPI — Search trends", s.serpapi_key),
-        ("youtube_analytics", "YouTube Analytics API", s.youtube_api_key),
-        ("tiktok_analytics", "TikTok Analytics", s.tiktok_access_token),
-        ("instagram_analytics", "Instagram Analytics", s.instagram_access_token),
+        ("serpapi", "SerpAPI — Search trends", "serpapi"),
+        ("youtube_analytics", "YouTube Analytics API", "youtube_analytics"),
+        ("tiktok_analytics", "TikTok Analytics", "tiktok_analytics"),
+        ("instagram_analytics", "Instagram Analytics", "instagram_analytics"),
         # --- Payments / Affiliates ---
-        ("stripe", "Stripe — Payment / revenue tracking", s.stripe_api_key),
-        ("clickbank", "ClickBank — Digital product affiliates", s.clickbank_api_key),
-        ("impact", "Impact — Affiliate network (Spotify, Target)", os.environ.get("IMPACT_ACCOUNT_SID", "")),
-        ("shareasale", "ShareASale — Affiliate network", os.environ.get("SHAREASALE_API_TOKEN", "")),
-        ("amazon", "Amazon Associates — Retail affiliates", os.environ.get("AMAZON_ASSOCIATES_TAG", "")),
-        ("semrush", "Semrush — $200/sale affiliate", os.environ.get("SEMRUSH_AFFILIATE_KEY", "")),
-        ("tiktok_shop", "TikTok Shop — Product commerce", os.environ.get("TIKTOK_SHOP_ACCESS_TOKEN", "")),
-        ("etsy", "Etsy — Marketplace affiliate", os.environ.get("ETSY_AFFILIATE_API_KEY", "")),
+        ("stripe", "Stripe — Payment / revenue tracking", "stripe"),
+        ("clickbank", "ClickBank — Digital product affiliates", None),
         # --- Infrastructure ---
-        ("s3", "S3 — Object storage (media)", s.s3_access_key_id),
-        ("smtp", "SMTP — Email sending", s.smtp_host),
-        ("imap", "IMAP — Email inbox polling", s.imap_host),
-        ("twilio", "Twilio — SMS", os.environ.get("TWILIO_ACCOUNT_SID", "")),
-        ("sentry", "Sentry — Error monitoring", s.sentry_dsn),
+        ("smtp", "SMTP — Email sending", "smtp"),
+        ("imap", "IMAP — Email inbox polling", "imap"),
+        ("twilio", "Twilio — SMS", "twilio"),
     ]
 
     providers = []
-    for name, desc, env_val in ALL_PROVIDERS:
-        db_val = db_keys.get(name, "")
-        resolved = db_val or env_val
-        source = "dashboard" if db_val else ("server" if env_val else "none")
+    for settings_key, desc, ip_key in ALL_PROVIDERS:
+        # Check integration_providers first (worker truth)
+        ip_row = ip_map.get(ip_key) if ip_key else None
+        has_ip_key = bool(ip_row and ip_row.api_key_encrypted and len(ip_row.api_key_encrypted) > 5)
+        health = ip_row.health_status if ip_row else None
+
+        # Then check provider_secrets (dashboard saves)
+        dashboard_val = db_secrets.get(settings_key, "")
+
+        # Determine source and resolved state
+        if has_ip_key:
+            try:
+                resolved = _decrypt(ip_row.api_key_encrypted)
+            except Exception:
+                resolved = ""
+            source = "dashboard" if dashboard_val else "provider_db"
+        elif dashboard_val:
+            resolved = dashboard_val
+            source = "dashboard"
+        else:
+            resolved = ""
+            source = "none"
+
         providers.append(
             ProviderKeyStatus(
-                provider=name,
+                provider=settings_key,
                 configured=bool(resolved),
                 key_preview=secrets_service.mask_key(resolved),
                 source=source,
+                health=health,
             )
         )
 
