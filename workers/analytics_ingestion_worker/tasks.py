@@ -55,6 +55,29 @@ def _compute_engagement_rate(views: int, likes: int, comments: int, shares: int)
     return round((likes + comments + shares) / views, 6)
 
 
+async def _resolve_content_item_id(
+    db, account_id: uuid.UUID, platform_post_id: str | None,
+) -> uuid.UUID | None:
+    """Map a platform's post/video ID back to our ContentItem via PublishJob.
+
+    Returns the linked content_item_id when we previously published this asset
+    through the system. Returns None for content published outside the system,
+    or when the platform's ID format differs from what we stored. The caller
+    is responsible for the unresolved telemetry.
+    """
+    if not platform_post_id:
+        return None
+    from sqlalchemy import select
+    from packages.db.models.publishing import PublishJob
+    row = (await db.execute(
+        select(PublishJob.content_item_id).where(
+            PublishJob.creator_account_id == account_id,
+            PublishJob.platform_post_id == str(platform_post_id),
+        ).limit(1)
+    )).scalar_one_or_none()
+    return row
+
+
 @shared_task(name="workers.analytics_ingestion_worker.tasks.ingest_platform_analytics", base=TrackedTask)
 def ingest_platform_analytics():
     """Fetch performance metrics from YouTube, TikTok, Instagram for all active accounts."""
@@ -101,6 +124,9 @@ async def _do_ingest_platform_analytics():
     ingested = 0
     skipped = 0
     errors = 0
+    linked = 0
+    unlinked = 0
+    sample_unresolved: list[dict] = []  # First few unresolved IDs per run for diagnostics
 
     for acct in accounts:
         platform = acct.platform.value if hasattr(acct.platform, "value") else str(acct.platform)
@@ -135,8 +161,21 @@ async def _do_ingest_platform_analytics():
                             watch_minutes = float(m.get("estimatedMinutesWatched", 0))
                             subs = int(m.get("subscribersGained", 0))
 
+                            # YouTube Analytics returns the video ID under the "video"
+                            # column (the dimension we requested in the client).
+                            yt_video_id = m.get("video") or m.get("video_id")
+                            content_item_id = await _resolve_content_item_id(db, acct.id, yt_video_id)
+                            if content_item_id:
+                                linked += 1
+                            else:
+                                unlinked += 1
+                                if len(sample_unresolved) < 10 and yt_video_id:
+                                    sample_unresolved.append({"platform": "youtube",
+                                                              "post_id": yt_video_id,
+                                                              "account_id": str(acct.id)})
+
                             db.add(PerformanceMetric(
-                                content_item_id=None,
+                                content_item_id=content_item_id,
                                 creator_account_id=acct.id,
                                 brand_id=acct.brand_id,
                                 platform=platform,
@@ -172,8 +211,19 @@ async def _do_ingest_platform_analytics():
                             comments = int(m.get("comment_count", 0))
                             shares = int(m.get("share_count", 0))
 
+                            tt_video_id = m.get("id") or m.get("video_id") or m.get("item_id")
+                            content_item_id = await _resolve_content_item_id(db, acct.id, tt_video_id)
+                            if content_item_id:
+                                linked += 1
+                            else:
+                                unlinked += 1
+                                if len(sample_unresolved) < 10 and tt_video_id:
+                                    sample_unresolved.append({"platform": "tiktok",
+                                                              "post_id": tt_video_id,
+                                                              "account_id": str(acct.id)})
+
                             db.add(PerformanceMetric(
-                                content_item_id=None,
+                                content_item_id=content_item_id,
                                 creator_account_id=acct.id,
                                 brand_id=acct.brand_id,
                                 platform=platform,
@@ -203,8 +253,19 @@ async def _do_ingest_platform_analytics():
                             likes = int(m.get("like_count", 0))
                             comments = int(m.get("comments_count", 0))
 
+                            ig_media_id = m.get("id") or m.get("media_id")
+                            content_item_id = await _resolve_content_item_id(db, acct.id, ig_media_id)
+                            if content_item_id:
+                                linked += 1
+                            else:
+                                unlinked += 1
+                                if len(sample_unresolved) < 10 and ig_media_id:
+                                    sample_unresolved.append({"platform": "instagram",
+                                                              "post_id": ig_media_id,
+                                                              "account_id": str(acct.id)})
+
                             db.add(PerformanceMetric(
-                                content_item_id=None,
+                                content_item_id=content_item_id,
                                 creator_account_id=acct.id,
                                 brand_id=acct.brand_id,
                                 platform=platform,
@@ -229,9 +290,21 @@ async def _do_ingest_platform_analytics():
             )
             errors += 1
 
+    if unlinked > 0 or linked > 0:
+        logger.info(
+            "analytics_ingestion.linkage_summary",
+            metrics_ingested=ingested,
+            content_linked=linked,
+            content_unlinked=unlinked,
+            link_rate=round(linked / max(linked + unlinked, 1), 3),
+            sample_unresolved=sample_unresolved,
+        )
+
     return {
         "accounts_processed": len(accounts),
         "metrics_ingested": ingested,
+        "content_linked": linked,
+        "content_unlinked": unlinked,
         "skipped": skipped,
         "errors": errors,
     }

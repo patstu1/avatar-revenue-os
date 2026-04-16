@@ -374,6 +374,110 @@ services:
     networks:
       - aro-network
 
+  # ─── Celery Worker: Revenue Ceilings (MEDIUM — DB aggregation, bursty) ──
+  # Rationale: 6 colocated queues (revenue_ceiling_a/b/c, expansion_pack2,
+  # growth_pack, portfolio) all do SQL-heavy scoring recompute every 6-12h.
+  # Same shape (read accounts/offers/ledger → compute scores → write reports),
+  # safe to colocate. Concurrency 2 keeps memory bounded under bursts.
+  worker-revenue-ceilings:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-revenue-ceilings
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      echo "[worker-revenue-ceilings] Starting: queues=revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,growth_pack,portfolio concurrency=2 max-tasks=100" &&
+      celery -A workers.celery_app worker
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=2
+      --max-tasks-per-child=100
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-revenue-ceilings@%h
+      -Q revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,growth_pack,portfolio'
+    environment: *worker-env
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    networks:
+      - aro-network
+
+  # ─── Celery Worker: QA + Cinema Studio (LIGHT — content-pipeline blocking) ──
+  # Rationale: QA tasks are fast per item but high-frequency. Cinema Studio is
+  # poll-driven (sync every 30s, auto-approve every 2m). Both are content-
+  # pipeline blocking — getting them off the default queue removes a real
+  # autonomy bottleneck. Light memory profile, higher concurrency safe.
+  worker-qa-cinema:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-qa-cinema
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      echo "[worker-qa-cinema] Starting: queues=qa,cinema_studio concurrency=4 max-tasks=200" &&
+      celery -A workers.celery_app worker
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=4
+      --max-tasks-per-child=200
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-qa-cinema@%h
+      -Q qa,cinema_studio'
+    environment: *worker-env
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    volumes:
+      - aro_media:/app/media
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+        reservations:
+          cpus: "0.25"
+          memory: 192M
+    networks:
+      - aro-network
+
+  # ─── Celery Worker: Buffer + Meta-Monitoring (LIGHT — HTTP-bound) ──────
+  # Rationale: Buffer is HTTP-bound (slow but light), autonomous_phase_d is
+  # meta-monitoring (light). Different failure modes from scoring runs
+  # (Buffer rate-limits, OAuth refreshes), so kept isolated to avoid
+  # interfering with the revenue-ceilings worker.
+  worker-buffer-meta:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-buffer-meta
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      echo "[worker-buffer-meta] Starting: queues=buffer,autonomous_phase_d concurrency=2 max-tasks=200" &&
+      celery -A workers.celery_app worker
+      --loglevel=${LOG_LEVEL:-warning} --concurrency=2
+      --max-tasks-per-child=200
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-buffer-meta@%h
+      -Q buffer,autonomous_phase_d'
+    environment: *worker-env
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    networks:
+      - aro-network
+
   # ─── Celery Beat Scheduler ────────────────────────────────────────────
   scheduler:
     build:

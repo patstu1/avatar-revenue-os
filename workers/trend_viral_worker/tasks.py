@@ -16,6 +16,14 @@ logger = logging.getLogger(__name__)
 
 VIRAL_SCORE_THRESHOLD = 0.75
 
+# Default trend scan cadence applied to any active brand without an explicit
+# brand_guidelines.trend_scan_interval_seconds value. 600s (10 min) is
+# conservative for YouTube Data API quotas at the typical fleet size and
+# guarantees Discovery (Stage 1 of the autonomous loop) starts producing
+# TopicCandidate rows on a fresh install without operator action.
+DEFAULT_TREND_SCAN_INTERVAL_SECONDS = 600
+MIN_TREND_SCAN_INTERVAL_SECONDS = 60
+
 # ── Platform-specific content format mapping ───────────────────────────────
 _PLATFORM_BRIEF_CONFIG: dict[str, dict] = {
     Platform.TIKTOK:    {"content_type": ContentType.SHORT_VIDEO, "duration": 45, "tone": "Energetic, punchy, trend-native"},
@@ -156,8 +164,8 @@ async def _light_scan():
     """Configurable-cadence scan: fetch all signals, compute deltas, dedup, trigger viral reactor.
 
     Scanning frequency is configurable per brand via brand_guidelines.trend_scan_interval_seconds.
-    The system ships with NO default — the operator or GM sets it per brand.
-    Brands without a configured interval are skipped (not scanned).
+    Brands without a configured interval fall back to DEFAULT_TREND_SCAN_INTERVAL_SECONDS so
+    Discovery does not stall on fresh installs.
     """
     from datetime import datetime, timezone, timedelta
     from apps.api.services.trend_viral_service import light_scan
@@ -171,7 +179,7 @@ async def _light_scan():
         )).scalars().all())
 
     c = 0
-    skipped_no_interval = 0
+    used_default_interval = 0
     skipped_not_due = 0
     viral_triggered = 0
 
@@ -181,11 +189,11 @@ async def _light_scan():
         guidelines = brand.brand_guidelines or {}
         interval_seconds = guidelines.get("trend_scan_interval_seconds")
         if interval_seconds is None:
-            # No interval configured — operator/GM has not set it. Skip.
-            skipped_no_interval += 1
-            continue
+            interval_seconds = DEFAULT_TREND_SCAN_INTERVAL_SECONDS
+            used_default_interval += 1
 
-        interval_seconds = int(interval_seconds)
+        # Floor protects against misconfiguration (interval=0 → scan every tick).
+        interval_seconds = max(MIN_TREND_SCAN_INTERVAL_SECONDS, int(interval_seconds))
 
         # ── Check if brand is due for a scan ──────────────────────────
         try:
@@ -235,7 +243,7 @@ async def _light_scan():
 
     return {
         "brands_scanned": c,
-        "skipped_no_interval": skipped_no_interval,
+        "used_default_interval": used_default_interval,
         "skipped_not_due": skipped_not_due,
         "viral_triggered": viral_triggered,
     }
@@ -260,8 +268,9 @@ async def _deep_analysis():
 def trend_light_scan():
     """Base tick for trend scanning. Per-brand frequency is configurable via brand_guidelines.trend_scan_interval_seconds.
 
-    No default interval ships with the system — the operator or GM configures it per brand.
-    Brands without a configured interval are not scanned.
+    Brands without a configured interval fall back to DEFAULT_TREND_SCAN_INTERVAL_SECONDS
+    (currently 600s). To disable scanning for a specific brand, set the value to a very
+    high number or pause the brand entirely.
     """
     result = asyncio.run(_light_scan())
     return {"status": "completed", **result}

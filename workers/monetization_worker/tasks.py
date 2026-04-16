@@ -759,6 +759,109 @@ async def _process_brand(factory, org_id, brand_id):
 
 
 # ---------------------------------------------------------------------------
+# Auto-Attach Offers — ensure content cannot publish unmonetized
+# ---------------------------------------------------------------------------
+@shared_task(name="workers.monetization_worker.tasks.auto_attach_offers", base=TrackedTask)
+def auto_attach_offers():
+    """Walk all brands and attach the best offer to any unmonetized content.
+
+    Runs every 3 minutes so the publishing pipeline (every 10 min) never
+    outruns monetization. Content without an attached offer is hard-blocked
+    from publishing.
+    """
+    return _run(_do_auto_attach_offers())
+
+
+async def _do_auto_attach_offers():
+    import structlog
+    from sqlalchemy import select
+    from packages.db.models.core import Brand
+    from packages.db.models.content import ContentItem
+    from apps.api.services.monetization_bridge import (
+        assign_offer_to_content,
+        select_best_offer_for_content,
+    )
+    from apps.api.services.event_bus import emit_event, emit_action
+
+    log = structlog.get_logger()
+    factory = get_async_session_factory()
+
+    total_attached = 0
+    total_no_offers = 0
+    brands_processed = 0
+
+    async with factory() as db:
+        brands = (await db.execute(
+            select(Brand).where(Brand.is_active.is_(True))
+        )).scalars().all()
+
+    for brand in brands:
+        try:
+            async with factory() as db:
+                # Fetch unmonetized content that is eligible for publishing
+                unmonetized = (await db.execute(
+                    select(ContentItem).where(
+                        ContentItem.brand_id == brand.id,
+                        ContentItem.offer_id.is_(None),
+                        ContentItem.status.in_(["qa_complete", "approved"]),
+                    ).order_by(ContentItem.created_at).limit(50)
+                )).scalars().all()
+
+                if not unmonetized:
+                    continue
+
+                brands_processed += 1
+                best_offer = await select_best_offer_for_content(db, brand.id)
+
+                if not best_offer:
+                    # Brand has zero active offers — surface as a system blocker.
+                    # This is not a soft warning; content is hard-blocked from
+                    # publishing until the operator creates offers.
+                    total_no_offers += len(unmonetized)
+                    await emit_action(
+                        db, org_id=brand.organization_id,
+                        action_type="brand_no_active_offers",
+                        title=f"Blocker: brand '{brand.name}' has no active offers — {len(unmonetized)} items blocked",
+                        description=(
+                            f"{len(unmonetized)} content items are ready to publish but cannot go live "
+                            f"because this brand has no active offers. Create at least one offer to "
+                            f"unlock the publishing pipeline."
+                        ),
+                        category="failure",
+                        priority="critical",
+                        brand_id=brand.id,
+                        entity_type="brand",
+                        entity_id=brand.id,
+                        source_module="auto_attach_offers",
+                    )
+                    await db.commit()
+                    continue
+
+                for item in unmonetized:
+                    try:
+                        await assign_offer_to_content(
+                            db, item.id, best_offer.id,
+                            org_id=brand.organization_id,
+                        )
+                        total_attached += 1
+                    except Exception:
+                        log.exception("auto_attach.item_failed",
+                                      content_id=str(item.id),
+                                      brand_id=str(brand.id))
+
+                await db.commit()
+        except Exception:
+            log.exception("auto_attach.brand_failed", brand_id=str(brand.id))
+
+    return {
+        "status": "completed",
+        "brands_processed": brands_processed,
+        "offers_attached": total_attached,
+        "items_blocked_no_offers": total_no_offers,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Pipeline Deal Scoring
 # ---------------------------------------------------------------------------
 @shared_task(name="workers.monetization_worker.tasks.score_pipeline_deals", base=TrackedTask)

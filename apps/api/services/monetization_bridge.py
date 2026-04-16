@@ -36,6 +36,31 @@ from packages.db.models.revenue_ledger import RevenueLedgerEntry
 logger = structlog.get_logger()
 
 
+# ── Offer Selection ─────────────────────────────────────────────────
+
+
+async def select_best_offer_for_content(
+    db: AsyncSession, brand_id: uuid.UUID,
+) -> Optional[Offer]:
+    """Pick the highest-value active offer for a brand.
+
+    Weighted by EPC (70%) and priority (30%, scaled by 0.03):
+      score = epc * 0.7 + priority * 0.03
+
+    Priority 10 → +0.3 score, priority 0 → +0. An offer with EPC $2.00 and
+    priority 10 scores 1.70; one with EPC $1.00 and priority 0 scores 0.70.
+
+    Returns None when the brand has zero active offers.
+    """
+    offer_score = Offer.epc * 0.7 + Offer.priority * 0.03
+    return (await db.execute(
+        select(Offer).where(
+            Offer.brand_id == brand_id,
+            Offer.is_active.is_(True),
+        ).order_by(offer_score.desc().nullslast()).limit(1)
+    )).scalar_one_or_none()
+
+
 # ── Offer ↔ Content Linkage (kept from Phase 4) ──────────────────────
 
 async def assign_offer_to_content(

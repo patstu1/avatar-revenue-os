@@ -167,25 +167,12 @@ def _action_summary(action: OperatorAction, status: str, result: Optional[dict] 
 
 async def _handle_attach_offer(db: AsyncSession, action: OperatorAction) -> dict:
     """Actually assign an offer to content."""
-    from apps.api.services.monetization_bridge import assign_offer_to_content
+    from apps.api.services.monetization_bridge import assign_offer_to_content, select_best_offer_for_content
 
     if not action.entity_id:
         return {"skipped": True, "reason": "no entity_id (content_item)"}
 
-    # Find the best offer: weighted by EPC (70%) + priority (30%)
-    # Low-priority offers (deprioritized) score lower even with decent EPC
-    from packages.db.models.offers import Offer
-    from sqlalchemy import select as sel, case as sql_case
-    offer_score = (
-        Offer.epc * 0.7 + Offer.priority * 0.03  # priority 10 → +0.3, priority 0 → +0
-    )
-    best_offer = (await db.execute(
-        sel(Offer).where(
-            Offer.brand_id == action.brand_id,
-            Offer.is_active.is_(True),
-        ).order_by(offer_score.desc().nullslast()).limit(1)
-    )).scalar_one_or_none()
-
+    best_offer = await select_best_offer_for_content(db, action.brand_id)
     if not best_offer:
         return {"skipped": True, "reason": "no active offers for brand"}
 

@@ -244,6 +244,76 @@ services:
     networks:
       - aro-network
 
+  # ─── Celery Worker: Revenue Ceilings (dev) ────────────────────────────
+  # 6 colocated bursty SQL-recompute queues. Mirrors the prod topology so
+  # dev exercises the same routing. Note: dev existing workers may also
+  # consume some of these queues — that overlap is harmless (Celery
+  # distributes tasks across consumers).
+  worker-revenue-ceilings:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-revenue-ceilings
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=info --concurrency=2
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-revenue-ceilings@%h
+      -Q revenue_ceiling_a,revenue_ceiling_b,revenue_ceiling_c,expansion_pack2,growth_pack,portfolio'
+    env_file: .env
+    environment: *worker-env
+    volumes: *worker-volumes
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    networks:
+      - aro-network
+
+  # ─── Celery Worker: QA + Cinema Studio (dev) ──────────────────────────
+  worker-qa-cinema:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-qa-cinema
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=info --concurrency=2
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-qa-cinema@%h
+      -Q qa,cinema_studio'
+    env_file: .env
+    environment: *worker-env
+    volumes: *worker-volumes
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    networks:
+      - aro-network
+
+  # ─── Celery Worker: Buffer + Meta-Monitoring (dev) ────────────────────
+  worker-buffer-meta:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: aro-worker-buffer-meta
+    restart: unless-stopped
+    command: >
+      sh -c 'rm -f /tmp/celery-worker.pid &&
+      celery -A workers.celery_app worker
+      --loglevel=info --concurrency=1
+      --pidfile=/tmp/celery-worker.pid
+      -n worker-buffer-meta@%h
+      -Q buffer,autonomous_phase_d'
+    env_file: .env
+    environment: *worker-env
+    volumes: *worker-volumes
+    healthcheck: *worker-healthcheck
+    depends_on: *worker-depends
+    networks:
+      - aro-network
+
   # ─── Celery Beat Scheduler ────────────────────────────────────────────
   scheduler:
     build:

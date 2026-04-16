@@ -31,6 +31,15 @@ MONETIZATION_MAP: dict[str, MonetizationMethod] = {
 
 FREE_CREDITS_BUDGET = 50
 
+# Default brand_guidelines applied to every new brand. Anything the operator
+# overrides via the dashboard is merged on top of these defaults.
+DEFAULT_BRAND_GUIDELINES: dict[str, Any] = {
+    # Trend Discovery cadence — fed to workers.trend_viral_worker._light_scan.
+    # Without this, a fresh install never produces TopicCandidate rows and the
+    # autonomous loop has no fuel.
+    "trend_scan_interval_seconds": 600,
+}
+
 
 def _slugify(name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
@@ -54,6 +63,7 @@ async def quick_create_brand(
         target_audience=target_audience or None,
         description=f"Auto-created during onboarding — {niche}",
         decision_mode="guarded_auto",
+        brand_guidelines=dict(DEFAULT_BRAND_GUIDELINES),
     )
     db.add(brand)
     await db.flush()

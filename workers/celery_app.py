@@ -844,6 +844,15 @@ app.conf.update(
             "task": "workers.monetization_worker.tasks.score_pipeline_deals",
             "schedule": crontab(minute=20, hour="*/2"),
         },
+        # --- Auto-Attach Offers (CRITICAL: runs before publishing) ---
+        # Ensures no content publishes without an attached offer. Scans every
+        # 3 minutes (faster than the 10-min publish cycle) so monetization
+        # attachment always outruns publishing. Brands with no active offers
+        # surface a critical blocker OperatorAction.
+        "auto-attach-offer-every-3m": {
+            "task": "workers.monetization_worker.tasks.auto_attach_offers",
+            "schedule": crontab(minute="*/3"),
+        },
         # --- Revenue Maximizer Cycle ---
         "revenue-maximizer-cycle-every-4h": {
             "task": "workers.monetization_worker.tasks.run_revenue_cycle",

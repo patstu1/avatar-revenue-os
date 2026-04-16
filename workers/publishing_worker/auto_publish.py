@@ -94,11 +94,33 @@ async def _auto_publish_for_brand(brand_id):
         skipped_health = 0
         skipped_existing = 0
         skipped_warmup = 0
+        skipped_no_offer = 0
         failed = 0
+
+        # Brand-level override: if explicitly set, allow unmonetized publishing.
+        # This is an escape hatch, NOT the default behavior. The default is
+        # hard-block: content without an attached offer does not publish.
+        brand_guidelines = brand.brand_guidelines or {} if brand else {}
+        allow_unmonetized = brand_guidelines.get("allow_unmonetized_publishing", False)
 
         for ci in approved_items:
             if ci.id in existing_ids:
                 skipped_existing += 1
+                continue
+
+            # ── HARD-BLOCK: content MUST have an offer attached ──────────
+            # The auto_attach_offers task (every 3m) ensures this is populated
+            # before the 10m publish cycle runs. If an item still has no offer,
+            # either the brand has no active offers or attach is lagging.
+            # Either way, do NOT publish unmonetized content.
+            if not ci.offer_id and not allow_unmonetized:
+                skipped_no_offer += 1
+                logger.warning(
+                    "auto_publish.hard_block_no_offer",
+                    content_id=str(ci.id),
+                    brand_id=str(brand_id),
+                    title=ci.title[:60] if ci.title else "",
+                )
                 continue
 
             acct = accounts.get(str(ci.creator_account_id)) if ci.creator_account_id else None
@@ -234,6 +256,7 @@ async def _auto_publish_for_brand(brand_id):
             "skipped_health": skipped_health,
             "skipped_existing": skipped_existing,
             "skipped_warmup": skipped_warmup,
+            "skipped_no_offer": skipped_no_offer,
         }
 
 

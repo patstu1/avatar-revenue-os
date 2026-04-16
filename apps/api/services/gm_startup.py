@@ -534,6 +534,7 @@ async def execute_blueprint_step(
             slug = re.sub(r"[^a-z0-9]+", "-", brand_name.lower()).strip("-")
             slug = f"{slug}-{uuid.uuid4().hex[:6]}"
 
+            from apps.api.services.onboarding_service import DEFAULT_BRAND_GUIDELINES
             brand = Brand(
                 organization_id=org_id,
                 name=brand_name,
@@ -542,6 +543,7 @@ async def execute_blueprint_step(
                 target_audience=niche_entry.get("target_audience", ""),
                 description=niche_entry.get("content_angle", ""),
                 decision_mode="guarded_auto",
+                brand_guidelines=dict(DEFAULT_BRAND_GUIDELINES),
             )
             db.add(brand)
             await db.flush()
