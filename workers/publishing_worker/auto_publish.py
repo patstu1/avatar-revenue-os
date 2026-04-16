@@ -241,6 +241,21 @@ async def _auto_publish_for_brand(brand_id):
             if result.success:
                 ci.status = "published"
                 published_direct += 1
+
+                # Event-driven chain: schedule per-item metrics ingest 5 min
+                # from now so the platform API has time to count. The ingest
+                # task chains to causal attribution on success.
+                try:
+                    from workers.analytics_ingestion_worker.tasks import ingest_metrics_for_content_item
+                    acct_id = str(ci.creator_account_id) if ci.creator_account_id else str(acct.id) if acct else ""
+                    if acct_id:
+                        ingest_metrics_for_content_item.apply_async(
+                            args=[str(ci.id), acct_id],
+                            countdown=300,  # 5-minute delay
+                            queue="analytics",
+                        )
+                except Exception:
+                    logger.debug("event_chain.schedule_failed content_id=%s", ci.id, exc_info=True)
             else:
                 failed += 1
                 logger.warning("publish failed for content %s: %s (tried: %s)", ci.id, result.error, result.methods_tried)

@@ -60,6 +60,7 @@ app.conf.update(
         "workers.generation_worker.*": {"queue": "generation"},
         "workers.publishing_worker.*": {"queue": "publishing"},
         "workers.analytics_worker.*": {"queue": "analytics"},
+        "workers.analytics_ingestion_worker.*": {"queue": "analytics"},
         "workers.qa_worker.*": {"queue": "qa"},
         "workers.learning_worker.*": {"queue": "learning"},
         "workers.portfolio_worker.*": {"queue": "portfolio"},
@@ -843,6 +844,11 @@ app.conf.update(
         "pipeline-scoring-every-2h": {
             "task": "workers.monetization_worker.tasks.score_pipeline_deals",
             "schedule": crontab(minute=20, hour="*/2"),
+        },
+        # --- Autonomy Grant Updater (evaluates brand auto-approval eligibility) ---
+        "update-autonomy-grants-every-1h": {
+            "task": "workers.monetization_worker.tasks.update_autonomy_grants",
+            "schedule": crontab(minute=42, hour="*"),
         },
         # --- Auto-Attach Offers (CRITICAL: runs before publishing) ---
         # Ensures no content publishes without an attached offer. Scans every

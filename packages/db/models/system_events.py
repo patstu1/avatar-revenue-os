@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Enum as SAEnum, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -184,6 +184,16 @@ class OperatorAction(Base):
     )
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     completed_by: Mapped[Optional[str]] = mapped_column(String(255))
+
+    # --- Outcome ---
+    outcome_score: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True,
+        comment="Post-execution outcome: >0 = positive impact, <0 = negative, NULL = not yet measured"
+    )
+    was_auto_approved: Mapped[bool] = mapped_column(
+        Boolean, default=False,
+        comment="True if this action was auto-promoted from assisted to autonomous via brand_autonomy_grants"
+    )
 
     # --- Expiry ---
     expires_at: Mapped[Optional[datetime]] = mapped_column(

@@ -388,6 +388,7 @@ from packages.db.models.gm import GMSession, GMMessage, GMBlueprint, GMConversat
 from packages.db.models.alert_routing import OperatorNotificationPreference, AlertDeliveryLog
 from packages.db.models.publish_policy import PublishPolicyRule
 from packages.db.models.revenue_assignment import RevenueAssignment
+from packages.db.models.autonomy_grants import BrandAutonomyGrant
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",

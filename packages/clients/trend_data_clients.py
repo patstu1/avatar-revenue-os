@@ -1,9 +1,11 @@
 """Trend Data Source Clients — YouTube, Google Trends, TikTok, Reddit.
 
 Each client fetches trending/rising data and returns normalized results.
+
+Credentials are passed in by the calling worker via credential_loader.
+No os.environ fallback — dashboard/provider config is the source of truth.
 """
 from __future__ import annotations
-import os
 import logging
 from typing import Any
 from datetime import datetime, timezone
@@ -22,7 +24,7 @@ class YouTubeTrendingClient:
     """Fetch trending videos and search trends from YouTube Data API v3."""
 
     def __init__(self, api_key: str = ""):
-        self.api_key = api_key or os.environ.get("GOOGLE_AI_API_KEY", "")
+        self.api_key = api_key
         self.base_url = "https://www.googleapis.com/youtube/v3"
 
     async def fetch_trending(self, region: str = "US", category_id: str = "0", max_results: int = 25) -> dict[str, Any]:

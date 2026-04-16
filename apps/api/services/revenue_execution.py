@@ -18,6 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.services.event_bus import emit_action, emit_event
 from apps.api.services import revenue_maximizer as rev_max
 from apps.api.services import revenue_engines_extended as rev_ext
+from apps.api.services.action_confidence import compute_action_confidence
+from apps.api.services.autonomy_policy import check_autonomy_grant
 
 logger = structlog.get_logger()
 
@@ -79,7 +81,16 @@ async def execute_revenue_actions(
         reg = ACTION_REGISTRY.get(action_type, {"default_level": SURFACE_ONLY, "min_confidence": 0.5})
         level = autonomy_override or reg["default_level"]
         expected_value = action_data.get("expected_value", 0)
-        confidence = 0.7 if expected_value > 200 else 0.5
+        risk_score = action_data.get("risk_score")
+
+        # Compute confidence from real signals instead of hardcoded thresholds.
+        # 4-signal model: data completeness, action history, expected value, risk.
+        conf_result = await compute_action_confidence(
+            db, brand_id, action_type,
+            expected_value=expected_value,
+            risk_score=risk_score,
+        )
+        confidence = conf_result["confidence"]
 
         result = await _create_governed_action(
             db, org_id=org_id, brand_id=brand_id,
@@ -109,12 +120,17 @@ async def execute_revenue_actions(
 
     # --- Process compounding opportunities ---
     for comp in compounding[:3]:
+        comp_ev = comp.get("source_revenue", 0) * comp.get("expected_uplift_pct", 10) / 100
+        comp_action = comp.get("action", "launch_compounding_sequence")
+        comp_conf = await compute_action_confidence(
+            db, brand_id, comp_action, expected_value=comp_ev,
+        )
         result = await _create_governed_action(
             db, org_id=org_id, brand_id=brand_id,
-            action_type=comp.get("action", "launch_compounding_sequence"),
+            action_type=comp_action,
             title=comp.get("description", "Compounding opportunity")[:200],
-            expected_value=comp.get("source_revenue", 0) * comp.get("expected_uplift_pct", 10) / 100,
-            confidence=0.6,
+            expected_value=comp_ev,
+            confidence=comp_conf["confidence"],
             level=ASSISTED,
             source_engine="compounding_engine",
         )
@@ -165,6 +181,16 @@ async def _create_governed_action(
     if confidence < reg["min_confidence"]:
         level = SURFACE_ONLY
 
+    # Auto-promotion: if the action defaults to ASSISTED, check if the brand
+    # has earned an autonomy grant for this action type. If so, promote to
+    # AUTONOMOUS (within the grant's daily cap).
+    was_auto_approved = False
+    if level == ASSISTED:
+        grant = await check_autonomy_grant(db, brand_id, action_type)
+        if grant:
+            level = AUTONOMOUS
+            was_auto_approved = True
+
     action = await emit_action(
         db, org_id=org_id,
         action_type=action_type,
@@ -181,6 +207,7 @@ async def _create_governed_action(
             "confidence": confidence,
             "expected_value": expected_value,
             "source_engine": source_engine,
+            "was_auto_approved": was_auto_approved,
         },
     )
 

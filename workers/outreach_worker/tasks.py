@@ -5,9 +5,10 @@ Wires the full outreach pipeline:
   2. send_follow_up: sends follow-up emails in a sequence, drafts via LLM or template
   3. poll_inbox_for_replies: connects IMAP, fetches unread, matches to outreach, classifies, advances deals
 
-Credentials loaded via integration_manager (encrypted DB) with .env fallback.
-Autonomous mode: if outreach record has autonomous_send=True AND confidence >= threshold, sends without
-operator approval. Otherwise creates an OperatorAction for review.
+Credentials loaded EXCLUSIVELY from integration_manager (encrypted DB).
+No .env fallback — dashboard/provider config is the source of truth.
+If SMTP/IMAP credentials are missing from integration_providers, the task
+skips with a structured log and does not fall back to environment variables.
 """
 from __future__ import annotations
 
@@ -44,38 +45,62 @@ def _run_async(coro):
 
 
 async def _get_smtp_credentials(db, org_id: uuid.UUID) -> dict:
-    """Load SMTP credentials from integration_manager with .env fallback."""
+    """Load SMTP credentials from integration_manager (DB-only, no env fallback).
+
+    Expected integration_providers row:
+        provider_key = "smtp"
+        api_key      = <SMTP password>
+        extra_config = {"host": "...", "port": 465, "username": "...", "from_email": "..."}
+    """
     from apps.api.services.integration_manager import get_credential_full
-    import os
 
     creds = await get_credential_full(db, org_id, "smtp")
-    host = (creds.get("extra_config") or {}).get("host") or os.environ.get("SMTP_HOST", "")
-    port = int((creds.get("extra_config") or {}).get("port") or os.environ.get("SMTP_PORT", "465"))
-    username = (creds.get("extra_config") or {}).get("username") or os.environ.get("SMTP_USER", "") or os.environ.get("SMTP_USERNAME", "")
-    password = creds.get("api_key") or os.environ.get("SMTP_PASSWORD", "") or os.environ.get("SMTP_PASS", "")
-    from_email = (creds.get("extra_config") or {}).get("from_email") or os.environ.get("SMTP_FROM_EMAIL", "") or username
+    extra = creds.get("extra_config") or {}
+    host = extra.get("host", "")
+    port = int(extra.get("port", 465))
+    username = extra.get("username", "")
+    password = creds.get("api_key", "")
+    from_email = extra.get("from_email", "") or username
+
+    configured = bool(host and username and password)
+    if not configured:
+        logger.warning("outreach.smtp_not_configured",
+                       org_id=str(org_id),
+                       hint="Add SMTP credentials via Settings > Integrations (provider_key='smtp')")
 
     return {
         "host": host, "port": port, "username": username,
         "password": password, "from_email": from_email,
-        "configured": bool(host and from_email),
+        "configured": configured,
     }
 
 
 async def _get_imap_credentials(db, org_id: uuid.UUID) -> dict:
-    """Load IMAP credentials from integration_manager with .env fallback."""
+    """Load IMAP credentials from integration_manager (DB-only, no env fallback).
+
+    Expected integration_providers row:
+        provider_key = "imap"
+        api_key      = <IMAP password>
+        extra_config = {"host": "...", "port": 993, "username": "..."}
+    """
     from apps.api.services.integration_manager import get_credential_full
-    import os
 
     creds = await get_credential_full(db, org_id, "imap")
-    host = (creds.get("extra_config") or {}).get("host") or os.environ.get("IMAP_HOST", "")
-    port = int((creds.get("extra_config") or {}).get("port") or os.environ.get("IMAP_PORT", "993"))
-    username = (creds.get("extra_config") or {}).get("username") or os.environ.get("IMAP_USER", "")
-    password = creds.get("api_key") or os.environ.get("IMAP_PASSWORD", "")
+    extra = creds.get("extra_config") or {}
+    host = extra.get("host", "")
+    port = int(extra.get("port", 993))
+    username = extra.get("username", "")
+    password = creds.get("api_key", "")
+
+    configured = bool(host and username and password)
+    if not configured:
+        logger.warning("outreach.imap_not_configured",
+                       org_id=str(org_id),
+                       hint="Add IMAP credentials via Settings > Integrations (provider_key='imap')")
 
     return {
         "host": host, "port": port, "username": username,
-        "password": password, "configured": bool(host and username and password),
+        "password": password, "configured": configured,
     }
 
 
@@ -89,7 +114,7 @@ async def _send_smtp_email(
     from email.mime.text import MIMEText
 
     if not smtp_creds.get("configured"):
-        return {"success": False, "error": "SMTP not configured — set credentials via Settings > Integrations or SMTP_HOST env"}
+        return {"success": False, "error": "SMTP not configured — add credentials via Settings > Integrations (provider_key='smtp')"}
 
     msg = MIMEMultipart("alternative")
     msg["From"] = smtp_creds["from_email"]

@@ -114,6 +114,18 @@ def publish_content(self, publish_job_id: str) -> dict:
                 content.status = "published"
             session.commit()
 
+            # Event-driven chain: schedule per-item metrics ingest
+            try:
+                from workers.analytics_ingestion_worker.tasks import ingest_metrics_for_content_item
+                if job.content_item_id and job.creator_account_id:
+                    ingest_metrics_for_content_item.apply_async(
+                        args=[str(job.content_item_id), str(job.creator_account_id)],
+                        countdown=300,
+                        queue="analytics",
+                    )
+            except Exception:
+                pass  # Non-critical: 6-hour sweep is the fallback
+
             return {
                 "publish_job_id": str(job.id),
                 "status": "published",

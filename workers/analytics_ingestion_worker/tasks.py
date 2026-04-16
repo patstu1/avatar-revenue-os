@@ -392,3 +392,156 @@ async def _do_ingest_trend_signals():
         await db.commit()
 
     return {"configured": True, "ingested": ingested}
+
+
+# ---------------------------------------------------------------------------
+# Per-item metrics ingest (event-driven, triggered by publish success)
+# ---------------------------------------------------------------------------
+
+@shared_task(
+    name="workers.analytics_ingestion_worker.tasks.ingest_metrics_for_content_item",
+    base=TrackedTask,
+    max_retries=3,
+    default_retry_delay=900,  # 15-min backoff if platform has no data yet
+)
+def ingest_metrics_for_content_item(content_item_id: str, account_id: str):
+    """Fetch metrics for a single just-published content item.
+
+    Called with a 5-minute delay after publish success so the platform's
+    API has time to start counting. If the platform returns no data, retries
+    with a 15-minute backoff (up to 3 retries) before giving up — the 6-hour
+    sweep will catch it eventually.
+
+    After writing PerformanceMetric, chains to the causal attribution task
+    to close the learning loop without waiting for the next 6-hour cycle.
+    """
+    return _run(_do_ingest_single_item(content_item_id, account_id))
+
+
+async def _do_ingest_single_item(content_item_id_str: str, account_id_str: str):
+    from sqlalchemy import select
+    from packages.db.models.accounts import CreatorAccount
+    from packages.db.models.content import ContentItem
+    from packages.db.models.publishing import PublishJob, PerformanceMetric
+    from packages.db.models.core import Brand
+    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session as SyncSession
+    from packages.clients.analytics_clients import (
+        YouTubeAnalyticsClient, TikTokAnalyticsClient, InstagramAnalyticsClient,
+    )
+
+    content_item_id = uuid.UUID(content_item_id_str)
+    account_id = uuid.UUID(account_id_str)
+    factory = get_async_session_factory()
+
+    async with factory() as db:
+        acct = (await db.execute(
+            select(CreatorAccount).where(CreatorAccount.id == account_id)
+        )).scalar_one_or_none()
+        if not acct:
+            return {"skipped": True, "reason": "account_not_found"}
+
+        job = (await db.execute(
+            select(PublishJob).where(
+                PublishJob.content_item_id == content_item_id,
+            ).order_by(PublishJob.created_at.desc()).limit(1)
+        )).scalar_one_or_none()
+        platform_post_id = job.platform_post_id if job else None
+
+        if not platform_post_id:
+            return {"skipped": True, "reason": "no_platform_post_id"}
+
+        platform = acct.platform.value if hasattr(acct.platform, "value") else str(acct.platform)
+
+        # Load credentials
+        org_id = None
+        brand = (await db.execute(select(Brand).where(Brand.id == acct.brand_id))).scalar_one_or_none()
+        if brand:
+            org_id = brand.organization_id
+
+    creds = {}
+    if org_id:
+        engine = get_sync_engine()
+        with SyncSession(engine) as sync_session:
+            creds = _load_analytics_credentials(sync_session, org_id)
+
+    views = likes = comments = shares = 0
+    revenue = 0.0
+    got_data = False
+
+    try:
+        if platform == "youtube":
+            yt = YouTubeAnalyticsClient(
+                api_key=creds.get("youtube_api_key"),
+                oauth_token=creds.get("youtube_oauth_token"),
+            )
+            if yt.is_configured():
+                data = await yt.fetch_video_metrics(platform_post_id, days=1)
+                for m in data.get("metrics", []):
+                    vid = m.get("video") or m.get("video_id") or ""
+                    if str(vid) == str(platform_post_id):
+                        views = int(m.get("views", 0))
+                        likes = int(m.get("likes", 0))
+                        comments = int(m.get("comments", 0))
+                        shares = int(m.get("shares", 0))
+                        revenue = float(m.get("estimatedRevenue", 0))
+                        got_data = views > 0
+                        break
+
+        elif platform == "tiktok":
+            tt = TikTokAnalyticsClient(access_token=creds.get("tiktok_access_token"))
+            if tt.is_configured():
+                data = await tt.fetch_video_metrics("", days=1)
+                for m in data.get("metrics", []):
+                    vid = m.get("id") or m.get("video_id") or ""
+                    if str(vid) == str(platform_post_id):
+                        views = int(m.get("view_count", 0))
+                        likes = int(m.get("like_count", 0))
+                        comments = int(m.get("comment_count", 0))
+                        shares = int(m.get("share_count", 0))
+                        got_data = views > 0
+                        break
+
+        elif platform == "instagram":
+            ig = InstagramAnalyticsClient(access_token=creds.get("instagram_access_token"))
+            if ig.is_configured():
+                data = await ig.fetch_media_insights(platform_post_id)
+                for m in data.get("metrics", []):
+                    likes = int(m.get("like_count", 0))
+                    comments = int(m.get("comments_count", 0))
+                    got_data = likes + comments > 0
+                    break
+
+    except Exception as e:
+        logger.warning("single_item_ingest.fetch_failed",
+                       content_item_id=content_item_id_str, platform=platform, error=str(e))
+        return {"ingested": False, "error": str(e)[:200]}
+
+    if not got_data:
+        return {"ingested": False, "reason": "no_data_yet"}
+
+    async with factory() as db:
+        db.add(PerformanceMetric(
+            content_item_id=content_item_id,
+            creator_account_id=account_id,
+            brand_id=acct.brand_id,
+            platform=platform,
+            impressions=views,
+            views=views,
+            likes=likes,
+            comments=comments,
+            shares=shares,
+            revenue=revenue,
+            engagement_rate=_compute_engagement_rate(views, likes, comments, shares),
+        ))
+        await db.commit()
+
+    # Chain: trigger per-item attribution
+    from workers.causal_attribution_worker.tasks import attribute_revenue_for_content_item
+    attribute_revenue_for_content_item.apply_async(
+        args=[content_item_id_str],
+        countdown=60,
+        queue="default",
+    )
+
+    return {"ingested": True, "platform": platform, "views": views, "revenue": revenue}

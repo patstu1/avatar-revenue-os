@@ -759,6 +759,25 @@ async def _process_brand(factory, org_id, brand_id):
 
 
 # ---------------------------------------------------------------------------
+# Autonomy Grant Updater — evaluate and manage brand auto-approval grants
+# ---------------------------------------------------------------------------
+@shared_task(name="workers.monetization_worker.tasks.update_autonomy_grants", base=TrackedTask)
+def update_autonomy_grants():
+    """Hourly: evaluate all (brand, action_type) pairs and create/update/revoke grants."""
+    return _run(_do_update_autonomy_grants())
+
+
+async def _do_update_autonomy_grants():
+    from apps.api.services.autonomy_policy import update_all_autonomy_grants
+
+    factory = get_async_session_factory()
+    async with factory() as db:
+        result = await update_all_autonomy_grants(db)
+        await db.commit()
+    return {"status": "completed", **result}
+
+
+# ---------------------------------------------------------------------------
 # Auto-Attach Offers — ensure content cannot publish unmonetized
 # ---------------------------------------------------------------------------
 @shared_task(name="workers.monetization_worker.tasks.auto_attach_offers", base=TrackedTask)
