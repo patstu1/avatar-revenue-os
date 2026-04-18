@@ -1,9 +1,14 @@
 """Sync credential loader — thin wrapper around integration_manager for Celery workers.
 
-Celery tasks run in sync threads with their own event loops.  This module
+Celery tasks run in sync threads with their own event loops. This module
 provides synchronous helpers that talk directly to the DB via the sync engine,
-reusing the same Fernet encryption and .env fallback logic from the async
-integration_manager.
+reusing the same Fernet encryption as the async integration_manager.
+
+STRICT DB-ONLY POLICY: There is no env fallback for provider credentials.
+All provider API keys must be stored in integration_providers (or written by
+the settings router into both integration_providers and provider_secrets).
+If a credential is not in the DB, the loader returns None and the caller
+is expected to skip the task with a clear 'not_configured' log line.
 
 Usage in a worker task::
 
@@ -19,7 +24,6 @@ Usage in a worker task::
 """
 from __future__ import annotations
 
-import os
 import uuid
 from typing import Optional
 
@@ -31,11 +35,8 @@ from packages.db.models.integration_registry import IntegrationProvider
 
 logger = structlog.get_logger()
 
-# Import encryption + env-key mapping from the canonical source
-from apps.api.services.integration_manager import (
-    _decrypt,
-    PROVIDER_ENV_KEYS,
-)
+# Import encryption from the canonical source
+from apps.api.services.integration_manager import _decrypt
 
 
 def load_credential(session: Session, org_id: uuid.UUID, provider_key: str) -> Optional[str]:
@@ -102,16 +103,11 @@ def load_credential_for_task(
     api_key = _decrypt(best.api_key_encrypted) if best.api_key_encrypted else None
 
     if not api_key:
-        env_var = PROVIDER_ENV_KEYS.get(best.provider_key)
-        if env_var:
-            env_value = os.environ.get(env_var, "")
-            if env_value:
-                logger.warning(
-                    "credential_env_fallback_DEPRECATED",
-                    provider=best.provider_key,
-                    env_var=env_var,
-                )
-                api_key = env_value
+        logger.warning(
+            "credential_not_configured",
+            provider=best.provider_key,
+            hint="Configure via Settings > Integrations in the dashboard",
+        )
 
     return {
         "provider_key": best.provider_key,
@@ -142,15 +138,10 @@ def load_credential_full(session: Session, org_id: uuid.UUID, provider_key: str)
         result["extra_config"] = provider.extra_config or {}
 
     if not result["api_key"]:
-        env_var = PROVIDER_ENV_KEYS.get(provider_key)
-        if env_var:
-            env_value = os.environ.get(env_var, "")
-            if env_value:
-                logger.warning(
-                    "credential_env_fallback_DEPRECATED",
-                    provider=provider_key,
-                    env_var=env_var,
-                )
-                result["api_key"] = env_value
+        logger.warning(
+            "credential_not_configured",
+            provider=provider_key,
+            hint="Configure via Settings > Integrations in the dashboard",
+        )
 
     return result

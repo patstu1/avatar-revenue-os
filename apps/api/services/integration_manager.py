@@ -311,16 +311,11 @@ async def get_credential_full(
         result["extra_config"] = provider.extra_config or {}
 
     if not result["api_key"]:
-        env_var = PROVIDER_ENV_KEYS.get(provider_key)
-        if env_var:
-            env_value = os.environ.get(env_var, "")
-            if env_value:
-                logger.warning(
-                    "credential_env_fallback_DEPRECATED",
-                    provider=provider_key,
-                    env_var=env_var,
-                )
-                result["api_key"] = env_value
+        logger.warning(
+            "credential_not_configured",
+            provider=provider_key,
+            hint="Configure via Settings > Integrations in the dashboard",
+        )
 
     return result
 

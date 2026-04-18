@@ -39,6 +39,12 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
+    # Password reset: SHA-256 hash of the URL-safe token sent by email.
+    # We store the hash (not the token itself) so a DB leak cannot be used
+    # to reset passwords. Expires after 1 hour.
+    password_reset_token: Mapped[Optional[str]] = mapped_column(String(128), index=True)
+    password_reset_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
     organization: Mapped["Organization"] = relationship(back_populates="users")
 
 
