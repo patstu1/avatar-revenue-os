@@ -10,13 +10,13 @@ from sqlalchemy import select
 from workers.base_task import TrackedTask
 
 from packages.db.models.core import Brand
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 
 logger = structlog.get_logger()
 
 
 async def _active_brand_ids() -> list:
-    async with async_session_factory() as session:
+    async with get_async_session_factory()() as session:
         rows = (await session.execute(
             select(Brand.id).where(Brand.is_active.is_(True))
         )).scalars().all()
@@ -32,7 +32,7 @@ def run_agent_orchestration():
         brand_ids = await _active_brand_ids()
         for bid in brand_ids:
             try:
-                async with async_session_factory() as session:
+                async with get_async_session_factory()() as session:
                     result = await svc.recompute_agent_orchestration(session, bid)
                     await session.commit()
                     logger.info("phase_d.agent_orchestration.done", brand_id=str(bid), **result)
@@ -51,7 +51,7 @@ def run_revenue_pressure():
         brand_ids = await _active_brand_ids()
         for bid in brand_ids:
             try:
-                async with async_session_factory() as session:
+                async with get_async_session_factory()() as session:
                     result = await svc.recompute_revenue_pressure(session, bid)
                     await session.commit()
                     logger.info("phase_d.revenue_pressure.done", brand_id=str(bid), **result)
@@ -70,7 +70,7 @@ def run_blocker_detection():
         brand_ids = await _active_brand_ids()
         for bid in brand_ids:
             try:
-                async with async_session_factory() as session:
+                async with get_async_session_factory()() as session:
                     result = await svc.recompute_blocker_detection(session, bid)
                     await session.commit()
                     logger.info("phase_d.blocker_detection.done", brand_id=str(bid), **result)
@@ -89,7 +89,7 @@ def run_escalation_generation():
         brand_ids = await _active_brand_ids()
         for bid in brand_ids:
             try:
-                async with async_session_factory() as session:
+                async with get_async_session_factory()() as session:
                     result = await svc.recompute_escalations(session, bid)
                     await session.commit()
                     logger.info("phase_d.escalation_generation.done", brand_id=str(bid), **result)

@@ -4,7 +4,7 @@ import uuid
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from apps.api.services import growth_pack_service as gps
 from apps.api.services import growth_commander_service as gcs
 from sqlalchemy import select
@@ -12,7 +12,7 @@ from packages.db.models.core import Brand
 
 
 async def _run_brand(brand_id: uuid.UUID) -> dict:
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await gcs.recompute_growth_commands(db, brand_id, user_id=None)
         await gps.recompute_portfolio_launch_plan(db, brand_id)
         await gps.recompute_account_blueprints(db, brand_id)
@@ -29,7 +29,7 @@ async def _run_brand(brand_id: uuid.UUID) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.growth_pack_worker.tasks.recompute_all_growth_pack")
 def recompute_all_growth_pack(self) -> dict:
     async def inner():
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             r = await db.execute(select(Brand.id))
             brands = list(r.scalars().all())
         n = 0

@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.core import Brand
 from apps.api.services import autonomous_phase_c_service as svc
 from apps.api.services import autonomous_phase_c_lifecycle as lifecycle
@@ -17,7 +17,7 @@ logger = structlog.get_logger()
 
 
 async def _all_brand_ids() -> list:
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         rows = (await db.execute(select(Brand).where(Brand.is_active.is_(True)))).scalars().all()
         return [b.id for b in rows]
 
@@ -29,7 +29,7 @@ async def _run_per_brand(coro_factory):
     errors = []
     for bid in bids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 await coro_factory(db, bid)
                 await db.commit()
                 total += 1

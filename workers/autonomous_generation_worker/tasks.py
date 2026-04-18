@@ -11,7 +11,7 @@ from sqlalchemy import select, func
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.content import ContentBrief
 from packages.db.models.core import Brand
 
@@ -26,7 +26,7 @@ async def _process_pending_briefs():
     """
     from apps.api.services.content_generation_service import full_pipeline
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         briefs = list((await db.execute(
             select(ContentBrief)
             .join(Brand, Brand.id == ContentBrief.brand_id)
@@ -40,7 +40,7 @@ async def _process_pending_briefs():
 
     for brief in briefs:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await full_pipeline(db, brief.id)
                 await db.commit()
 
@@ -63,7 +63,7 @@ async def _process_pending_briefs():
 async def _cleanup_stuck_briefs():
     """Reset briefs stuck in 'generating' for over 30 minutes back to 'draft'."""
     from datetime import datetime, timezone, timedelta
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
         stuck = list((await db.execute(
             select(ContentBrief).where(

@@ -24,7 +24,7 @@ from sqlalchemy import and_, desc, select, update
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +179,7 @@ async def _send_outreach_email_impl(outreach_id: str, brand_id: str, org_id: str
     brand_uuid = uuid.UUID(brand_id)
     outreach_uuid = uuid.UUID(outreach_id)
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         # Load outreach sequence record
         outreach = (await db.execute(
             select(SponsorOutreachSequence).where(SponsorOutreachSequence.id == outreach_uuid)
@@ -314,7 +314,7 @@ async def _send_follow_up_impl(outreach_id: str, sequence_step: int, org_id: str
     org_uuid = uuid.UUID(org_id)
     outreach_uuid = uuid.UUID(outreach_id)
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         outreach = (await db.execute(
             select(SponsorOutreachSequence).where(SponsorOutreachSequence.id == outreach_uuid)
         )).scalar_one_or_none()
@@ -446,7 +446,7 @@ async def _poll_inbox_impl(org_id: str) -> dict:
 
     org_uuid = uuid.UUID(org_id)
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         imap_creds = await _get_imap_credentials(db, org_uuid)
 
         if not imap_creds["configured"]:
@@ -620,7 +620,7 @@ async def _poll_all_orgs_impl() -> dict:
     from packages.db.models.core import Organization
     from sqlalchemy import select as sa_select
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         orgs = (await db.execute(sa_select(Organization.id))).scalars().all()
 
     results = {}

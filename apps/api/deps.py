@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.config import Settings, get_settings
 from packages.db.enums import UserRole
 from packages.db.models.core import Brand, User
-from packages.db.session import async_session_factory
+from packages.db.session import get_async_session_factory
 
 logger = structlog.get_logger()
 
@@ -23,7 +23,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session_factory() as session:
+    async with get_async_session_factory()() as session:
         try:
             yield session
             await session.commit()

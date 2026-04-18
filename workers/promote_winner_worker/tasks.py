@@ -5,7 +5,7 @@ import logging
 from celery import shared_task
 from sqlalchemy import select
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.promote_winner import ActiveExperiment
 
@@ -18,7 +18,7 @@ async def _ingest_experiment_observations():
     from packages.db.models.portfolio import PerformanceMetric
     from packages.db.models.content import ContentItem
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         experiments = list((await db.execute(
             select(ActiveExperiment).where(ActiveExperiment.status == "active")
         )).scalars().all())
@@ -73,7 +73,7 @@ async def _evaluate_active():
     obs_count = await _ingest_experiment_observations()
     logger.info("experiment observations ingested: %d", obs_count)
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         experiments = list((await db.execute(
             select(ActiveExperiment).where(ActiveExperiment.status == "active")
         )).scalars().all())
@@ -86,7 +86,7 @@ async def _evaluate_active():
                 logger.exception("evaluate failed for %s", exp.id)
         await db.commit()
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = list((await db.execute(
             select(ActiveExperiment.brand_id).distinct()
         )).scalars().all())

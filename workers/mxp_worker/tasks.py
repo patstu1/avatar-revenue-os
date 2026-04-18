@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.core import Brand
 from apps.api.services import experiment_decision_service
 from apps.api.services import contribution_service
@@ -34,11 +34,11 @@ def _run_async(coro):
 def recompute_all_experiment_decisions(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await experiment_decision_service.recompute_experiment_decisions(db, bid)
                     await db.commit()
                     total["brands"] += 1
@@ -57,11 +57,11 @@ def recompute_all_experiment_decisions(self) -> dict:
 def recompute_all_contribution_reports(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await contribution_service.recompute_contribution_reports(db, bid)
                     await db.commit()
                     total["brands"] += 1
@@ -80,11 +80,11 @@ def recompute_all_contribution_reports(self) -> dict:
 def recompute_all_capacity(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await capacity_service.recompute_capacity(db, bid)
                     await db.commit()
                     total["brands"] += 1
@@ -103,11 +103,11 @@ def recompute_all_capacity(self) -> dict:
 def recompute_all_offer_lifecycle(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await offer_lifecycle_service.recompute_offer_lifecycle(db, bid)
                     await db.commit()
                     total["brands"] += 1
@@ -126,11 +126,11 @@ def recompute_all_offer_lifecycle(self) -> dict:
 def recompute_all_creative_memory(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await creative_memory_service.recompute_creative_memory(db, bid)
                     await db.commit()
                     total["brands"] += 1
@@ -149,11 +149,11 @@ def recompute_all_creative_memory(self) -> dict:
 def recompute_all_recovery_incidents(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await recovery_service.recompute_recovery_incidents(db, bid)
                     await db.commit()
                     total["brands"] += 1
@@ -172,11 +172,11 @@ def recompute_all_recovery_incidents(self) -> dict:
 def recompute_all_deal_desk(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await deal_desk_service.recompute_deal_desk(db, bid)
                     await db.commit()
                     total["brands"] += 1
@@ -195,11 +195,11 @@ def recompute_all_deal_desk(self) -> dict:
 def recompute_all_audience_states(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await audience_state_service.recompute_audience_states(db, bid)
                     await db.commit()
                     total["brands"] += 1
@@ -218,11 +218,11 @@ def recompute_all_audience_states(self) -> dict:
 def recompute_all_reputation(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await reputation_service.recompute_reputation(db, bid)
                     await db.commit()
                     total["brands"] += 1
@@ -241,11 +241,11 @@ def recompute_all_reputation(self) -> dict:
 def recompute_all_market_timing(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await market_timing_service.recompute_market_timing(db, bid)
                     await db.commit()
                     total["brands"] += 1
@@ -264,11 +264,11 @@ def recompute_all_market_timing(self) -> dict:
 def recompute_all_kill_ledger(self) -> dict:
     async def _run():
         total = {"brands": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             ids = [r[0] for r in (await db.execute(select(Brand.id))).all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await kill_ledger_service.recompute_kill_ledger_full(db, bid)
                     await db.commit()
                     total["brands"] += 1

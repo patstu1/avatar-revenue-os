@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.core import Brand
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import BaseTask
 
 logger = structlog.get_logger()
@@ -24,11 +24,11 @@ async def _all_brand_ids(db: AsyncSession) -> list[uuid.UUID]:
 async def _consolidate_memory():
     from apps.api.services import brain_phase_a_service as svc
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await svc.recompute_brain_memory(db, bid)
                 await db.commit()
                 logger.info("brain.memory_consolidated", brand_id=str(bid), **result)
@@ -39,11 +39,11 @@ async def _consolidate_memory():
 async def _recompute_account_states():
     from apps.api.services import brain_phase_a_service as svc
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await svc.recompute_account_states(db, bid)
                 await db.commit()
                 logger.info("brain.account_states_recomputed", brand_id=str(bid), **result)
@@ -54,11 +54,11 @@ async def _recompute_account_states():
 async def _recompute_opportunity_states():
     from apps.api.services import brain_phase_a_service as svc
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await svc.recompute_opportunity_states(db, bid)
                 await db.commit()
                 logger.info("brain.opportunity_states_recomputed", brand_id=str(bid), **result)
@@ -69,11 +69,11 @@ async def _recompute_opportunity_states():
 async def _recompute_execution_states():
     from apps.api.services import brain_phase_a_service as svc
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await svc.recompute_execution_states(db, bid)
                 await db.commit()
                 logger.info("brain.execution_states_recomputed", brand_id=str(bid), **result)
@@ -84,11 +84,11 @@ async def _recompute_execution_states():
 async def _recompute_audience_states():
     from apps.api.services import brain_phase_a_service as svc
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await svc.recompute_audience_states_v2(db, bid)
                 await db.commit()
                 logger.info("brain.audience_states_recomputed", brand_id=str(bid), **result)
@@ -128,12 +128,12 @@ async def _recompute_brain_decisions():
     from apps.api.services.intelligence_bridge import surface_intelligence_actions
     from apps.api.services.action_dispatcher import dispatch_autonomous_actions
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
 
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await svc.recompute_brain_decisions(db, bid)
                 await db.commit()
                 logger.info("brain.decisions_recomputed", brand_id=str(bid), **result)
@@ -143,7 +143,7 @@ async def _recompute_brain_decisions():
     # ── Bridge: convert fresh decisions into OperatorActions ──────────
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 brand = (await db.execute(
                     select(Brand).where(Brand.id == bid)
                 )).scalar_one_or_none()
@@ -167,7 +167,7 @@ async def _recompute_brain_decisions():
     surfaced_orgs: set[uuid.UUID] = set()
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 brand = (await db.execute(
                     select(Brand).where(Brand.id == bid)
                 )).scalar_one_or_none()
@@ -196,11 +196,11 @@ def recompute_brain_decisions():
 async def _recompute_agent_mesh():
     from apps.api.services import brain_phase_c_service as svc
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await svc.recompute_agent_mesh(db, bid)
                 await db.commit()
                 logger.info("brain.agent_mesh_recomputed", brand_id=str(bid), **result)
@@ -218,11 +218,11 @@ def recompute_agent_mesh():
 async def _recompute_meta_monitoring():
     from apps.api.services import brain_phase_d_service as svc
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await svc.recompute_meta_monitoring(db, bid)
                 await db.commit()
                 logger.info("brain.meta_monitoring_recomputed", brand_id=str(bid), **result)

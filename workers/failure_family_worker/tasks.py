@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from celery import shared_task
 from sqlalchemy import select
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
@@ -73,14 +73,14 @@ async def _auto_populate_kill_ledger(db, brand_id: uuid.UUID) -> int:
 async def _run():
     from apps.api.services.failure_family_service import recompute_failure_families, run_decay_check
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
 
     count = 0
     total_kills = 0
     for bid in brands:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 await recompute_failure_families(db, bid)
                 await run_decay_check(db, bid)
 

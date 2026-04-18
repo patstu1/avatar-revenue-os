@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ async def _prune():
     results = {"metrics_deleted": 0, "fleet_reports_deleted": 0, "daily_reports_deleted": 0}
     now = datetime.now(timezone.utc)
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         try:
             from packages.db.models.publishing import PerformanceMetric
             cutoff = now - timedelta(days=METRICS_RETENTION_DAYS)

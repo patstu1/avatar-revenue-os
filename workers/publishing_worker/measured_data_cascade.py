@@ -17,7 +17,7 @@ import logging
 from celery import shared_task
 from sqlalchemy import select
 
-from packages.db.session import async_session_factory
+from packages.db.session import get_async_session_factory
 from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ async def _cascade_for_brand(brand_id):
 
     try:
         from apps.api.services.offer_learning_service import run_offer_learning
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             r = await run_offer_learning(db, brand_id)
             await db.commit()
             results["offer_learning"] = r
@@ -39,7 +39,7 @@ async def _cascade_for_brand(brand_id):
 
     try:
         from apps.api.services.scale_service import recompute_scale_recommendations
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             r = await recompute_scale_recommendations(db, brand_id)
             await db.commit()
             results["scale_engine"] = {"status": "completed"}
@@ -49,7 +49,7 @@ async def _cascade_for_brand(brand_id):
 
     try:
         from apps.api.services.expansion_advisor_service import recompute_advisory
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             r = await recompute_advisory(db, brand_id)
             await db.commit()
             results["expansion_advisor"] = r
@@ -59,7 +59,7 @@ async def _cascade_for_brand(brand_id):
 
     try:
         from apps.api.services.content_form_service import recompute_recommendations
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             r = await recompute_recommendations(db, brand_id)
             await db.commit()
             results["content_forms"] = r
@@ -71,7 +71,7 @@ async def _cascade_for_brand(brand_id):
 
 
 async def _run_cascade():
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = [r[0] for r in (await db.execute(select(Brand.id).where(Brand.is_active.is_(True)))).all()]
 
     all_results = {}

@@ -290,7 +290,7 @@ def sync_youtube_analytics(self) -> dict:
         return {"status": "completed", "accounts_synced": 0, "message": "No YouTube accounts with credentials"}
 
     from apps.api.services.youtube_sync_service import sync_youtube_account
-    from packages.db.session import async_session_factory as _async_sf
+    from packages.db.session import get_async_session_factory as _async_sf
 
     async def _run_sync():
         nonlocal accounts_synced, total_metrics

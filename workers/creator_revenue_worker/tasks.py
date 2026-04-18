@@ -8,7 +8,7 @@ import uuid
 from celery import shared_task
 from sqlalchemy import select
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 async def _run_all_brands(coro_factory):
     from packages.db.models.core import Brand
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
     for bid in brands:
         try:
@@ -27,84 +27,84 @@ async def _run_all_brands(coro_factory):
 
 async def _recompute_opps(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_opportunities
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_opportunities(db, brand_id)
         await db.commit()
 
 
 async def _recompute_ugc(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_ugc_services
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_ugc_services(db, brand_id)
         await db.commit()
 
 
 async def _recompute_consulting(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_service_consulting
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_service_consulting(db, brand_id)
         await db.commit()
 
 
 async def _recompute_premium(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_premium_access
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_premium_access(db, brand_id)
         await db.commit()
 
 
 async def _recompute_licensing(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_licensing
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_licensing(db, brand_id)
         await db.commit()
 
 
 async def _recompute_syndication(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_syndication
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_syndication(db, brand_id)
         await db.commit()
 
 
 async def _recompute_data_products(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_data_products
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_data_products(db, brand_id)
         await db.commit()
 
 
 async def _recompute_merch(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_merch
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_merch(db, brand_id)
         await db.commit()
 
 
 async def _recompute_live_events(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_live_events
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_live_events(db, brand_id)
         await db.commit()
 
 
 async def _recompute_affiliate_program(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_owned_affiliate_program
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_owned_affiliate_program(db, brand_id)
         await db.commit()
 
 
 async def _recompute_hub(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_hub
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_hub(db, brand_id)
         await db.commit()
 
 
 async def _recompute_blockers(brand_id: uuid.UUID) -> None:
     from apps.api.services.creator_revenue_service import recompute_blockers
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_blockers(db, brand_id)
         await db.commit()
 

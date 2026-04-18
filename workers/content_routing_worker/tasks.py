@@ -3,7 +3,7 @@ import asyncio
 import logging
 from celery import shared_task
 from sqlalchemy import select
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _run_all(coro_factory):
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
     for bid in brands:
         try:
@@ -22,7 +22,7 @@ async def _run_all(coro_factory):
 
 async def _daily_cost_rollup(bid):
     from apps.api.services.content_routing_service import recompute_cost_report
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_cost_report(db, bid)
         await db.commit()
 

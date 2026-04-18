@@ -11,7 +11,7 @@ import logging
 from celery import shared_task
 from sqlalchemy import select, func
 
-from packages.db.session import async_session_factory
+from packages.db.session import get_async_session_factory
 from packages.db.models.core import Brand
 from packages.db.models.content import ContentItem
 from packages.db.models.accounts import CreatorAccount
@@ -25,7 +25,7 @@ async def _auto_publish_for_brand(brand_id):
     """Publish approved content via the multi-distributor router with failover."""
     from packages.clients.distributor_router import any_distributor_configured, publish_with_failover, PublishRequest
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         # Load aggregator credentials from encrypted DB
         agg_creds = {}
         brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
@@ -276,7 +276,7 @@ async def _auto_publish_for_brand(brand_id):
 
 
 async def _run_auto_publish():
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = [r[0] for r in (await db.execute(select(Brand.id).where(Brand.is_active.is_(True)))).all()]
 
     total_created = 0

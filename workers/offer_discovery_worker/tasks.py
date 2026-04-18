@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.core import Brand, Offer
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ async def _persist_discovered_offers(db, brand_id: uuid.UUID, discovered: list[d
 async def _run_discovery():
     from packages.scoring.niche_research_engine import NICHE_DATABASE
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand).where(Brand.is_active.is_(True)))).scalars().all())
 
     total_discovered = 0
@@ -145,7 +145,7 @@ async def _run_discovery():
         total_discovered += len(all_discovered)
 
         if all_discovered:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 created = await _persist_discovered_offers(db, brand.id, all_discovered)
                 await db.commit()
                 total_created += created

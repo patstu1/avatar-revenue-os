@@ -9,7 +9,7 @@ from sqlalchemy import select, update
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ async def _send_pending_emails():
     total_sent = 0
     total_failed = 0
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         pending = (await db.execute(
             select(EmailSendRequest).where(
                 EmailSendRequest.status == "queued",
@@ -67,12 +67,12 @@ async def _send_pending_emails():
 
         await db.commit()
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id).where(Brand.is_active.is_(True)))).scalars().all())
 
     for bid in brands:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 from apps.api.services.lead_magnet_service import identify_lead_magnet_opportunities, generate_lead_magnet
                 opportunities = await identify_lead_magnet_opportunities(db, bid)
                 for opp in opportunities[:1]:

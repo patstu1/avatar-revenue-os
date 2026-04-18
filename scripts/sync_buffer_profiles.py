@@ -18,14 +18,14 @@ sys.path.insert(0, "/app")
 
 
 async def main(brand_id_str: str | None = None):
-    from packages.db.session import async_session_factory
+    from packages.db.session import get_async_session_factory
     from packages.clients.external_clients import BufferClient
     from packages.db.models.buffer_distribution import BufferProfile
     from packages.db.models.core import Brand
     from apps.api.services import secrets_service
     from sqlalchemy import select, text
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         # Resolve brand
         if brand_id_str:
             brand_id = uuid.UUID(brand_id_str)

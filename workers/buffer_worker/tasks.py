@@ -7,7 +7,7 @@ import uuid
 import structlog
 from celery import shared_task
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import BaseTask
 
 logger = structlog.get_logger()
@@ -26,12 +26,12 @@ async def _submit_pending_jobs():
     from apps.api.services import buffer_distribution_service as svc
     from packages.db.models.buffer_distribution import BufferPublishJob
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
 
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 jobs_q = await db.execute(
                     select(BufferPublishJob)
                     .where(
@@ -68,7 +68,7 @@ async def _sync_buffer_statuses():
     from apps.api.services import buffer_distribution_service as svc
     from packages.db.models.core import Brand, Organization
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
         org_ids_q = await db.execute(
             select(Organization.id).where(Organization.is_active.is_(True))
@@ -78,7 +78,7 @@ async def _sync_buffer_statuses():
     # Step 1: per-brand status sync (legacy)
     for bid in brand_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await svc.run_status_sync(db, bid)
                 await db.commit()
                 logger.info("buffer.status_sync_done", brand_id=str(bid), **result)
@@ -88,7 +88,7 @@ async def _sync_buffer_statuses():
     # Step 2: per-org Buffer post ingestion (real URLs)
     for oid in org_ids:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 result = await svc.sync_published_posts_from_buffer(db, oid)
                 await db.commit()
                 logger.info("buffer.post_ingest_done", org_id=str(oid), **result)

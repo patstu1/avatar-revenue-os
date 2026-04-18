@@ -81,7 +81,7 @@ SAMPLE_POSTS = [
 
 
 async def run_one(channel_name: str, post_data: dict, image_url: str | None, run_number: int):
-    from packages.db.session import async_session_factory
+    from packages.db.session import get_async_session_factory
     from packages.clients.external_clients import BufferClient
     from packages.db.models.content import ContentBrief, Script, ContentItem, Asset, MediaJob
     from packages.db.models.quality import QAReport, Approval
@@ -101,7 +101,7 @@ async def run_one(channel_name: str, post_data: dict, image_url: str | None, run
     print(f"  Post: {post_data['title']}")
     print(f"{'='*60}")
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         # ── Get brand + org ──────────────────────────────────────
         from packages.db.models.core import Brand
         brand = (await db.execute(

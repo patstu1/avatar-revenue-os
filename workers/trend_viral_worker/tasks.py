@@ -6,7 +6,7 @@ EVERY active platform and dispatch via express_publish for fastest time-to-publi
 import asyncio, logging, uuid
 from celery import shared_task
 from sqlalchemy import select
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 from packages.db.models.accounts import CreatorAccount
@@ -52,7 +52,7 @@ async def _trigger_viral_fast_track(brand_id: uuid.UUID, trend_title: str, niche
     """
     from apps.api.services.content_generation_service import full_pipeline
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         # Check if we already acted on this trend
         existing = (await db.execute(
             select(ContentBrief.id).where(
@@ -173,7 +173,7 @@ async def _light_scan():
 
     now = datetime.now(timezone.utc)
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(
             select(Brand).where(Brand.is_active.is_(True))
         )).scalars().all())
@@ -197,7 +197,7 @@ async def _light_scan():
 
         # ── Check if brand is due for a scan ──────────────────────────
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 last_health = (await db.execute(
                     select(TrendSourceHealth.created_at).where(
                         TrendSourceHealth.brand_id == bid,
@@ -212,7 +212,7 @@ async def _light_scan():
 
         # ── Run the scan ──────────────────────────────────────────────
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 await light_scan(db, bid)
                 await db.commit()
                 c += 1
@@ -252,12 +252,12 @@ async def _light_scan():
 async def _deep_analysis():
     """Threshold-triggered: score, classify, create opportunities."""
     from apps.api.services.trend_viral_service import deep_analysis
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
     c = 0
     for bid in brands:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 await deep_analysis(db, bid); await db.commit(); c += 1
         except Exception:
             logger.exception("trend deep analysis failed %s", bid)

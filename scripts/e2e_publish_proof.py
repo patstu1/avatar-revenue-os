@@ -20,13 +20,13 @@ sys.path.insert(0, "/app")
 
 
 async def main():
-    from packages.db.session import async_session_factory
+    from packages.db.session import get_async_session_factory
     from sqlalchemy import select, text
 
     results = {}
     errors = []
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         # ── STEP 0: Verify prerequisites ────────────────────────────
         print("\n=== STEP 0: Prerequisites ===")
         org_row = (await db.execute(text("SELECT id FROM organizations LIMIT 1"))).fetchone()

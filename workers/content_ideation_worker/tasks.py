@@ -13,7 +13,7 @@ from sqlalchemy import select, func
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.content import ContentBrief
 from packages.db.models.core import Brand
 from packages.db.models.accounts import CreatorAccount
@@ -39,7 +39,7 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
     from packages.clients.trend_data_clients import YouTubeTrendingClient, GoogleTrendsClient, RedditTrendingClient
     from packages.scoring.niche_research_engine import NICHE_DATABASE
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
         if not brand:
             return {"brand_id": str(brand_id), "briefs_created": 0, "error": "brand not found"}
@@ -248,7 +248,7 @@ def _generate_brief_title(keywords: list, trends: list, patterns: list, existing
 
 
 async def _run_ideation():
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brand_ids = list((await db.execute(
             select(Brand.id).where(Brand.is_active.is_(True))
         )).scalars().all())

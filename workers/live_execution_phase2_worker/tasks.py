@@ -10,13 +10,13 @@ from sqlalchemy import select
 
 from packages.db.models.core import Brand
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 
 logger = logging.getLogger(__name__)
 
 
 async def _run_all_brands(coro_factory):
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
     for bid in brands:
         try:
@@ -28,7 +28,7 @@ async def _run_all_brands(coro_factory):
 async def _do_recompute_event_ingestions(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_phase2_service import recompute_event_ingestions
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_event_ingestions(db, brand_id)
         await db.commit()
 
@@ -38,7 +38,7 @@ async def _do_process_sequence_triggers(brand_id: uuid.UUID) -> None:
         process_sequence_triggers as run_process_sequence_triggers,
     )
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await run_process_sequence_triggers(db, brand_id)
         await db.commit()
 
@@ -46,7 +46,7 @@ async def _do_process_sequence_triggers(brand_id: uuid.UUID) -> None:
 async def _do_run_payment_sync(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_phase2_service import run_payment_sync
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await run_payment_sync(db, brand_id, provider="stripe")
         await db.commit()
 
@@ -54,7 +54,7 @@ async def _do_run_payment_sync(brand_id: uuid.UUID) -> None:
 async def _do_run_analytics_sync(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_phase2_service import run_analytics_sync
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await run_analytics_sync(db, brand_id, source="buffer")
         await db.commit()
 
@@ -62,7 +62,7 @@ async def _do_run_analytics_sync(brand_id: uuid.UUID) -> None:
 async def _do_run_ad_import(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_phase2_service import run_ad_import
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await run_ad_import(db, brand_id, platform="meta_ads")
         await db.commit()
 
@@ -70,7 +70,7 @@ async def _do_run_ad_import(brand_id: uuid.UUID) -> None:
 async def _do_recompute_buffer_execution_truth(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_phase2_service import recompute_buffer_execution_truth
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_buffer_execution_truth(db, brand_id)
         await db.commit()
 
@@ -81,7 +81,7 @@ async def _do_detect_stale_buffer_jobs(brand_id: uuid.UUID) -> None:
     from packages.db.models.buffer_distribution import BufferPublishJob
     from packages.scoring.live_execution_phase2_engine import detect_stale_jobs
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         q = select(BufferPublishJob).where(
             BufferPublishJob.brand_id == brand_id,
             BufferPublishJob.is_active.is_(True),
@@ -103,7 +103,7 @@ async def _do_detect_stale_buffer_jobs(brand_id: uuid.UUID) -> None:
 async def _do_recompute_buffer_capabilities(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_phase2_service import recompute_buffer_capabilities
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_buffer_capabilities(db, brand_id)
         await db.commit()
 

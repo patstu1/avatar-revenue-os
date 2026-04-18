@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from workers.celery_app import app
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory, get_sync_engine, run_async
+from packages.db.session import get_async_session_factory, get_sync_engine, run_async
 from packages.db.models.core import Brand
 from packages.db.models.scale_alerts import NotificationDelivery
 from packages.notifications.adapters import EmailAdapter, NotificationPayload, SlackWebhookAdapter, SMSAdapter
@@ -32,12 +32,12 @@ def recompute_all_alerts(self) -> dict:
 
     async def _run():
         total = {"brands_processed": 0, "alerts_created": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             r = await db.execute(select(Brand.id))
             ids = [row[0] for row in r.all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     res = await sas.recompute_alerts(db, bid)
                     await db.commit()
                     total["alerts_created"] += int(res.get("alerts_created", 0))
@@ -56,12 +56,12 @@ def recompute_all_launch_candidates(self) -> dict:
 
     async def _run():
         total = {"brands_processed": 0, "candidates_created": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             r = await db.execute(select(Brand.id))
             ids = [row[0] for row in r.all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     res = await sas.recompute_launch_candidates(db, bid)
                     await db.commit()
                     total["candidates_created"] += int(res.get("candidates_created", 0))
@@ -80,12 +80,12 @@ def recompute_all_blockers(self) -> dict:
 
     async def _run():
         total = {"brands_processed": 0, "blockers_found": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             r = await db.execute(select(Brand.id))
             ids = [row[0] for row in r.all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     res = await sas.recompute_scale_blockers(db, bid)
                     await db.commit()
                     total["blockers_found"] += int(res.get("blockers_found", 0))
@@ -104,12 +104,12 @@ def recompute_all_readiness(self) -> dict:
 
     async def _run():
         total = {"brands_processed": 0, "errors": []}
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             r = await db.execute(select(Brand.id))
             ids = [row[0] for row in r.all()]
         for bid in ids:
             try:
-                async with async_session_factory() as db:
+                async with get_async_session_factory()() as db:
                     await sas.recompute_launch_readiness(db, bid)
                     await db.commit()
                     total["brands_processed"] += 1

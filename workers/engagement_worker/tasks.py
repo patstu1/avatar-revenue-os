@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from workers.base_task import TrackedTask
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.autonomous_farm import AccountWarmupPlan
 from packages.scoring.engagement_automation_engine import generate_engagement_plan
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 async def _run_engagement():
     """Find warmup accounts and generate engagement actions."""
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         warmup_accounts = list((await db.execute(
             select(AccountWarmupPlan).where(
                 AccountWarmupPlan.current_phase.in_(["seed", "trickle"]),
@@ -30,7 +30,7 @@ async def _run_engagement():
     for wp in warmup_accounts:
         try:
             acct = None
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 acct = (await db.execute(
                     select(CreatorAccount).where(CreatorAccount.id == wp.account_id)
                 )).scalar_one_or_none()

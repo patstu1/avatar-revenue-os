@@ -20,7 +20,7 @@ from celery import shared_task
 from sqlalchemy import select, func, update, and_, or_
 
 from workers.base_task import TrackedTask
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.content import ContentBrief
 from packages.db.models.core import Brand
 from packages.db.models.accounts import CreatorAccount
@@ -82,7 +82,7 @@ def adjust_all_strategies():
 
 async def _do_adjust_all():
     """Iterate ALL brands and adjust each one."""
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(
             select(Brand.id, Brand.organization_id).where(Brand.is_active.is_(True))
         )).all())
@@ -133,7 +133,7 @@ async def _do_adjust_strategy(brand_id: uuid.UUID, org_id: Optional[uuid.UUID]) 
         "adjustments": [],
     }
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         # ── 1. Load ALL active winning patterns (zero cap) ────────────────
         winning_patterns = list((await db.execute(
             select(WinningPatternMemory).where(

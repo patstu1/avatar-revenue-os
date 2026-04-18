@@ -12,7 +12,7 @@ import uuid
 from celery import shared_task
 from sqlalchemy import select
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
@@ -21,12 +21,12 @@ logger = logging.getLogger(__name__)
 
 async def _run():
     from apps.api.services.causal_attribution_service import recompute_attribution
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
     c = 0
     for bid in brands:
         try:
-            async with async_session_factory() as db:
+            async with get_async_session_factory()() as db:
                 await recompute_attribution(db, bid)
                 await db.commit()
                 c += 1
@@ -58,7 +58,7 @@ async def _attribute_single_item(content_item_id_str: str):
 
     cid = uuid.UUID(content_item_id_str)
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         item = (await db.execute(
             select(ContentItem).where(ContentItem.id == cid)
         )).scalar_one_or_none()
@@ -68,7 +68,7 @@ async def _attribute_single_item(content_item_id_str: str):
         brand_id = item.brand_id
 
     try:
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             await recompute_attribution(db, brand_id)
             await db.commit()
         return {"status": "completed", "brand_id": str(brand_id), "content_item_id": content_item_id_str}

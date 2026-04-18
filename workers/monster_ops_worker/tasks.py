@@ -5,7 +5,7 @@ import logging
 from celery import shared_task
 from sqlalchemy import select
 
-from packages.db.session import async_session_factory, run_async
+from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
 from packages.db.models.core import Brand
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _run_all(coro_factory):
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
     for bid in brands:
         try:
@@ -24,7 +24,7 @@ async def _run_all(coro_factory):
 
 async def _recompute_expansion(bid):
     from apps.api.services.expansion_advisor_service import recompute_advisory
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_advisory(db, bid)
         await db.commit()
 
@@ -35,7 +35,7 @@ async def _recompute_gatekeeper(bid):
         recompute_tests, recompute_dependencies, recompute_contradictions,
         recompute_alerts,
     )
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_completion(db, bid)
         await recompute_truth(db, bid)
         await recompute_execution_closure(db, bid)
@@ -48,7 +48,7 @@ async def _recompute_gatekeeper(bid):
 
 async def _recompute_scale(bid):
     from apps.api.services.scale_service import recompute_scale_recommendations
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await recompute_scale_recommendations(db, bid)
         await db.commit()
 
@@ -73,7 +73,7 @@ def recompute_scale_engine():
 
 async def _run_offer_learning(bid):
     from apps.api.services.offer_learning_service import run_offer_learning
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         await run_offer_learning(db, bid)
         await db.commit()
 
@@ -91,7 +91,7 @@ async def _detect_weak_lanes(bid):
     from packages.db.models.kill_ledger import KillLedgerEntry
     from datetime import datetime, timezone
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         accounts = list((await db.execute(
             select(CreatorAccount).where(
                 CreatorAccount.brand_id == bid,
@@ -183,7 +183,7 @@ async def _trigger_expansion_from_saturation(bid):
     from packages.db.models.scale_alerts import OperatorAlert
     from datetime import datetime, timezone
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         accounts = list((await db.execute(
             select(CreatorAccount).where(
                 CreatorAccount.brand_id == bid,
@@ -248,7 +248,7 @@ async def _daily_operator_digest(bid):
     from apps.api.services.copilot_service import _copilot_context
     from packages.db.models.copilot import CopilotActionSummary
 
-    async with async_session_factory() as db:
+    async with get_async_session_factory()() as db:
         quick, actions, missing, providers = await _copilot_context(db, bid)
 
         for action in actions[:20]:

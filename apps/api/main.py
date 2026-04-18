@@ -124,11 +124,11 @@ _is_dev = settings.api_env == "development"
 async def lifespan(application: FastAPI):
     """Startup: seed provider registry from env vars for all organizations."""
     try:
-        from packages.db.session import async_session_factory
+        from packages.db.session import get_async_session_factory
         from apps.api.services import provider_registry_service as prs
         from sqlalchemy import select, text
 
-        async with async_session_factory() as db:
+        async with get_async_session_factory()() as db:
             # Get all organizations
             result = await db.execute(text("SELECT id FROM organizations LIMIT 100"))
             org_ids = [row[0] for row in result.fetchall()]
