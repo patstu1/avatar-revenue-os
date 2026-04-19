@@ -61,6 +61,12 @@ async def _get_smtp_credentials(db, org_id: uuid.UUID) -> dict:
     username = extra.get("username", "")
     password = creds.get("api_key", "")
     from_email = extra.get("from_email", "") or username
+    # Optional Reply-To — does NOT change From, SMTP auth, SPF/DKIM/DMARC.
+    # When set, outbound messages include a Reply-To header so recipient
+    # replies route to an inbound-parse subdomain (e.g. reply@reply.proofhook.com)
+    # instead of the sending mailbox.  When absent, outbound behavior is
+    # identical to before this change.
+    reply_to = extra.get("reply_to", "")
 
     configured = bool(host and username and password)
     if not configured:
@@ -71,6 +77,7 @@ async def _get_smtp_credentials(db, org_id: uuid.UUID) -> dict:
     return {
         "host": host, "port": port, "username": username,
         "password": password, "from_email": from_email,
+        "reply_to": reply_to,
         "configured": configured,
     }
 
@@ -120,6 +127,12 @@ async def _send_smtp_email(
     msg["From"] = smtp_creds["from_email"]
     msg["To"] = to_email
     msg["Subject"] = subject
+    # Optional Reply-To for inbound capture via SendGrid Inbound Parse.
+    # Presence of this header does NOT affect From, SPF, DKIM, DMARC,
+    # or the SMTP auth path — it only tells the recipient's mail client
+    # which address to populate when they hit Reply.
+    if smtp_creds.get("reply_to"):
+        msg["Reply-To"] = smtp_creds["reply_to"]
 
     if body_text:
         msg.attach(MIMEText(body_text, "plain", "utf-8"))

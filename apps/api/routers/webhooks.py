@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 
 import structlog
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Form, Header, HTTPException, Request, status
 from sqlalchemy import select
 
 from apps.api.deps import DBSession
@@ -918,3 +918,177 @@ async def affiliate_click_webhook(request: Request, db: DBSession):
             link_id=link_id_str,
         )
         return {"status": "accepted", "detail": "link not resolved — event logged"}
+
+
+# =====================================================================
+# Inbound Email Webhook (SendGrid Inbound Parse)
+# =====================================================================
+#
+# SendGrid's Inbound Parse POSTs multipart/form-data to this endpoint
+# whenever a message is received at the configured inbound subdomain
+# (e.g. reply@reply.proofhook.com).
+#
+# We forward sender + subject + body + In-Reply-To to ingest_reply(),
+# which classifies the reply, matches it to a SponsorProfile /
+# SponsorOutreachSequence, and advances the deal stage.
+#
+# Scope is strictly additive:
+#   - does NOT modify outbound SMTP / From / SPF / DKIM / DMARC.
+#   - org routing is via a header/plus-address/destination-subdomain
+#     mapping held in the PROOFHOOK_INBOUND_ORG_ID env var or derived
+#     from the local-part of the original outbound message.
+#
+# Reference: https://docs.sendgrid.com/for-developers/parsing-email/setting-up-the-inbound-parse-webhook
+# =====================================================================
+
+@router.post("/webhooks/inbound-email")
+async def sendgrid_inbound_parse(
+    request: Request,
+    db: DBSession,
+):
+    """Receive a reply from SendGrid Inbound Parse and feed it to ingest_reply().
+
+    SendGrid sends multipart/form-data with these key fields:
+        from      — sender email
+        to        — recipient (our reply@ address)
+        subject   — subject line
+        text      — plaintext body
+        html      — html body
+        headers   — raw headers (we parse In-Reply-To from here)
+        envelope  — JSON with SMTP envelope
+        dkim      — DKIM check result (e.g. "{@sender.com : pass}")
+        SPF       — SPF check result
+        spam_score
+        spam_report
+
+    Returns 2xx quickly so SendGrid does not retry.  Failures inside
+    ingest_reply() are logged but do not bubble up (SendGrid would
+    otherwise mark the webhook as failing).
+    """
+    try:
+        form = await request.form()
+    except Exception as exc:
+        logger.warning("inbound_email.invalid_form", error=str(exc)[:200])
+        return {"status": "accepted", "detail": "invalid form ignored"}
+
+    sender_full = form.get("from", "")
+    to_full = form.get("to", "")
+    subject = form.get("subject", "") or ""
+    body_text = form.get("text", "") or ""
+    body_html = form.get("html", "") or ""
+    headers_raw = form.get("headers", "") or ""
+    envelope_raw = form.get("envelope", "") or ""
+    spam_score = form.get("spam_score", "")
+    dkim_result = form.get("dkim", "")
+    spf_result = form.get("SPF", "")
+
+    # Parse sender email out of "Name <email@example.com>" form
+    import email.utils
+    sender_email = email.utils.parseaddr(str(sender_full))[1] or ""
+
+    # Extract In-Reply-To from raw headers
+    in_reply_to = ""
+    for line in str(headers_raw).splitlines():
+        if line.lower().startswith("in-reply-to:"):
+            in_reply_to = line.split(":", 1)[1].strip().strip("<>")
+            break
+
+    # Prefer text body, fall back to html stripped of tags
+    body = body_text.strip()
+    if not body and body_html:
+        import re
+        body = re.sub(r"<[^>]+>", " ", body_html)
+        body = re.sub(r"\s+", " ", body).strip()
+
+    # Drop obvious spam early (SendGrid assigns 0-5; conservative threshold)
+    try:
+        if spam_score and float(spam_score) >= 5.0:
+            logger.info(
+                "inbound_email.dropped_as_spam",
+                sender=sender_email,
+                spam_score=spam_score,
+            )
+            return {"status": "accepted", "detail": "dropped_as_spam", "spam_score": spam_score}
+    except (TypeError, ValueError):
+        pass
+
+    # Resolve organization_id.
+    # MVP: single-tenant lookup via env var (set to TestCorp's org id).
+    # Long-term: derive from plus-addressing on the outbound (e.g.
+    # reply+<org_id>@reply.proofhook.com) and decode from `to_full`.
+    org_id_str = os.environ.get("PROOFHOOK_INBOUND_ORG_ID", "").strip()
+    if not org_id_str:
+        logger.warning(
+            "inbound_email.no_org_configured",
+            hint="Set PROOFHOOK_INBOUND_ORG_ID env to the organization UUID that owns outbound from hello@proofhook.com",
+            sender=sender_email,
+            subject=subject[:80],
+        )
+        return {
+            "status": "accepted",
+            "detail": "no_org_configured",
+            "note": "Webhook received, but PROOFHOOK_INBOUND_ORG_ID is not set — reply stored for audit only.",
+        }
+
+    try:
+        org_uuid = uuid.UUID(org_id_str)
+    except Exception:
+        logger.error(
+            "inbound_email.invalid_org_env",
+            env_value=org_id_str,
+        )
+        return {"status": "accepted", "detail": "invalid_org_env"}
+
+    # Feed into existing reply-ingestion pipeline
+    try:
+        from apps.api.services.reply_ingestion import ingest_reply
+
+        result = await ingest_reply(
+            db, org_uuid,
+            sender_email=sender_email,
+            subject=subject,
+            body=body,
+            in_reply_to=in_reply_to or None,
+        )
+        await db.commit()
+
+        # Also attempt to match against SponsorOutreachSequence records
+        try:
+            from workers.outreach_worker.tasks import _match_reply_to_outreach
+            await _match_reply_to_outreach(db, org_uuid, sender_email, subject, body)
+            await db.commit()
+        except Exception as match_exc:
+            # Best-effort. ingest_reply already ran and is committed.
+            logger.warning(
+                "inbound_email.match_outreach_failed",
+                error=str(match_exc)[:200],
+            )
+
+        logger.info(
+            "inbound_email.ingested",
+            sender=sender_email,
+            subject=subject[:80],
+            classification=result.get("classification"),
+            matched_sponsor=result.get("matched_sponsor"),
+            matched_deal=result.get("matched_deal"),
+            dkim=dkim_result,
+            spf=spf_result,
+        )
+
+        return {
+            "status": "accepted",
+            "detail": "ingested",
+            "classification": result.get("classification"),
+            "matched_sponsor": result.get("matched_sponsor"),
+            "matched_deal": result.get("matched_deal"),
+        }
+    except Exception as exc:
+        # Swallow exceptions so SendGrid doesn't retry-loop.
+        # The raw form data is logged for post-mortem.
+        logger.exception(
+            "inbound_email.ingest_failed",
+            sender=sender_email,
+            subject=subject[:80],
+            error=str(exc)[:300],
+        )
+        return {"status": "accepted", "detail": "ingest_failed_logged"}
