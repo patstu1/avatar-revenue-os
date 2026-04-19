@@ -38,7 +38,8 @@ _HEALTH_ENDPOINTS: dict[str, dict] = {
     "gemini_flash": {"url": "https://generativelanguage.googleapis.com/v1beta/models", "method": "GET", "auth_param": "key"},
     "openai_image": {"url": "https://api.openai.com/v1/models", "method": "GET", "auth_header": "Authorization", "auth_prefix": "Bearer "},
     "deepseek": {"url": "https://api.deepseek.com/models", "method": "GET", "auth_header": "Authorization", "auth_prefix": "Bearer "},
-    "elevenlabs": {"url": "https://api.elevenlabs.io/v1/user", "method": "GET", "auth_header": "xi-api-key"},
+    # /v1/models works with any valid API key; /v1/user requires user_read scope which not all keys have
+    "elevenlabs": {"url": "https://api.elevenlabs.io/v1/models", "method": "GET", "auth_header": "xi-api-key"},
     "heygen": {"url": "https://api.heygen.com/v2/user/remaining_quota", "method": "GET", "auth_header": "X-Api-Key"},
     "runway": {"url": "https://api.dev.runwayml.com/v1/tasks", "method": "GET", "auth_header": "Authorization", "auth_prefix": "Bearer "},
     "stripe": {"url": "https://api.stripe.com/v1/balance", "method": "GET", "auth_header": "Authorization", "auth_prefix": "Bearer "},
