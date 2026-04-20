@@ -272,3 +272,265 @@ async def get_integrations(current_user: AdminUser, db: DBSession):
 class IntegrationsOverview(BaseModel):
     providers: list[ProviderKeyStatus]
     descriptions: dict[str, str] = {}
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Multi-field provider upsert — PUT /settings/providers/{provider_key}
+# ═════════════════════════════════════════════════════════════════════════
+#
+# Covers credentials that need more than a single api_key: SMTP (host/port/
+# username/password/from_email/use_tls), inbound-email routing rows, webhook
+# signing secrets (stripe_webhook / shopify_webhook), and any future multi-
+# field provider. Writes directly into `integration_providers` using the
+# same Fernet encryption + extra_config layout that Phase 3's `SmtpEmailClient.
+# resolve` and `_resolve_inbound_org_id` already read from.
+#
+# Env is deliberately NOT consulted by this endpoint — the point of the
+# endpoint is to be the system-owned primary path for putting credentials
+# INTO the DB. The env-legacy read paths remain elsewhere, loudly logged.
+#
+# This endpoint is AdminUser-only. Operators cannot write credentials.
+
+
+# Well-known multi-field provider keys — used for (a) sensible defaults on
+# first-time creation of the integration_providers row, and (b) a tiny
+# allowlist of extra_config fields surfaced back in the response so the UI
+# knows what it can safely display without leaking secrets.
+PROVIDER_DEFAULTS: dict[str, dict] = {
+    "smtp": {
+        "provider_name": "SMTP Email (system-managed)",
+        "provider_category": "email",
+        "public_extra_fields": ["host", "port", "username", "from_email", "use_tls"],
+    },
+    "inbound_email_route": {
+        "provider_name": "Inbound Email Route",
+        "provider_category": "inbox",
+        "public_extra_fields": ["to_address", "to_domain", "plus_token"],
+    },
+    "stripe_webhook": {
+        "provider_name": "Stripe Webhook Signing Secret",
+        "provider_category": "payment",
+        "public_extra_fields": [],
+    },
+    "shopify_webhook": {
+        "provider_name": "Shopify Webhook Signing Secret",
+        "provider_category": "payment",
+        "public_extra_fields": [],
+    },
+    "stripe": {
+        "provider_name": "Stripe",
+        "provider_category": "payment",
+        "public_extra_fields": ["publishable_key", "account_id", "webhook_endpoint"],
+    },
+}
+
+
+class UpsertProviderRequest(BaseModel):
+    api_key: Optional[str] = None
+    api_secret: Optional[str] = None
+    oauth_token: Optional[str] = None
+    extra_config: Optional[dict] = None
+    is_enabled: Optional[bool] = None
+    provider_name: Optional[str] = None      # used only on CREATE
+    provider_category: Optional[str] = None  # used only on CREATE
+
+
+class ProviderUpsertResponse(BaseModel):
+    provider_key: str
+    created: bool                # True if the row was created by this call
+    is_enabled: bool
+    health_status: str
+    has_api_key: bool
+    has_api_secret: bool
+    has_oauth_token: bool
+    extra_config_public: dict    # only the non-secret fields
+    key_preview: str             # masked
+
+
+@router.put("/providers/{provider_key}", response_model=ProviderUpsertResponse)
+async def upsert_provider(
+    provider_key: str,
+    body: UpsertProviderRequest,
+    current_user: AdminUser,
+    db: DBSession,
+):
+    """Create or update an ``integration_providers`` row for the caller's org.
+
+    Upsert semantics:
+      - If no row exists for (org_id, provider_key), create one using
+        ``provider_name`` / ``provider_category`` from the request, or from
+        PROVIDER_DEFAULTS, or a generic fallback.
+      - If a row exists, update only the fields present in the request.
+        ``extra_config`` is merged shallow-right (request overrides DB keys).
+
+    Secrets (``api_key``, ``api_secret``, ``oauth_token``) are Fernet-encrypted
+    at write time via ``integration_manager._encrypt``.
+
+    Env vars are never consulted. The response masks secrets and only returns
+    the ``public_extra_fields`` declared in PROVIDER_DEFAULTS (or an empty
+    dict for unknown providers), so no secrets ever leak back to the client.
+    """
+    from sqlalchemy import select
+    from apps.api.services.integration_manager import _encrypt
+    from packages.db.models.integration_registry import IntegrationProvider
+
+    provider_key = (provider_key or "").strip()
+    if not provider_key:
+        raise HTTPException(status_code=400, detail="provider_key required")
+
+    row = (await db.execute(
+        select(IntegrationProvider).where(
+            IntegrationProvider.organization_id == current_user.organization_id,
+            IntegrationProvider.provider_key == provider_key,
+        )
+    )).scalar_one_or_none()
+
+    defaults = PROVIDER_DEFAULTS.get(provider_key, {})
+
+    created = False
+    if row is None:
+        row = IntegrationProvider(
+            organization_id=current_user.organization_id,
+            provider_key=provider_key,
+            provider_name=body.provider_name or defaults.get("provider_name", provider_key),
+            provider_category=body.provider_category or defaults.get("provider_category", "generic"),
+            is_enabled=True if body.is_enabled is None else body.is_enabled,
+            health_status="unconfigured",
+            priority_order=10,
+            quality_tier="standard",
+            cost_per_unit=0.0,
+        )
+        db.add(row)
+        created = True
+
+    if body.api_key is not None:
+        row.api_key_encrypted = _encrypt(body.api_key) if body.api_key else None
+    if body.api_secret is not None:
+        row.api_secret_encrypted = _encrypt(body.api_secret) if body.api_secret else None
+    if body.oauth_token is not None:
+        row.oauth_token_encrypted = _encrypt(body.oauth_token) if body.oauth_token else None
+    if body.extra_config is not None:
+        merged = dict(row.extra_config or {})
+        merged.update(body.extra_config)
+        row.extra_config = merged
+    if body.is_enabled is not None:
+        row.is_enabled = body.is_enabled
+
+    if row.api_key_encrypted or row.oauth_token_encrypted or row.extra_config:
+        row.health_status = "configured"
+
+    await db.flush()
+
+    await log_action(
+        db,
+        "integration_provider.upserted",
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="integration_provider",
+        entity_id=row.id,
+        details={
+            "provider_key": provider_key,
+            "created": created,
+            "fields_changed": [
+                k for k, present in (
+                    ("api_key", body.api_key is not None),
+                    ("api_secret", body.api_secret is not None),
+                    ("oauth_token", body.oauth_token is not None),
+                    ("extra_config", body.extra_config is not None),
+                    ("is_enabled", body.is_enabled is not None),
+                ) if present
+            ],
+        },
+    )
+
+    # Filter extra_config to the public field allowlist for this provider.
+    allowed_public = set(defaults.get("public_extra_fields", []))
+    ec = row.extra_config or {}
+    if allowed_public:
+        public_ec = {k: v for k, v in ec.items() if k in allowed_public}
+    else:
+        public_ec = {}
+
+    return ProviderUpsertResponse(
+        provider_key=provider_key,
+        created=created,
+        is_enabled=row.is_enabled,
+        health_status=row.health_status,
+        has_api_key=bool(row.api_key_encrypted),
+        has_api_secret=bool(row.api_secret_encrypted),
+        has_oauth_token=bool(row.oauth_token_encrypted),
+        extra_config_public=public_ec,
+        key_preview=secrets_service.mask_key("*" * 12) if row.api_key_encrypted else "",
+    )
+
+
+@router.get("/providers/{provider_key}", response_model=ProviderUpsertResponse)
+async def get_provider(
+    provider_key: str,
+    current_user: AdminUser,
+    db: DBSession,
+):
+    """Read current state of a provider row. Never returns decrypted secrets."""
+    from sqlalchemy import select
+    from packages.db.models.integration_registry import IntegrationProvider
+
+    row = (await db.execute(
+        select(IntegrationProvider).where(
+            IntegrationProvider.organization_id == current_user.organization_id,
+            IntegrationProvider.provider_key == provider_key,
+        )
+    )).scalar_one_or_none()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_key}' not configured")
+
+    defaults = PROVIDER_DEFAULTS.get(provider_key, {})
+    allowed_public = set(defaults.get("public_extra_fields", []))
+    ec = row.extra_config or {}
+    public_ec = {k: v for k, v in ec.items() if k in allowed_public} if allowed_public else {}
+
+    return ProviderUpsertResponse(
+        provider_key=provider_key,
+        created=False,
+        is_enabled=row.is_enabled,
+        health_status=row.health_status,
+        has_api_key=bool(row.api_key_encrypted),
+        has_api_secret=bool(row.api_secret_encrypted),
+        has_oauth_token=bool(row.oauth_token_encrypted),
+        extra_config_public=public_ec,
+        key_preview=secrets_service.mask_key("*" * 12) if row.api_key_encrypted else "",
+    )
+
+
+@router.delete("/providers/{provider_key}", status_code=204)
+async def delete_provider(
+    provider_key: str,
+    current_user: AdminUser,
+    db: DBSession,
+):
+    """Delete a provider row. Used to reset / rotate out a credential entirely."""
+    from sqlalchemy import select
+    from packages.db.models.integration_registry import IntegrationProvider
+
+    row = (await db.execute(
+        select(IntegrationProvider).where(
+            IntegrationProvider.organization_id == current_user.organization_id,
+            IntegrationProvider.provider_key == provider_key,
+        )
+    )).scalar_one_or_none()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_key}' not configured")
+
+    await db.delete(row)
+    await log_action(
+        db,
+        "integration_provider.deleted",
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="integration_provider",
+        entity_id=row.id,
+        details={"provider_key": provider_key},
+    )
