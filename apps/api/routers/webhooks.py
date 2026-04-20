@@ -1107,6 +1107,40 @@ async def sendgrid_inbound_parse(
                 error=str(match_exc)[:200],
             )
 
+        # ── email_pipeline persistence (additive, isolated) ──────────────
+        # Writes InboxConnection + EmailThread + EmailMessage +
+        # EmailClassification + EmailReplyDraft for the same inbound
+        # message. Runs in its own try/except so a failure here cannot
+        # break the committed ingest_reply path above.
+        pipeline_result: dict = {}
+        try:
+            pipeline_result = await _persist_email_pipeline(
+                db,
+                org_uuid=org_uuid,
+                to_bare=to_bare or str(to_full or ""),
+                sender_email=sender_email,
+                sender_full=str(sender_full or ""),
+                subject=subject,
+                body_text=body_text,
+                body_html=body_html,
+                body_preview=body,
+                headers_raw=str(headers_raw or ""),
+                in_reply_to=in_reply_to,
+            )
+            await db.commit()
+            logger.info("email_pipeline.ingest.ok", **pipeline_result)
+        except Exception as pipe_exc:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+            logger.exception(
+                "email_pipeline.ingest_failed",
+                sender=sender_email,
+                subject=subject[:80],
+                error=str(pipe_exc)[:300],
+            )
+
         logger.info(
             "inbound_email.ingested",
             sender=sender_email,
@@ -1124,6 +1158,7 @@ async def sendgrid_inbound_parse(
             "classification": result.get("classification"),
             "matched_sponsor": result.get("matched_sponsor"),
             "matched_deal": result.get("matched_deal"),
+            "email_pipeline": pipeline_result,
         }
     except Exception as exc:
         # Swallow exceptions so SendGrid doesn't retry-loop.
@@ -1135,6 +1170,267 @@ async def sendgrid_inbound_parse(
             error=str(exc)[:300],
         )
         return {"status": "accepted", "detail": "ingest_failed_logged"}
+
+
+# =====================================================================
+# email_pipeline persistence — InboxConnection → EmailThread →
+# EmailMessage → EmailClassification → EmailReplyDraft
+# =====================================================================
+#
+# Called from sendgrid_inbound_parse after the legacy reply_ingestion
+# path has completed and committed. This path is strictly additive: all
+# writes are isolated in the caller's try/except so a failure here
+# cannot break the committed reply_ingestion state.
+#
+# Idempotent: EmailMessage is keyed on provider_message_id (uniqueness
+# enforced by the DB). EmailThread is keyed on (inbox_connection_id,
+# provider_thread_id). InboxConnection is keyed on (org_id,
+# email_address). If the message has already been ingested, the helper
+# returns early with skipped=True and writes nothing new.
+
+
+async def _persist_email_pipeline(
+    db,
+    *,
+    org_uuid,
+    to_bare: str,
+    sender_email: str,
+    sender_full: str,
+    subject: str,
+    body_text: str,
+    body_html: str,
+    body_preview: str,
+    headers_raw: str,
+    in_reply_to: str,
+) -> dict:
+    """Persist one inbound email into the email_pipeline tables.
+
+    Returns a dict of the IDs written, suitable for spreading into a
+    structured log line. Raises on persistence error — the caller is
+    responsible for rollback + logging.
+    """
+    import hashlib
+    from datetime import datetime, timezone
+
+    from packages.db.models.email_pipeline import (
+        EmailMessage,
+        EmailThread,
+        InboxConnection,
+    )
+    from apps.api.services.email_classifier import (
+        ClassificationResult,
+        classify_and_persist,
+    )
+    from apps.api.services.reply_engine import create_reply_draft
+
+    now = datetime.now(timezone.utc)
+
+    # ── 1. Upsert InboxConnection (org_id, email_address) ────────────
+    inbox_address = (to_bare or "").strip().lower() or "reply@proofhook-inbound"
+    inbox = (
+        await db.execute(
+            select(InboxConnection).where(
+                InboxConnection.org_id == org_uuid,
+                InboxConnection.email_address == inbox_address,
+            )
+        )
+    ).scalar_one_or_none()
+    if inbox is None:
+        inbox = InboxConnection(
+            org_id=org_uuid,
+            email_address=inbox_address,
+            display_name="SendGrid Inbound",
+            provider="sendgrid_inbound",
+            auth_method="webhook",
+            credential_provider_key="sendgrid_inbound",
+            status="active",
+            is_active=True,
+        )
+        db.add(inbox)
+        await db.flush()
+
+    # ── 2. Derive provider_message_id (Message-ID header or synth) ───
+    provider_message_id = _extract_header_value(headers_raw, "Message-ID")
+    if not provider_message_id:
+        synth_seed = f"{sender_email}|{subject}|{now.isoformat()}"
+        provider_message_id = (
+            f"<synth-{hashlib.sha256(synth_seed.encode()).hexdigest()[:24]}"
+            f"@proofhook.internal>"
+        )
+
+    # Idempotency: skip if this message is already ingested
+    existing_msg = (
+        await db.execute(
+            select(EmailMessage).where(
+                EmailMessage.provider_message_id == provider_message_id
+            )
+        )
+    ).scalar_one_or_none()
+    if existing_msg is not None:
+        return {
+            "skipped": True,
+            "reason": "message_already_ingested",
+            "message_id": str(existing_msg.id),
+            "thread_id": str(existing_msg.thread_id),
+            "provider_message_id": provider_message_id,
+        }
+
+    # ── 3. Resolve thread: In-Reply-To chain first, stable hash fallback
+    thread = None
+    if in_reply_to:
+        parent = (
+            await db.execute(
+                select(EmailMessage).where(
+                    EmailMessage.provider_message_id == in_reply_to
+                )
+            )
+        ).scalar_one_or_none()
+        if parent is not None:
+            thread = (
+                await db.execute(
+                    select(EmailThread).where(EmailThread.id == parent.thread_id)
+                )
+            ).scalar_one_or_none()
+
+    if thread is None:
+        normalized_subject = _normalize_subject_for_thread(subject)
+        thread_seed = f"{normalized_subject}|{(sender_email or '').lower()}"
+        provider_thread_id = (
+            f"sha256:{hashlib.sha256(thread_seed.encode()).hexdigest()[:48]}"
+        )
+        thread = (
+            await db.execute(
+                select(EmailThread).where(
+                    EmailThread.inbox_connection_id == inbox.id,
+                    EmailThread.provider_thread_id == provider_thread_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if thread is None:
+            thread = EmailThread(
+                inbox_connection_id=inbox.id,
+                org_id=org_uuid,
+                provider_thread_id=provider_thread_id,
+                subject=(subject or "")[:1000],
+                direction="inbound",
+                from_email=sender_email or "",
+                from_name=_parse_display_name(sender_full),
+                to_emails=[inbox_address] if inbox_address else [],
+                first_message_at=now,
+                last_message_at=now,
+                last_inbound_at=now,
+                message_count=0,
+            )
+            db.add(thread)
+            await db.flush()
+
+    # ── 4. Insert EmailMessage (idempotent via provider_message_id) ──
+    msg = EmailMessage(
+        thread_id=thread.id,
+        inbox_connection_id=inbox.id,
+        org_id=org_uuid,
+        provider_message_id=provider_message_id,
+        in_reply_to=in_reply_to or None,
+        direction="inbound",
+        from_email=sender_email or "",
+        from_name=_parse_display_name(sender_full),
+        to_emails=[inbox_address] if inbox_address else [],
+        subject=(subject or "")[:1000],
+        body_text=body_text or None,
+        body_html=body_html or None,
+        snippet=(body_preview or body_text or "")[:500],
+        message_date=now,
+        size_bytes=len(body_text or "") + len(body_html or ""),
+    )
+    db.add(msg)
+    await db.flush()
+
+    thread.message_count = (thread.message_count or 0) + 1
+    thread.last_message_at = now
+    thread.last_inbound_at = now
+
+    # ── 5. Classify + persist EmailClassification row ─────────────────
+    classification_row = await classify_and_persist(db, message=msg, org_id=org_uuid)
+    thread.latest_classification = classification_row.intent
+
+    # ── 6. Draft reply (reply_policy runs inside; trace persisted) ───
+    cls_dataclass = ClassificationResult(
+        intent=classification_row.intent,
+        confidence=float(classification_row.confidence or 0.0),
+        rationale=classification_row.rationale or "",
+        secondary_intent=classification_row.secondary_intent,
+        secondary_confidence=classification_row.secondary_confidence,
+        reply_mode=classification_row.reply_mode or "draft",
+    )
+    draft_result = await create_reply_draft(
+        db,
+        thread_id=thread.id,
+        message_id=msg.id,
+        classification=cls_dataclass,
+        org_id=org_uuid,
+        to_email=sender_email or "",
+        body_text=body_preview or body_text or "",
+        thread_subject=subject or "",
+        classification_id=classification_row.id,
+    )
+
+    # Link draft id onto classification + record policy's final mode
+    final_mode = draft_result.get("reply_mode") or cls_dataclass.reply_mode
+    if final_mode:
+        classification_row.reply_mode = final_mode
+    draft_id_str = draft_result.get("draft_id")
+    if draft_id_str:
+        try:
+            classification_row.action_id = uuid.UUID(draft_id_str)
+        except (ValueError, TypeError):
+            pass
+
+    await db.flush()
+
+    return {
+        "inbox_connection_id": str(inbox.id),
+        "thread_id": str(thread.id),
+        "message_id": str(msg.id),
+        "provider_message_id": provider_message_id,
+        "classification_id": str(classification_row.id),
+        "intent": classification_row.intent,
+        "confidence": float(classification_row.confidence or 0.0),
+        "reply_mode": final_mode,
+        "mode_source": draft_result.get("mode_source"),
+        "draft_id": draft_id_str,
+        "draft_status": draft_result.get("status"),
+    }
+
+
+def _extract_header_value(headers_raw: str, header_name: str) -> str:
+    """Case-insensitive lookup of a single header value from raw text."""
+    if not headers_raw:
+        return ""
+    needle = f"{header_name}:".lower()
+    for line in str(headers_raw).splitlines():
+        if line.lower().startswith(needle):
+            return line.split(":", 1)[1].strip().strip("<>")
+    return ""
+
+
+def _normalize_subject_for_thread(subject: str) -> str:
+    """Strip stacked Re:/Fwd: prefixes + collapse whitespace for a stable thread key."""
+    import re
+
+    if not subject:
+        return "(no subject)"
+    # Strip any number of stacked "Re:" / "Fwd:" / "Fw:" prefixes in one pass
+    s = re.sub(r"^(\s*(?:re|fwd?|fw)\s*:\s*)+", "", subject, flags=re.IGNORECASE).strip()
+    s = re.sub(r"\s+", " ", s)
+    return s.lower()[:500]
+
+
+def _parse_display_name(from_full: str) -> str:
+    """Extract display name from 'Name <email>' tuple form."""
+    import email.utils
+
+    name, _ = email.utils.parseaddr(str(from_full or ""))
+    return (name or "")[:255]
 
 
 # =====================================================================

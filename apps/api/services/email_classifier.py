@@ -328,3 +328,67 @@ def compute_stage_transition(
     if new_stage and new_stage != current_stage:
         return new_stage
     return None
+
+
+# ── Persistence — EmailClassification row writer ────────────────────────────
+#
+# classify_email() above is pure: it returns a ClassificationResult dataclass
+# without touching the DB. classify_and_persist() wraps it and writes the
+# result to the email_classifications table so downstream surfaces (reply
+# engine, GM control board, stage controller) can query by classification_id.
+#
+# Idempotent on message_id: if a row already exists for this message, it is
+# returned unchanged. This makes the inbound webhook safe to retry.
+
+
+async def classify_and_persist(
+    db,
+    *,
+    message,
+    org_id=None,
+):
+    """Classify ``message`` and persist an EmailClassification row.
+
+    Uses the synchronous keyword classifier ``classify_email`` — the LLM
+    upgrade path is intentionally deferred to a later batch to keep this
+    additive and avoid new external dependencies in the inbound path.
+
+    Idempotent on ``message.id``: returns the existing row if present.
+
+    Args:
+        db:       AsyncSession
+        message:  EmailMessage ORM instance (must be flushed so .id is set)
+        org_id:   accepted for API symmetry with future LLM path; unused
+                  by the keyword classifier.
+
+    Returns:
+        The persisted (or pre-existing) EmailClassification row.
+    """
+    from sqlalchemy import select
+    from packages.db.models.email_pipeline import EmailClassification
+
+    existing = (
+        await db.execute(
+            select(EmailClassification).where(EmailClassification.message_id == message.id)
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing
+
+    body = message.body_text or message.body_html or ""
+    result = classify_email(message.subject or "", body)
+
+    row = EmailClassification(
+        message_id=message.id,
+        thread_id=message.thread_id,
+        intent=result.intent,
+        confidence=float(result.confidence),
+        rationale=(result.rationale or "")[:5000],
+        secondary_intent=result.secondary_intent,
+        secondary_confidence=result.secondary_confidence,
+        classifier_version="keyword_v1",
+        reply_mode=result.reply_mode,
+    )
+    db.add(row)
+    await db.flush()
+    return row
