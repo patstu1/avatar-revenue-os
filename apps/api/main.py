@@ -97,6 +97,7 @@ from apps.api.routers import (
     brain_ops,
     ai_command,
     leads,
+    proposal_drain,
 )
 
 settings = get_settings()
@@ -307,6 +308,7 @@ app.include_router(portfolio_command.router, prefix="/api/v1", tags=["Portfolio 
 app.include_router(integrations_dashboard.router, prefix="/api/v1", tags=["Integrations Dashboard"])
 app.include_router(brain_ops.router, prefix="/api/v1", tags=["Brain Operations: Runtime State"])
 app.include_router(ai_command.router, prefix="/api/v1/brands", tags=["AI Command Center: Provider Stack, Quality, Experiments, Budget, Health, Activity"])
+app.include_router(proposal_drain.router, prefix="/api/v1", tags=["Proposal Drain: send_proposal action consumer"])
 
 # --- Local media file serving (fallback when S3 is not configured) ---
 
