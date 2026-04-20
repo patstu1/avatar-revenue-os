@@ -98,6 +98,9 @@ from apps.api.routers import (
     ai_command,
     leads,
     proposal_drain,
+    proof_gallery,
+    email_pipeline as email_pipeline_router,
+    microsoft_inbox_oauth,
 )
 
 settings = get_settings()
@@ -309,6 +312,9 @@ app.include_router(integrations_dashboard.router, prefix="/api/v1", tags=["Integ
 app.include_router(brain_ops.router, prefix="/api/v1", tags=["Brain Operations: Runtime State"])
 app.include_router(ai_command.router, prefix="/api/v1/brands", tags=["AI Command Center: Provider Stack, Quality, Experiments, Budget, Health, Activity"])
 app.include_router(proposal_drain.router, prefix="/api/v1", tags=["Proposal Drain: send_proposal action consumer"])
+app.include_router(proof_gallery.router, prefix="/api/v1", tags=["Proof Gallery: Buyer-facing proof assets"])
+app.include_router(email_pipeline_router.router, prefix="/api/v1/email", tags=["Email Pipeline: Inboxes, threads, messages, replies"])
+app.include_router(microsoft_inbox_oauth.router, prefix="/api/v1", tags=["Microsoft Inbox OAuth: Outlook/Graph inbox connection"])
 
 # --- Local media file serving (fallback when S3 is not configured) ---
 
