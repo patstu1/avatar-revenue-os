@@ -352,9 +352,20 @@ async def list_email_requests(db: AsyncSession, brand_id: uuid.UUID) -> list[Ema
 
 
 async def create_email_send(db: AsyncSession, brand_id: uuid.UUID, data: dict[str, Any]) -> EmailSendRequest:
+    # Validate against the org's system-managed SMTP config (DB-first).
+    # Env is only read by SmtpEmailClient.resolve() as a clearly-marked legacy fallback.
+    from packages.clients.external_clients import SmtpEmailClient
+    from packages.db.models.core import Brand
+    org_id = (await db.execute(
+        select(Brand.organization_id).where(Brand.id == brand_id)
+    )).scalar_one_or_none()
+    has_smtp = False
+    if org_id:
+        client = await SmtpEmailClient.resolve(db, org_id)
+        has_smtp = client._is_configured()
     brand_ctx = {
-        "has_smtp_config": bool(os.environ.get("SMTP_HOST")),
-        "has_esp_api_key": bool(os.environ.get("ESP_API_KEY")),
+        "has_smtp_config": has_smtp,
+        "has_esp_api_key": bool(os.environ.get("ESP_API_KEY")),  # legacy env — to migrate next
     }
     validation = validate_email_send(data, brand_ctx)
 
@@ -378,8 +389,24 @@ async def create_email_send(db: AsyncSession, brand_id: uuid.UUID, data: dict[st
 
 
 async def execute_pending_emails(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, int]:
-    has_smtp = bool(os.environ.get("SMTP_HOST"))
-    has_esp = bool(os.environ.get("ESP_API_KEY"))
+    """Send pending EmailSendRequests for a brand.
+
+    SMTP is resolved DB-first via ``SmtpEmailClient.resolve`` against the brand's
+    organization. Env is only used as a legacy fallback inside the resolver;
+    it is not the primary runtime path.
+    """
+    from packages.clients.external_clients import SmtpEmailClient
+    from packages.db.models.core import Brand
+
+    org_id = (await db.execute(
+        select(Brand.organization_id).where(Brand.id == brand_id)
+    )).scalar_one_or_none()
+
+    if not org_id:
+        return {"created": 0, "updated": 0, "details": "brand_not_found_or_no_org"}
+
+    client = await SmtpEmailClient.resolve(db, org_id)
+    smtp_ready = client._is_configured()
 
     q = select(EmailSendRequest).where(
         EmailSendRequest.brand_id == brand_id,
@@ -391,9 +418,7 @@ async def execute_pending_emails(db: AsyncSession, brand_id: uuid.UUID) -> dict[
     sent = 0
     failed = 0
     for req in pending:
-        if has_smtp or has_esp:
-            from packages.clients.external_clients import SmtpEmailClient
-            client = SmtpEmailClient()
+        if smtp_ready:
             result = await client.send_email(
                 to_email=req.to_email,
                 subject=req.subject,
@@ -416,12 +441,15 @@ async def execute_pending_emails(db: AsyncSession, brand_id: uuid.UUID) -> dict[
                 failed += 1
         else:
             req.status = "failed"
-            req.error_message = "No email provider configured"
+            req.error_message = (
+                "No email provider configured for this organization "
+                "(integration_providers.provider_key='smtp' and no env-legacy fallback available)"
+            )
             req.retry_count += 1
             failed += 1
 
     await db.commit()
-    return {"created": 0, "updated": sent + failed, "details": f"sent={sent}, failed={failed}"}
+    return {"created": 0, "updated": sent + failed, "details": f"sent={sent}, failed={failed}, smtp_source={client.source}"}
 
 
 # ── SMS ────────────────────────────────────────────────────────────────
@@ -519,11 +547,23 @@ async def recompute_messaging_blockers(db: AsyncSession, brand_id: uuid.UUID) ->
     contacts_q = select(CrmContact).where(CrmContact.brand_id == brand_id, CrmContact.is_active.is_(True))
     contacts_count = len(list((await db.execute(contacts_q)).scalars().all()))
 
+    # SMTP presence is resolved DB-first via SmtpEmailClient.resolve (system-managed).
+    # SMS / ESP / CRM keys remain as legacy env reads — to be migrated to DB in a later pass.
+    from packages.clients.external_clients import SmtpEmailClient
+    from packages.db.models.core import Brand
+    org_id = (await db.execute(
+        select(Brand.organization_id).where(Brand.id == brand_id)
+    )).scalar_one_or_none()
+    has_smtp = False
+    if org_id:
+        smtp_client = await SmtpEmailClient.resolve(db, org_id)
+        has_smtp = smtp_client._is_configured()
+
     brand_ctx = {
-        "has_smtp_config": bool(os.environ.get("SMTP_HOST")),
-        "has_sms_api_key": bool(os.environ.get("SMS_API_KEY")),
-        "has_esp_api_key": bool(os.environ.get("ESP_API_KEY")),
-        "has_crm_credentials": bool(os.environ.get("CRM_API_KEY")),
+        "has_smtp_config": has_smtp,
+        "has_sms_api_key": bool(os.environ.get("SMS_API_KEY")),  # legacy — migrate next
+        "has_esp_api_key": bool(os.environ.get("ESP_API_KEY")),  # legacy — migrate next
+        "has_crm_credentials": bool(os.environ.get("CRM_API_KEY")),  # legacy — migrate next
         "contacts_count": contacts_count,
     }
 

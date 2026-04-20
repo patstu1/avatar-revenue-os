@@ -121,14 +121,60 @@ class InAppAdapter(BaseNotificationAdapter):
 class EmailAdapter(BaseNotificationAdapter):
     channel = "email"
 
-    def __init__(self, smtp_host: str = "", smtp_port: int = 587, smtp_user: str = "", smtp_pass: str = ""):
-        self.smtp_host = smtp_host or os.environ.get("SMTP_HOST", "")
-        self.smtp_port = smtp_port or int(os.environ.get("SMTP_PORT", "587"))
-        self.smtp_user = smtp_user or os.environ.get("SMTP_USER", "") or os.environ.get("SMTP_USERNAME", "")
-        self.smtp_pass = smtp_pass or os.environ.get("SMTP_PASS", "") or os.environ.get("SMTP_PASSWORD", "")
-        self.from_email = os.environ.get("SMTP_FROM_EMAIL", "") or self.smtp_user
-        self.use_tls = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
+    def __init__(self, smtp_host: str = "", smtp_port: int = 587, smtp_user: str = "", smtp_pass: str = "",
+                 smtp_from_email: str = "", use_tls: Optional[bool] = None, source: str = "legacy"):
+        """Explicit-params construction is the primary path. Use ``EmailAdapter.from_db``
+        to pull config from ``integration_providers`` (system-managed). No-arg init
+        falls back to SMTP_* env vars with a clearly-marked transitional warning.
+        """
+        if smtp_host or smtp_user or smtp_pass or smtp_from_email:
+            # Explicit construction — DB-resolved or test-harness path.
+            self.smtp_host = smtp_host
+            self.smtp_port = smtp_port
+            self.smtp_user = smtp_user
+            self.smtp_pass = smtp_pass
+            self.from_email = smtp_from_email or smtp_user
+            self.use_tls = True if use_tls is None else bool(use_tls)
+            self.source = source
+        else:
+            # Legacy env-backed construction. Not the primary runtime path;
+            # to be removed once all callers migrate to from_db.
+            self.smtp_host = os.environ.get("SMTP_HOST", "")
+            self.smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+            self.smtp_user = os.environ.get("SMTP_USER", "") or os.environ.get("SMTP_USERNAME", "")
+            self.smtp_pass = os.environ.get("SMTP_PASS", "") or os.environ.get("SMTP_PASSWORD", "")
+            self.from_email = os.environ.get("SMTP_FROM_EMAIL", "") or self.smtp_user
+            self.use_tls = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
+            self.source = "env_legacy"
+            logger.warning(
+                "notification.email.env_legacy_fallback",
+                hint="EmailAdapter constructed from env vars. Configure SMTP in Settings > Integrations and construct via EmailAdapter.from_db.",
+            )
         self.configured = bool(self.smtp_host and (self.smtp_user or self.from_email))
+
+    @classmethod
+    async def from_db(cls, db, org_id) -> "EmailAdapter":
+        """Construct from DB-managed SMTP config for the org. Returns an
+        unconfigured adapter if none is present (no env fallback)."""
+        from packages.clients.credential_loader import load_smtp_config_async
+        cfg = await load_smtp_config_async(db, org_id)
+        if not cfg:
+            inst = object.__new__(cls)
+            inst.smtp_host = ""
+            inst.smtp_port = 587
+            inst.smtp_user = ""
+            inst.smtp_pass = ""
+            inst.from_email = ""
+            inst.use_tls = True
+            inst.source = "db_missing"
+            inst.configured = False
+            return inst
+        return cls(
+            smtp_host=cfg["host"], smtp_port=cfg["port"],
+            smtp_user=cfg["username"], smtp_pass=cfg["password"],
+            smtp_from_email=cfg["from_email"], use_tls=cfg["use_tls"],
+            source=cfg["source"],
+        )
 
     async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, Optional[str]]:
         if not self.configured:

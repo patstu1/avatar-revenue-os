@@ -118,6 +118,86 @@ def load_credential_for_task(
     }
 
 
+def load_smtp_config(session: Session, org_id: uuid.UUID) -> Optional[dict]:
+    """Resolve SMTP config for an org from integration_providers (sync).
+
+    System-managed-first: the dashboard writes an integration_providers row with
+    provider_key='smtp', api_key_encrypted holding the SMTP password, and
+    extra_config holding host/port/username/from_email/use_tls. Returns that
+    dict. Env is never consulted here; callers decide if an env-legacy
+    fallback is acceptable (see SmtpEmailClient.from_env_legacy).
+
+    Returns None if no DB-managed SMTP config is present.
+    """
+    provider = session.execute(
+        select(IntegrationProvider).where(
+            IntegrationProvider.organization_id == org_id,
+            IntegrationProvider.provider_key == "smtp",
+            IntegrationProvider.is_enabled.is_(True),
+        )
+    ).scalar_one_or_none()
+
+    if not provider:
+        return None
+
+    extra = provider.extra_config or {}
+    host = extra.get("host") or extra.get("smtp_host")
+    from_email = extra.get("from_email") or extra.get("smtp_from_email")
+
+    if not host or not from_email:
+        logger.warning(
+            "smtp.db_config_incomplete",
+            org_id=str(org_id),
+            hint="integration_providers.extra_config must include host and from_email",
+        )
+        return None
+
+    password = _decrypt(provider.api_key_encrypted) if provider.api_key_encrypted else ""
+    use_tls_raw = extra.get("use_tls", True)
+    if isinstance(use_tls_raw, str):
+        use_tls = use_tls_raw.lower() not in ("false", "0", "no", "off")
+    else:
+        use_tls = bool(use_tls_raw)
+
+    return {
+        "host": host,
+        "port": int(extra.get("port") or extra.get("smtp_port") or 587),
+        "username": extra.get("username") or extra.get("smtp_username") or "",
+        "password": password,
+        "from_email": from_email,
+        "use_tls": use_tls,
+        "source": "db",
+    }
+
+
+async def load_smtp_config_async(session, org_id: uuid.UUID) -> Optional[dict]:
+    """Async variant of load_smtp_config for FastAPI request-path callers."""
+    from apps.api.services.integration_manager import get_credential_full
+
+    full = await get_credential_full(session, org_id, "smtp")
+    extra = full.get("extra_config") or {}
+    host = extra.get("host") or extra.get("smtp_host")
+    from_email = extra.get("from_email") or extra.get("smtp_from_email")
+    if not host or not from_email:
+        return None
+
+    use_tls_raw = extra.get("use_tls", True)
+    if isinstance(use_tls_raw, str):
+        use_tls = use_tls_raw.lower() not in ("false", "0", "no", "off")
+    else:
+        use_tls = bool(use_tls_raw)
+
+    return {
+        "host": host,
+        "port": int(extra.get("port") or extra.get("smtp_port") or 587),
+        "username": extra.get("username") or extra.get("smtp_username") or "",
+        "password": full.get("api_key") or "",
+        "from_email": from_email,
+        "use_tls": use_tls,
+        "source": "db",
+    }
+
+
 def load_credential_full(session: Session, org_id: uuid.UUID, provider_key: str) -> dict:
     """Synchronous: get api_key + oauth_token + extra_config for a provider."""
     provider = session.execute(

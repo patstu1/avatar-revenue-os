@@ -1012,32 +1012,48 @@ async def sendgrid_inbound_parse(
     except (TypeError, ValueError):
         pass
 
-    # Resolve organization_id.
-    # MVP: single-tenant lookup via env var (set to TestCorp's org id).
-    # Long-term: derive from plus-addressing on the outbound (e.g.
-    # reply+<org_id>@reply.proofhook.com) and decode from `to_full`.
-    org_id_str = os.environ.get("PROOFHOOK_INBOUND_ORG_ID", "").strip()
-    if not org_id_str:
+    # Resolve organization_id — DB-backed, system-managed routing.
+    # Primary path: a matching row in integration_providers with
+    #   provider_key='inbound_email_route'
+    #   is_enabled=true
+    #   extra_config contains one of:
+    #     - "to_address": exact recipient ("reply@reply.proofhook.com")
+    #     - "to_domain":  recipient domain ("reply.proofhook.com")
+    #     - "plus_token": token matched against "reply+<token>@..." local-part
+    # The row's organization_id is the owning org.
+    # Legacy fallback: PROOFHOOK_INBOUND_ORG_ID env var. Only applied when no
+    # DB route matches. A warning is logged every time the legacy path fires.
+    import email.utils as _email_utils_inbound
+    _, to_bare = _email_utils_inbound.parseaddr(str(to_full or "").strip())
+    org_uuid = await _resolve_inbound_org_id(db, to_bare or str(to_full or ""))
+
+    if org_uuid is None:
+        env_org = os.environ.get("PROOFHOOK_INBOUND_ORG_ID", "").strip()
+        if env_org:
+            try:
+                org_uuid = uuid.UUID(env_org)
+                logger.warning(
+                    "inbound_email.env_legacy_fallback",
+                    to_address=to_bare,
+                    hint="Using PROOFHOOK_INBOUND_ORG_ID env. Add an 'inbound_email_route' provider row (extra_config.to_address / to_domain / plus_token) to move this to system-managed.",
+                )
+            except ValueError:
+                logger.error("inbound_email.invalid_org_env", env_value=env_org)
+                return {"status": "accepted", "detail": "invalid_org_env"}
+
+    if org_uuid is None:
         logger.warning(
             "inbound_email.no_org_configured",
-            hint="Set PROOFHOOK_INBOUND_ORG_ID env to the organization UUID that owns outbound from hello@proofhook.com",
+            hint="Configure inbound routing in Settings > Integrations (provider_key='inbound_email_route'). PROOFHOOK_INBOUND_ORG_ID env remains as a legacy fallback only.",
             sender=sender_email,
+            to_address=to_bare,
             subject=subject[:80],
         )
         return {
             "status": "accepted",
             "detail": "no_org_configured",
-            "note": "Webhook received, but PROOFHOOK_INBOUND_ORG_ID is not set — reply stored for audit only.",
+            "note": "Webhook received, but no DB inbound_email_route matched and no legacy env fallback was set.",
         }
-
-    try:
-        org_uuid = uuid.UUID(org_id_str)
-    except Exception:
-        logger.error(
-            "inbound_email.invalid_org_env",
-            env_value=org_id_str,
-        )
-        return {"status": "accepted", "detail": "invalid_org_env"}
 
     # Feed into existing reply-ingestion pipeline
     try:
@@ -1092,3 +1108,66 @@ async def sendgrid_inbound_parse(
             error=str(exc)[:300],
         )
         return {"status": "accepted", "detail": "ingest_failed_logged"}
+
+
+# =====================================================================
+# Inbound-email org routing resolver (system-managed)
+# =====================================================================
+
+async def _resolve_inbound_org_id(db, to_address: str):
+    """Resolve an inbound recipient address to an organization_id using
+    DB-managed routing rows in ``integration_providers``.
+
+    Match priority (first match wins):
+      1. exact ``extra_config.to_address`` equal to the recipient
+      2. exact ``extra_config.plus_token`` equal to the token extracted from
+         a ``local+<token>@domain`` recipient
+      3. exact ``extra_config.to_domain`` equal to the recipient's domain
+
+    Returns ``uuid.UUID`` or ``None``. Env is never consulted here; the
+    legacy PROOFHOOK_INBOUND_ORG_ID fallback is applied by the caller only
+    when this function returns ``None``.
+    """
+    from packages.db.models.integration_registry import IntegrationProvider
+
+    to_address = (to_address or "").strip().lower()
+    if not to_address:
+        return None
+
+    local = to_address.split("@", 1)[0] if "@" in to_address else ""
+    domain = to_address.split("@", 1)[1] if "@" in to_address else ""
+    plus_token = ""
+    if "+" in local:
+        plus_token = local.split("+", 1)[1]
+
+    rows = (await db.execute(
+        select(IntegrationProvider).where(
+            IntegrationProvider.provider_key == "inbound_email_route",
+            IntegrationProvider.is_enabled.is_(True),
+        )
+    )).scalars().all()
+
+    # Pass 1: exact to_address
+    for row in rows:
+        extra = row.extra_config or {}
+        route_to = str(extra.get("to_address", "")).strip().lower()
+        if route_to and route_to == to_address:
+            return row.organization_id
+
+    # Pass 2: plus_token
+    if plus_token:
+        for row in rows:
+            extra = row.extra_config or {}
+            token = str(extra.get("plus_token", "")).strip().lower()
+            if token and token == plus_token:
+                return row.organization_id
+
+    # Pass 3: to_domain
+    if domain:
+        for row in rows:
+            extra = row.extra_config or {}
+            route_domain = str(extra.get("to_domain", "")).strip().lower()
+            if route_domain and route_domain == domain:
+                return row.organization_id
+
+    return None

@@ -420,7 +420,12 @@ async def _handle_recover_webhook(db: AsyncSession, action: OperatorAction) -> d
 
 
 async def _handle_send_outreach(db: AsyncSession, action: OperatorAction) -> dict:
-    """Actually send an outreach email via SMTP."""
+    """Actually send an outreach email via SMTP.
+
+    SMTP is resolved DB-first via ``SmtpEmailClient.resolve`` (scoped to the
+    action's organization). Env is used only as a clearly-marked legacy
+    fallback inside the resolver; no env read happens in this handler.
+    """
     payload = action.action_payload or {}
     draft = payload.get("draft", {})
 
@@ -431,21 +436,30 @@ async def _handle_send_outreach(db: AsyncSession, action: OperatorAction) -> dic
     if not contact_email or not subject or not body:
         return {"skipped": True, "reason": "Missing contact_email, subject, or body in draft"}
 
-    import os
-    smtp_host = os.environ.get("SMTP_HOST", "")
-    if not smtp_host:
-        return {"skipped": True, "reason": "SMTP_HOST not configured — email send requires SMTP credentials",
-                "draft_preserved": True, "contact": contact_email, "subject": subject}
-
     try:
         from packages.clients.external_clients import SmtpEmailClient
-        client = SmtpEmailClient()
-        import asyncio
-        result = await client.send_email(to=contact_email, subject=subject, body=body)
+        client = await SmtpEmailClient.resolve(db, action.organization_id)
+        if not client._is_configured():
+            return {
+                "skipped": True,
+                "reason": (
+                    "SMTP not configured for this organization in integration_providers "
+                    "(provider_key='smtp') and no env legacy fallback available."
+                ),
+                "draft_preserved": True,
+                "contact": contact_email,
+                "subject": subject,
+            }
+        result = await client.send_email(to_email=contact_email, subject=subject, body_text=body)
         if result.get("success"):
-            return {"sent": True, "contact": contact_email, "subject": subject,
-                    "state_changes": [f"Email sent to {contact_email}"]}
-        return {"sent": False, "error": result.get("error", "Send failed")}
+            return {
+                "sent": True,
+                "contact": contact_email,
+                "subject": subject,
+                "smtp_source": client.source,
+                "state_changes": [f"Email sent to {contact_email}"],
+            }
+        return {"sent": False, "error": result.get("error", "Send failed"), "smtp_source": client.source}
     except Exception as e:
         return {"sent": False, "error": str(e)[:200]}
 

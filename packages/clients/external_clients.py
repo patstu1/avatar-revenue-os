@@ -876,15 +876,92 @@ class TikTokAdsClient:
 # ---------------------------------------------------------------------------
 
 class SmtpEmailClient:
-    """Real SMTP email sender using aiosmtplib."""
+    """Real SMTP email sender using aiosmtplib.
 
-    def __init__(self) -> None:
-        self.host = os.environ.get("SMTP_HOST", "")
-        self.port = int(os.environ.get("SMTP_PORT", "587"))
-        self.username = os.environ.get("SMTP_USERNAME", "") or os.environ.get("SMTP_USER", "")
-        self.password = os.environ.get("SMTP_PASSWORD", "") or os.environ.get("SMTP_PASS", "")
-        self.from_email = os.environ.get("SMTP_FROM_EMAIL", "") or self.username
-        self.use_tls = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
+    Canonical construction is via ``SmtpEmailClient.from_db`` /
+    ``SmtpEmailClient.from_db_sync`` which pull config from
+    ``integration_providers`` (system-managed).
+
+    ``SmtpEmailClient()`` (no args) remains as a legacy env-backed fallback
+    for callers that do not yet have a session/org. It logs a transitional
+    warning every time it is used; the env path is explicitly not the
+    primary runtime path and is scheduled for removal.
+    """
+
+    def __init__(
+        self,
+        *,
+        host: str | None = None,
+        port: int | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        from_email: str | None = None,
+        use_tls: bool | None = None,
+        source: str = "env_legacy",
+    ) -> None:
+        if host is None and from_email is None and username is None and password is None:
+            # Legacy env-backed construction — primary path is from_db/from_db_sync.
+            self.host = os.environ.get("SMTP_HOST", "")
+            self.port = int(os.environ.get("SMTP_PORT", "587"))
+            self.username = os.environ.get("SMTP_USERNAME", "") or os.environ.get("SMTP_USER", "")
+            self.password = os.environ.get("SMTP_PASSWORD", "") or os.environ.get("SMTP_PASS", "")
+            self.from_email = os.environ.get("SMTP_FROM_EMAIL", "") or self.username
+            self.use_tls = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
+            self.source = "env_legacy"
+            logger.warning(
+                "smtp.env_legacy_fallback",
+                hint="Using SMTP_* env vars. Configure SMTP in Settings > Integrations (provider_key='smtp') to move to system-managed.",
+            )
+        else:
+            self.host = host or ""
+            self.port = port if port is not None else 587
+            self.username = username or ""
+            self.password = password or ""
+            self.from_email = from_email or self.username
+            self.use_tls = bool(use_tls) if use_tls is not None else True
+            self.source = source
+
+    @classmethod
+    async def from_db(cls, db, org_id) -> "SmtpEmailClient | None":
+        """Construct from DB-managed SMTP config. Returns None if none present."""
+        from packages.clients.credential_loader import load_smtp_config_async
+        cfg = await load_smtp_config_async(db, org_id)
+        if not cfg:
+            return None
+        return cls(
+            host=cfg["host"], port=cfg["port"], username=cfg["username"],
+            password=cfg["password"], from_email=cfg["from_email"],
+            use_tls=cfg["use_tls"], source=cfg["source"],
+        )
+
+    @classmethod
+    def from_db_sync(cls, session, org_id) -> "SmtpEmailClient | None":
+        """Sync construct (worker path) from DB-managed SMTP config."""
+        from packages.clients.credential_loader import load_smtp_config
+        cfg = load_smtp_config(session, org_id)
+        if not cfg:
+            return None
+        return cls(
+            host=cfg["host"], port=cfg["port"], username=cfg["username"],
+            password=cfg["password"], from_email=cfg["from_email"],
+            use_tls=cfg["use_tls"], source=cfg["source"],
+        )
+
+    @classmethod
+    async def resolve(cls, db, org_id) -> "SmtpEmailClient":
+        """Canonical async resolver: DB-first, env-legacy fallback with clear warning."""
+        client = await cls.from_db(db, org_id)
+        if client is not None:
+            return client
+        return cls()  # env-legacy fallback (emits smtp.env_legacy_fallback warning)
+
+    @classmethod
+    def resolve_sync(cls, session, org_id) -> "SmtpEmailClient":
+        """Canonical sync resolver: DB-first, env-legacy fallback with clear warning."""
+        client = cls.from_db_sync(session, org_id)
+        if client is not None:
+            return client
+        return cls()
 
     def _is_configured(self) -> bool:
         return bool(self.host and self.from_email)

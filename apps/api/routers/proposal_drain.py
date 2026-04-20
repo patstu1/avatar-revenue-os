@@ -10,20 +10,20 @@ Additive and reversible:
       ``SmtpEmailClient``, ``emit_event``.
     - Does not modify ``reply_ingestion.py`` or any worker-core file.
 
-Triggered manually via ``POST /api/v1/proposals/drain-pending`` with an
-``X-Ops-Token`` header (value must match the ``OPS_TOKEN`` env var).
+Auth: both endpoints require an authenticated operator/admin via JWT
+(``OperatorUser`` dep). The previous ``X-Ops-Token`` env-token path is
+removed — operator/admin accounts are the system-owned primary path.
 """
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
-from fastapi import APIRouter, Header, HTTPException, Query, status
+from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
-from apps.api.deps import DBSession
+from apps.api.deps import DBSession, OperatorUser
 from apps.api.services.event_bus import emit_event
 from apps.api.services.package_recommender import recommend_package
 from apps.api.services.stripe_billing_service import (
@@ -40,20 +40,6 @@ logger = structlog.get_logger()
 PROPOSAL_ACTION_TYPES = ("send_proposal", "respond_to_question")
 
 
-def _require_ops_token(x_ops_token: Optional[str]) -> None:
-    expected = os.environ.get("OPS_TOKEN", "")
-    if not expected:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="OPS_TOKEN not configured on server",
-        )
-    if x_ops_token != expected:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="invalid or missing X-Ops-Token header",
-        )
-
-
 def _extract_first_name(email: str) -> str:
     local = email.split("@", 1)[0]
     first = local.split(".")[0].split("+")[0]
@@ -63,16 +49,15 @@ def _extract_first_name(email: str) -> str:
 @router.get("/proposals/pending-count")
 async def pending_proposal_count(
     db: DBSession,
-    x_ops_token: Optional[str] = Header(None, alias="X-Ops-Token"),
+    current_user: OperatorUser,
 ) -> dict:
     """Operator health check — how many pending actions would be drained."""
-    _require_ops_token(x_ops_token)
-
     count = (
         await db.execute(
             select(func.count())
             .select_from(OperatorAction)
             .where(
+                OperatorAction.organization_id == current_user.organization_id,
                 OperatorAction.status == "pending",
                 OperatorAction.source_module == "reply_ingestion",
                 OperatorAction.action_type.in_(PROPOSAL_ACTION_TYPES),
@@ -86,8 +71,8 @@ async def pending_proposal_count(
 @router.post("/proposals/drain-pending")
 async def drain_pending_proposals(
     db: DBSession,
+    current_user: OperatorUser,
     limit: int = Query(10, ge=1, le=50),
-    x_ops_token: Optional[str] = Header(None, alias="X-Ops-Token"),
 ) -> dict:
     """Drain pending send_proposal / respond_to_question operator actions.
 
@@ -96,18 +81,17 @@ async def drain_pending_proposals(
         2. look up the matching Offer row by brand_id + slug
         3. generate a Stripe payment link (source=outreach_proposal metadata)
         4. render a proof/pricing email via ``email_templates.build_proof_email``
-        5. send via ``SmtpEmailClient``
+        5. send via ``SmtpEmailClient`` resolved from DB per-action.organization_id
         6. mark action completed + emit ``proposal.sent`` system event
 
     Failures on individual actions are recorded and the loop continues —
     they do not roll back already-completed work.
     """
-    _require_ops_token(x_ops_token)
-
     actions = (
         await db.execute(
             select(OperatorAction)
             .where(
+                OperatorAction.organization_id == current_user.organization_id,
                 OperatorAction.status == "pending",
                 OperatorAction.source_module == "reply_ingestion",
                 OperatorAction.action_type.in_(PROPOSAL_ACTION_TYPES),
@@ -117,11 +101,11 @@ async def drain_pending_proposals(
         )
     ).scalars().all()
 
-    smtp = SmtpEmailClient()
     processed: list[dict] = []
 
     for action in actions:
         try:
+            smtp = await SmtpEmailClient.resolve(db, action.organization_id)
             result = await _drain_one(action, db, smtp)
         except Exception as exc:
             logger.exception("proposal_drain.unhandled_exception", action_id=str(action.id))

@@ -6,6 +6,7 @@ import os
 import uuid
 from typing import Optional
 
+import stripe  # permanent runtime dependency — see requirements.txt / pyproject.toml
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,8 +43,7 @@ async def _get_stripe_api_key(db: Optional[AsyncSession] = None, org_id: Optiona
 
 
 def _init_stripe(api_key: str):
-    """Set stripe.api_key and return the module."""
-    import stripe
+    """Set stripe.api_key on the module-level import and return it."""
     stripe.api_key = api_key
     return stripe
 
@@ -321,7 +321,6 @@ async def create_checkout_session(
     if not settings.stripe_api_key:
         return {"error": "Stripe not configured", "checkout_url": None}
 
-    import stripe
     stripe.api_key = settings.stripe_api_key
 
     price_map = {
@@ -377,7 +376,6 @@ async def create_credit_purchase_session(
     if not settings.stripe_api_key:
         return {"error": "Stripe not configured", "checkout_url": None}
 
-    import stripe
     stripe.api_key = settings.stripe_api_key
 
     ladder = design_pricing_ladder()
