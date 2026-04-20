@@ -42,6 +42,7 @@ from apps.api.routers import (
     live_execution_phase2,
     creator_revenue,
     webhooks,
+    operator_console,
     provider_registry,
     copilot,
     gatekeeper,
@@ -315,6 +316,7 @@ app.include_router(proposal_drain.router, prefix="/api/v1", tags=["Proposal Drai
 app.include_router(proof_gallery.router, prefix="/api/v1", tags=["Proof Gallery: Buyer-facing proof assets"])
 app.include_router(email_pipeline_router.router, prefix="/api/v1/email", tags=["Email Pipeline: Inboxes, threads, messages, replies"])
 app.include_router(microsoft_inbox_oauth.router, prefix="/api/v1", tags=["Microsoft Inbox OAuth: Outlook/Graph inbox connection"])
+app.include_router(operator_console.router, prefix="/api/v1", tags=["Operator Console: Pending draft review"])
 
 # --- Local media file serving (fallback when S3 is not configured) ---
 

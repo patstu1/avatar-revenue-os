@@ -772,6 +772,14 @@ app.conf.update(
             "task": "workers.outreach_worker.tasks.poll_all_inboxes",
             "schedule": crontab(minute="*/5"),
         },
+        # --- Reply draft send loop (Batch 2B) ---
+        # Every minute, dispatch any approved EmailReplyDraft rows via
+        # Microsoft Graph (M365) or SMTP fallback. Idle orgs are skipped
+        # (query pre-filters distinct org_ids with approved rows).
+        "reply-drafts-send-every-minute": {
+            "task": "workers.outreach_worker.tasks.send_all_approved_reply_drafts",
+            "schedule": crontab(minute="*"),
+        },
         "offer-discovery-daily": {
             "task": "workers.offer_discovery_worker.tasks.discover_offers",
             "schedule": crontab(minute=0, hour=5),

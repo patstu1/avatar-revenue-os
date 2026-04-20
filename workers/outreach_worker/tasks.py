@@ -648,3 +648,107 @@ async def _poll_all_orgs_impl() -> dict:
 def poll_all_inboxes(self) -> dict:
     """Beat-schedule entry: poll inbox for all orgs with IMAP configured."""
     return _run_async(_poll_all_orgs_impl())
+
+
+# ── Task 5 & 6: Reply draft send worker (Batch 2B) ──────────────────────────
+#
+# Scheduled via beat every minute. Reads approved EmailReplyDraft rows,
+# hands them to reply_engine.send_approved_drafts which dispatches via
+# Microsoft Graph sendMail (for M365 inboxes) or the fallback SMTP client.
+#
+# Idempotency: the service only picks up rows with status='approved' +
+# is_active=True. Successfully-sent rows flip to status='sent' + sent_at
+# set, so they are not re-processed on the next beat. Failed rows keep
+# status='approved' with error_message populated; next beat retries.
+#
+# Failure isolation: per-draft exceptions are caught inside
+# send_approved_drafts; per-org exceptions here are caught and logged so
+# one bad org doesn't starve the rest of the beat cycle.
+
+
+async def _send_approved_reply_drafts_impl(org_id: str) -> dict:
+    """Send approved reply drafts for one org. Returns summary dict."""
+    from apps.api.services.reply_engine import send_approved_drafts
+
+    async with get_async_session_factory()() as db:
+        try:
+            result = await send_approved_drafts(db, uuid.UUID(org_id))
+            await db.commit()
+            return {"org_id": org_id, **result}
+        except Exception as exc:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+            logger.exception(
+                "reply_draft_send_worker.org_error org_id=%s error=%s",
+                org_id, str(exc)[:200],
+            )
+            return {
+                "org_id": org_id,
+                "sent": 0,
+                "failed": 0,
+                "total_drafts": 0,
+                "error": str(exc)[:200],
+            }
+
+
+@shared_task(
+    base=TrackedTask,
+    bind=True,
+    name="workers.outreach_worker.tasks.send_approved_reply_drafts",
+)
+def send_approved_reply_drafts(self, org_id: str) -> dict:
+    """Send all approved EmailReplyDraft rows for one organization."""
+    return _run_async(_send_approved_reply_drafts_impl(org_id))
+
+
+async def _send_all_approved_reply_drafts_impl() -> dict:
+    """Beat entry: iterate every org with approved drafts and dispatch them.
+
+    Queries EmailReplyDraft.org_id DISTINCT for rows where
+    status='approved'. Orgs with no approved work are never touched, so
+    the beat is cheap on idle systems.
+    """
+    from sqlalchemy import select as sa_select
+    from packages.db.models.email_pipeline import EmailReplyDraft
+
+    async with get_async_session_factory()() as db:
+        org_ids = (
+            await db.execute(
+                sa_select(EmailReplyDraft.org_id)
+                .where(
+                    EmailReplyDraft.status == "approved",
+                    EmailReplyDraft.is_active.is_(True),
+                )
+                .distinct()
+            )
+        ).scalars().all()
+
+    results = []
+    for oid in org_ids:
+        result = await _send_approved_reply_drafts_impl(str(oid))
+        results.append(result)
+
+    total_sent = sum(r.get("sent", 0) for r in results)
+    total_failed = sum(r.get("failed", 0) for r in results)
+    logger.info(
+        "reply_draft_send_worker.beat_cycle orgs=%d sent=%d failed=%d",
+        len(results), total_sent, total_failed,
+    )
+    return {
+        "orgs_processed": len(results),
+        "total_sent": total_sent,
+        "total_failed": total_failed,
+        "results": results,
+    }
+
+
+@shared_task(
+    base=TrackedTask,
+    bind=True,
+    name="workers.outreach_worker.tasks.send_all_approved_reply_drafts",
+)
+def send_all_approved_reply_drafts(self) -> dict:
+    """Beat-schedule entry: send approved reply drafts across every org."""
+    return _run_async(_send_all_approved_reply_drafts_impl())
