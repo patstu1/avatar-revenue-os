@@ -883,7 +883,17 @@ class SmtpEmailClient:
         self.port = int(os.environ.get("SMTP_PORT", "587"))
         self.username = os.environ.get("SMTP_USERNAME", "") or os.environ.get("SMTP_USER", "")
         self.password = os.environ.get("SMTP_PASSWORD", "") or os.environ.get("SMTP_PASS", "")
-        self.from_email = os.environ.get("SMTP_FROM_EMAIL", "") or self.username
+        # Accept SMTP_FROM_EMAIL (canonical), then SMTP_FROM (legacy),
+        # then fall back to SMTP_USERNAME. This matters when SMTP relay login
+        # uses one identity (e.g. Brevo SMTP key) but messages must be From: a
+        # verified sender like hello@proofhook.com.
+        self.from_email = (
+            os.environ.get("SMTP_FROM_EMAIL", "")
+            or os.environ.get("SMTP_FROM", "")
+            or self.username
+        )
+        self.from_name = os.environ.get("SMTP_FROM_NAME", "ProofHook")
+        self.reply_to = os.environ.get("SMTP_REPLY_TO", "") or self.from_email
         self.use_tls = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
 
     def _is_configured(self) -> bool:
@@ -907,25 +917,37 @@ class SmtpEmailClient:
             }
 
         msg = MIMEMultipart("alternative")
-        msg["From"] = self.from_email
+        msg["From"] = f"{self.from_name} <{self.from_email}>"
         msg["To"] = to_email
         msg["Subject"] = subject
+        msg["Reply-To"] = self.reply_to
+        msg["List-Unsubscribe"] = f"<mailto:{self.from_email}?subject=unsubscribe>"
+        msg["X-Mailer"] = "ProofHook"
 
-        if body_text:
-            msg.attach(MIMEText(body_text, "plain", "utf-8"))
+        # Always include plain text version (improves deliverability)
+        plain = body_text
+        if not plain and body_html:
+            import re
+            plain = re.sub(r'<[^>]+>', '', body_html).strip()
+        if plain:
+            msg.attach(MIMEText(plain, "plain", "utf-8"))
         if body_html:
             msg.attach(MIMEText(body_html, "html", "utf-8"))
-        if not body_text and not body_html:
+        if not plain and not body_html:
             msg.attach(MIMEText("", "plain", "utf-8"))
 
         try:
+            # Port 587 = STARTTLS (start_tls=True, use_tls=False)
+            # Port 465 = Direct SSL (use_tls=True, start_tls=False)
+            is_ssl_port = self.port == 465
             result = await aiosmtplib.send(
                 msg,
                 hostname=self.host,
                 port=self.port,
                 username=self.username or None,
                 password=self.password or None,
-                use_tls=self.use_tls,
+                use_tls=is_ssl_port,
+                start_tls=not is_ssl_port and self.use_tls,
             )
             message_id = msg.get("Message-ID") or str(result)
             logger.info(

@@ -101,6 +101,25 @@ async def capture_lead(body: LeadCaptureRequest, request: Request, db: DBSession
     except Exception:
         pass
 
+    # Auto-create a CloserAction for follow-up execution
+    try:
+        from packages.db.models.expansion_pack2_phase_a import CloserAction
+        db.add(CloserAction(
+            brand_id=brand.id,
+            lead_opportunity_id=lead.id,
+            action_type="initial_follow_up",
+            priority=1,
+            channel="email",
+            subject_or_opener=f"Thanks for your interest in {body.offer_slug.replace('-', ' ').title()}",
+            timing="1h",
+            rationale=f"Auto-generated follow-up for inbound lead {body.name} ({body.email})",
+            expected_outcome="Acknowledge inquiry, provide next steps, build rapport",
+            is_completed=False,
+            is_active=True,
+        ))
+    except Exception:
+        pass
+
     await db.commit()
 
     return {

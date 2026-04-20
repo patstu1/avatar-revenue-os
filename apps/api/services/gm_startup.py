@@ -254,25 +254,29 @@ async def get_startup_prompt(
 
 
 def _build_gm_opening(phase: str, state: dict[str, Any]) -> str:
-    """Build the GM's opening message based on system phase.
+    """Build the Revenue-Ops GM's opening message based on system phase.
 
-    These are conversation starters, not prescriptive instructions.
-    The GM drives strategy from here via the chat.
+    The GM operates ProofHook's package-first, no-call, automation-first
+    creative services revenue machine. Opening copy never asks about
+    niche / audience / followers — that's legacy creator-growth doctrine.
+    It asks about package catalog state, funnel config, and automation
+    gaps, which is where Revenue-Ops actually moves.
     """
     if phase == "empty":
         return (
-            "Welcome to the machine. I'm your Strategic GM — I build the revenue "
-            "blueprint, plan the account architecture, and run the scaling strategy.\n\n"
-            "Right now the system is a blank slate. Before I can build anything, "
-            "I need to understand what we're working with.\n\n"
-            "Let's start with the basics:\n"
-            "- What niche or market are you targeting?\n"
-            "- Who is the audience?\n"
-            "- What are you selling, or what do you want to monetize?\n\n"
-            "Tell me as much or as little as you want. I'll build the full launch "
-            "blueprint from there — brands, accounts, content angles, monetization "
-            "strategy, the whole architecture. You approve or adjust before anything "
-            "gets created."
+            "Welcome to the Revenue-Ops machine. I'm the GM — I operate the "
+            "package-first automated creative services funnel: inbound lead → "
+            "signal-based package recommendation → secure checkout → intake → "
+            "production → delivery → upsell.\n\n"
+            "Right now the machine is a blank slate. Before I can run anything, "
+            "tell me:\n"
+            "- Is the package catalog wired to a live checkout link yet?\n"
+            "- Is the inbound inbox connected and classifying?\n"
+            "- Is there an intake form for the production handoff?\n\n"
+            "I'll read the machine state, build the Revenue-Ops Blueprint, "
+            "and tell you exactly what to wire up first. No calls, no custom "
+            "proposals, no free spec work — every move is broad-market, "
+            "package-first, and automation-compatible."
         )
 
     if phase == "partial":
@@ -283,43 +287,44 @@ def _build_gm_opening(phase: str, state: dict[str, Any]) -> str:
         if brands > 0:
             parts.append(f"{brands} brand{'s' if brands != 1 else ''}")
         if accounts > 0:
-            parts.append(f"{accounts} account{'s' if accounts != 1 else ''}")
+            parts.append(f"{accounts} inbox{'es' if accounts != 1 else ''}")
         if offers > 0:
-            parts.append(f"{offers} offer{'s' if offers != 1 else ''}")
+            parts.append(f"{offers} package{'s' if offers != 1 else ''}")
 
         configured = ", ".join(parts) if parts else "some entities"
 
         missing = []
         if brands == 0:
-            missing.append("no brands")
+            missing.append("no brand configured")
         if accounts == 0:
-            missing.append("no publishing accounts")
+            missing.append("no inbound inbox connected")
         if offers == 0:
-            missing.append("no monetization offers")
+            missing.append("no packages in catalog")
         if not state["providers"]["has_llm"]:
-            missing.append("no AI provider key")
-        if not state["providers"]["has_publishing"]:
-            missing.append("no publishing connection")
+            missing.append("no AI provider key (needed for classifier)")
+        if not state["providers"].get("has_payments"):
+            missing.append("no payments provider (needed for checkout)")
 
         missing_str = ", ".join(missing) if missing else "finishing touches"
 
         return (
-            f"The machine has {configured} configured, but it's not fully "
-            f"operational yet — {missing_str}.\n\n"
-            "Want me to assess what's here and propose the next moves to get "
-            "this running? Or tell me what you want to change and I'll revise "
-            "the plan."
+            f"The Revenue-Ops machine has {configured} wired, but it's not "
+            f"fully operational yet — {missing_str}.\n\n"
+            "Want me to scan the state and propose the next automation moves "
+            "to close the gaps? Or tell me which part of the funnel you want "
+            "to wire next and I'll sequence it."
         )
 
     # operational
     brands = state["brands"]["count"]
-    accounts = state["accounts"]["count"]
+    offers = state["offers"]["count"]
     revenue = state["revenue"]["total_90d"]
     return (
-        f"Machine is online. {brands} brand{'s' if brands != 1 else ''}, "
-        f"{accounts} account{'s' if accounts != 1 else ''}, "
-        f"${revenue:,.2f} revenue (90d).\n\n"
-        "What do you need?"
+        f"Revenue-Ops machine is online. {brands} brand{'s' if brands != 1 else ''}, "
+        f"{offers} package{'s' if offers != 1 else ''} in catalog, "
+        f"${revenue:,.2f} package revenue (90d).\n\n"
+        "What do you need — package routing tune, funnel audit, outbound volume, "
+        "or delivery throughput?"
     )
 
 

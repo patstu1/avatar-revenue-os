@@ -388,6 +388,10 @@ from packages.db.models.gm import GMSession, GMMessage, GMBlueprint, GMConversat
 from packages.db.models.alert_routing import OperatorNotificationPreference, AlertDeliveryLog
 from packages.db.models.publish_policy import PublishPolicyRule
 from packages.db.models.revenue_assignment import RevenueAssignment
+from packages.db.models.email_pipeline import (
+    InboxConnection, EmailThread, EmailMessage, EmailClassification,
+    EmailReplyDraft, SalesStageTransition,
+)
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",
@@ -574,4 +578,10 @@ __all__ = [
     "AlertDeliveryLog",
     "PublishPolicyRule",
     "RevenueAssignment",
+    "InboxConnection",
+    "EmailThread",
+    "EmailMessage",
+    "EmailClassification",
+    "EmailReplyDraft",
+    "SalesStageTransition",
 ]
