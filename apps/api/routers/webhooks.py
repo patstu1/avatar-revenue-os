@@ -21,16 +21,31 @@ router = APIRouter()
 
 @router.post("/webhooks/stripe")
 async def stripe_webhook(request: Request, db: DBSession, stripe_signature: str = Header(alias="Stripe-Signature")):
-    """Receive and verify a Stripe webhook event."""
-    secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-    if not secret:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Stripe webhook secret not configured")
+    """Receive and verify a Stripe webhook event.
 
+    Signing-secret resolution is DB-first via ``_resolve_stripe_webhook_secret``.
+    Since webhooks are external and we do not know the owning org before
+    signature verification, we try every DB-managed secret in turn until one
+    verifies. Env is a last-resort legacy fallback logged as
+    ``stripe_webhook.env_legacy_fallback``.
+    """
     body = await request.body()
-    result = StripeWebhookVerifier.verify(body, stripe_signature, secret)
+
+    result, matched_org_id = await _verify_webhook_with_candidates(
+        verifier=StripeWebhookVerifier,
+        body=body,
+        signature=stripe_signature,
+        candidates=await _resolve_stripe_webhook_secret(db),
+        env_var="STRIPE_WEBHOOK_SECRET",
+        provider_key="stripe_webhook",
+        log_prefix="stripe_webhook",
+    )
 
     if not result["valid"]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid signature: {result['error']}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid signature: {result['error']}",
+        )
 
     # Idempotency: check if event_id already ingested
     event_id = result.get("event_id")
@@ -437,16 +452,28 @@ def _safe_uuid(val):
 
 @router.post("/webhooks/shopify")
 async def shopify_webhook(request: Request, db: DBSession, x_shopify_hmac_sha256: str = Header(alias="X-Shopify-Hmac-SHA256"), x_shopify_topic: str = Header(alias="X-Shopify-Topic", default="")):
-    """Receive and verify a Shopify webhook event."""
-    secret = os.environ.get("SHOPIFY_WEBHOOK_SECRET", "")
-    if not secret:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Shopify webhook secret not configured")
+    """Receive and verify a Shopify webhook event.
 
+    DB-first signing-secret resolution via ``_resolve_shopify_webhook_secret``;
+    env fallback logs ``shopify_webhook.env_legacy_fallback``.
+    """
     body = await request.body()
-    result = ShopifyWebhookVerifier.verify(body, x_shopify_hmac_sha256, secret)
+
+    result, matched_org_id = await _verify_webhook_with_candidates(
+        verifier=ShopifyWebhookVerifier,
+        body=body,
+        signature=x_shopify_hmac_sha256,
+        candidates=await _resolve_shopify_webhook_secret(db),
+        env_var="SHOPIFY_WEBHOOK_SECRET",
+        provider_key="shopify_webhook",
+        log_prefix="shopify_webhook",
+    )
 
     if not result["valid"]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid HMAC: {result['error']}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid HMAC: {result['error']}",
+        )
 
     payload = result.get("payload", {})
 
@@ -1171,3 +1198,141 @@ async def _resolve_inbound_org_id(db, to_address: str):
                 return row.organization_id
 
     return None
+
+
+# =====================================================================
+# Webhook signing-secret resolvers (system-managed)
+# =====================================================================
+#
+# Webhooks arrive before we know the owning org — the signing secret must
+# therefore be looked up without org context. We pull every DB-managed
+# secret for the relevant provider_key, try each against the incoming
+# signature, and let the verifier decide which one is correct.
+#
+# Env (STRIPE_WEBHOOK_SECRET / SHOPIFY_WEBHOOK_SECRET) remains only as a
+# last-resort legacy fallback, logged every time it fires.
+
+
+async def _resolve_stripe_webhook_secret(db):
+    """Return candidate Stripe webhook secrets from integration_providers.
+
+    Reads every row with provider_key='stripe_webhook' and is_enabled=true
+    across all orgs, decrypts the api_key_encrypted column, and returns
+    ``[(org_id, secret), ...]`` in priority order (priority_order ASC, then
+    created_at ASC). Env is NOT consulted here; that's done by the caller.
+    """
+    from packages.db.models.integration_registry import IntegrationProvider
+    from apps.api.services.integration_manager import _decrypt
+
+    rows = (await db.execute(
+        select(IntegrationProvider)
+        .where(
+            IntegrationProvider.provider_key == "stripe_webhook",
+            IntegrationProvider.is_enabled.is_(True),
+        )
+        .order_by(
+            IntegrationProvider.priority_order.asc(),
+            IntegrationProvider.created_at.asc(),
+        )
+    )).scalars().all()
+
+    candidates: list[tuple[uuid.UUID, str]] = []
+    for row in rows:
+        if not row.api_key_encrypted:
+            continue
+        try:
+            secret = _decrypt(row.api_key_encrypted)
+        except Exception as exc:
+            logger.warning("stripe_webhook.decrypt_failed", row_id=str(row.id), error=str(exc)[:120])
+            continue
+        if secret:
+            candidates.append((row.organization_id, secret))
+    return candidates
+
+
+async def _resolve_shopify_webhook_secret(db):
+    """Return candidate Shopify webhook secrets from integration_providers.
+
+    Same shape as ``_resolve_stripe_webhook_secret`` but keyed to
+    ``provider_key='shopify_webhook'``.
+    """
+    from packages.db.models.integration_registry import IntegrationProvider
+    from apps.api.services.integration_manager import _decrypt
+
+    rows = (await db.execute(
+        select(IntegrationProvider)
+        .where(
+            IntegrationProvider.provider_key == "shopify_webhook",
+            IntegrationProvider.is_enabled.is_(True),
+        )
+        .order_by(
+            IntegrationProvider.priority_order.asc(),
+            IntegrationProvider.created_at.asc(),
+        )
+    )).scalars().all()
+
+    candidates: list[tuple[uuid.UUID, str]] = []
+    for row in rows:
+        if not row.api_key_encrypted:
+            continue
+        try:
+            secret = _decrypt(row.api_key_encrypted)
+        except Exception as exc:
+            logger.warning("shopify_webhook.decrypt_failed", row_id=str(row.id), error=str(exc)[:120])
+            continue
+        if secret:
+            candidates.append((row.organization_id, secret))
+    return candidates
+
+
+async def _verify_webhook_with_candidates(
+    *,
+    verifier,
+    body: bytes,
+    signature: str,
+    candidates,
+    env_var: str,
+    provider_key: str,
+    log_prefix: str,
+):
+    """Try each DB-managed candidate secret; fall back to env only if all fail.
+
+    Returns ``(result, matched_org_id)`` where ``result`` is the verifier's
+    dict (``{"valid": bool, "error": str, ...}``) and ``matched_org_id`` is
+    the org that owned the secret that verified, or ``None`` if the env
+    fallback was used, or ``None`` on total failure.
+
+    Signature verification itself is the identity proof — only the org that
+    generated the webhook can have signed with the matching secret, so the
+    first candidate that verifies is the correct owner.
+    """
+    last_error: str = ""
+
+    for org_id, secret in candidates or []:
+        result = verifier.verify(body, signature, secret)
+        if result.get("valid"):
+            logger.info(
+                f"{log_prefix}.db_verified",
+                provider_key=provider_key,
+                org_id=str(org_id),
+            )
+            return result, org_id
+        last_error = result.get("error") or last_error
+
+    # DB candidates exhausted (or none existed) — try env legacy fallback.
+    env_secret = os.environ.get(env_var, "")
+    if env_secret:
+        result = verifier.verify(body, signature, env_secret)
+        if result.get("valid"):
+            logger.warning(
+                f"{log_prefix}.env_legacy_fallback",
+                env_var=env_var,
+                hint=f"Verified via {env_var} env var. Create an integration_providers row with provider_key='{provider_key}' and api_key set to the signing secret to move this to system-managed.",
+            )
+            return result, None
+        last_error = result.get("error") or last_error
+
+    # Nothing verified — caller will return 400 using the error field.
+    if not candidates and not env_secret:
+        last_error = f"No {provider_key} signing secret configured (integration_providers.provider_key='{provider_key}' empty and {env_var} env unset)"
+    return {"valid": False, "error": last_error or "signature did not verify"}, None
