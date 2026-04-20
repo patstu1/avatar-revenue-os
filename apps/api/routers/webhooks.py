@@ -5,6 +5,7 @@ These are public — authentication is via the provider's own verification mecha
 import os
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Form, Header, HTTPException, Request, status
@@ -157,7 +158,104 @@ async def stripe_webhook(request: Request, db: DBSession, stripe_signature: str 
     except Exception as op_err:
         logger.error("stripe.operator_payment_error", event_type=event_type, error=str(op_err))
 
+    # ── Conversion backbone: write Payment row + emit payment.completed ──
+    # Additive. Runs alongside the legacy ledger/event path; does not
+    # replace any existing behavior. Only fires for successful payment
+    # events where org_id is resolvable.
+    try:
+        await _record_conversion_payment(
+            db,
+            event_type=event_type,
+            event_id=event_id,
+            obj=obj,
+            meta=meta,
+            brand_id=brand_id,
+        )
+    except Exception as pay_err:
+        logger.warning(
+            "stripe.payment_record_failed",
+            event_type=event_type,
+            event_id=event_id,
+            error=str(pay_err)[:200],
+        )
+
     return {"status": "accepted", "event_id": event_id, "webhook_event_id": str(event.id)}
+
+
+async def _record_conversion_payment(
+    db: DBSession,
+    *,
+    event_type: str,
+    event_id: Optional[str],
+    obj: dict,
+    meta: dict,
+    brand_id,
+) -> None:
+    """Persist a ``payments`` row + emit ``payment.completed`` for any
+    Stripe success event carrying resolvable org + amount.
+
+    Idempotent on (provider, provider_event_id) — redelivered webhooks
+    short-circuit inside ``record_payment_from_stripe``.
+
+    Scope-narrow: only handles ``checkout.session.completed``,
+    ``payment_intent.succeeded``, ``charge.succeeded``, ``invoice.paid``.
+    Subscription + refund events stay on the legacy ledger path.
+    """
+    SUCCESS_EVENT_TYPES = {
+        "checkout.session.completed",
+        "payment_intent.succeeded",
+        "charge.succeeded",
+        "invoice.paid",
+    }
+    if event_type not in SUCCESS_EVENT_TYPES:
+        return
+    if not event_id:
+        return
+
+    org_id = _safe_uuid(meta.get("org_id"))
+    if org_id is None and brand_id is not None:
+        from packages.db.models.core import Brand
+        org_id = (
+            await db.execute(
+                select(Brand.organization_id).where(Brand.id == brand_id)
+            )
+        ).scalar()
+    if org_id is None:
+        return
+
+    amount_cents = _extract_amount_cents(obj, event_type)
+    if amount_cents <= 0:
+        return
+
+    from apps.api.services.proposals_service import record_payment_from_stripe
+
+    await record_payment_from_stripe(
+        db,
+        org_id=org_id,
+        brand_id=brand_id,
+        event_id=event_id,
+        event_type=event_type,
+        amount_cents=amount_cents,
+        currency=(obj.get("currency") or "usd").lower(),
+        stripe_object=obj,
+        payment_intent_id=obj.get("payment_intent") if isinstance(obj.get("payment_intent"), str) else None,
+        checkout_session_id=obj.get("id") if event_type == "checkout.session.completed" else None,
+        charge_id=obj.get("id") if event_type == "charge.succeeded" else None,
+        customer_email=obj.get("customer_email") or obj.get("receipt_email") or "",
+        customer_name=obj.get("customer_name") or (obj.get("customer_details", {}) or {}).get("name", "") or "",
+        metadata=meta,
+    )
+
+
+def _extract_amount_cents(obj: dict, event_type: str) -> int:
+    """Pull the paid amount (cents) out of a Stripe success event object."""
+    if event_type == "checkout.session.completed":
+        return int(obj.get("amount_total") or obj.get("amount_subtotal") or 0)
+    if event_type == "invoice.paid":
+        return int(obj.get("amount_paid") or 0)
+    if event_type in ("payment_intent.succeeded", "charge.succeeded"):
+        return int(obj.get("amount_received") or obj.get("amount") or 0)
+    return 0
 
 
 async def _process_operator_payment_event(
