@@ -984,6 +984,54 @@ GM must never say "I don't have enough information" without immediately
 listing the exact inputs it needs and the fastest path to unblock.
 """
 
+RECOGNIZED_REVENUE_RULE: Final[str] = """\
+RECOGNIZED-REVENUE RULE (non-negotiable):
+Recognized trailing-30d revenue is computed from EXACTLY two ledgers,
+with explicit precedence to prevent double counting:
+
+  1. PRIMARY: the ``payments`` table.
+     Every Stripe-originated money movement is recorded here by
+     ``record_payment_from_stripe`` (Batch 3A). Deduped by a DB-level
+     UniqueConstraint(provider, provider_event_id) — the same Stripe
+     event can never produce two Payment rows.
+
+  2. SUPPLEMENTAL: the ``creator_revenue_events`` table,
+     BUT ONLY rows whose event_type does NOT indicate a Stripe or
+     Shopify origin. The excluded event_type patterns are:
+        stripe_payment, stripe_charge_sync, stripe_invoice_paid,
+        shopify_order, shopify_refund,
+        any event_type starting with 'stripe_' or 'shopify_'.
+     These excluded rows represent Stripe/Shopify money that is
+     already counted in ``payments`` — including them would double.
+
+All OTHER revenue-shaped tables (high_ticket_deals, sponsor_opportunities
+won, af_commissions, af_own_partner_conversions, subscription_events,
+credit_transactions, pack_purchases, recurring_revenue_models) are
+PLAN DATA — pipeline, opportunity, forecasting structure. They are
+NOT added to recognized revenue because the accounting cannot cleanly
+dedupe them against ``payments``. Operator sees them separately for
+visibility but the floor calculation ignores them.
+
+Per-avenue attribution:
+  - Rows in ``payments`` are attributed via metadata_json->>'avenue' if
+    present; else metadata_json->>'source' (proposal -> b2b_services,
+    ugc -> ugc_services, etc.); else default b2b_services.
+  - Rows in ``creator_revenue_events`` are attributed via avenue_type.
+
+The canonical total is:
+  total_cents =
+      SUM(payments.amount_cents
+          WHERE status='succeeded'
+            AND completed_at >= since)
+    + SUM(creator_revenue_events.revenue * 100
+          WHERE created_at >= since
+            AND event_type NOT LIKE 'stripe_%'
+            AND event_type NOT LIKE 'shopify_%'
+            AND event_type NOT IN (
+                'stripe_payment','stripe_charge_sync',
+                'stripe_invoice_paid','shopify_order','shopify_refund'))
+"""
+
 DORMANT_AVENUE_RULE: Final[str] = """\
 DORMANT-AVENUE RULE:
 For every avenue flagged LIVE_BUT_DORMANT:
@@ -1054,6 +1102,7 @@ supports, using every resource the machine has, every cycle.
 {FLOORS_NOT_CEILINGS_RULE}
 {ALWAYS_PLAN_AND_ASK_RULE}
 {DORMANT_AVENUE_RULE}
+{RECOGNIZED_REVENUE_RULE}
 
 ═══════════════════════════════════════════════════════════════════════
  FLOORS — $30K / $1M are MINIMUMS

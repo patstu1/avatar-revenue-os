@@ -361,6 +361,176 @@ async def test_startup_inspection_includes_all_wide_fields(
 
 
 @pytest.mark.asyncio
+async def test_floor_status_does_not_double_count_stripe_origin_events(
+    api_client, db_session, sample_org_data,
+):
+    """The canonical bug: a Stripe payment writes to BOTH ``payments``
+    and ``creator_revenue_events`` (event_type='stripe_charge_sync').
+    Recognized revenue must count it ONCE, not twice.
+    """
+    from packages.db.models.proposals import Payment
+    from packages.db.models.creator_revenue import CreatorRevenueEvent
+    from packages.db.models.core import Brand
+
+    headers, org_id = await _auth(api_client, sample_org_data)
+
+    # Seed a $1,000 payment
+    event_id = f"evt_dedup_{uuid.uuid4().hex[:10]}"
+    db_session.add(Payment(
+        org_id=org_id, provider="stripe",
+        provider_event_id=event_id,
+        amount_cents=100_000, currency="usd", status="succeeded",
+        completed_at=datetime.now(timezone.utc) - timedelta(days=1),
+        customer_email="dedup@example.com",
+    ))
+
+    # Seed a matching creator_revenue_event that represents the SAME
+    # Stripe transaction. Per the rule this must NOT add to the total.
+    brand = (
+        await db_session.execute(
+            select(Brand).where(Brand.organization_id == org_id).limit(1)
+        )
+    ).scalar_one_or_none()
+    if brand is not None:
+        db_session.add(CreatorRevenueEvent(
+            brand_id=brand.id,
+            avenue_type="ugc_services",
+            event_type="stripe_charge_sync",
+            revenue=1000.00,  # $1,000 stored in dollars (creator_revenue_events schema)
+            cost=0.0,
+            profit=1000.00,
+            description="Should be excluded — duplicates the $1,000 Payment above",
+            metadata_json={"stripe_event_id": event_id},
+        ))
+    await db_session.commit()
+
+    r = await api_client.get("/api/v1/gm/floor-status", headers=headers)
+    assert r.status_code == 200
+    body = r.json()
+    breakdown = body["recognized_revenue_breakdown"]
+
+    # Total must be $1,000 (payments only), not $2,000 (double-counted)
+    assert body["trailing_30d_cents"] == 100_000, (
+        f"Expected 100_000 ($1,000), got {body['trailing_30d_cents']}. "
+        f"Double-count detected. Breakdown: {breakdown}"
+    )
+    # Payments ledger contributes the full $1,000
+    assert breakdown["from_payments_cents"] == 100_000
+    # Creator events contribute zero because the row was stripe_charge_sync
+    assert breakdown["from_creator_events_cents"] == 0
+    # The excluded row is counted separately for audit
+    if brand is not None:
+        assert breakdown["excluded_stripe_origin_events_count"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_floor_status_includes_non_stripe_creator_revenue(
+    api_client, db_session, sample_org_data,
+):
+    """A manual creator_revenue_event (not from Stripe) MUST be counted
+    in recognized revenue — it represents real money that does not
+    flow through the payments table.
+    """
+    from packages.db.models.creator_revenue import CreatorRevenueEvent
+    from packages.db.models.core import Brand
+
+    headers, org_id = await _auth(api_client, sample_org_data)
+
+    brand = (
+        await db_session.execute(
+            select(Brand).where(Brand.organization_id == org_id).limit(1)
+        )
+    ).scalar_one_or_none()
+    if brand is None:
+        pytest.skip("No brand for this org to attach creator_revenue_events to")
+
+    # Seed a manual (non-Stripe) revenue event for $500
+    db_session.add(CreatorRevenueEvent(
+        brand_id=brand.id,
+        avenue_type="licensing",
+        event_type="manual_log",           # NOT stripe_/shopify_
+        revenue=500.00,
+        cost=0.0,
+        profit=500.00,
+        description="Manual licensing payment — wire transfer",
+    ))
+    await db_session.commit()
+
+    r = await api_client.get("/api/v1/gm/floor-status", headers=headers)
+    assert r.status_code == 200
+    body = r.json()
+
+    assert body["trailing_30d_cents"] >= 50_000, (
+        f"Non-Stripe creator_revenue_event should have been counted. "
+        f"Got {body['trailing_30d_cents']}; "
+        f"breakdown: {body['recognized_revenue_breakdown']}"
+    )
+    # Licensing avenue must appear in breakdown with $500
+    licensing = next(
+        (a for a in body["avenue_breakdown"] if a["avenue_id"] == "licensing"),
+        None,
+    )
+    assert licensing is not None, f"licensing missing from avenue_breakdown: {body['avenue_breakdown']}"
+    assert licensing["from_creator_events_cents"] == 50_000
+
+
+@pytest.mark.asyncio
+async def test_floor_status_plan_data_ledgers_do_not_add_to_total(
+    api_client, db_session, sample_org_data,
+):
+    """Plan-data ledgers (high_ticket_deals, sponsor_opportunities,
+    subscription_events, credit_transactions, pack_purchases, af_*)
+    are surfaced in ``plan_data_ledgers`` but MUST NOT add to
+    trailing_30d_cents.
+    """
+    from packages.db.models.proposals import Payment
+
+    headers, org_id = await _auth(api_client, sample_org_data)
+
+    # Exactly $200 of recognized revenue from payments
+    db_session.add(Payment(
+        org_id=org_id, provider="stripe",
+        provider_event_id=f"evt_plan_{uuid.uuid4().hex[:10]}",
+        amount_cents=20_000, currency="usd", status="succeeded",
+        completed_at=datetime.now(timezone.utc) - timedelta(days=2),
+        customer_email="plan@example.com",
+    ))
+    await db_session.commit()
+
+    r = await api_client.get("/api/v1/gm/floor-status", headers=headers)
+    body = r.json()
+    # Total is exactly payments, regardless of whatever plan-data rows
+    # exist elsewhere.
+    assert body["trailing_30d_cents"] == 20_000, (
+        f"trailing_30d must equal payments total alone; got "
+        f"{body['trailing_30d_cents']}. Plan-data bled through."
+    )
+    # plan_data_ledgers field must exist and be a list
+    assert isinstance(body["plan_data_ledgers"], list)
+
+
+@pytest.mark.asyncio
+async def test_floor_status_carries_canonical_rule_text(
+    api_client, sample_org_data,
+):
+    headers, _ = await _auth(api_client, sample_org_data)
+    r = await api_client.get("/api/v1/gm/floor-status", headers=headers)
+    body = r.json()
+    rule = body.get("recognized_revenue_rule", "")
+    for marker in ("payments", "creator_revenue_events", "stripe_", "PLAN DATA"):
+        assert marker in rule, f"rule missing marker {marker!r}: {rule}"
+
+
+@pytest.mark.asyncio
+async def test_doctrine_text_has_recognized_revenue_rule(api_client, sample_org_data):
+    from apps.api.services.gm_doctrine import RECOGNIZED_REVENUE_RULE, GM_REVENUE_DOCTRINE
+    assert "RECOGNIZED-REVENUE RULE" in RECOGNIZED_REVENUE_RULE
+    assert "RECOGNIZED-REVENUE RULE" in GM_REVENUE_DOCTRINE
+    assert "payments" in GM_REVENUE_DOCTRINE
+    assert "stripe_charge_sync" in GM_REVENUE_DOCTRINE
+
+
+@pytest.mark.asyncio
 async def test_all_gm_endpoints_require_operator_auth(api_client):
     for path in (
         "/api/v1/gm/doctrine",

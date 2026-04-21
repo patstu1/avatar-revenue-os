@@ -126,36 +126,103 @@ async def _recent_activity_cutoff(
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+#: Stripe / Shopify event_type values in creator_revenue_events that
+#: indicate the revenue is already captured in ``payments``. Rows with
+#: these event_types are EXCLUDED from recognized revenue to prevent
+#: double counting.
+STRIPE_ORIGIN_EVENT_TYPES: frozenset = frozenset({
+    "stripe_payment",
+    "stripe_charge_sync",
+    "stripe_invoice_paid",
+    "shopify_order",
+    "shopify_refund",
+})
+
+
+def _attribute_payment_to_avenue(payment_metadata: Optional[dict]) -> str:
+    """Map a Payment row's metadata to its canonical avenue_id.
+
+    Precedence:
+      1. metadata_json->>'avenue' explicit tag (if set by caller).
+      2. metadata_json->>'source' mapped (proposal → b2b_services,
+         outreach_proposal → b2b_services, ugc → ugc_services, etc.).
+      3. default: b2b_services (Payment was introduced for that flow
+         in Batch 3A, so unattributed rows belong there).
+    """
+    if not isinstance(payment_metadata, dict):
+        return "b2b_services"
+    explicit = payment_metadata.get("avenue")
+    if isinstance(explicit, str) and explicit:
+        return explicit
+    source = str(payment_metadata.get("source", "") or "")
+    source_map = {
+        "proposal": "b2b_services",
+        "outreach_proposal": "b2b_services",
+        "ugc": "ugc_services",
+        "consulting": "consulting",
+        "premium": "premium_access",
+        "licensing": "licensing",
+        "syndication": "syndication",
+        "data_product": "data_products",
+        "merch": "merchandise",
+        "live_event": "live_events",
+        "sponsor": "sponsor_deals",
+    }
+    return source_map.get(source, "b2b_services")
+
+
 async def compute_floor_status(
     db: AsyncSession,
     *,
     org_id: uuid.UUID,
     month_index: int = 1,
 ) -> dict:
-    """Trailing-30d recognized revenue, combined across all ledgers:
-    payments + creator_revenue_events + high_ticket_deals + product_launches
-    + credit_transactions + pack_purchases + sponsor_opportunities +
-    recurring_revenue_models + af_* commissions/conversions.
+    """Canonical recognized-revenue calculation.
 
-    Combined total then compared to floor_for_month(N). Per-avenue
-    breakdown accompanies so GM can explain where the money is coming
-    from and where it isn't.
+    Enforces the RECOGNIZED_REVENUE_RULE from gm_doctrine:
+
+      recognized_cents =
+        SUM(payments.amount_cents WHERE status='succeeded' AND
+            completed_at >= since)
+      + SUM(creator_revenue_events.revenue*100 WHERE created_at >= since
+            AND event_type NOT IN STRIPE_ORIGIN_EVENT_TYPES
+            AND event_type NOT LIKE 'stripe_%'
+            AND event_type NOT LIKE 'shopify_%')
+
+    No other ledgers contribute. Per-avenue attribution is derived from
+    each row's own metadata/tag. Plan-data ledgers (high_ticket_deals,
+    sponsor_opportunities, af_commissions, af_own_partner_conversions,
+    subscription_events, credit_transactions, pack_purchases,
+    recurring_revenue_models) are SURFACED separately in
+    ``plan_data_ledgers`` for visibility but do NOT add to the floor.
     """
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=30)
     since_7 = now - timedelta(days=7)
 
-    # ── B2B services (payments) ─────────────────────────────────────
-    payments_cents = int((
+    # ── PRIMARY LEDGER: payments (Stripe + webhook ingress) ────────
+    payment_rows = (
         await db.execute(
-            select(func.coalesce(func.sum(Payment.amount_cents), 0)).where(
+            select(Payment.amount_cents, Payment.metadata_json).where(
                 Payment.org_id == org_id,
                 Payment.status == "succeeded",
                 Payment.is_active.is_(True),
                 Payment.completed_at >= since,
             )
         )
-    ).scalar() or 0)
+    ).all()
+
+    payments_total_cents = 0
+    payments_by_avenue: dict[str, int] = {}
+    payments_count_by_avenue: dict[str, int] = {}
+    for amount_cents, metadata in payment_rows:
+        amount = int(amount_cents or 0)
+        payments_total_cents += amount
+        avenue = _attribute_payment_to_avenue(metadata)
+        payments_by_avenue[avenue] = payments_by_avenue.get(avenue, 0) + amount
+        payments_count_by_avenue[avenue] = payments_count_by_avenue.get(avenue, 0) + 1
+
+    # 7-day payments for run-rate projection
     payments_7d_cents = int((
         await db.execute(
             select(func.coalesce(func.sum(Payment.amount_cents), 0)).where(
@@ -166,205 +233,183 @@ async def compute_floor_status(
         )
     ).scalar() or 0)
 
-    # ── Creator revenue events (all non-B2B avenues) ────────────────
-    # creator_revenue_events uses brand_id, so filter by brand_id for now
-    # (the schema predates org_id on this table). We sum per avenue_type.
-    avenue_breakdown: list[dict] = []
-    # Always include B2B first
-    avenue_breakdown.append({
-        "avenue_id": "b2b_services",
-        "display_name": "B2B services",
-        "source_table": "payments",
-        "revenue_cents_30d": payments_cents,
-        "revenue_usd_30d": payments_cents / 100.0,
-    })
+    # ── SUPPLEMENTAL LEDGER: creator_revenue_events (non-Stripe only) ──
+    supplemental_by_avenue: dict[str, dict] = {}
+    excluded_stripe_origin_count = 0
+    excluded_stripe_origin_cents = 0
 
-    creator_total_cents = 0
-    rows = []
     if await _table_exists(db, "creator_revenue_events"):
         try:
             async with db.begin_nested():
                 rows = (
                     await db.execute(
                         text(
-                            "SELECT COALESCE(avenue_type, 'unspecified'), "
+                            "SELECT COALESCE(avenue_type, 'unspecified') AS avenue_type, "
+                            "       COALESCE(event_type, '') AS event_type, "
+                            "       COUNT(*) AS n, "
                             "       COALESCE(SUM(revenue * 100)::bigint, 0) AS cents "
                             "FROM creator_revenue_events "
                             "WHERE created_at >= :s "
-                            "GROUP BY avenue_type"
+                            "GROUP BY avenue_type, event_type"
                         ),
                         {"s": since},
                     )
                 ).all()
         except Exception:
             rows = []
-    for tag, cents in rows:
-        creator_total_cents += int(cents or 0)
-        # Map avenue_type tag to doctrine avenue_id when possible
-        avenue_id = _tag_to_avenue_id(tag)
+
+        for avenue_type, event_type, n, cents in rows:
+            n = int(n or 0)
+            cents = int(cents or 0)
+            evt = str(event_type or "")
+            is_stripe_origin = (
+                evt in STRIPE_ORIGIN_EVENT_TYPES
+                or evt.startswith("stripe_")
+                or evt.startswith("shopify_")
+            )
+            if is_stripe_origin:
+                excluded_stripe_origin_count += n
+                excluded_stripe_origin_cents += cents
+                continue
+            avenue_id = _tag_to_avenue_id(avenue_type)
+            bucket = supplemental_by_avenue.setdefault(
+                avenue_id,
+                {"cents": 0, "count": 0, "event_types": set()},
+            )
+            bucket["cents"] += cents
+            bucket["count"] += n
+            if evt:
+                bucket["event_types"].add(evt)
+
+    supplemental_total_cents = sum(b["cents"] for b in supplemental_by_avenue.values())
+
+    # ── RECOGNIZED TOTAL (no double-count) ─────────────────────────
+    recognized_total_cents = payments_total_cents + supplemental_total_cents
+
+    # ── Per-avenue breakdown (recognized revenue only) ────────────
+    all_avenue_ids: set[str] = set(payments_by_avenue.keys()) | set(supplemental_by_avenue.keys())
+    avenue_breakdown: list[dict] = []
+    for avenue_id in sorted(all_avenue_ids):
+        p_cents = payments_by_avenue.get(avenue_id, 0)
+        s_entry = supplemental_by_avenue.get(avenue_id, {"cents": 0, "count": 0, "event_types": set()})
+        s_cents = s_entry["cents"]
+        total = p_cents + s_cents
+        if total == 0:
+            continue
         avenue_breakdown.append({
             "avenue_id": avenue_id,
             "display_name": avenue_id.replace("_", " ").title(),
-            "source_table": "creator_revenue_events",
-            "avenue_type_tag": tag,
-            "revenue_cents_30d": int(cents or 0),
-            "revenue_usd_30d": int(cents or 0) / 100.0,
+            "recognized_cents_30d": total,
+            "recognized_usd_30d": total / 100.0,
+            "from_payments_cents": p_cents,
+            "from_payments_count": payments_count_by_avenue.get(avenue_id, 0),
+            "from_creator_events_cents": s_cents,
+            "from_creator_events_count": s_entry["count"],
+            "creator_event_types": sorted(s_entry["event_types"]),
         })
+    avenue_breakdown.sort(key=lambda b: -b["recognized_cents_30d"])
 
-    # ── Additional revenue ledgers (if tables have revenue-shaped columns) ──
-    # High-ticket deals (deal_value_cents if present; otherwise zero)
-    htd_cents = await _safe_sum(
-        db, "high_ticket_deals",
-        "status='won' AND created_at >= :s",
-        {"s": since},
-        sum_col="COALESCE(deal_value_cents, 0)",
-    )
-    if htd_cents > 0:
-        avenue_breakdown.append({
-            "avenue_id": "high_ticket",
-            "display_name": "High-ticket deals (won)",
-            "source_table": "high_ticket_deals",
-            "revenue_cents_30d": htd_cents,
-            "revenue_usd_30d": htd_cents / 100.0,
-        })
+    strongest_avenue = avenue_breakdown[0] if avenue_breakdown else None
 
-    # Credit transactions (monetization packs)
-    credit_cents = await _safe_sum(
-        db, "credit_transactions",
-        "amount_cents > 0 AND created_at >= :s",
-        {"s": since},
-        sum_col="COALESCE(amount_cents, 0)",
-    )
-    if credit_cents > 0:
-        avenue_breakdown.append({
-            "avenue_id": "monetization_packs",
-            "display_name": "Monetization packs (credit_transactions)",
-            "source_table": "credit_transactions",
-            "revenue_cents_30d": credit_cents,
-            "revenue_usd_30d": credit_cents / 100.0,
-        })
+    # ── PLAN DATA (surfaced but NOT counted) ──────────────────────
+    plan_data: list[dict] = []
 
-    # Pack purchases
-    pack_cents = await _safe_sum(
-        db, "pack_purchases",
-        "created_at >= :s",
-        {"s": since},
-        sum_col="COALESCE(amount_cents, 0)",
-    )
-    if pack_cents > 0:
-        avenue_breakdown.append({
-            "avenue_id": "monetization_packs",
-            "display_name": "Monetization packs (pack_purchases)",
-            "source_table": "pack_purchases",
-            "revenue_cents_30d": pack_cents,
-            "revenue_usd_30d": pack_cents / 100.0,
-        })
+    async def _plan_row(avenue_id: str, display: str, table: str, where: str, sum_col: str):
+        cents = await _safe_sum(db, table, where, {"s": since}, sum_col=sum_col)
+        if cents > 0:
+            plan_data.append({
+                "avenue_id": avenue_id,
+                "display_name": display,
+                "source_table": table,
+                "plan_cents_30d": cents,
+                "plan_usd_30d": cents / 100.0,
+                "note": "PLAN DATA — not counted in recognized revenue",
+            })
 
-    # Affiliate commissions
-    af_commission_cents = await _safe_sum(
-        db, "af_commissions",
-        "created_at >= :s",
-        {"s": since},
-        sum_col="COALESCE(amount_cents, 0)",
-    )
-    if af_commission_cents > 0:
-        avenue_breakdown.append({
-            "avenue_id": "external_affiliate",
-            "display_name": "External affiliate commissions",
-            "source_table": "af_commissions",
-            "revenue_cents_30d": af_commission_cents,
-            "revenue_usd_30d": af_commission_cents / 100.0,
-        })
+    await _plan_row("high_ticket", "High-ticket deals (won)",
+                    "high_ticket_deals",
+                    "status='won' AND created_at >= :s",
+                    "COALESCE(deal_value_cents, 0)")
+    await _plan_row("monetization_packs", "Monetization packs (credit_transactions)",
+                    "credit_transactions",
+                    "amount_cents > 0 AND created_at >= :s",
+                    "COALESCE(amount_cents, 0)")
+    await _plan_row("monetization_packs", "Monetization packs (pack_purchases)",
+                    "pack_purchases",
+                    "created_at >= :s",
+                    "COALESCE(amount_cents, 0)")
+    await _plan_row("external_affiliate", "External affiliate commissions",
+                    "af_commissions",
+                    "created_at >= :s",
+                    "COALESCE(amount_cents, 0)")
+    await _plan_row("owned_affiliate", "Owned affiliate partner conversions",
+                    "af_own_partner_conversions",
+                    "created_at >= :s",
+                    "COALESCE(conversion_amount_cents, 0)")
+    await _plan_row("sponsor_deals", "Sponsor deals (won)",
+                    "sponsor_opportunities",
+                    "status='won' AND created_at >= :s",
+                    "COALESCE(deal_amount_cents, 0)")
+    await _plan_row("saas_subscriptions", "SaaS subscription payments",
+                    "subscription_events",
+                    "event_type='payment_succeeded' AND created_at >= :s",
+                    "COALESCE(amount_cents, 0)")
 
-    # Owned affiliate partner conversions
-    own_af_cents = await _safe_sum(
-        db, "af_own_partner_conversions",
-        "created_at >= :s",
-        {"s": since},
-        sum_col="COALESCE(conversion_amount_cents, 0)",
-    )
-    if own_af_cents > 0:
-        avenue_breakdown.append({
-            "avenue_id": "owned_affiliate",
-            "display_name": "Owned affiliate partner conversions",
-            "source_table": "af_own_partner_conversions",
-            "revenue_cents_30d": own_af_cents,
-            "revenue_usd_30d": own_af_cents / 100.0,
-        })
-
-    # Sponsor opportunities won
-    sponsor_cents = await _safe_sum(
-        db, "sponsor_opportunities",
-        "status='won' AND created_at >= :s",
-        {"s": since},
-        sum_col="COALESCE(deal_amount_cents, 0)",
-    )
-    if sponsor_cents > 0:
-        avenue_breakdown.append({
-            "avenue_id": "sponsor_deals",
-            "display_name": "Sponsor deals (won)",
-            "source_table": "sponsor_opportunities",
-            "revenue_cents_30d": sponsor_cents,
-            "revenue_usd_30d": sponsor_cents / 100.0,
-        })
-
-    # Subscription events (SaaS payments)
-    sub_cents = await _safe_sum(
-        db, "subscription_events",
-        "event_type='payment_succeeded' AND created_at >= :s",
-        {"s": since},
-        sum_col="COALESCE(amount_cents, 0)",
-    )
-    if sub_cents > 0:
-        avenue_breakdown.append({
-            "avenue_id": "saas_subscriptions",
-            "display_name": "SaaS subscription payments",
-            "source_table": "subscription_events",
-            "revenue_cents_30d": sub_cents,
-            "revenue_usd_30d": sub_cents / 100.0,
-        })
-
-    # ── Sum total ──────────────────────────────────────────────────
-    total_cents = sum(b["revenue_cents_30d"] for b in avenue_breakdown)
+    # ── Floor math ────────────────────────────────────────────────
     floor_cents = floor_for_month(month_index)
-    gap_cents = max(0, floor_cents - total_cents)
-    ratio = (total_cents / floor_cents) if floor_cents else 0.0
-
-    # Run-rate projection based on last 7d B2B payments (others would
-    # double the window to estimate; simple proxy)
+    gap_cents = max(0, floor_cents - recognized_total_cents)
+    ratio = (recognized_total_cents / floor_cents) if floor_cents else 0.0
     projected_30d_cents = int(round((payments_7d_cents / 7.0) * 30))
     projected_ratio = (projected_30d_cents / floor_cents) if floor_cents else 0.0
-
-    # Strongest + weakest avenues in this window
-    nonzero = [b for b in avenue_breakdown if b["revenue_cents_30d"] > 0]
-    strongest = max(nonzero, key=lambda b: b["revenue_cents_30d"], default=None)
 
     return {
         "generated_at": now.isoformat(),
         "window_days": 30,
         "org_id": str(org_id),
         "month_index": month_index,
+
+        # Floor
         "floor_cents": floor_cents,
         "floor_usd": floor_cents / 100.0,
-        "trailing_30d_cents": total_cents,
-        "trailing_30d_usd": total_cents / 100.0,
+        "floor_met": recognized_total_cents >= floor_cents,
         "gap_cents": gap_cents,
         "gap_usd": gap_cents / 100.0,
         "ratio_to_floor": round(ratio, 4),
+        "month_1_floor_cents": FLOOR_MONTH_1_CENTS,
+        "month_12_floor_cents": FLOOR_MONTH_12_CENTS,
+
+        # Recognized revenue (the ONLY total that counts toward the floor)
+        "trailing_30d_cents": recognized_total_cents,
+        "trailing_30d_usd": recognized_total_cents / 100.0,
+        "recognized_revenue_breakdown": {
+            "from_payments_cents": payments_total_cents,
+            "from_payments_count": sum(payments_count_by_avenue.values()),
+            "from_creator_events_cents": supplemental_total_cents,
+            "from_creator_events_count": sum(b["count"] for b in supplemental_by_avenue.values()),
+            "excluded_stripe_origin_events_count": excluded_stripe_origin_count,
+            "excluded_stripe_origin_events_cents": excluded_stripe_origin_cents,
+        },
+
+        # Projection
         "last_7d_cents": payments_7d_cents,
         "projected_30d_cents_at_7d_runrate": projected_30d_cents,
         "projected_ratio_to_floor": round(projected_ratio, 4),
-        "floor_met": total_cents >= floor_cents,
-        "month_1_floor_cents": FLOOR_MONTH_1_CENTS,
-        "month_12_floor_cents": FLOOR_MONTH_12_CENTS,
+
+        # Per-avenue attribution
         "avenue_breakdown": avenue_breakdown,
-        "strongest_avenue": strongest,
-        "note": (
-            "Total is combined across payments + creator_revenue_events + "
-            "additional per-avenue ledgers. Stripe events recorded to both "
-            "payments (Batch 3A) and creator_revenue_events (legacy) may be "
-            "counted twice when the same checkout fires both writers — "
-            "reconcile via per-avenue breakdown."
+        "strongest_avenue": strongest_avenue,
+
+        # Plan data (not counted)
+        "plan_data_ledgers": plan_data,
+
+        # Canonical rule documentation
+        "recognized_revenue_rule": (
+            "Recognized revenue = payments.amount_cents (status=succeeded) "
+            "+ creator_revenue_events.revenue for events NOT originating "
+            "from Stripe or Shopify (excludes event_type IN "
+            f"{sorted(STRIPE_ORIGIN_EVENT_TYPES)} or event_type LIKE "
+            "'stripe_%%' or 'shopify_%%'). All other revenue-shaped tables "
+            "are PLAN DATA and do not count toward the floor."
         ),
     }
 
