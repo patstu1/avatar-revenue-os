@@ -695,25 +695,31 @@ async def run_revenue_startup_inspection(
 ) -> dict:
     """Single canonical session-opener for a doctrine-aware GM session.
 
-    Calls the five read-only ``gm_situation`` computations and composes a
-    structured report the LLM (or the operator UI) consumes as the first
-    turn of every session. Mirrors the five points in the initialization
-    brief (§3 of the Batch 7A plan): floor status, control board,
-    pipeline state, closest revenue, blocking floors.
+    Batch 7A-WIDE: inspects the FULL MACHINE universe — every revenue
+    avenue, every strategic engine, combined floor math, operator asks,
+    unlock plans. Calls every gm_situation compute function in one pass.
 
     Returns a single dict. No mutations. No LLM calls.
     """
     from apps.api.services.gm_situation import (
+        compute_ask_operator,
+        compute_avenue_portfolio,
         compute_blocking_floors,
         compute_bottlenecks,
         compute_closest_revenue,
+        compute_engine_status,
         compute_floor_status,
         compute_game_plan,
         compute_pipeline_state,
+        compute_unlock_plans,
     )
-    from apps.api.services.gm_doctrine import FORBIDDEN_BEHAVIORS, PRIORITY_RANK
+    from apps.api.services.gm_doctrine import (
+        FORBIDDEN_BEHAVIORS, PRIORITY_RANK, REVENUE_AVENUES, STRATEGIC_ENGINES,
+    )
 
     floor = await compute_floor_status(db, org_id=org_id, month_index=month_index)
+    portfolio = await compute_avenue_portfolio(db, org_id=org_id)
+    engines = await compute_engine_status(db, org_id=org_id)
     pipeline = await compute_pipeline_state(db, org_id=org_id)
     bottlenecks = await compute_bottlenecks(db, org_id=org_id)
     closest = await compute_closest_revenue(db, org_id=org_id)
@@ -723,12 +729,16 @@ async def run_revenue_startup_inspection(
     plan = await compute_game_plan(
         db, org_id=org_id, month_index=month_index
     )
-
-    # Build a 5-line situation report as the first turn of the session
-    ratio = floor.get("ratio_to_floor", 0.0)
-    top_blocker = (
-        plan["actions"][0] if plan["actions"] else None
+    asks = await compute_ask_operator(
+        db, org_id=org_id, month_index=month_index
     )
+    unlocks = await compute_unlock_plans(db, org_id=org_id)
+
+    # 7-line situation report (Batch 7A-WIDE)
+    ratio = floor.get("ratio_to_floor", 0.0)
+    strongest = portfolio.get("strongest_avenue")
+    weakest_unlockable = portfolio.get("weakest_unlockable_avenue")
+    top_blocker = plan["actions"][0] if plan["actions"] else None
     approvals_needed = sum(
         1 for a in plan["actions"] if a["action_class"] == "approval_required"
     )
@@ -742,16 +752,23 @@ async def run_revenue_startup_inspection(
     situation_report = [
         f"Floor M{month_index}: ${floor['trailing_30d_usd']:.0f} / "
         f"${floor['floor_usd']:.0f} (ratio {ratio:.2f}). "
-        f"Gap ${floor['gap_usd']:.0f}.",
+        f"Gap ${floor['gap_usd']:.0f}. "
+        f"Avenues contributing: "
+        f"{sum(1 for b in floor['avenue_breakdown'] if b['revenue_cents_30d'] > 0)}/{len(REVENUE_AVENUES)}.",
+        (f"Strongest avenue: {strongest['display_name']} "
+         f"(${strongest['revenue_usd_30d']:.0f}/30d)" if strongest
+         else "Strongest avenue: none — no revenue in last 30d."),
+        (f"Weakest unlockable: {weakest_unlockable['display_name']} — "
+         f"{weakest_unlockable['activity_total_rows']} planned actions awaiting close."
+         if weakest_unlockable else "Weakest unlockable: no dormant avenues with activity."),
         f"Top blocker: {top_blocker['detail'] if top_blocker else 'none flagged'}",
-        f"Closest revenue (in-flight): ${closest['total_potential_usd']:.0f} "
-        f"across {sum(len(v) for v in closest['buckets'].values())} items.",
+        f"Approvals pending: {asks['by_category'].get('approval_decision', 0)}. "
+        f"Escalations open: {asks['by_category'].get('escalation_resolution', 0)}.",
         f"Actions ranked by priority: {plan['total_items']} total "
         f"({auto_available} auto, {approvals_needed} need approval, "
         f"{escalations_needed} escalate).",
-        f"Bottleneck stage: "
-        f"{pipeline['bottleneck']['name'] if pipeline['bottleneck'] else 'none'} "
-        f"(count={pipeline['bottleneck']['count'] if pipeline['bottleneck'] else 0}).",
+        f"Total operator asks to unblock: {asks['total_asks']}. "
+        f"Dormant avenues needing activation: {unlocks['total_unlock_candidates']}.",
     ]
 
     logger.info(
@@ -759,7 +776,11 @@ async def run_revenue_startup_inspection(
         org_id=str(org_id),
         month_index=month_index,
         floor_ratio=ratio,
+        avenues_tracked=portfolio["total_avenues"],
+        engines_tracked=engines["total_engines"],
         plan_items=plan["total_items"],
+        operator_asks=asks["total_asks"],
+        unlock_candidates=unlocks["total_unlock_candidates"],
     )
 
     return {
@@ -768,11 +789,17 @@ async def run_revenue_startup_inspection(
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "situation_report_lines": situation_report,
         "floor_status": floor,
+        "avenue_portfolio": portfolio,
+        "engine_status": engines,
         "pipeline_state": pipeline,
         "bottlenecks": bottlenecks,
         "closest_revenue": closest,
         "blocking_floors": blocking,
         "game_plan": plan,
+        "ask_operator": asks,
+        "unlock_plans": unlocks,
         "priority_rank_reference": list(PRIORITY_RANK),
         "forbidden_behaviors": list(FORBIDDEN_BEHAVIORS),
+        "total_avenues": len(REVENUE_AVENUES),
+        "total_engines": len(STRATEGIC_ENGINES),
     }
