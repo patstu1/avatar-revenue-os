@@ -69,6 +69,9 @@ class SponsorTarget(Base):
     fit_score: Mapped[float] = mapped_column(Float, default=0.0)
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Batch 10: front-half avenue attribution carried into the outreach
+    # stream and onward to Thread/Message/Draft/Proposal.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -88,6 +91,8 @@ class SponsorOutreachSequence(Base):
     expected_value: Mapped[float] = mapped_column(Float, default=0.0)
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Batch 10: avenue carried from the originating SponsorTarget.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 

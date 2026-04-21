@@ -53,6 +53,7 @@ from apps.api.services.gm_write_service import (
 from packages.db.models.clients import Client, IntakeRequest
 from packages.db.models.delivery import Delivery
 from packages.db.models.email_pipeline import EmailReplyDraft
+from packages.db.models.expansion_pack2_phase_c import SponsorTarget
 from packages.db.models.fulfillment import ClientProject, ProductionJob, ProjectBrief
 from packages.db.models.gm_control import GMApproval, GMEscalation
 from packages.db.models.proposals import Payment, PaymentLink, Proposal
@@ -1184,6 +1185,422 @@ async def classify_issue(
         "escalation_id": str(escalation_id) if escalation_id else None,
         "action_class": action_class,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  10. Batch 10 — front-of-funnel GM write authority
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Seven endpoints that give GM command surface over the pre-payment
+# half of the customer circle: lead import, qualification, outreach,
+# reply control, and the hand-off to the already-live proposal path.
+
+
+class LeadRowBody(BaseModel):
+    company_name: str = Field(..., min_length=1, max_length=255)
+    contact_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    instagram_handle: Optional[str] = None
+    website_url: Optional[str] = None
+    industry: Optional[str] = None
+    niche_tag: Optional[str] = None
+    estimated_size: Optional[str] = None
+    estimated_deal_value: Optional[float] = None
+    fit_score: Optional[float] = None
+    confidence: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class LeadImportBody(BaseModel):
+    avenue_slug: str = Field(..., min_length=1, max_length=60)
+    rows: list[LeadRowBody] = Field(..., min_length=1, max_length=500)
+    csv: Optional[str] = Field(
+        None, description="Optional raw CSV. If present, rows+csv are merged.",
+        max_length=500_000,
+    )
+
+
+@router.post("/leads/import", status_code=201)
+async def gm_leads_import(
+    body: LeadImportBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Bulk-import leads (``sponsor_targets``) and tag each with
+    ``avenue_slug``. Wraps ``gm_front_of_funnel_service.bulk_import_leads_with_avenue``."""
+    from apps.api.services.gm_front_of_funnel_service import (
+        bulk_import_leads_with_avenue, parse_csv_rows,
+    )
+
+    rows = [r.model_dump(exclude_none=False) for r in body.rows]
+    if body.csv:
+        csv_rows = await parse_csv_rows(body.csv)
+        rows.extend(csv_rows)
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="leads.import", action_class=action_class,
+    )
+    try:
+        result = await bulk_import_leads_with_avenue(
+            db,
+            org_id=current_user.organization_id,
+            avenue_slug=body.avenue_slug,
+            rows=rows,
+            source=f"gm_write.leads.import:{current_user.email}",
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="leads.import",
+        entity_type="brand", entity_id=None,
+        decision="executed", action_class=action_class,
+        details={
+            "avenue_slug": body.avenue_slug,
+            "imported": result["imported"],
+            "skipped": result["skipped"],
+            "first_lead_id": result["first_lead_id"],
+        },
+    )
+    await db.commit()
+    return {**result, "avenue_slug": body.avenue_slug, "action_class": action_class}
+
+
+class LeadQualifyBody(BaseModel):
+    intent: str = Field(
+        ...,
+        pattern=(
+            "^(offer_request|pricing_question|objection|positive|"
+            "not_interested|referral|unclear)$"
+        ),
+    )
+    tier: str = Field(
+        ...,
+        pattern="^(hot|warm|cold|parked|disqualified)$",
+    )
+    reason_codes: list[str] = Field(default_factory=list)
+    avenue_slug_override: Optional[str] = Field(None, max_length=60)
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/leads/{lead_id}/qualify")
+async def gm_leads_qualify(
+    lead_id: str,
+    body: LeadQualifyBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.gm_front_of_funnel_service import qualify_lead
+
+    lid = _parse_uuid(lead_id)
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="leads.qualify", action_class=action_class,
+    )
+    try:
+        result = await qualify_lead(
+            db,
+            org_id=current_user.organization_id,
+            lead_id=lid,
+            intent=body.intent,
+            tier=body.tier,
+            reason_codes=body.reason_codes,
+            avenue_slug_override=body.avenue_slug_override,
+            notes=body.notes,
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except KeyError:
+        raise HTTPException(404, "Lead not found")
+    except PermissionError as pe:
+        raise HTTPException(403, str(pe))
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="leads.qualify",
+        entity_type="sponsor_target", entity_id=lid,
+        decision="executed", action_class=action_class,
+        details={
+            "tier": body.tier,
+            "intent": body.intent,
+            "avenue_slug": result.get("avenue_slug"),
+            "reason_codes": body.reason_codes,
+        },
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+class LeadRouteToProposalLineItem(BaseModel):
+    description: str = Field(..., max_length=500)
+    unit_amount_cents: int = Field(..., ge=0)
+    quantity: int = Field(1, ge=1)
+    currency: str = "usd"
+    package_slug: Optional[str] = Field(None, max_length=100)
+    position: int = 0
+
+
+class LeadRouteToProposalBody(BaseModel):
+    package_slug: Optional[str] = Field(None, max_length=100)
+    title: Optional[str] = Field(None, max_length=500)
+    summary: str = ""
+    line_items: list[LeadRouteToProposalLineItem] = Field(..., min_length=1)
+    notes: Optional[str] = None
+
+
+@router.post("/leads/{lead_id}/route-to-proposal", status_code=201)
+async def gm_leads_route_to_proposal(
+    lead_id: str,
+    body: LeadRouteToProposalBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.gm_front_of_funnel_service import route_lead_to_proposal
+
+    lid = _parse_uuid(lead_id)
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="leads.route_to_proposal", action_class=action_class,
+    )
+    try:
+        proposal = await route_lead_to_proposal(
+            db,
+            org_id=current_user.organization_id,
+            lead_id=lid,
+            package_slug=body.package_slug,
+            line_items=[li.model_dump() for li in body.line_items],
+            title=body.title,
+            summary=body.summary,
+            notes=body.notes,
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except KeyError:
+        raise HTTPException(404, "Lead not found")
+    except PermissionError as pe:
+        raise HTTPException(403, str(pe))
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="leads.route_to_proposal",
+        entity_type="proposal", entity_id=proposal.id,
+        decision="executed", action_class=action_class,
+        details={
+            "lead_id": str(lid),
+            "proposal_id": str(proposal.id),
+            "avenue_slug": proposal.avenue_slug,
+            "package_slug": body.package_slug,
+            "total_amount_cents": proposal.total_amount_cents,
+        },
+    )
+    await db.commit()
+    return {
+        "lead_id": str(lid),
+        "proposal_id": str(proposal.id),
+        "status": proposal.status,
+        "total_amount_cents": proposal.total_amount_cents,
+        "avenue_slug": proposal.avenue_slug,
+        "action_class": action_class,
+    }
+
+
+class OutreachLaunchBody(BaseModel):
+    avenue_slug: str = Field(..., min_length=1, max_length=60)
+    lead_ids: Optional[list[uuid.UUID]] = None
+    sequence_template_slug: str = Field("default_v1", max_length=100)
+    max_leads: int = Field(200, ge=1, le=1000)
+
+
+@router.post("/outreach/launch", status_code=201)
+async def gm_outreach_launch(
+    body: OutreachLaunchBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.gm_front_of_funnel_service import launch_outreach_for_segment
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="outreach.launch", action_class=action_class,
+    )
+    try:
+        result = await launch_outreach_for_segment(
+            db,
+            org_id=current_user.organization_id,
+            avenue_slug=body.avenue_slug,
+            lead_ids=body.lead_ids,
+            sequence_template_slug=body.sequence_template_slug,
+            max_leads=body.max_leads,
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="outreach.launch",
+        entity_type="brand", entity_id=None,
+        decision="executed", action_class=action_class,
+        details={
+            "avenue_slug": body.avenue_slug,
+            "scheduled": result["scheduled"],
+            "skipped": result["skipped"],
+            "sequence_template_slug": body.sequence_template_slug,
+        },
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+class OutreachPauseBody(BaseModel):
+    avenue_slug: Optional[str] = Field(None, max_length=60)
+    sequence_ids: Optional[list[uuid.UUID]] = None
+
+
+@router.post("/outreach/pause")
+async def gm_outreach_pause(
+    body: OutreachPauseBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.gm_front_of_funnel_service import pause_outreach_for_avenue
+
+    if not body.avenue_slug and not body.sequence_ids:
+        raise HTTPException(
+            400, "Must provide either avenue_slug or sequence_ids"
+        )
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="outreach.pause", action_class=action_class,
+    )
+    result = await pause_outreach_for_avenue(
+        db,
+        org_id=current_user.organization_id,
+        avenue_slug=body.avenue_slug,
+        sequence_ids=body.sequence_ids,
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user, tool_name="outreach.pause",
+        entity_type="brand", entity_id=None,
+        decision="executed", action_class=action_class,
+        details={"avenue_slug": body.avenue_slug, "paused": result["paused"]},
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+class DraftRewriteBody(BaseModel):
+    subject: Optional[str] = Field(None, max_length=1000)
+    body_text: Optional[str] = Field(None, max_length=100_000)
+    body_html: Optional[str] = Field(None, max_length=200_000)
+    reason: Optional[str] = Field(None, max_length=2000)
+
+
+@router.post("/replies/drafts/{draft_id}/rewrite")
+async def gm_reply_draft_rewrite(
+    draft_id: str,
+    body: DraftRewriteBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.gm_front_of_funnel_service import rewrite_draft
+
+    did = _parse_uuid(draft_id)
+    draft = (
+        await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))
+    ).scalar_one_or_none()
+    if draft is None:
+        raise HTTPException(404, "Draft not found")
+    if draft.org_id != current_user.organization_id:
+        raise HTTPException(403, "Draft belongs to another organization")
+    if body.subject is None and body.body_text is None and body.body_html is None:
+        raise HTTPException(
+            400, "At least one of subject / body_text / body_html is required"
+        )
+
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="replies.rewrite", action_class=action_class,
+    )
+    try:
+        updated = await rewrite_draft(
+            db, draft=draft,
+            new_subject=body.subject,
+            new_body_text=body.body_text,
+            new_body_html=body.body_html,
+            reason=body.reason,
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="replies.rewrite",
+        entity_type="email_reply_draft", entity_id=draft.id,
+        decision="executed", action_class=action_class,
+        details={
+            "version_count": len((updated.rewrite_history_json or {}).get("versions", [])),
+            "reason": body.reason,
+            "avenue_slug": draft.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {
+        "draft_id": str(draft.id),
+        "status": draft.status,
+        "avenue_slug": draft.avenue_slug,
+        "version_count": len((updated.rewrite_history_json or {}).get("versions", [])),
+        "action_class": action_class,
+    }
+
+
+@router.post("/replies/drafts/{draft_id}/send-now")
+async def gm_reply_draft_send_now(
+    draft_id: str,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.gm_front_of_funnel_service import force_send_draft
+
+    did = _parse_uuid(draft_id)
+    draft = (
+        await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))
+    ).scalar_one_or_none()
+    if draft is None:
+        raise HTTPException(404, "Draft not found")
+    if draft.org_id != current_user.organization_id:
+        raise HTTPException(403, "Draft belongs to another organization")
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="replies.send_now", action_class=action_class,
+    )
+    try:
+        result = await force_send_draft(
+            db, draft=draft,
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="replies.send_now",
+        entity_type="email_reply_draft", entity_id=draft.id,
+        decision="executed" if draft.status == "sent" else "recorded",
+        action_class=action_class,
+        details={
+            "status_after": draft.status,
+            "sent_at": result.get("sent_at"),
+            "avenue_slug": draft.avenue_slug,
+            "batch_result": result.get("batch_result"),
+        },
+        severity="info" if draft.status == "sent" else "warning",
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
 
 
 # ═══════════════════════════════════════════════════════════════════════════

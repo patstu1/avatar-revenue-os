@@ -30,6 +30,8 @@ class LeadOpportunity(Base):
     channel_preference: Mapped[str] = mapped_column(String(50), default="")
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Batch 10: front-half avenue attribution.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 

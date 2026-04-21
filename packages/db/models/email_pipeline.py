@@ -148,6 +148,11 @@ class EmailThread(Base):
     last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     last_inbound_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Batch 10: avenue attribution. Outbound threads inherit from their
+    # originating SponsorTarget; inbound threads inherit when a reply
+    # matches back to a known outreach/lead.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -195,6 +200,9 @@ class EmailMessage(Base):
     has_attachments: Mapped[bool] = mapped_column(Boolean, default=False)
     raw_headers_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Batch 10: avenue attribution, inherited from the parent EmailThread.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -281,6 +289,13 @@ class EmailReplyDraft(Base):
     # the matched rule, confidence check, allowlist check, template check,
     # and cooldown check. Populated by reply_policy.decide_reply_mode.
     decision_trace: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+    # Batch 10: avenue inherited from the parent Thread/Message.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+
+    # Batch 10: history of /gm/write/replies/drafts/{id}/rewrite edits.
+    # Each entry: {at, actor, previous_subject, previous_body_text, reason}.
+    rewrite_history_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
