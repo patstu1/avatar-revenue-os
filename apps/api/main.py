@@ -49,6 +49,7 @@ from apps.api.routers import (
     qa_delivery as qa_delivery_router,
     gm_control as gm_control_router,
     operator_pages,
+    ops_lock,
     provider_registry,
     copilot,
     gatekeeper,
@@ -330,6 +331,7 @@ app.include_router(fulfillment_router.router, prefix="/api/v1", tags=["Fulfillme
 app.include_router(qa_delivery_router.router, prefix="/api/v1", tags=["QA & Delivery: Production QA loop + deliveries"])
 app.include_router(gm_control_router.router, prefix="/api/v1", tags=["GM Control: Approvals, escalations, stage watcher"])
 app.include_router(operator_pages.router, prefix="/api/v1", tags=["Operator Pages: Full HTML surface"])
+app.include_router(ops_lock.router, tags=["Ops Lock: Version, health-check, lock-status"])
 
 # --- Local media file serving (fallback when S3 is not configured) ---
 
