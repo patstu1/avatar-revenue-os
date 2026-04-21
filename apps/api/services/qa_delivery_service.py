@@ -306,6 +306,8 @@ async def dispatch_delivery(
         message=message or default_message,
         sent_at=now,
         followup_scheduled_at=followup_at,
+        # Batch 9: carry avenue_slug from the job (back-fill chain).
+        avenue_slug=job.avenue_slug or project.avenue_slug or client.avenue_slug,
     )
     db.add(delivery)
     await db.flush()

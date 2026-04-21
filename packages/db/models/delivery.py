@@ -105,7 +105,16 @@ class Delivery(Base):
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     acknowledged_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     followup_scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Batch 9: set by the follow-up sender beat task when the scheduled
+    # message is actually delivered. Selected by
+    # `followup_sent_at IS NULL AND followup_scheduled_at <= now()`.
+    followup_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+    # Batch 9: avenue attribution carried from the ProductionJob.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

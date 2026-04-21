@@ -94,6 +94,9 @@ class ClientProject(Base):
     metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Batch 9: avenue attribution carried from the IntakeRequest.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
@@ -193,5 +196,16 @@ class ProductionJob(Base):
     )
 
     metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+    # Batch 9: avenue attribution carried from the ClientProject.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+
+    # Batch 9: fulfillment-worker fields. When a worker picks up a pending
+    # job, it stamps worker_id + picked_up_at + flips status to
+    # in_progress. Used by the stuck-job detector to escalate.
+    worker_id: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    picked_up_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

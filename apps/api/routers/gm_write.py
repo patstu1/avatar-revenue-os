@@ -50,7 +50,10 @@ from apps.api.services.gm_write_service import (
     audit_gm_write,
     forbid_escalation_as_mutation,
 )
+from packages.db.models.clients import Client, IntakeRequest
+from packages.db.models.delivery import Delivery
 from packages.db.models.email_pipeline import EmailReplyDraft
+from packages.db.models.fulfillment import ClientProject, ProductionJob, ProjectBrief
 from packages.db.models.gm_control import GMApproval, GMEscalation
 from packages.db.models.proposals import Payment, PaymentLink, Proposal
 
@@ -671,6 +674,514 @@ async def mark_stage(
         "entered_at": state.entered_at.isoformat() if state.entered_at else None,
         "sla_deadline": state.sla_deadline.isoformat() if state.sla_deadline else None,
         "backing_event_id": str(body.backing_event_id),
+        "action_class": action_class,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  9. Batch 9 — fulfillment-chain GM write authority
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Seven endpoints that give the operator a command surface for every
+# fulfillment stage that previously depended on a silent autonomous
+# worker. Each is a thin wrapper over the canonical service + audit +
+# event. No new business logic lives here.
+#
+# Doctrine posture: all seven are APPROVAL_REQUIRED (human-in-the-loop
+# actions that touch the customer, the deliverable, or money). None
+# are AUTO_EXECUTE — the operator hitting the tool IS the approval.
+
+
+class IntakeResendBody(BaseModel):
+    note: Optional[str] = Field(None, max_length=1000)
+
+
+@router.post("/intake/{intake_request_id}/resend")
+async def resend_intake_invite(
+    intake_request_id: str,
+    body: IntakeResendBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Re-send the intake-invite email for a client. Used when the
+    original invite landed in spam, the buyer lost it, or the autonomous
+    send failed at ``start_onboarding`` time.
+
+    Wraps ``client_activation.send_intake_invite(reminder=True)``.
+    """
+    from apps.api.services.client_activation import send_intake_invite
+
+    iid = _parse_uuid(intake_request_id)
+    intake = (
+        await db.execute(select(IntakeRequest).where(IntakeRequest.id == iid))
+    ).scalar_one_or_none()
+    if intake is None:
+        raise HTTPException(404, "Intake request not found")
+    if intake.org_id != current_user.organization_id:
+        raise HTTPException(403, "Intake belongs to another organization")
+
+    client = (
+        await db.execute(select(Client).where(Client.id == intake.client_id))
+    ).scalar_one_or_none()
+    if client is None:
+        raise HTTPException(404, "Client not found for intake")
+
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="intake.resend", action_class=action_class,
+    )
+
+    result = await send_intake_invite(
+        db, client=client, intake_request=intake, reminder=True,
+    )
+    await audit_gm_write(
+        db, actor=current_user, tool_name="intake.resend",
+        entity_type="intake_request", entity_id=intake.id,
+        decision="executed" if result.get("success") else "failed",
+        action_class=action_class,
+        details={
+            "client_id": str(client.id),
+            "provider": result.get("provider"),
+            "success": bool(result.get("success")),
+            "error": result.get("error"),
+            "note": body.note,
+            "reminder_count": intake.reminder_count,
+        },
+        severity="info" if result.get("success") else "warning",
+    )
+    await db.commit()
+    if not result.get("success"):
+        raise HTTPException(
+            502,
+            f"Intake invite send failed: {result.get('error') or 'unknown'}",
+        )
+    return {
+        "intake_request_id": str(intake.id),
+        "client_id": str(client.id),
+        "reminder_count": intake.reminder_count,
+        "provider": result.get("provider"),
+        "action_class": action_class,
+    }
+
+
+class ProductionLaunchBody(BaseModel):
+    job_type: str = Field("content_pack", max_length=60)
+    title: Optional[str] = Field(None, max_length=500)
+    metadata: Optional[dict] = None
+
+
+@router.post("/production/briefs/{brief_id}/launch", status_code=201)
+async def launch_production(
+    brief_id: str,
+    body: ProductionLaunchBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Operator-forced launch of a ProductionJob for a given brief.
+    Normally the autonomous fulfillment-worker picks jobs up, but this
+    lets GM skip the queue or restart a failed job.
+    """
+    from apps.api.services.fulfillment_service import launch_production_for_brief
+
+    bid = _parse_uuid(brief_id)
+    brief = (
+        await db.execute(select(ProjectBrief).where(ProjectBrief.id == bid))
+    ).scalar_one_or_none()
+    if brief is None:
+        raise HTTPException(404, "Brief not found")
+    if brief.org_id != current_user.organization_id:
+        raise HTTPException(403, "Brief belongs to another organization")
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="production.launch", action_class=action_class,
+    )
+
+    job = await launch_production_for_brief(
+        db, brief=brief, job_type=body.job_type, title=body.title,
+        metadata=body.metadata,
+    )
+    await audit_gm_write(
+        db, actor=current_user, tool_name="production.launch",
+        entity_type="production_job", entity_id=job.id,
+        decision="executed", action_class=action_class,
+        details={
+            "brief_id": str(brief.id),
+            "project_id": str(brief.project_id),
+            "job_type": body.job_type,
+            "avenue_slug": job.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {
+        "production_job_id": str(job.id),
+        "brief_id": str(brief.id),
+        "status": job.status,
+        "avenue_slug": job.avenue_slug,
+        "action_class": action_class,
+    }
+
+
+class ProductionSubmitOutputBody(BaseModel):
+    deliverable_url: str = Field(..., min_length=1, max_length=2000)
+    notes: Optional[str] = Field(None, max_length=2000)
+    auto_dispatch_delivery: bool = True
+
+
+@router.post("/production/{job_id}/submit-output", status_code=201)
+async def submit_production_output(
+    job_id: str,
+    body: ProductionSubmitOutputBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Operator hands off a completed production output. Cascades into
+    QA review → delivery dispatch → follow-up scheduling via
+    ``qa_delivery_service.submit_production_output`` (same canonical path
+    as the autonomous worker would use)."""
+    from apps.api.services.qa_delivery_service import (
+        submit_production_output as svc_submit,
+    )
+
+    jid = _parse_uuid(job_id)
+    job = (
+        await db.execute(select(ProductionJob).where(ProductionJob.id == jid))
+    ).scalar_one_or_none()
+    if job is None:
+        raise HTTPException(404, "Production job not found")
+    if job.org_id != current_user.organization_id:
+        raise HTTPException(403, "Job belongs to another organization")
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="production.submit_output", action_class=action_class,
+    )
+
+    result = await svc_submit(
+        db, job=job, output_url=body.deliverable_url,
+        auto_dispatch=body.auto_dispatch_delivery,
+    )
+    await audit_gm_write(
+        db, actor=current_user, tool_name="production.submit_output",
+        entity_type="production_job", entity_id=job.id,
+        decision="executed", action_class=action_class,
+        details={
+            "deliverable_url": body.deliverable_url,
+            "notes": body.notes,
+            "avenue_slug": job.avenue_slug,
+            "qa": result.get("qa"),
+            "delivery": result.get("delivery"),
+        },
+    )
+    await db.commit()
+    return {
+        "production_job_id": str(job.id),
+        "status": job.status,
+        "qa": result.get("qa"),
+        "delivery": result.get("delivery"),
+        "action_class": action_class,
+    }
+
+
+class DeliveryDispatchBody(BaseModel):
+    channel: str = "email"
+    subject: Optional[str] = Field(None, max_length=1000)
+    message: Optional[str] = Field(None, max_length=10000)
+    deliverable_url: Optional[str] = Field(None, max_length=2000)
+    followup_days: int = Field(7, ge=1, le=60)
+
+
+@router.post("/deliveries/dispatch/{job_id}", status_code=201)
+async def force_dispatch_delivery(
+    job_id: str,
+    body: DeliveryDispatchBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Force-dispatch a Delivery for a production job that passed QA but
+    hasn't auto-delivered, or re-send a delivery that failed to go out.
+    Wraps ``qa_delivery_service.dispatch_delivery``."""
+    from apps.api.services.qa_delivery_service import dispatch_delivery
+
+    jid = _parse_uuid(job_id)
+    job = (
+        await db.execute(select(ProductionJob).where(ProductionJob.id == jid))
+    ).scalar_one_or_none()
+    if job is None:
+        raise HTTPException(404, "Production job not found")
+    if job.org_id != current_user.organization_id:
+        raise HTTPException(403, "Job belongs to another organization")
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="deliveries.dispatch", action_class=action_class,
+    )
+
+    delivery = await dispatch_delivery(
+        db, job=job, channel=body.channel, subject=body.subject,
+        message=body.message, deliverable_url=body.deliverable_url,
+        followup_days=body.followup_days,
+    )
+    await audit_gm_write(
+        db, actor=current_user, tool_name="deliveries.dispatch",
+        entity_type="delivery", entity_id=delivery.id,
+        decision="executed", action_class=action_class,
+        details={
+            "production_job_id": str(job.id),
+            "channel": body.channel,
+            "followup_days": body.followup_days,
+            "avenue_slug": delivery.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {
+        "delivery_id": str(delivery.id),
+        "production_job_id": str(job.id),
+        "status": delivery.status,
+        "followup_scheduled_at": (
+            delivery.followup_scheduled_at.isoformat()
+            if delivery.followup_scheduled_at else None
+        ),
+        "action_class": action_class,
+    }
+
+
+class DeliveryFollowupBody(BaseModel):
+    when_iso: Optional[str] = Field(
+        None,
+        description="ISO-8601 timestamp. If omitted, defaults to now + 7 days.",
+    )
+
+
+@router.post("/deliveries/{delivery_id}/schedule-followup")
+async def schedule_delivery_followup(
+    delivery_id: str,
+    body: DeliveryFollowupBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Set or reset the follow-up send time on a delivery. The beat
+    task dispatches followups whose time has matured."""
+    from datetime import datetime, timedelta, timezone
+    from apps.api.services.qa_delivery_service import schedule_followup
+
+    did = _parse_uuid(delivery_id)
+    delivery = (
+        await db.execute(select(Delivery).where(Delivery.id == did))
+    ).scalar_one_or_none()
+    if delivery is None:
+        raise HTTPException(404, "Delivery not found")
+    if delivery.org_id != current_user.organization_id:
+        raise HTTPException(403, "Delivery belongs to another organization")
+
+    if body.when_iso:
+        try:
+            when = datetime.fromisoformat(body.when_iso.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(400, f"Invalid when_iso: {body.when_iso}")
+    else:
+        when = datetime.now(timezone.utc) + timedelta(days=7)
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="deliveries.schedule_followup", action_class=action_class,
+    )
+
+    await schedule_followup(db, delivery=delivery, when=when)
+    # Reset followup_sent_at so the beat task re-dispatches.
+    delivery.followup_sent_at = None
+    await db.flush()
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="deliveries.schedule_followup",
+        entity_type="delivery", entity_id=delivery.id,
+        decision="executed", action_class=action_class,
+        details={
+            "followup_scheduled_at": when.isoformat(),
+            "avenue_slug": delivery.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {
+        "delivery_id": str(delivery.id),
+        "followup_scheduled_at": when.isoformat(),
+        "followup_sent_at": None,
+        "action_class": action_class,
+    }
+
+
+class DunningSendBody(BaseModel):
+    note: Optional[str] = Field(None, max_length=2000)
+
+
+@router.post("/proposals/{proposal_id}/dunning/send")
+async def send_dunning_reminder(
+    proposal_id: str,
+    body: DunningSendBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Fire the next-in-sequence dunning reminder for an unpaid proposal.
+    Wraps ``proposal_dunning_service.send_reminder``. Operator-commanded
+    path — the beat task also fires automatically at the configured
+    cadence."""
+    from apps.api.services.proposal_dunning_service import send_reminder
+
+    proposal = await _require_owned_proposal(
+        db, _parse_uuid(proposal_id), current_user.organization_id
+    )
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="proposals.dunning_send", action_class=action_class,
+    )
+
+    result = await send_reminder(
+        db, proposal=proposal,
+        actor_type="operator", actor_id=str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user, tool_name="proposals.dunning_send",
+        entity_type="proposal", entity_id=proposal.id,
+        decision="executed" if result.get("sent") else "refused",
+        action_class=action_class,
+        details={
+            "reminder_number": result.get("reminder_number"),
+            "reason": result.get("reason"),
+            "note": body.note,
+            "avenue_slug": proposal.avenue_slug,
+        },
+        severity="info" if result.get("sent") else "warning",
+    )
+    await db.commit()
+    return {
+        "proposal_id": str(proposal.id),
+        "sent": bool(result.get("sent")),
+        "reminder_number": result.get("reminder_number"),
+        "reason": result.get("reason"),
+        "dunning_status": proposal.dunning_status,
+        "action_class": action_class,
+    }
+
+
+class IssueClassificationBody(BaseModel):
+    issue_type: str = Field(
+        ...,
+        pattern="^(refund|cancel|complaint|question|upsell_intent|bug|praise|other)$",
+        description=(
+            "refund=buyer wants money back; cancel=stop service/sub; "
+            "complaint=unhappy but not requesting refund; question=just asking; "
+            "upsell_intent=asking about more / bigger package; bug=technical issue; "
+            "praise=positive feedback; other=anything else."
+        ),
+    )
+    severity: str = Field("info", pattern="^(info|warning|critical)$")
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/issues/drafts/{draft_id}/classify")
+async def classify_issue(
+    draft_id: str,
+    body: IssueClassificationBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Tag an inbound reply draft with an issue type. Creates a
+    ClientOnboardingEvent (if we can resolve the originating client)
+    plus a GMEscalation for ``refund`` / ``cancel`` / ``critical``
+    severity so the right action queue sees it."""
+    from packages.db.models.clients import ClientOnboardingEvent
+
+    did = _parse_uuid(draft_id)
+    draft = (
+        await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))
+    ).scalar_one_or_none()
+    if draft is None:
+        raise HTTPException(404, "Draft not found")
+    if draft.org_id != current_user.organization_id:
+        raise HTTPException(403, "Draft belongs to another organization")
+
+    action_class = classify_action(confidence=1.0, money_involved=body.issue_type in ("refund", "cancel"))
+    forbid_escalation_as_mutation(
+        tool_name="issues.classify", action_class=action_class,
+    )
+
+    # Best-effort find the Client for this inbound thread (by to_email).
+    client = (
+        await db.execute(
+            select(Client).where(
+                Client.org_id == draft.org_id,
+                Client.primary_email == (draft.to_email or "").lower(),
+            )
+        )
+    ).scalar_one_or_none()
+
+    if client is not None:
+        db.add(
+            ClientOnboardingEvent(
+                client_id=client.id,
+                org_id=client.org_id,
+                event_type=f"issue.{body.issue_type}",
+                details_json={
+                    "draft_id": str(draft.id),
+                    "issue_type": body.issue_type,
+                    "severity": body.severity,
+                    "notes": body.notes,
+                    "classified_by": current_user.email,
+                },
+                actor_type="operator",
+                actor_id=current_user.email,
+            )
+        )
+
+    # High-severity / money-touching issues → open a GMEscalation so the
+    # operator queue surfaces them.
+    escalation_id = None
+    if body.issue_type in ("refund", "cancel") or body.severity == "critical":
+        esc = GMEscalation(
+            org_id=draft.org_id,
+            reason_code=f"issue_{body.issue_type}",
+            entity_type="email_reply_draft",
+            entity_id=draft.id,
+            title=f"Customer issue [{body.issue_type}]: {(draft.subject or 'reply')[:300]}",
+            description=(
+                body.notes
+                or f"Operator-classified issue of type {body.issue_type} from "
+                f"{draft.to_email}. Decide outcome: refund / cancel / respond."
+            )[:4000],
+            severity=body.severity if body.severity != "info" else "warning",
+            status="open",
+            details_json={
+                "draft_id": str(draft.id),
+                "client_id": str(client.id) if client else None,
+                "issue_type": body.issue_type,
+                "to_email": draft.to_email,
+            },
+        )
+        db.add(esc)
+        await db.flush()
+        escalation_id = esc.id
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="issues.classify",
+        entity_type="email_reply_draft", entity_id=draft.id,
+        decision="executed", action_class=action_class,
+        details={
+            "issue_type": body.issue_type,
+            "severity": body.severity,
+            "client_id": str(client.id) if client else None,
+            "escalation_id": str(escalation_id) if escalation_id else None,
+        },
+        severity=body.severity if body.severity != "info" else "info",
+    )
+    await db.commit()
+    return {
+        "draft_id": str(draft.id),
+        "issue_type": body.issue_type,
+        "severity": body.severity,
+        "client_id": str(client.id) if client else None,
+        "escalation_id": str(escalation_id) if escalation_id else None,
         "action_class": action_class,
     }
 

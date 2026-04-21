@@ -92,6 +92,21 @@ async def create_project_from_intake(
             title = proposal.title or title
 
     now = datetime.now(timezone.utc)
+    # Batch 9: carry avenue_slug through. Intake request is the most
+    # recently-set carrier; fall back to proposal if intake didn't have it.
+    avenue_slug = None
+    if intake_request is not None:
+        avenue_slug = intake_request.avenue_slug
+    if avenue_slug is None and intake_request and intake_request.proposal_id:
+        from packages.db.models.proposals import Proposal
+        proposal_row = (
+            await db.execute(
+                select(Proposal).where(Proposal.id == intake_request.proposal_id)
+            )
+        ).scalar_one_or_none()
+        if proposal_row is not None:
+            avenue_slug = proposal_row.avenue_slug
+
     project = ClientProject(
         org_id=intake_submission.org_id,
         client_id=intake_submission.client_id,
@@ -101,6 +116,7 @@ async def create_project_from_intake(
         title=title[:500],
         description=description,
         package_slug=package_slug,
+        avenue_slug=avenue_slug,
         status="active",
         started_at=now,
         metadata_json={"source": "intake_submission", "responses": responses},
@@ -337,6 +353,14 @@ async def launch_production_for_brief(
         brief.approved_by = brief.approved_by or "system:auto_approve"
         await db.flush()
 
+    # Batch 9: carry avenue_slug from the project.
+    project_row = (
+        await db.execute(
+            select(ClientProject).where(ClientProject.id == brief.project_id)
+        )
+    ).scalar_one_or_none()
+    avenue_slug = project_row.avenue_slug if project_row is not None else None
+
     now = datetime.now(timezone.utc)
     job = ProductionJob(
         org_id=brief.org_id,
@@ -344,10 +368,11 @@ async def launch_production_for_brief(
         brief_id=brief.id,
         job_type=job_type,
         title=(title or f"{job_type}: {brief.title[:400]}")[:500],
-        status="running",
+        status="queued",
         started_at=now,
-        attempt_count=1,
+        attempt_count=0,
         metadata_json=metadata,
+        avenue_slug=avenue_slug,
     )
     db.add(job)
     await db.flush()
@@ -355,12 +380,12 @@ async def launch_production_for_brief(
     await emit_event(
         db,
         domain="fulfillment",
-        event_type="production.started",
-        summary=f"Production started: {job.title[:80]}",
+        event_type="production.queued",
+        summary=f"Production queued: {job.title[:80]}",
         org_id=job.org_id,
         entity_type="production_job",
         entity_id=job.id,
-        new_state="running",
+        new_state="queued",
         actor_type="system",
         actor_id="fulfillment_service",
         details={
@@ -368,20 +393,20 @@ async def launch_production_for_brief(
             "brief_id": str(brief.id),
             "project_id": str(brief.project_id),
             "job_type": job_type,
-            "attempt": job.attempt_count,
+            "avenue_slug": avenue_slug,
         },
     )
     logger.info(
-        "production.started",
+        "production.queued",
         production_job_id=str(job.id),
         brief_id=str(brief.id),
-        attempt=job.attempt_count,
+        avenue_slug=avenue_slug,
     )
     try:
         from apps.api.services.stage_controller import mark_stage
         await mark_stage(
             db, org_id=job.org_id,
-            entity_type="production_job", entity_id=job.id, stage="running",
+            entity_type="production_job", entity_id=job.id, stage="queued",
         )
     except Exception as stage_exc:
         logger.warning("stage_controller.mark_failed",

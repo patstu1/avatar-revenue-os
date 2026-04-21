@@ -69,6 +69,7 @@ async def create_proposal(
     recipient_company: str = "",
     summary: str = "",
     package_slug: Optional[str] = None,
+    avenue_slug: Optional[str] = None,
     currency: str = "usd",
     created_by_actor_type: str = "system",
     created_by_actor_id: Optional[str] = None,
@@ -99,6 +100,7 @@ async def create_proposal(
         title=title[:500],
         summary=summary,
         package_slug=package_slug,
+        avenue_slug=avenue_slug,
         status="draft",
         total_amount_cents=total,
         currency=currency,
@@ -142,6 +144,7 @@ async def create_proposal(
             "proposal_id": str(proposal.id),
             "recipient_email": recipient_email,
             "package_slug": package_slug,
+            "avenue_slug": avenue_slug,
             "line_item_count": len(line_items),
             "total_amount_cents": total,
             "currency": currency,
@@ -356,6 +359,16 @@ async def record_payment_from_stripe(
     proposal_id = _safe_uuid(meta.get("proposal_id"))
     payment_link_id = _safe_uuid(meta.get("payment_link_id"))
     offer_id = _safe_uuid(meta.get("offer_id"))
+    # Batch 9: avenue attribution — prefer explicit metadata.avenue on the
+    # Stripe object; fall back to the originating proposal's avenue_slug
+    # once resolved. Keeps every downstream entity (Client, IntakeRequest,
+    # ClientProject, ProductionJob, Delivery) tagged with the avenue that
+    # earned the revenue.
+    avenue_slug = (meta.get("avenue") or meta.get("avenue_slug") or None)
+    if isinstance(avenue_slug, str):
+        avenue_slug = avenue_slug[:60] or None
+    else:
+        avenue_slug = None
 
     # Try to resolve payment_link by stripe link id if not in metadata
     if payment_link_id is None and stripe_object.get("payment_link"):
@@ -392,6 +405,7 @@ async def record_payment_from_stripe(
         customer_name=customer_name[:255],
         raw_event_json={"event_type": event_type, "object": stripe_object},
         metadata_json=meta,
+        avenue_slug=avenue_slug,
     )
     db.add(payment)
     await db.flush()
@@ -401,6 +415,11 @@ async def record_payment_from_stripe(
         proposal = await _require_proposal(db, proposal_id)
         proposal.status = "paid"
         proposal.paid_at = now
+        # Batch 9: clear dunning state on payment — no more reminders.
+        proposal.dunning_status = "paid"
+        # If avenue wasn't on Stripe metadata, back-fill from proposal.
+        if payment.avenue_slug is None and proposal.avenue_slug:
+            payment.avenue_slug = proposal.avenue_slug
         await db.flush()
 
     if payment_link_id is not None:

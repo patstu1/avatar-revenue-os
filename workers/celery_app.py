@@ -105,8 +105,26 @@ app.conf.update(
         "workers.repurposing_worker.*": {"queue": "repurposing"},
         "workers.strategy_adjustment_worker.*": {"queue": "strategy_adjustment"},
         "workers.outreach_worker.*": {"queue": "outreach"},
+        "workers.fulfillment_worker.*": {"queue": "default"},
     },
     beat_schedule={
+        # ─── Batch 9 — fulfillment + reconciliation + dunning ──────────
+        "fulfillment-drain-pending-jobs-every-60s": {
+            "task": "workers.fulfillment_worker.tasks.drain_pending_production_jobs",
+            "schedule": 60.0,
+        },
+        "fulfillment-dispatch-due-followups-every-15m": {
+            "task": "workers.fulfillment_worker.tasks.dispatch_due_followups",
+            "schedule": crontab(minute="*/15"),
+        },
+        "fulfillment-chase-unpaid-proposals-every-6h": {
+            "task": "workers.fulfillment_worker.tasks.chase_unpaid_proposals",
+            "schedule": crontab(hour="*/6", minute=7),
+        },
+        "fulfillment-stripe-reconcile-every-10m": {
+            "task": "workers.fulfillment_worker.tasks.reconcile_stripe_webhooks",
+            "schedule": crontab(minute="*/10"),
+        },
         # RECOMPUTE DEPENDENCY ORDER:
         # 1. Analytics (ingest_performance → populates PerformanceMetric, the keystone table)
         # 2. Portfolio (reads PerformanceMetric)

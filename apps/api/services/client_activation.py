@@ -104,6 +104,10 @@ async def activate_client_from_payment(
         await db.flush()
         return (existing, False, None)
 
+    # Batch 9: propagate avenue_slug from payment → client (and back-fill
+    # from the proposal if Stripe metadata didn't carry it).
+    avenue_slug = payment.avenue_slug or (proposal.avenue_slug if proposal else None)
+
     client = Client(
         org_id=payment.org_id,
         brand_id=payment.brand_id,
@@ -116,6 +120,7 @@ async def activate_client_from_payment(
         activated_at=now,
         last_paid_at=now,
         total_paid_cents=payment.amount_cents or 0,
+        avenue_slug=avenue_slug,
     )
     db.add(client)
     await db.flush()
@@ -211,6 +216,8 @@ async def start_onboarding(
         instructions=instructions or "Please complete the following to kick off production.",
         schema_json=schema or DEFAULT_INTAKE_SCHEMA,
         sent_at=now,
+        # Batch 9: carry avenue attribution from the client.
+        avenue_slug=client.avenue_slug,
     )
     db.add(intake)
     await db.flush()
@@ -297,7 +304,160 @@ async def start_onboarding(
     except Exception as stage_exc:
         logger.warning("stage_controller.mark_failed",
                         entity="intake_request", error=str(stage_exc)[:150])
+
+    # Batch 9: actually email the buyer the intake link. Before this,
+    # start_onboarding created the IntakeRequest row but sent nothing
+    # to the buyer — every paying customer hit a silent wall.
+    try:
+        await send_intake_invite(db, client=client, intake_request=intake)
+    except Exception as email_exc:
+        logger.warning(
+            "intake.email_send_failed",
+            intake_request_id=str(intake.id),
+            error=str(email_exc)[:200],
+        )
+
     return intake
+
+
+async def send_intake_invite(
+    db: AsyncSession,
+    *,
+    client: Client,
+    intake_request: IntakeRequest,
+    reminder: bool = False,
+) -> dict:
+    """Send the transactional intake-invite email to a client.
+
+    Called automatically from ``start_onboarding`` and also invocable
+    directly via the ``/gm/write/intake/{id}/resend`` endpoint when a
+    buyer loses the first one. Uses the DB-managed SMTP credentials
+    (``integration_providers.smtp``). If no SMTP config exists for the
+    org, returns a structured failure dict rather than raising — the
+    IntakeRequest row is still valid and GM can surface the failure.
+
+    Returns ``{"success": bool, "provider": str, "error": str|None}``.
+    Emits ``intake.email_sent`` on success or
+    ``intake.email_send_failed`` on failure.
+    """
+    from packages.clients.email_templates import build_intake_invite
+    from packages.clients.external_clients import SmtpEmailClient
+    from apps.api.services.event_bus import emit_event
+
+    smtp = await SmtpEmailClient.from_db(db, client.org_id)
+    if smtp is None:
+        result = {"success": False, "error": "no_smtp_configured", "provider": None}
+    else:
+        built = build_intake_invite(
+            display_name=client.display_name or client.primary_email,
+            intake_title=intake_request.title,
+            intake_token=intake_request.token,
+            package_slug=(
+                intake_request.schema_json or {}
+            ).get("package_slug"),
+            avenue_slug=client.avenue_slug,
+        )
+        result = await smtp.send_email(
+            to_email=client.primary_email,
+            subject=built["subject"],
+            body_html=built["html"],
+            body_text=built["text"],
+        )
+
+    now = datetime.now(timezone.utc)
+    if result.get("success"):
+        intake_request.sent_at = intake_request.sent_at or now
+        if reminder:
+            intake_request.reminder_count = (intake_request.reminder_count or 0) + 1
+            intake_request.last_reminder_at = now
+        db.add(
+            ClientOnboardingEvent(
+                client_id=client.id,
+                org_id=client.org_id,
+                event_type="intake.reminder_sent" if reminder else "intake.email_sent",
+                intake_request_id=intake_request.id,
+                details_json={
+                    "provider": result.get("provider", "smtp"),
+                    "to_email": client.primary_email,
+                    "reminder": reminder,
+                },
+                actor_type="system",
+                actor_id="client_activation.send_intake_invite",
+            )
+        )
+        await emit_event(
+            db,
+            domain="fulfillment",
+            event_type="intake.email_sent" if not reminder else "intake.reminder_sent",
+            summary=(
+                f"Intake invite email sent to {client.primary_email}"
+                if not reminder
+                else f"Intake reminder #{intake_request.reminder_count} to {client.primary_email}"
+            ),
+            org_id=client.org_id,
+            brand_id=client.brand_id,
+            entity_type="intake_request",
+            entity_id=intake_request.id,
+            actor_type="system",
+            actor_id="client_activation.send_intake_invite",
+            details={
+                "client_id": str(client.id),
+                "intake_request_id": str(intake_request.id),
+                "provider": result.get("provider", "smtp"),
+                "reminder_count": intake_request.reminder_count,
+            },
+        )
+        logger.info(
+            "intake.email_sent",
+            client_id=str(client.id),
+            intake_request_id=str(intake_request.id),
+            reminder=reminder,
+        )
+    else:
+        # Still log the failure as an onboarding event so GM can see it
+        # and the operator can retry via /gm/write/intake/{id}/resend.
+        db.add(
+            ClientOnboardingEvent(
+                client_id=client.id,
+                org_id=client.org_id,
+                event_type="intake.email_send_failed",
+                intake_request_id=intake_request.id,
+                details_json={
+                    "error": result.get("error", "unknown"),
+                    "provider": result.get("provider"),
+                    "reminder": reminder,
+                },
+                actor_type="system",
+                actor_id="client_activation.send_intake_invite",
+            )
+        )
+        await emit_event(
+            db,
+            domain="fulfillment",
+            event_type="intake.email_send_failed",
+            summary=f"Intake invite send failed for {client.primary_email}: {result.get('error')}",
+            org_id=client.org_id,
+            brand_id=client.brand_id,
+            entity_type="intake_request",
+            entity_id=intake_request.id,
+            actor_type="system",
+            actor_id="client_activation.send_intake_invite",
+            severity="warning",
+            details={
+                "client_id": str(client.id),
+                "intake_request_id": str(intake_request.id),
+                "error": result.get("error"),
+                "provider": result.get("provider"),
+            },
+        )
+        logger.warning(
+            "intake.email_send_failed",
+            client_id=str(client.id),
+            intake_request_id=str(intake_request.id),
+            error=result.get("error"),
+        )
+    await db.flush()
+    return result
 
 
 async def submit_intake(

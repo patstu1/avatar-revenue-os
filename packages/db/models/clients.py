@@ -75,6 +75,9 @@ class Client(Base):
     metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Batch 9: avenue attribution carried from the originating payment.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
@@ -161,6 +164,9 @@ class IntakeRequest(Base):
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     reminder_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_reminder_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Batch 9: avenue attribution carried from the parent Client.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 

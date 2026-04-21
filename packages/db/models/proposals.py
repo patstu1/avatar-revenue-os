@@ -109,6 +109,11 @@ class Proposal(Base):
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     summary: Mapped[str] = mapped_column(Text, default="")
     package_slug: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    # Batch 9: which of the 22 revenue avenues this proposal belongs to.
+    # Threaded downstream to Payment, Client, IntakeRequest, ClientProject,
+    # ProductionJob, Delivery so every post-purchase action knows which
+    # avenue it serves.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
 
     # State machine
     status: Mapped[str] = mapped_column(
@@ -119,6 +124,18 @@ class Proposal(Base):
     accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Batch 9: proposal dunning (automatic reminders for unpaid proposals).
+    dunning_reminders_sent: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
+    dunning_last_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # "none" | "in_progress" | "max_reached" | "paid" | "cancelled"
+    dunning_status: Mapped[str] = mapped_column(
+        String(30), default="none", nullable=False, index=True
+    )
 
     # Money (cents, to avoid float)
     total_amount_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -264,5 +281,9 @@ class Payment(Base):
 
     raw_event_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+    # Batch 9: avenue attribution, propagated from source proposal or
+    # from Stripe metadata.avenue at webhook time.
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

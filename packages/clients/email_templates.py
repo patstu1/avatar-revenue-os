@@ -321,6 +321,156 @@ def build_proof_email(
     }
 
 
+# ---------------------------------------------------------------------------
+# Batch 9 — Transactional post-purchase emails
+# ---------------------------------------------------------------------------
+#
+# Intake invite (sent the moment a Client is activated by a successful
+# Stripe payment), dunning reminders for unpaid proposals, and delivery
+# follow-ups. Same plain-note visual treatment as the outbound templates
+# above — a private message from an operator, not a marketing blast.
+
+
+def _intake_form_url(token: str) -> str:
+    """Base URL for the public intake form.
+
+    Override via env var ``INTAKE_FORM_BASE_URL`` — defaults to the
+    ARO API host at ``/intake/{token}``. Operators can point this at a
+    hosted form page (e.g. Typeform) if they swap the intake surface
+    later without touching this code.
+    """
+    base = os.environ.get(
+        "INTAKE_FORM_BASE_URL",
+        f"https://app.{DOMAIN.replace('proofhook.com', 'nvironments.com')}/intake",
+    ).rstrip("/")
+    return f"{base}/{token}"
+
+
+def build_intake_invite(
+    *,
+    display_name: str,
+    intake_title: str,
+    intake_token: str,
+    package_slug: str | None = None,
+    avenue_slug: str | None = None,
+    sender_name: str = "Patrick",
+) -> dict[str, str]:
+    """Build the transactional intake invite email.
+
+    Fires once per client activation — the moment Stripe webhook creates
+    a Client + IntakeRequest, the buyer gets this email containing the
+    one-use token URL that unlocks their onboarding form.
+
+    Keep the body short. No sell. Single CTA. The buyer already paid —
+    this is the "what's next" message, not a pitch.
+    """
+    url = _intake_form_url(intake_token)
+    first_name = (display_name.split(" ")[0] or display_name).strip() or "there"
+
+    body = (
+        f"Hi {first_name},\n\n"
+        f"Thanks for your purchase — you're in.\n\n"
+        f"The next step is a quick intake so we can kick off production. "
+        f"It takes about 10 minutes and asks for your product details, audience, "
+        f"and goals.\n\n"
+        f"Start here: {url}\n\n"
+        f"Once you submit, we begin work within 48 hours. "
+        f"Reply to this email if anything blocks you."
+    )
+
+    html = _plain_html(body, sender_name=sender_name)
+    subject = f"Next step — {intake_title}"
+
+    return {
+        "html": html,
+        "text": f"{body}\n\n{sender_name}\nProofHook",
+        "subject": subject,
+    }
+
+
+def build_dunning_reminder(
+    *,
+    display_name: str,
+    proposal_title: str,
+    payment_link_url: str | None = None,
+    amount_display: str | None = None,
+    reminder_number: int = 1,
+    sender_name: str = "Patrick",
+) -> dict[str, str]:
+    """Build a polite payment reminder for an unpaid proposal.
+
+    Reminder 1 (24h after sent)   : gentle nudge
+    Reminder 2 (72h after sent)   : slightly more direct
+    Reminder 3 (7d after sent)    : final reminder, then escalate
+    """
+    first_name = (display_name.split(" ")[0] or display_name).strip() or "there"
+    link_block = f"\n\nPayment link: {payment_link_url}" if payment_link_url else ""
+    amount_block = f" ({amount_display})" if amount_display else ""
+
+    if reminder_number <= 1:
+        body = (
+            f"Hi {first_name},\n\n"
+            f"Just checking in on {proposal_title}{amount_block}. "
+            f"Wanted to make sure nothing got stuck in an inbox.{link_block}\n\n"
+            f"Let me know if you need anything clarified — happy to answer."
+        )
+        subject = f"Re: {proposal_title}"
+    elif reminder_number == 2:
+        body = (
+            f"Hi {first_name},\n\n"
+            f"Still holding your slot for {proposal_title}{amount_block}. "
+            f"If the timing doesn't work anymore, reply and I'll pull it — "
+            f"otherwise the payment link is ready whenever you are.{link_block}"
+        )
+        subject = f"Re: {proposal_title} — still on?"
+    else:
+        body = (
+            f"Hi {first_name},\n\n"
+            f"Last check-in on {proposal_title}{amount_block}. "
+            f"If you still want to move forward this week, the link is below. "
+            f"If not, no problem — just say the word and I'll close it out "
+            f"and free up the slot.{link_block}"
+        )
+        subject = f"Re: {proposal_title} — final note"
+
+    html = _plain_html(body, sender_name=sender_name)
+    return {
+        "html": html,
+        "text": f"{body}\n\n{sender_name}\nProofHook",
+        "subject": subject,
+    }
+
+
+def build_delivery_followup(
+    *,
+    display_name: str,
+    project_title: str,
+    deliverable_url: str | None = None,
+    sender_name: str = "Patrick",
+) -> dict[str, str]:
+    """Build a post-delivery follow-up email.
+
+    Fires N days after delivery.status=sent (default 7). Purpose:
+    confirm the buyer actually used what we shipped, open the door to
+    upsell / next batch. No marketing — just checking in.
+    """
+    first_name = (display_name.split(" ")[0] or display_name).strip() or "there"
+    link_block = f"\n\nQuick access to the files: {deliverable_url}" if deliverable_url else ""
+    body = (
+        f"Hi {first_name},\n\n"
+        f"Checking in on {project_title}. "
+        f"Did the creative land? If something missed the mark, tell me plainly — "
+        f"we'll fix it or make it right.{link_block}\n\n"
+        f"If it's working, happy to talk about what's next."
+    )
+    html = _plain_html(body, sender_name=sender_name)
+    return {
+        "html": html,
+        "text": f"{body}\n\n{sender_name}\nProofHook",
+        "subject": f"Quick check-in on {project_title}",
+    }
+
+
 # Keep backward compat
 def build_outreach_for_lead(
     *,
