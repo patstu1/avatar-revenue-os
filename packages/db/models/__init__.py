@@ -402,6 +402,9 @@ from packages.db.models.clients import (
 from packages.db.models.fulfillment import (
     ClientProject, ProjectBrief, ProductionJob,
 )
+from packages.db.models.delivery import (
+    ProductionQAReview, Delivery,
+)
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",
@@ -593,4 +596,5 @@ __all__ = [
     "Proposal", "ProposalLineItem", "PaymentLink", "Payment",
     "Client", "ClientOnboardingEvent", "IntakeRequest", "IntakeSubmission",
     "ClientProject", "ProjectBrief", "ProductionJob",
+    "ProductionQAReview", "Delivery",
 ]
