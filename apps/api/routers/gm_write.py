@@ -1889,6 +1889,400 @@ async def gm_client_cancel_subscription(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  12. Batch 12 — high_ticket onboarding + issue-handling close
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Six endpoints that complete the Onboarding + Issue stages for the
+# high_ticket avenue under the strict FULL_CIRCLE standard. Four drive
+# the discovery → SOW → kickoff state machine; two handle high-ticket
+# issue subtypes + credit issuance. All follow the Batch 7B/9/10/11
+# pattern (auth → org-scope → classify_action → forbid_escalation →
+# canonical service → audit_gm_write + gm.write.<tool> event).
+
+
+def _parse_dt(s: Optional[str], field: str) -> Optional[datetime]:
+    """Parse an ISO-8601 datetime; return None on empty. Raise 400 on
+    malformed. Always normalizes to UTC if naive."""
+    if s is None or s == "":
+        return None
+    from datetime import datetime, timezone as _tz
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        raise HTTPException(400, f"Invalid ISO-8601 for {field}: {s!r}")
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_tz.utc)
+    return dt
+
+
+async def _require_owned_client(
+    db: DBSession, client_id: str, org_id: uuid.UUID,
+) -> Client:
+    cid = _parse_uuid(client_id)
+    row = (
+        await db.execute(select(Client).where(Client.id == cid))
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "Client not found")
+    if row.org_id != org_id:
+        raise HTTPException(403, "Client belongs to another organization")
+    return row
+
+
+def _require_high_ticket(client: Client) -> None:
+    if client.avenue_slug != "high_ticket":
+        raise HTTPException(
+            400,
+            f"Client avenue_slug is {client.avenue_slug!r}; "
+            f"/high-ticket/* endpoints require avenue_slug='high_ticket'. "
+            "Use the generic /gm/write/* endpoints for other avenues.",
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  12a. schedule-discovery
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class HTScheduleDiscoveryBody(BaseModel):
+    when_iso: str = Field(..., min_length=1, max_length=40)
+    attendees: list[dict] = Field(default_factory=list, max_length=20)
+    agenda: Optional[str] = Field(None, max_length=4000)
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/clients/{client_id}/high-ticket/schedule-discovery")
+async def gm_ht_schedule_discovery(
+    client_id: str,
+    body: HTScheduleDiscoveryBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.high_ticket_onboarding import schedule_discovery_call
+
+    client = await _require_owned_client(db, client_id, current_user.organization_id)
+    _require_high_ticket(client)
+
+    when = _parse_dt(body.when_iso, "when_iso")
+    assert when is not None  # required by pydantic
+
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="clients.high_ticket.schedule_discovery",
+        action_class=action_class,
+    )
+    result = await schedule_discovery_call(
+        db, client=client, when=when,
+        attendees=body.attendees, agenda=body.agenda, notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="clients.high_ticket.schedule_discovery",
+        entity_type="client", entity_id=client.id,
+        decision="executed", action_class=action_class,
+        details={
+            "when_iso": body.when_iso,
+            "attendees_count": len(body.attendees),
+            "avenue_slug": client.avenue_slug,
+            "profile_id": result["profile_id"],
+        },
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  12b. sow-sent
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class HTSowSentBody(BaseModel):
+    sow_url: str = Field(..., min_length=1, max_length=2048)
+    signer_email: Optional[str] = Field(None, max_length=255)
+    sent_at_iso: Optional[str] = Field(None, max_length=40)
+    counterparty_name: Optional[str] = Field(None, max_length=255)
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/clients/{client_id}/high-ticket/sow-sent")
+async def gm_ht_sow_sent(
+    client_id: str,
+    body: HTSowSentBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.high_ticket_onboarding import record_sow_sent
+
+    client = await _require_owned_client(db, client_id, current_user.organization_id)
+    _require_high_ticket(client)
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="clients.high_ticket.sow_sent", action_class=action_class,
+    )
+    result = await record_sow_sent(
+        db, client=client,
+        sow_url=body.sow_url,
+        signer_email=body.signer_email,
+        sent_at=_parse_dt(body.sent_at_iso, "sent_at_iso"),
+        counterparty_name=body.counterparty_name,
+        notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="clients.high_ticket.sow_sent",
+        entity_type="client", entity_id=client.id,
+        decision="executed", action_class=action_class,
+        details={
+            "sow_url": body.sow_url,
+            "signer_email": body.signer_email,
+            "avenue_slug": client.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  12c. sow-countersigned (idempotent)
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class HTSowCountersignedBody(BaseModel):
+    signed_at_iso: Optional[str] = Field(None, max_length=40)
+    counterparty_name: Optional[str] = Field(None, max_length=255)
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/clients/{client_id}/high-ticket/sow-countersigned")
+async def gm_ht_sow_countersigned(
+    client_id: str,
+    body: HTSowCountersignedBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.high_ticket_onboarding import record_sow_countersigned
+
+    client = await _require_owned_client(db, client_id, current_user.organization_id)
+    _require_high_ticket(client)
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="clients.high_ticket.sow_countersigned",
+        action_class=action_class,
+    )
+    result = await record_sow_countersigned(
+        db, client=client,
+        signed_at=_parse_dt(body.signed_at_iso, "signed_at_iso"),
+        counterparty_name=body.counterparty_name,
+        notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="clients.high_ticket.sow_countersigned",
+        entity_type="client", entity_id=client.id,
+        decision="executed" if not result.get("already_signed") else "recorded",
+        action_class=action_class,
+        details={
+            "already_signed": bool(result.get("already_signed")),
+            "avenue_slug": client.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  12d. kickoff
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class HTKickoffBody(BaseModel):
+    kickoff_at_iso: str = Field(..., min_length=1, max_length=40)
+    team_members: list[dict] = Field(default_factory=list, max_length=20)
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/clients/{client_id}/high-ticket/kickoff")
+async def gm_ht_kickoff(
+    client_id: str,
+    body: HTKickoffBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.high_ticket_onboarding import set_kickoff_date
+
+    client = await _require_owned_client(db, client_id, current_user.organization_id)
+    _require_high_ticket(client)
+
+    when = _parse_dt(body.kickoff_at_iso, "kickoff_at_iso")
+    assert when is not None
+
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="clients.high_ticket.kickoff", action_class=action_class,
+    )
+    result = await set_kickoff_date(
+        db, client=client, kickoff_at=when,
+        team_members=body.team_members, notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="clients.high_ticket.kickoff",
+        entity_type="client", entity_id=client.id,
+        decision="executed", action_class=action_class,
+        details={
+            "kickoff_at_iso": body.kickoff_at_iso,
+            "team_members_count": len(body.team_members),
+            "avenue_slug": client.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  12e. issues/drafts/{id}/high-ticket-classify
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class HTIssueClassifyBody(BaseModel):
+    subtype: str = Field(
+        ...,
+        pattern=(
+            "^(contract_dispute|scope_creep|timeline_slip|"
+            "deliverable_dispute|payment_dispute|exclusivity_breach)$"
+        ),
+    )
+    affected_cents: int = Field(0, ge=0)
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/issues/drafts/{draft_id}/high-ticket-classify")
+async def gm_ht_issue_classify(
+    draft_id: str,
+    body: HTIssueClassifyBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.high_ticket_issue_service import (
+        classify_high_ticket_issue,
+    )
+
+    did = _parse_uuid(draft_id)
+    draft = (
+        await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))
+    ).scalar_one_or_none()
+    if draft is None:
+        raise HTTPException(404, "Draft not found")
+    if draft.org_id != current_user.organization_id:
+        raise HTTPException(403, "Draft belongs to another organization")
+
+    action_class = classify_action(
+        confidence=1.0,
+        money_involved=body.subtype in (
+            "contract_dispute", "payment_dispute", "exclusivity_breach",
+        ) or body.affected_cents >= 1_000_00,
+    )
+    forbid_escalation_as_mutation(
+        tool_name="issues.high_ticket_classify", action_class=action_class,
+    )
+
+    try:
+        result = await classify_high_ticket_issue(
+            db, draft=draft,
+            subtype=body.subtype, affected_cents=body.affected_cents,
+            notes=body.notes,
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="issues.high_ticket_classify",
+        entity_type="email_reply_draft", entity_id=draft.id,
+        decision="executed", action_class=action_class,
+        details={
+            "subtype": body.subtype,
+            "affected_cents": body.affected_cents,
+            "severity": result.get("severity"),
+            "escalation_id": result.get("escalation_id"),
+            "client_id": result.get("client_id"),
+        },
+        severity=result.get("severity", "info"),
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  12f. clients/{id}/high-ticket/credit
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class HTCreditBody(BaseModel):
+    amount_cents: int = Field(..., gt=0)
+    reason: str = Field(..., min_length=1, max_length=2000)
+    reference_project_id: Optional[uuid.UUID] = None
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/clients/{client_id}/high-ticket/credit", status_code=201)
+async def gm_ht_credit(
+    client_id: str,
+    body: HTCreditBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.high_ticket_issue_service import issue_credit
+
+    client = await _require_owned_client(db, client_id, current_user.organization_id)
+    _require_high_ticket(client)
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="clients.high_ticket.credit", action_class=action_class,
+    )
+    try:
+        result = await issue_credit(
+            db, client=client,
+            amount_cents=body.amount_cents,
+            reason=body.reason,
+            reference_project_id=body.reference_project_id,
+            notes=body.notes,
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="clients.high_ticket.credit",
+        entity_type="client", entity_id=client.id,
+        decision="executed", action_class=action_class,
+        details={
+            "amount_cents": body.amount_cents,
+            "reason": body.reason,
+            "retention_event_id": result["retention_event_id"],
+            "avenue_slug": client.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  Helpers — UUID parsing + org-scope checks
 # ═══════════════════════════════════════════════════════════════════════════
 

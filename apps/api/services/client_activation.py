@@ -216,6 +216,34 @@ async def start_onboarding(
 
     now = datetime.now(timezone.utc)
     token = secrets.token_urlsafe(24)
+
+    # Batch 12: avenue-specific intake schema selection. For
+    # high_ticket Clients, swap in HIGH_TICKET_INTAKE_SCHEMA (12
+    # scoping fields) instead of the 7-field generic default, and
+    # create the ClientHighTicketProfile row so the operator
+    # dashboard surfaces the new client in the discovery queue.
+    if schema is None and client.avenue_slug == "high_ticket":
+        from apps.api.services.high_ticket_onboarding import (
+            HIGH_TICKET_INTAKE_SCHEMA, ensure_profile,
+        )
+        schema_to_use = HIGH_TICKET_INTAKE_SCHEMA
+        instructions_to_use = (
+            instructions
+            or HIGH_TICKET_INTAKE_SCHEMA.get("instructions")
+            or "Please complete the following to scope your contract."
+        )
+        title_to_use = title or (
+            f"High-ticket scoping — {client.display_name or client.primary_email}"
+        )
+        # Create the profile row at activation time (idempotent).
+        await ensure_profile(db, client=client)
+    else:
+        schema_to_use = schema or DEFAULT_INTAKE_SCHEMA
+        instructions_to_use = (
+            instructions or "Please complete the following to kick off production."
+        )
+        title_to_use = title or f"Intake for {client.display_name}"
+
     intake = IntakeRequest(
         org_id=client.org_id,
         client_id=client.id,
@@ -223,9 +251,9 @@ async def start_onboarding(
         payment_id=payment_id,
         token=token,
         status="sent",
-        title=(title or f"Intake for {client.display_name}")[:500],
-        instructions=instructions or "Please complete the following to kick off production.",
-        schema_json=schema or DEFAULT_INTAKE_SCHEMA,
+        title=title_to_use[:500],
+        instructions=instructions_to_use,
+        schema_json=schema_to_use,
         sent_at=now,
         # Batch 9: carry avenue attribution from the client.
         avenue_slug=client.avenue_slug,

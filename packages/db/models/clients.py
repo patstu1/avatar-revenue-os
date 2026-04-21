@@ -270,6 +270,68 @@ class ClientRetentionEvent(Base):
         UUID(as_uuid=True), nullable=True
     )
 
+    # Batch 12: promoted to first-class so credit/adjustment rollups
+    # (SUM amount_cents WHERE event_type='high_ticket.credit_issued') do
+    # not require JSONB extraction. NULL for non-financial events.
+    amount_cents: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     details_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+# ── 6. ClientHighTicketProfile ───────────────────────────────────────────────
+
+
+class ClientHighTicketProfile(Base):
+    """High-ticket onboarding state per Client.
+
+    Introduced in Batch 12. Exists only for Clients whose
+    ``avenue_slug == 'high_ticket'``. Holds the operational-daily
+    fields (discovery_call_at, sow_url, sow_sent_at,
+    sow_countersigned_at, counterparty_name, kickoff_at) as first-
+    class columns so GM surfaces can filter, sort and aggregate
+    them without JSONB extraction. Rare-access context
+    (attendees, team members, notes) stays in JSONB.
+    """
+    __tablename__ = "client_high_ticket_profiles"
+    __table_args__ = (
+        UniqueConstraint("client_id", name="uq_htp_client"),
+    )
+
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False, unique=True,
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
+
+    # status values: discovery_pending / sow_drafted / sow_sent /
+    #                sow_signed / kickoff_scheduled / kickoff_complete
+    status: Mapped[str] = mapped_column(
+        String(30), default="discovery_pending", nullable=False, index=True
+    )
+
+    discovery_call_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    discovery_attendees_json: Mapped[Optional[dict]] = mapped_column(
+        JSONB, nullable=True
+    )
+    sow_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    sow_sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    sow_signer_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    sow_countersigned_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    counterparty_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    kickoff_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    kickoff_team_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
