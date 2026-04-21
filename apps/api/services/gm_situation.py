@@ -606,14 +606,20 @@ async def compute_engine_status(
     *,
     org_id: uuid.UUID,
 ) -> dict:
-    """Per-engine row count + 30-day activity + live status.
+    """Per-engine total row count + live status classification.
 
-    Uses ``pg_stat_user_tables.n_live_tup`` for approximate row counts in
-    a single batched query — avoids the 300+ sequential COUNT(*) calls
-    that previously caused the endpoint to time out.
+    Uses ``pg_stat_user_tables.n_live_tup`` — ONE batched query — for
+    approximate row counts across every engine-referenced table. No
+    per-table 30-day recency (that required 100+ sequential COUNT
+    queries which killed the uvicorn worker on whole-machine inspection).
+
+    Classification uses total_rows thresholds (high=500, active=50,
+    dormant>0, zero=present-in-code-only) which is sufficient signal for
+    "is this engine doing work" vs "is this engine dead". Per-table 30d
+    recency is still available per-avenue via ``compute_avenue_portfolio``
+    which operates on a much smaller table set.
     """
     now = datetime.now(timezone.utc)
-    since = now - timedelta(days=30)
 
     # Collect every table referenced by any engine
     all_tables: set[str] = set()
@@ -636,40 +642,33 @@ async def compute_engine_status(
                 )
                 for row in res:
                     table_counts[row[0]] = int(row[1] or 0)
-        except Exception:
-            pass
-
-    # Separate query for 30-day activity counts per table (cheaper: only tables
-    # with total > 0 and where a created_at column exists)
-    table_30d: dict[str, int] = {}
-    for t in all_tables:
-        if table_counts.get(t, 0) == 0:
-            continue
-        last30 = await _recent_activity_cutoff(db, t, since)
-        if last30 is not None:
-            table_30d[t] = last30
+        except Exception as exc:
+            logger_err = str(exc)[:200] if exc else ""
+            return {
+                "org_id": str(org_id),
+                "generated_at": now.isoformat(),
+                "total_engines": 0,
+                "status_histogram": {},
+                "family_histogram": {},
+                "engines": [],
+                "error": f"pg_stat_user_tables query failed: {logger_err}",
+            }
 
     engines_out: list[dict] = []
     for e in STRATEGIC_ENGINES:
         total_rows = 0
-        rows_30d = 0
         per_table: list[dict] = []
         for t in e["tables"]:
-            total = table_counts.get(t)
-            last30 = table_30d.get(t, 0 if total else None)
-            per_table.append({
-                "table": t, "total_rows": total, "rows_last_30d": last30,
-            })
-            if total is not None:
-                total_rows += total
-            if last30 is not None:
-                rows_30d += last30
+            total = table_counts.get(t, 0)
+            per_table.append({"table": t, "total_rows": total})
+            total_rows += total
 
+        # Classification: total-rows thresholds (no 30d recency needed)
         if e["status"] == STATUS_DISABLED_BY_OPERATOR:
             live_status = STATUS_DISABLED_BY_OPERATOR
-        elif rows_30d >= 100:
+        elif total_rows >= 500:
             live_status = STATUS_LIVE_AND_VERY_ACTIVE
-        elif rows_30d > 0 or total_rows >= 50:
+        elif total_rows >= 50:
             live_status = STATUS_LIVE_AND_ACTIVE
         elif total_rows > 0:
             live_status = STATUS_LIVE_BUT_DORMANT
@@ -683,7 +682,6 @@ async def compute_engine_status(
             "doctrine_status": e["status"],
             "live_status": live_status,
             "total_rows": total_rows,
-            "rows_last_30d": rows_30d,
             "tables": per_table,
         })
 
@@ -700,7 +698,7 @@ async def compute_engine_status(
         "status_histogram": status_hist,
         "family_histogram": family_hist,
         "engines": engines_out,
-        "count_source": "pg_stat_user_tables.n_live_tup (approximate)",
+        "count_source": "pg_stat_user_tables.n_live_tup (approximate; no 30d recency)",
     }
 
 
