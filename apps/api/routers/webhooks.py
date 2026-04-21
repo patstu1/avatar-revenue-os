@@ -229,7 +229,7 @@ async def _record_conversion_payment(
 
     from apps.api.services.proposals_service import record_payment_from_stripe
 
-    await record_payment_from_stripe(
+    payment = await record_payment_from_stripe(
         db,
         org_id=org_id,
         brand_id=brand_id,
@@ -245,6 +245,25 @@ async def _record_conversion_payment(
         customer_name=obj.get("customer_name") or (obj.get("customer_details", {}) or {}).get("name", "") or "",
         metadata=meta,
     )
+
+    # ── Fulfillment activation: create Client + start onboarding ──
+    # Runs only on the first delivery of a given Stripe event_id (the
+    # record_payment service is already idempotent). activate_client
+    # is itself idempotent — if a Client already exists for
+    # (org_id, primary_email) the existing row is updated without a
+    # duplicate client.created emission.
+    if payment is not None and payment.status == "succeeded":
+        try:
+            from apps.api.services.client_activation import (
+                activate_client_from_payment,
+            )
+            await activate_client_from_payment(db, payment=payment)
+        except Exception as act_err:
+            logger.warning(
+                "stripe.client_activation_failed",
+                payment_id=str(payment.id),
+                error=str(act_err)[:200],
+            )
 
 
 def _extract_amount_cents(obj: dict, event_type: str) -> int:

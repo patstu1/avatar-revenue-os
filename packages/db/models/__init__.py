@@ -396,6 +396,9 @@ from packages.db.models.email_pipeline import (
 from packages.db.models.proposals import (
     Proposal, ProposalLineItem, PaymentLink, Payment,
 )
+from packages.db.models.clients import (
+    Client, ClientOnboardingEvent, IntakeRequest, IntakeSubmission,
+)
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",
@@ -585,4 +588,5 @@ __all__ = [
     "InboxConnection", "EmailThread", "EmailMessage", "EmailClassification",
     "EmailReplyDraft", "SalesStageTransition",
     "Proposal", "ProposalLineItem", "PaymentLink", "Payment",
+    "Client", "ClientOnboardingEvent", "IntakeRequest", "IntakeSubmission",
 ]
