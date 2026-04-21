@@ -25,9 +25,24 @@ from datetime import datetime, timedelta, timezone
 
 from celery import shared_task
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from workers.base_task import TrackedTask
-from packages.db.session import get_async_session_factory
+
+
+def _fresh_session_factory():
+    """Build a fresh async_sessionmaker with a fresh engine inside the
+    current thread's event loop.
+
+    We do NOT reuse ``packages.db.session.get_async_session_factory``
+    because it caches the engine globally; that engine's connection
+    pool binds to the first event loop that opened a connection, and
+    subsequent Celery task invocations (each in a fresh thread+loop)
+    then crash with ``Future attached to a different loop``.
+    """
+    db_url = os.environ["DATABASE_URL"]
+    engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=2, max_overflow=2)
+    return async_sessionmaker(engine, expire_on_commit=False), engine
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +80,7 @@ async def _drain_pending_production_jobs() -> dict:
     from packages.db.models.fulfillment import ProductionJob
     from packages.db.models.gm_control import GMEscalation
 
-    Session = get_async_session_factory()
+    Session, engine = _fresh_session_factory()
     async with Session() as db:
         now = datetime.now(timezone.utc)
 
@@ -180,7 +195,8 @@ async def _drain_pending_production_jobs() -> dict:
         await db.commit()
         summary = {"picked": picked, "stuck_escalated": escalated}
         logger.info("fulfillment.drain_pending.done", **summary)
-        return summary
+    await engine.dispose()
+    return summary
 
 
 @shared_task(
@@ -208,7 +224,7 @@ async def _dispatch_due_followups() -> dict:
     from packages.db.models.delivery import Delivery
     from packages.db.models.fulfillment import ClientProject
 
-    Session = get_async_session_factory()
+    Session, engine = _fresh_session_factory()
     async with Session() as db:
         now = datetime.now(timezone.utc)
         rows = (
@@ -294,7 +310,8 @@ async def _dispatch_due_followups() -> dict:
             "skipped_no_smtp": skipped_no_smtp,
         }
         logger.info("fulfillment.dispatch_followups.done", **summary)
-        return summary
+    await engine.dispose()
+    return summary
 
 
 @shared_task(
@@ -313,9 +330,11 @@ def dispatch_due_followups():
 
 async def _chase_unpaid_proposals_task() -> dict:
     from apps.api.services.proposal_dunning_service import chase_unpaid_proposals
-    Session = get_async_session_factory()
+    Session, engine = _fresh_session_factory()
     async with Session() as db:
-        return await chase_unpaid_proposals(db)
+        result = await chase_unpaid_proposals(db)
+    await engine.dispose()
+    return result
 
 
 @shared_task(
@@ -336,9 +355,11 @@ async def _reconcile_stripe_webhooks_task() -> dict:
     from apps.api.services.stripe_reconciliation_service import (
         reconcile_all_stripe_orgs,
     )
-    Session = get_async_session_factory()
+    Session, engine = _fresh_session_factory()
     async with Session() as db:
-        return await reconcile_all_stripe_orgs(db)
+        result = await reconcile_all_stripe_orgs(db)
+    await engine.dispose()
+    return result
 
 
 @shared_task(
