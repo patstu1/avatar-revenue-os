@@ -680,3 +680,99 @@ def _parse_blueprint_sections(content: str) -> dict[str, Any]:
                 break
 
     return sections
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Revenue-doctrine startup inspection (Batch 7A)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def run_revenue_startup_inspection(
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
+    month_index: int = 1,
+) -> dict:
+    """Single canonical session-opener for a doctrine-aware GM session.
+
+    Calls the five read-only ``gm_situation`` computations and composes a
+    structured report the LLM (or the operator UI) consumes as the first
+    turn of every session. Mirrors the five points in the initialization
+    brief (§3 of the Batch 7A plan): floor status, control board,
+    pipeline state, closest revenue, blocking floors.
+
+    Returns a single dict. No mutations. No LLM calls.
+    """
+    from apps.api.services.gm_situation import (
+        compute_blocking_floors,
+        compute_bottlenecks,
+        compute_closest_revenue,
+        compute_floor_status,
+        compute_game_plan,
+        compute_pipeline_state,
+    )
+    from apps.api.services.gm_doctrine import FORBIDDEN_BEHAVIORS, PRIORITY_RANK
+
+    floor = await compute_floor_status(db, org_id=org_id, month_index=month_index)
+    pipeline = await compute_pipeline_state(db, org_id=org_id)
+    bottlenecks = await compute_bottlenecks(db, org_id=org_id)
+    closest = await compute_closest_revenue(db, org_id=org_id)
+    blocking = await compute_blocking_floors(
+        db, org_id=org_id, month_index=month_index
+    )
+    plan = await compute_game_plan(
+        db, org_id=org_id, month_index=month_index
+    )
+
+    # Build a 5-line situation report as the first turn of the session
+    ratio = floor.get("ratio_to_floor", 0.0)
+    top_blocker = (
+        plan["actions"][0] if plan["actions"] else None
+    )
+    approvals_needed = sum(
+        1 for a in plan["actions"] if a["action_class"] == "approval_required"
+    )
+    escalations_needed = sum(
+        1 for a in plan["actions"] if a["action_class"] == "escalate"
+    )
+    auto_available = sum(
+        1 for a in plan["actions"] if a["action_class"] == "auto_execute"
+    )
+
+    situation_report = [
+        f"Floor M{month_index}: ${floor['trailing_30d_usd']:.0f} / "
+        f"${floor['floor_usd']:.0f} (ratio {ratio:.2f}). "
+        f"Gap ${floor['gap_usd']:.0f}.",
+        f"Top blocker: {top_blocker['detail'] if top_blocker else 'none flagged'}",
+        f"Closest revenue (in-flight): ${closest['total_potential_usd']:.0f} "
+        f"across {sum(len(v) for v in closest['buckets'].values())} items.",
+        f"Actions ranked by priority: {plan['total_items']} total "
+        f"({auto_available} auto, {approvals_needed} need approval, "
+        f"{escalations_needed} escalate).",
+        f"Bottleneck stage: "
+        f"{pipeline['bottleneck']['name'] if pipeline['bottleneck'] else 'none'} "
+        f"(count={pipeline['bottleneck']['count'] if pipeline['bottleneck'] else 0}).",
+    ]
+
+    logger.info(
+        "gm.startup_inspection",
+        org_id=str(org_id),
+        month_index=month_index,
+        floor_ratio=ratio,
+        plan_items=plan["total_items"],
+    )
+
+    return {
+        "org_id": str(org_id),
+        "month_index": month_index,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "situation_report_lines": situation_report,
+        "floor_status": floor,
+        "pipeline_state": pipeline,
+        "bottlenecks": bottlenecks,
+        "closest_revenue": closest,
+        "blocking_floors": blocking,
+        "game_plan": plan,
+        "priority_rank_reference": list(PRIORITY_RANK),
+        "forbidden_behaviors": list(FORBIDDEN_BEHAVIORS),
+    }
