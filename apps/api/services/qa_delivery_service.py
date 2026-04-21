@@ -64,6 +64,15 @@ async def submit_production_output(
     job.output_payload_json = output_payload
     job.status = "qa_pending"
     await db.flush()
+    try:
+        from apps.api.services.stage_controller import mark_stage
+        await mark_stage(
+            db, org_id=job.org_id,
+            entity_type="production_job", entity_id=job.id, stage="qa_pending",
+        )
+    except Exception as stage_exc:
+        logger.warning("stage_controller.mark_failed",
+                        entity="production_job", error=str(stage_exc)[:150])
 
     result_summary: dict = {"production_job_id": str(job.id), "output_url": output_url}
 
@@ -175,6 +184,15 @@ async def run_qa_review(
             },
         )
         logger.info("qa.passed", production_job_id=str(job.id), score=composite)
+        try:
+            from apps.api.services.stage_controller import mark_stage
+            await mark_stage(
+                db, org_id=job.org_id,
+                entity_type="production_job", entity_id=job.id, stage="qa_passed",
+            )
+        except Exception as stage_exc:
+            logger.warning("stage_controller.mark_failed",
+                            entity="production_job", error=str(stage_exc)[:150])
         return review
 
     # Failure path — decide retry vs terminal

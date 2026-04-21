@@ -405,6 +405,9 @@ from packages.db.models.fulfillment import (
 from packages.db.models.delivery import (
     ProductionQAReview, Delivery,
 )
+from packages.db.models.gm_control import (
+    GMApproval, GMEscalation, StageState,
+)
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",
@@ -597,4 +600,5 @@ __all__ = [
     "Client", "ClientOnboardingEvent", "IntakeRequest", "IntakeSubmission",
     "ClientProject", "ProjectBrief", "ProductionJob",
     "ProductionQAReview", "Delivery",
+    "GMApproval", "GMEscalation", "StageState",
 ]

@@ -147,6 +147,15 @@ async def activate_client_from_payment(
         org_id=str(client.org_id),
         primary_email=recipient_email,
     )
+    try:
+        from apps.api.services.stage_controller import mark_stage
+        await mark_stage(
+            db, org_id=client.org_id,
+            entity_type="client", entity_id=client.id, stage="active",
+        )
+    except Exception as stage_exc:
+        logger.warning("stage_controller.mark_failed",
+                        entity="client", error=str(stage_exc)[:150])
 
     intake = await start_onboarding(
         db,
@@ -279,6 +288,15 @@ async def start_onboarding(
         client_id=str(client.id),
         intake_request_id=str(intake.id),
     )
+    try:
+        from apps.api.services.stage_controller import mark_stage
+        await mark_stage(
+            db, org_id=intake.org_id,
+            entity_type="intake_request", entity_id=intake.id, stage="sent",
+        )
+    except Exception as stage_exc:
+        logger.warning("stage_controller.mark_failed",
+                        entity="intake_request", error=str(stage_exc)[:150])
     return intake
 
 

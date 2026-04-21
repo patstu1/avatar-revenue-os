@@ -208,6 +208,20 @@ async def mark_proposal_sent(
         proposal_id=str(proposal.id),
         recipient=proposal.recipient_email,
     )
+    # ── Stage controller: proposal → sent (Batch 4) ──
+    try:
+        from apps.api.services.stage_controller import mark_stage
+        await mark_stage(
+            db,
+            org_id=proposal.org_id,
+            entity_type="proposal",
+            entity_id=proposal.id,
+            stage="sent",
+        )
+    except Exception as stage_exc:
+        logger.warning("stage_controller.mark_failed",
+                        entity="proposal", entity_id=str(proposal.id),
+                        error=str(stage_exc)[:150])
     return proposal
 
 

@@ -377,6 +377,15 @@ async def launch_production_for_brief(
         brief_id=str(brief.id),
         attempt=job.attempt_count,
     )
+    try:
+        from apps.api.services.stage_controller import mark_stage
+        await mark_stage(
+            db, org_id=job.org_id,
+            entity_type="production_job", entity_id=job.id, stage="running",
+        )
+    except Exception as stage_exc:
+        logger.warning("stage_controller.mark_failed",
+                        entity="production_job", error=str(stage_exc)[:150])
     return job
 
 
