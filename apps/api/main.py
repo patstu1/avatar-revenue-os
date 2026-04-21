@@ -45,6 +45,7 @@ from apps.api.routers import (
     operator_console,
     proposals as proposals_router,
     clients as clients_router,
+    fulfillment as fulfillment_router,
     provider_registry,
     copilot,
     gatekeeper,
@@ -322,6 +323,7 @@ app.include_router(operator_console.router, prefix="/api/v1", tags=["Operator Co
 app.include_router(proposals_router.router, prefix="/api/v1", tags=["Proposals: Conversion backbone"])
 app.include_router(clients_router.clients_router, prefix="/api/v1", tags=["Clients: Paid-customer records"])
 app.include_router(clients_router.intake_router, prefix="/api/v1", tags=["Intake: Public form + operator list"])
+app.include_router(fulfillment_router.router, prefix="/api/v1", tags=["Fulfillment: Projects, briefs, production jobs"])
 
 # --- Local media file serving (fallback when S3 is not configured) ---
 

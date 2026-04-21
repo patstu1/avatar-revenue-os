@@ -372,6 +372,25 @@ async def submit_intake(
             client_id=str(intake_request.client_id),
             intake_submission_id=str(submission.id),
         )
+        # ── Cascade: intake.completed → project → brief → production ──
+        try:
+            from apps.api.services.fulfillment_service import (
+                cascade_intake_to_production,
+            )
+            cascade_result = await cascade_intake_to_production(
+                db, intake_submission=submission
+            )
+            logger.info(
+                "intake.cascade_ok",
+                intake_submission_id=str(submission.id),
+                **cascade_result,
+            )
+        except Exception as cascade_exc:
+            logger.warning(
+                "intake.cascade_failed",
+                intake_submission_id=str(submission.id),
+                error=str(cascade_exc)[:200],
+            )
     else:
         logger.info(
             "intake.partial_submission",

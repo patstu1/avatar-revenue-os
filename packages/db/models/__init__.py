@@ -399,6 +399,9 @@ from packages.db.models.proposals import (
 from packages.db.models.clients import (
     Client, ClientOnboardingEvent, IntakeRequest, IntakeSubmission,
 )
+from packages.db.models.fulfillment import (
+    ClientProject, ProjectBrief, ProductionJob,
+)
 
 __all__ = [
     "Organization", "User", "Brand", "Avatar", "AvatarProviderProfile", "VoiceProviderProfile",
@@ -589,4 +592,5 @@ __all__ = [
     "EmailReplyDraft", "SalesStageTransition",
     "Proposal", "ProposalLineItem", "PaymentLink", "Payment",
     "Client", "ClientOnboardingEvent", "IntakeRequest", "IntakeSubmission",
+    "ClientProject", "ProjectBrief", "ProductionJob",
 ]
