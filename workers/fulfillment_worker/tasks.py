@@ -33,15 +33,17 @@ logger = logging.getLogger(__name__)
 
 
 def _run_async(coro):
-    """Run an async coroutine from sync Celery task context."""
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                return pool.submit(lambda: asyncio.run(coro)).result()
-    except RuntimeError:
-        pass
-    return asyncio.run(coro)
+    """Run an async coroutine from sync Celery task context.
+
+    Always runs inside a fresh ThreadPoolExecutor thread that owns its
+    own event loop. This prevents "Future attached to a different loop"
+    errors when the persistent Celery worker process invokes us
+    repeatedly: each call gets a private loop, and the async session
+    factory's engine binds fresh inside that thread instead of leaking
+    across invocations.
+    """
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(lambda: asyncio.run(coro)).result()
 
 
 _WORKER_ID = f"fulfillment_worker@{socket.gethostname()}/{os.getpid()}"
