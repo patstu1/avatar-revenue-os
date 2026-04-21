@@ -606,9 +606,48 @@ async def compute_engine_status(
     *,
     org_id: uuid.UUID,
 ) -> dict:
-    """Per-engine row count + 30-day activity + live status."""
+    """Per-engine row count + 30-day activity + live status.
+
+    Uses ``pg_stat_user_tables.n_live_tup`` for approximate row counts in
+    a single batched query — avoids the 300+ sequential COUNT(*) calls
+    that previously caused the endpoint to time out.
+    """
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=30)
+
+    # Collect every table referenced by any engine
+    all_tables: set[str] = set()
+    for e in STRATEGIC_ENGINES:
+        for t in e["tables"]:
+            all_tables.add(t)
+
+    # ONE query for approximate row counts across all engine tables
+    table_counts: dict[str, int] = {}
+    if all_tables:
+        try:
+            async with db.begin_nested():
+                res = await db.execute(
+                    text(
+                        "SELECT relname, n_live_tup "
+                        "FROM pg_stat_user_tables "
+                        "WHERE schemaname = 'public' AND relname = ANY(:names)"
+                    ),
+                    {"names": list(all_tables)},
+                )
+                for row in res:
+                    table_counts[row[0]] = int(row[1] or 0)
+        except Exception:
+            pass
+
+    # Separate query for 30-day activity counts per table (cheaper: only tables
+    # with total > 0 and where a created_at column exists)
+    table_30d: dict[str, int] = {}
+    for t in all_tables:
+        if table_counts.get(t, 0) == 0:
+            continue
+        last30 = await _recent_activity_cutoff(db, t, since)
+        if last30 is not None:
+            table_30d[t] = last30
 
     engines_out: list[dict] = []
     for e in STRATEGIC_ENGINES:
@@ -616,8 +655,8 @@ async def compute_engine_status(
         rows_30d = 0
         per_table: list[dict] = []
         for t in e["tables"]:
-            total = await _count_table(db, t)
-            last30 = await _recent_activity_cutoff(db, t, since)
+            total = table_counts.get(t)
+            last30 = table_30d.get(t, 0 if total else None)
             per_table.append({
                 "table": t, "total_rows": total, "rows_last_30d": last30,
             })
@@ -626,7 +665,6 @@ async def compute_engine_status(
             if last30 is not None:
                 rows_30d += last30
 
-        # Reclassify
         if e["status"] == STATUS_DISABLED_BY_OPERATOR:
             live_status = STATUS_DISABLED_BY_OPERATOR
         elif rows_30d >= 100:
@@ -649,7 +687,6 @@ async def compute_engine_status(
             "tables": per_table,
         })
 
-    # Histograms + per-family grouping
     status_hist: dict[str, int] = {}
     family_hist: dict[str, int] = {}
     for eo in engines_out:
@@ -663,6 +700,7 @@ async def compute_engine_status(
         "status_histogram": status_hist,
         "family_histogram": family_hist,
         "engines": engines_out,
+        "count_source": "pg_stat_user_tables.n_live_tup (approximate)",
     }
 
 
