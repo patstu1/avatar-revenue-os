@@ -995,5 +995,6 @@ app.autodiscover_tasks([
     "workers.strategy_adjustment_worker",
     "workers.pipeline_worker",
     "workers.outreach_worker",
+    "workers.fulfillment_worker",
     "workers.health_monitor_worker",
 ])
