@@ -362,6 +362,34 @@ async def _reconcile_stripe_webhooks_task() -> dict:
     return result
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  5. Batch 11 — retention state scanner
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _scan_retention_states_task() -> dict:
+    """Every 6h: re-evaluate retention_state for every active client
+    across every org. Emits client.retention_state.changed whenever a
+    flip occurs so GM surfaces see candidates in real time.
+    """
+    from apps.api.services.retention_service import scan_all_retention_states
+    Session, engine = _fresh_session_factory()
+    async with Session() as db:
+        result = await scan_all_retention_states(db)
+        await db.commit()
+    await engine.dispose()
+    return result
+
+
+@shared_task(
+    base=TrackedTask,
+    name="workers.fulfillment_worker.tasks.scan_retention_states",
+    queue="default",
+)
+def scan_retention_states():
+    return _run_async(_scan_retention_states_task())
+
+
 @shared_task(
     base=TrackedTask,
     name="workers.fulfillment_worker.tasks.reconcile_stripe_webhooks",

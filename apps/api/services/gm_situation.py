@@ -1466,3 +1466,18 @@ async def compute_game_plan(
         "floor_status": floor,
         "actions": plan,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  Batch 11 — retention book (GM read surface)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def compute_retention_book(db, org_id) -> dict:
+    """Thin re-export of ``retention_service.compute_retention_book``
+    so GM read callers can pull it alongside game_plan / ask_operator /
+    avenue_portfolio without a cross-module import."""
+    from apps.api.services.retention_service import (
+        compute_retention_book as svc,
+    )
+    return await svc(db, org_id=org_id)

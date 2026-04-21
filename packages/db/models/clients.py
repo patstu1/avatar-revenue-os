@@ -18,6 +18,7 @@ from typing import Optional
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -77,6 +78,27 @@ class Client(Base):
 
     # Batch 9: avenue attribution carried from the originating payment.
     avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+
+    # Batch 11: retention / renewal / reactivation fields.
+    # retention_state values: active / renewal_due / renewal_overdue /
+    #                        lapsed / churned / expansion_candidate
+    retention_state: Mapped[str] = mapped_column(
+        String(30), default="active", nullable=False, index=True
+    )
+    next_renewal_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_retention_check_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    churn_risk_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    # Set to True by client_activation for clients whose source proposal
+    # carries a recurring-package slug; keeps the retention scanner
+    # scoped only to clients whose business model expects renewal.
+    is_recurring: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    recurring_period_days: Mapped[Optional[int]] = mapped_column(
+        Integer, nullable=True
+    )
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
@@ -203,5 +225,51 @@ class IntakeSubmission(Base):
     submitted_via: Mapped[str] = mapped_column(String(30), default="form", nullable=False)
     submitter_email: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     submitter_ip: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+# ── 5. ClientRetentionEvent ──────────────────────────────────────────────────
+
+
+class ClientRetentionEvent(Base):
+    """Audit trail for every retention action (renewal, reactivation,
+    upsell, cancellation, state evaluation) on a Client.
+
+    Introduced in Batch 11. Every GM write retention endpoint and the
+    scan_retention_states beat task appends a row here so GM's
+    retention book reads a canonical history, not scattered
+    event_bus emissions.
+    """
+    __tablename__ = "client_retention_events"
+
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False, index=True
+    )
+    avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+
+    # state_evaluated / renewal_triggered / reactivation_sent /
+    # upsell_offered / subscription_cancelled
+    event_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    previous_state: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    new_state: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+
+    triggered_by_actor_type: Mapped[str] = mapped_column(
+        String(30), default="system", nullable=False
+    )
+    triggered_by_actor_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # Linkage to the proposals created when a renew/upsell fires.
+    source_proposal_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    target_proposal_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+
+    details_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

@@ -1604,6 +1604,291 @@ async def gm_reply_draft_send_now(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  11. Batch 11 — retention / renewal / reactivation GM write authority
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Four endpoints that close the ninth stage of the full-circle for
+# every avenue: renew a recurring client, reactivate a lapsed one,
+# upsell an expansion candidate, cancel a subscription. Each wraps
+# one retention_service function; every call is audit-trailed and
+# idempotent within its debounce window.
+
+
+class RetentionLineItem(BaseModel):
+    description: str = Field(..., max_length=500)
+    unit_amount_cents: int = Field(..., ge=0)
+    quantity: int = Field(1, ge=1)
+    currency: str = "usd"
+    package_slug: Optional[str] = Field(None, max_length=100)
+    position: int = 0
+
+
+class ClientRenewBody(BaseModel):
+    package_slug: str = Field(..., min_length=1, max_length=100)
+    line_items: list[RetentionLineItem] = Field(..., min_length=1)
+    title: Optional[str] = Field(None, max_length=500)
+    notes: Optional[str] = None
+    force: bool = False
+
+
+@router.post("/clients/{client_id}/renew", status_code=201)
+async def gm_client_renew(
+    client_id: str,
+    body: ClientRenewBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Trigger a renewal cycle for a recurring client. Creates a new
+    Proposal linked back to the client's first proposal; idempotent
+    within 24h (pass force=true to override).
+    """
+    from apps.api.services.retention_service import trigger_renewal
+
+    cid = _parse_uuid(client_id)
+    client = (
+        await db.execute(select(Client).where(Client.id == cid))
+    ).scalar_one_or_none()
+    if client is None:
+        raise HTTPException(404, "Client not found")
+    if client.org_id != current_user.organization_id:
+        raise HTTPException(403, "Client belongs to another organization")
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="clients.renew", action_class=action_class,
+    )
+
+    try:
+        result = await trigger_renewal(
+            db, client=client,
+            package_slug=body.package_slug,
+            line_items=[li.model_dump() for li in body.line_items],
+            title=body.title, notes=body.notes,
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+            force=body.force,
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="clients.renew",
+        entity_type="client", entity_id=client.id,
+        decision="executed" if result.get("triggered") else "recorded",
+        action_class=action_class,
+        details={
+            "package_slug": body.package_slug,
+            "triggered": bool(result.get("triggered")),
+            "reason": result.get("reason"),
+            "proposal_id": result.get("proposal_id"),
+            "retention_event_id": result.get("retention_event_id"),
+            "avenue_slug": client.avenue_slug,
+        },
+        severity="info" if result.get("triggered") else "warning",
+    )
+    await db.commit()
+    return {"client_id": str(client.id), **result, "action_class": action_class}
+
+
+class ClientReactivateBody(BaseModel):
+    template_slug: str = Field("reactivation_default_v1", max_length=100)
+    subject: Optional[str] = Field(None, max_length=1000)
+    body_override: Optional[str] = Field(None, max_length=50_000)
+    notes: Optional[str] = None
+    force: bool = False
+
+
+@router.post("/clients/{client_id}/reactivate")
+async def gm_client_reactivate(
+    client_id: str,
+    body: ClientReactivateBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Send a reactivation email to a lapsed client. Debounced 14d."""
+    from apps.api.services.retention_service import trigger_reactivation
+
+    cid = _parse_uuid(client_id)
+    client = (
+        await db.execute(select(Client).where(Client.id == cid))
+    ).scalar_one_or_none()
+    if client is None:
+        raise HTTPException(404, "Client not found")
+    if client.org_id != current_user.organization_id:
+        raise HTTPException(403, "Client belongs to another organization")
+
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="clients.reactivate", action_class=action_class,
+    )
+
+    result = await trigger_reactivation(
+        db, client=client,
+        template_slug=body.template_slug,
+        subject_override=body.subject,
+        body_override=body.body_override,
+        notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+        force=body.force,
+    )
+    await audit_gm_write(
+        db, actor=current_user, tool_name="clients.reactivate",
+        entity_type="client", entity_id=client.id,
+        decision="executed" if result.get("triggered") else "recorded",
+        action_class=action_class,
+        details={
+            "template_slug": body.template_slug,
+            "triggered": bool(result.get("triggered")),
+            "sent": bool(result.get("sent")),
+            "reason": result.get("reason"),
+            "error": result.get("error"),
+            "retention_event_id": result.get("retention_event_id"),
+            "avenue_slug": client.avenue_slug,
+        },
+        severity="info" if result.get("sent") else "warning",
+    )
+    await db.commit()
+    return {"client_id": str(client.id), **result, "action_class": action_class}
+
+
+class ClientUpsellBody(BaseModel):
+    package_slug: str = Field(..., min_length=1, max_length=100)
+    line_items: list[RetentionLineItem] = Field(..., min_length=1)
+    title: Optional[str] = Field(None, max_length=500)
+    notes: Optional[str] = None
+    force: bool = False
+
+
+@router.post("/clients/{client_id}/upsell", status_code=201)
+async def gm_client_upsell(
+    client_id: str,
+    body: ClientUpsellBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Offer an upsell — creates a new Proposal keyed to the client's
+    avenue with ``extra_json.retention_source='upsell'``. Debounced 7d.
+    """
+    from apps.api.services.retention_service import trigger_upsell
+
+    cid = _parse_uuid(client_id)
+    client = (
+        await db.execute(select(Client).where(Client.id == cid))
+    ).scalar_one_or_none()
+    if client is None:
+        raise HTTPException(404, "Client not found")
+    if client.org_id != current_user.organization_id:
+        raise HTTPException(403, "Client belongs to another organization")
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="clients.upsell", action_class=action_class,
+    )
+    try:
+        result = await trigger_upsell(
+            db, client=client,
+            package_slug=body.package_slug,
+            line_items=[li.model_dump() for li in body.line_items],
+            title=body.title, notes=body.notes,
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+            force=body.force,
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="clients.upsell",
+        entity_type="client", entity_id=client.id,
+        decision="executed" if result.get("triggered") else "recorded",
+        action_class=action_class,
+        details={
+            "package_slug": body.package_slug,
+            "triggered": bool(result.get("triggered")),
+            "reason": result.get("reason"),
+            "proposal_id": result.get("proposal_id"),
+            "retention_event_id": result.get("retention_event_id"),
+            "avenue_slug": client.avenue_slug,
+        },
+        severity="info" if result.get("triggered") else "warning",
+    )
+    await db.commit()
+    return {"client_id": str(client.id), **result, "action_class": action_class}
+
+
+class ClientCancelBody(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=200)
+    effective_at_iso: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/clients/{client_id}/cancel-subscription")
+async def gm_client_cancel_subscription(
+    client_id: str,
+    body: ClientCancelBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Terminal cancellation — flips retention_state to 'churned' and
+    is_recurring to False. Idempotent (returns the existing event
+    if client is already churned)."""
+    from datetime import datetime as _dt, timezone as _tz
+    from apps.api.services.retention_service import cancel_subscription
+
+    cid = _parse_uuid(client_id)
+    client = (
+        await db.execute(select(Client).where(Client.id == cid))
+    ).scalar_one_or_none()
+    if client is None:
+        raise HTTPException(404, "Client not found")
+    if client.org_id != current_user.organization_id:
+        raise HTTPException(403, "Client belongs to another organization")
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="clients.cancel_subscription", action_class=action_class,
+    )
+
+    eff_at = None
+    if body.effective_at_iso:
+        try:
+            eff_at = _dt.fromisoformat(
+                body.effective_at_iso.replace("Z", "+00:00")
+            )
+            if eff_at.tzinfo is None:
+                eff_at = eff_at.replace(tzinfo=_tz.utc)
+        except ValueError:
+            raise HTTPException(400, f"Invalid effective_at_iso: {body.effective_at_iso}")
+
+    result = await cancel_subscription(
+        db, client=client,
+        reason=body.reason,
+        effective_at=eff_at,
+        notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user, tool_name="clients.cancel_subscription",
+        entity_type="client", entity_id=client.id,
+        decision="executed" if result.get("triggered") else "recorded",
+        action_class=action_class,
+        details={
+            "reason": body.reason,
+            "effective_at_iso": body.effective_at_iso,
+            "triggered": bool(result.get("triggered")),
+            "previous_state": result.get("previous_state"),
+            "new_state": result.get("new_state"),
+            "retention_event_id": result.get("retention_event_id"),
+            "avenue_slug": client.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {"client_id": str(client.id), **result, "action_class": action_class}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  Helpers — UUID parsing + org-scope checks
 # ═══════════════════════════════════════════════════════════════════════════
 

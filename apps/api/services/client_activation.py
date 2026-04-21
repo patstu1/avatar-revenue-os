@@ -108,6 +108,13 @@ async def activate_client_from_payment(
     # from the proposal if Stripe metadata didn't carry it).
     avenue_slug = payment.avenue_slug or (proposal.avenue_slug if proposal else None)
 
+    # Batch 11: set is_recurring + recurring_period_days from the
+    # source proposal's package_slug so the retention scanner can key
+    # renewal detection on is_recurring alone.
+    from apps.api.services.retention_service import recurring_period_for_package
+    src_pkg = proposal.package_slug if proposal else None
+    period_days = recurring_period_for_package(src_pkg)
+
     client = Client(
         org_id=payment.org_id,
         brand_id=payment.brand_id,
@@ -121,6 +128,10 @@ async def activate_client_from_payment(
         last_paid_at=now,
         total_paid_cents=payment.amount_cents or 0,
         avenue_slug=avenue_slug,
+        # Batch 11 retention fields
+        is_recurring=period_days is not None,
+        recurring_period_days=period_days,
+        retention_state="active",
     )
     db.add(client)
     await db.flush()
