@@ -390,6 +390,32 @@ def scan_retention_states():
     return _run_async(_scan_retention_states_task())
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  6. Batch 13 — overdue invoice scanner
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _scan_overdue_invoices_task() -> dict:
+    """Every 6h: flip sent → overdue for invoices whose due_date
+    has passed, and open a GMEscalation for each so GM surfaces
+    them."""
+    from apps.api.services.invoice_service import scan_overdue_invoices
+    Session, engine = _fresh_session_factory()
+    async with Session() as db:
+        result = await scan_overdue_invoices(db)
+    await engine.dispose()
+    return result
+
+
+@shared_task(
+    base=TrackedTask,
+    name="workers.fulfillment_worker.tasks.scan_overdue_invoices",
+    queue="default",
+)
+def scan_overdue_invoices_task():
+    return _run_async(_scan_overdue_invoices_task())
+
+
 @shared_task(
     base=TrackedTask,
     name="workers.fulfillment_worker.tasks.reconcile_stripe_webhooks",

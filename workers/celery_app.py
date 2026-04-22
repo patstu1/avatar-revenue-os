@@ -130,6 +130,11 @@ app.conf.update(
             "task": "workers.fulfillment_worker.tasks.scan_retention_states",
             "schedule": crontab(hour="*/6", minute=37),
         },
+        # ─── Batch 13 — overdue-invoice scanner ──────────────────────
+        "batch13-invoice-overdue-scan-every-6h": {
+            "task": "workers.fulfillment_worker.tasks.scan_overdue_invoices",
+            "schedule": crontab(hour="*/6", minute=43),
+        },
         # RECOMPUTE DEPENDENCY ORDER:
         # 1. Analytics (ingest_performance → populates PerformanceMetric, the keystone table)
         # 2. Portfolio (reads PerformanceMetric)

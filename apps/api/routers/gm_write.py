@@ -56,7 +56,11 @@ from packages.db.models.email_pipeline import EmailReplyDraft
 from packages.db.models.expansion_pack2_phase_c import SponsorTarget
 from packages.db.models.fulfillment import ClientProject, ProductionJob, ProjectBrief
 from packages.db.models.gm_control import GMApproval, GMEscalation
+from packages.db.models.invoices import Invoice, InvoiceMilestone
 from packages.db.models.proposals import Payment, PaymentLink, Proposal
+from packages.db.models.sponsor_campaigns import (
+    SponsorCampaign, SponsorPlacement, SponsorReport,
+)
 
 logger = structlog.get_logger()
 
@@ -2277,6 +2281,790 @@ async def gm_ht_credit(
             "retention_event_id": result["retention_event_id"],
             "avenue_slug": client.avenue_slug,
         },
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  13. Batch 13 — sponsor_deals FULL_CIRCLE close
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Thirteen endpoints that close Payment, Onboarding, Fulfillment,
+# Follow-up, and Issue-handling for the sponsor_deals avenue. Every
+# endpoint follows the Batch 7B/9/10/11/12 pattern — auth → org-scope
+# → classify_action → forbid_escalation_as_mutation → canonical
+# service → audit_gm_write + gm.write.<tool> event → structured JSON.
+
+# --- shared helper for sponsor endpoints ---
+
+
+async def _require_owned_invoice(
+    db: DBSession, invoice_id: str, org_id: uuid.UUID,
+) -> Invoice:
+    iid = _parse_uuid(invoice_id)
+    row = (
+        await db.execute(select(Invoice).where(Invoice.id == iid))
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "Invoice not found")
+    if row.org_id != org_id:
+        raise HTTPException(403, "Invoice belongs to another organization")
+    return row
+
+
+async def _require_owned_sponsor_campaign(
+    db: DBSession, campaign_id: str, org_id: uuid.UUID,
+) -> SponsorCampaign:
+    cid = _parse_uuid(campaign_id)
+    row = (
+        await db.execute(
+            select(SponsorCampaign).where(SponsorCampaign.id == cid)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "Sponsor campaign not found")
+    if row.org_id != org_id:
+        raise HTTPException(403, "Campaign belongs to another organization")
+    return row
+
+
+async def _require_owned_sponsor_placement(
+    db: DBSession, placement_id: str, org_id: uuid.UUID,
+) -> SponsorPlacement:
+    pid = _parse_uuid(placement_id)
+    row = (
+        await db.execute(
+            select(SponsorPlacement).where(SponsorPlacement.id == pid)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "Placement not found")
+    if row.org_id != org_id:
+        raise HTTPException(403, "Placement belongs to another organization")
+    return row
+
+
+async def _require_owned_sponsor_report(
+    db: DBSession, report_id: str, org_id: uuid.UUID,
+) -> SponsorReport:
+    rid = _parse_uuid(report_id)
+    row = (
+        await db.execute(
+            select(SponsorReport).where(SponsorReport.id == rid)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "Report not found")
+    if row.org_id != org_id:
+        raise HTTPException(403, "Report belongs to another organization")
+    return row
+
+
+def _require_sponsor_deals(client: Client) -> None:
+    if client.avenue_slug != "sponsor_deals":
+        raise HTTPException(
+            400,
+            f"Client avenue_slug is {client.avenue_slug!r}; "
+            f"/sponsor/* endpoints require avenue_slug='sponsor_deals'.",
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  13a. Payment — /proposals/{id}/invoice
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class InvoiceMilestoneBody(BaseModel):
+    label: str = Field(..., min_length=1, max_length=255)
+    amount_cents: int = Field(..., ge=0)
+    due_date_iso: Optional[str] = Field(None, max_length=40)
+    position: int = 0
+
+
+class CreateInvoiceBody(BaseModel):
+    milestones: list[InvoiceMilestoneBody] = Field(default_factory=list)
+    due_date_iso: Optional[str] = Field(None, max_length=40)
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/proposals/{proposal_id}/invoice", status_code=201)
+async def gm_create_invoice(
+    proposal_id: str,
+    body: CreateInvoiceBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.invoice_service import create_invoice_from_proposal
+
+    pid = _parse_uuid(proposal_id)
+    proposal = await _require_owned_proposal(db, pid, current_user.organization_id)
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="invoices.create", action_class=action_class,
+    )
+    milestones = []
+    for m in body.milestones:
+        milestones.append({
+            "label": m.label, "amount_cents": m.amount_cents,
+            "position": m.position,
+            "due_date": _parse_dt(m.due_date_iso, "milestones[].due_date_iso"),
+        })
+    due = _parse_dt(body.due_date_iso, "due_date_iso")
+
+    invoice = await create_invoice_from_proposal(
+        db, proposal=proposal, milestones=milestones or None,
+        due_date=due, notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user, tool_name="invoices.create",
+        entity_type="invoice", entity_id=invoice.id,
+        decision="executed", action_class=action_class,
+        details={
+            "invoice_id": str(invoice.id),
+            "invoice_number": invoice.invoice_number,
+            "proposal_id": str(proposal.id),
+            "total_cents": invoice.total_cents,
+            "milestone_count": len(body.milestones),
+            "avenue_slug": invoice.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {
+        "invoice_id": str(invoice.id),
+        "invoice_number": invoice.invoice_number,
+        "total_cents": invoice.total_cents,
+        "status": invoice.status,
+        "avenue_slug": invoice.avenue_slug,
+        "milestone_count": len(body.milestones),
+        "action_class": action_class,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  13b. Payment — /invoices/{id}/send
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class InvoiceSendBody(BaseModel):
+    notes: Optional[str] = Field(None, max_length=2000)
+
+
+@router.post("/invoices/{invoice_id}/send")
+async def gm_send_invoice(
+    invoice_id: str,
+    body: InvoiceSendBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.invoice_service import send_invoice
+
+    invoice = await _require_owned_invoice(
+        db, invoice_id, current_user.organization_id
+    )
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="invoices.send", action_class=action_class,
+    )
+    try:
+        result = await send_invoice(
+            db, invoice=invoice,
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="invoices.send",
+        entity_type="invoice", entity_id=invoice.id,
+        decision="executed", action_class=action_class,
+        details={
+            "send_success": result["send_success"],
+            "send_error": result["send_error"],
+            "avenue_slug": invoice.avenue_slug,
+        },
+        severity="info" if result["send_success"] else "warning",
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  13c. Payment — /invoices/{id}/mark-paid
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class InvoiceMarkPaidBody(BaseModel):
+    amount_cents: int = Field(..., gt=0)
+    payment_method: str = Field(
+        ..., pattern="^(wire|ach|check|stripe|other)$"
+    )
+    payment_reference: str = Field(..., min_length=1, max_length=255)
+    milestone_position: Optional[int] = Field(None, ge=0)
+    paid_at_iso: Optional[str] = Field(None, max_length=40)
+
+
+@router.post("/invoices/{invoice_id}/mark-paid")
+async def gm_mark_invoice_paid(
+    invoice_id: str,
+    body: InvoiceMarkPaidBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.invoice_service import mark_paid
+
+    invoice = await _require_owned_invoice(
+        db, invoice_id, current_user.organization_id
+    )
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="invoices.mark_paid", action_class=action_class,
+    )
+    try:
+        result = await mark_paid(
+            db, invoice=invoice,
+            amount_cents=body.amount_cents,
+            payment_method=body.payment_method,
+            payment_reference=body.payment_reference,
+            milestone_position=body.milestone_position,
+            paid_at=_parse_dt(body.paid_at_iso, "paid_at_iso"),
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="invoices.mark_paid",
+        entity_type="invoice", entity_id=invoice.id,
+        decision="executed" if result.get("triggered") else "recorded",
+        action_class=action_class,
+        details={
+            "triggered": result.get("triggered"),
+            "reason": result.get("reason"),
+            "amount_cents": body.amount_cents,
+            "payment_method": body.payment_method,
+            "payment_reference": body.payment_reference,
+            "milestone_position": body.milestone_position,
+            "payment_id": result.get("payment_id"),
+            "client_id": result.get("client_id"),
+            "invoice_status": result.get("invoice_status"),
+            "avenue_slug": invoice.avenue_slug,
+        },
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  13d. Payment — /invoices/{id}/void
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class InvoiceVoidBody(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=500)
+
+
+@router.post("/invoices/{invoice_id}/void")
+async def gm_void_invoice(
+    invoice_id: str,
+    body: InvoiceVoidBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.invoice_service import void_invoice
+
+    invoice = await _require_owned_invoice(
+        db, invoice_id, current_user.organization_id
+    )
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="invoices.void", action_class=action_class,
+    )
+    try:
+        result = await void_invoice(
+            db, invoice=invoice, reason=body.reason,
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+    await audit_gm_write(
+        db, actor=current_user, tool_name="invoices.void",
+        entity_type="invoice", entity_id=invoice.id,
+        decision="executed" if result.get("triggered") else "recorded",
+        action_class=action_class,
+        details={"reason": body.reason, **result,
+                  "avenue_slug": invoice.avenue_slug},
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  13e-g. Onboarding — 3 transitions
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class SponsorContractSignedBody(BaseModel):
+    contract_url: str = Field(..., min_length=1, max_length=2048)
+    signed_at_iso: Optional[str] = Field(None, max_length=40)
+    counterparty_name: Optional[str] = Field(None, max_length=255)
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/clients/{client_id}/sponsor/record-contract-signed")
+async def gm_sponsor_record_contract_signed(
+    client_id: str,
+    body: SponsorContractSignedBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.sponsor_onboarding_service import (
+        record_contract_signed,
+    )
+
+    client = await _require_owned_client(db, client_id, current_user.organization_id)
+    _require_sponsor_deals(client)
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="clients.sponsor.record_contract_signed",
+        action_class=action_class,
+    )
+    result = await record_contract_signed(
+        db, client=client,
+        contract_url=body.contract_url,
+        signed_at=_parse_dt(body.signed_at_iso, "signed_at_iso"),
+        counterparty_name=body.counterparty_name,
+        notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="clients.sponsor.record_contract_signed",
+        entity_type="client", entity_id=client.id,
+        decision="executed" if not result.get("already_signed") else "recorded",
+        action_class=action_class,
+        details={**result, "avenue_slug": client.avenue_slug},
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+class SponsorBriefReceivedBody(BaseModel):
+    brief_json: dict
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/clients/{client_id}/sponsor/record-brief-received")
+async def gm_sponsor_record_brief_received(
+    client_id: str,
+    body: SponsorBriefReceivedBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.sponsor_onboarding_service import (
+        record_brief_received,
+    )
+
+    client = await _require_owned_client(db, client_id, current_user.organization_id)
+    _require_sponsor_deals(client)
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="clients.sponsor.record_brief_received",
+        action_class=action_class,
+    )
+    result = await record_brief_received(
+        db, client=client,
+        brief_json=body.brief_json, notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="clients.sponsor.record_brief_received",
+        entity_type="client", entity_id=client.id,
+        decision="executed", action_class=action_class,
+        details={**result, "avenue_slug": client.avenue_slug},
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+class SponsorCampaignStartBody(BaseModel):
+    campaign_start_at_iso: str = Field(..., min_length=1, max_length=40)
+    campaign_end_at_iso: Optional[str] = Field(None, max_length=40)
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/clients/{client_id}/sponsor/set-campaign-start")
+async def gm_sponsor_set_campaign_start(
+    client_id: str,
+    body: SponsorCampaignStartBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.sponsor_onboarding_service import set_campaign_start
+
+    client = await _require_owned_client(db, client_id, current_user.organization_id)
+    _require_sponsor_deals(client)
+
+    start = _parse_dt(body.campaign_start_at_iso, "campaign_start_at_iso")
+    end = _parse_dt(body.campaign_end_at_iso, "campaign_end_at_iso")
+    assert start is not None
+
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="clients.sponsor.set_campaign_start",
+        action_class=action_class,
+    )
+    result = await set_campaign_start(
+        db, client=client,
+        campaign_start_at=start, campaign_end_at=end,
+        notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="clients.sponsor.set_campaign_start",
+        entity_type="client", entity_id=client.id,
+        decision="executed", action_class=action_class,
+        details={**result, "avenue_slug": client.avenue_slug},
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  13h-j. Fulfillment — 3 placement endpoints
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class SponsorPlacementBody(BaseModel):
+    placement_type: str = Field(
+        ..., pattern="^(ad_spot|host_read|video_integration|social_mention|newsletter|other)$"
+    )
+    scheduled_at_iso: str = Field(..., min_length=1, max_length=40)
+    position: int = 0
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/sponsor-campaigns/{campaign_id}/placements", status_code=201)
+async def gm_sponsor_schedule_placement(
+    campaign_id: str,
+    body: SponsorPlacementBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.sponsor_fulfillment_service import schedule_placement
+
+    campaign = await _require_owned_sponsor_campaign(
+        db, campaign_id, current_user.organization_id
+    )
+    when = _parse_dt(body.scheduled_at_iso, "scheduled_at_iso")
+    assert when is not None
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="sponsor.placements.schedule", action_class=action_class,
+    )
+    try:
+        placement = await schedule_placement(
+            db, campaign=campaign,
+            placement_type=body.placement_type,
+            scheduled_at=when,
+            position=body.position,
+            notes=body.notes,
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+    await audit_gm_write(
+        db, actor=current_user, tool_name="sponsor.placements.schedule",
+        entity_type="sponsor_placement", entity_id=placement.id,
+        decision="executed", action_class=action_class,
+        details={
+            "placement_id": str(placement.id),
+            "campaign_id": str(campaign.id),
+            "placement_type": body.placement_type,
+            "scheduled_at_iso": body.scheduled_at_iso,
+        },
+    )
+    await db.commit()
+    return {
+        "placement_id": str(placement.id),
+        "campaign_id": str(campaign.id),
+        "placement_type": placement.placement_type,
+        "status": placement.status,
+        "scheduled_at": placement.scheduled_at.isoformat(),
+        "action_class": action_class,
+    }
+
+
+class PlacementDeliveredBody(BaseModel):
+    delivered_at_iso: Optional[str] = Field(None, max_length=40)
+    metrics: Optional[dict] = None
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/sponsor-placements/{placement_id}/record-delivered")
+async def gm_sponsor_record_delivered(
+    placement_id: str,
+    body: PlacementDeliveredBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.sponsor_fulfillment_service import (
+        record_placement_delivered,
+    )
+
+    placement = await _require_owned_sponsor_placement(
+        db, placement_id, current_user.organization_id
+    )
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="sponsor.placements.record_delivered",
+        action_class=action_class,
+    )
+    result = await record_placement_delivered(
+        db, placement=placement,
+        delivered_at=_parse_dt(body.delivered_at_iso, "delivered_at_iso"),
+        metrics=body.metrics, notes=body.notes,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="sponsor.placements.record_delivered",
+        entity_type="sponsor_placement", entity_id=placement.id,
+        decision="executed" if result.get("triggered") else "recorded",
+        action_class=action_class,
+        details={**result, "metrics": body.metrics},
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+class PlacementMissedBody(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=500)
+    make_good: bool = True
+    make_good_placement_type: Optional[str] = Field(None, max_length=40)
+    make_good_scheduled_at_iso: Optional[str] = Field(None, max_length=40)
+
+
+@router.post("/sponsor-placements/{placement_id}/record-missed")
+async def gm_sponsor_record_missed(
+    placement_id: str,
+    body: PlacementMissedBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.sponsor_fulfillment_service import (
+        record_placement_missed,
+    )
+
+    placement = await _require_owned_sponsor_placement(
+        db, placement_id, current_user.organization_id
+    )
+    action_class = classify_action(confidence=1.0, money_involved=True)
+    forbid_escalation_as_mutation(
+        tool_name="sponsor.placements.record_missed",
+        action_class=action_class,
+    )
+    try:
+        result = await record_placement_missed(
+            db, placement=placement, reason=body.reason,
+            make_good=body.make_good,
+            make_good_placement_type=body.make_good_placement_type,
+            make_good_scheduled_at=_parse_dt(
+                body.make_good_scheduled_at_iso,
+                "make_good_scheduled_at_iso",
+            ),
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+    await audit_gm_write(
+        db, actor=current_user,
+        tool_name="sponsor.placements.record_missed",
+        entity_type="sponsor_placement", entity_id=placement.id,
+        decision="executed" if result.get("triggered") else "recorded",
+        action_class=action_class,
+        details={**result, "reason": body.reason},
+        severity="warning",
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  13k-l. Follow-up — compile + send report
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class CompileReportBody(BaseModel):
+    period_start_iso: str = Field(..., min_length=1, max_length=40)
+    period_end_iso: str = Field(..., min_length=1, max_length=40)
+    report_type: str = Field(
+        "monthly", pattern="^(weekly|monthly|final|ad_hoc)$"
+    )
+
+
+@router.post("/sponsor-campaigns/{campaign_id}/compile-report", status_code=201)
+async def gm_sponsor_compile_report(
+    campaign_id: str,
+    body: CompileReportBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.sponsor_reporting_service import compile_report
+
+    campaign = await _require_owned_sponsor_campaign(
+        db, campaign_id, current_user.organization_id
+    )
+    ps = _parse_dt(body.period_start_iso, "period_start_iso")
+    pe = _parse_dt(body.period_end_iso, "period_end_iso")
+    assert ps is not None and pe is not None
+
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="sponsor.reports.compile", action_class=action_class,
+    )
+    try:
+        report = await compile_report(
+            db, campaign=campaign, period_start=ps, period_end=pe,
+            report_type=body.report_type,
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="sponsor.reports.compile",
+        entity_type="sponsor_report", entity_id=report.id,
+        decision="executed", action_class=action_class,
+        details={
+            "report_id": str(report.id),
+            "campaign_id": str(campaign.id),
+            "report_type": body.report_type,
+            "metrics": report.metrics_json,
+        },
+    )
+    await db.commit()
+    return {
+        "report_id": str(report.id),
+        "campaign_id": str(campaign.id),
+        "status": report.status,
+        "metrics": report.metrics_json,
+        "action_class": action_class,
+    }
+
+
+class SendReportBody(BaseModel):
+    recipient_email: str = Field(..., min_length=1, max_length=255)
+
+
+@router.post("/sponsor-reports/{report_id}/send")
+async def gm_sponsor_send_report(
+    report_id: str,
+    body: SendReportBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.sponsor_reporting_service import send_report
+
+    report = await _require_owned_sponsor_report(
+        db, report_id, current_user.organization_id
+    )
+    action_class = classify_action(confidence=1.0, money_involved=False)
+    forbid_escalation_as_mutation(
+        tool_name="sponsor.reports.send", action_class=action_class,
+    )
+    result = await send_report(
+        db, report=report, recipient_email=body.recipient_email,
+        actor_type="operator",
+        actor_id=current_user.email or str(current_user.id),
+    )
+    await audit_gm_write(
+        db, actor=current_user, tool_name="sponsor.reports.send",
+        entity_type="sponsor_report", entity_id=report.id,
+        decision="executed" if result.get("triggered") else "recorded",
+        action_class=action_class,
+        details=result,
+        severity="info" if result.get("send_success") else "warning",
+    )
+    await db.commit()
+    return {**result, "action_class": action_class}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+#  13m. Issue — /issues/drafts/{id}/sponsor-classify
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class SponsorIssueClassifyBody(BaseModel):
+    subtype: str = Field(
+        ...,
+        pattern=(
+            "^(under_delivery|metrics_dispute|make_good_required|"
+            "exclusivity_breach|campaign_paused)$"
+        ),
+    )
+    affected_cents: int = Field(0, ge=0)
+    notes: Optional[str] = Field(None, max_length=4000)
+
+
+@router.post("/issues/drafts/{draft_id}/sponsor-classify")
+async def gm_sponsor_issue_classify(
+    draft_id: str,
+    body: SponsorIssueClassifyBody,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    from apps.api.services.sponsor_issue_service import classify_sponsor_issue
+
+    did = _parse_uuid(draft_id)
+    draft = (
+        await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))
+    ).scalar_one_or_none()
+    if draft is None:
+        raise HTTPException(404, "Draft not found")
+    if draft.org_id != current_user.organization_id:
+        raise HTTPException(403, "Draft belongs to another organization")
+
+    action_class = classify_action(
+        confidence=1.0,
+        money_involved=body.subtype in (
+            "under_delivery", "metrics_dispute", "make_good_required",
+        ) or body.affected_cents >= 1_000_00,
+    )
+    forbid_escalation_as_mutation(
+        tool_name="issues.sponsor_classify", action_class=action_class,
+    )
+    try:
+        result = await classify_sponsor_issue(
+            db, draft=draft, subtype=body.subtype,
+            affected_cents=body.affected_cents, notes=body.notes,
+            actor_type="operator",
+            actor_id=current_user.email or str(current_user.id),
+        )
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    await audit_gm_write(
+        db, actor=current_user, tool_name="issues.sponsor_classify",
+        entity_type="email_reply_draft", entity_id=draft.id,
+        decision="executed", action_class=action_class,
+        details=result,
+        severity=result.get("severity", "info"),
     )
     await db.commit()
     return {**result, "action_class": action_class}

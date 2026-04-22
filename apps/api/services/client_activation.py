@@ -217,11 +217,12 @@ async def start_onboarding(
     now = datetime.now(timezone.utc)
     token = secrets.token_urlsafe(24)
 
-    # Batch 12: avenue-specific intake schema selection. For
-    # high_ticket Clients, swap in HIGH_TICKET_INTAKE_SCHEMA (12
-    # scoping fields) instead of the 7-field generic default, and
-    # create the ClientHighTicketProfile row so the operator
-    # dashboard surfaces the new client in the discovery queue.
+    # Batch 12 / Batch 13: avenue-specific intake schema selection.
+    # For high_ticket Clients, swap in HIGH_TICKET_INTAKE_SCHEMA (12
+    # scoping fields) and create ClientHighTicketProfile.
+    # For sponsor_deals Clients, swap in SPONSOR_INTAKE_SCHEMA (12
+    # sponsor-scoping fields) and create SponsorCampaign.
+    # Other avenues get the 7-field generic default.
     if schema is None and client.avenue_slug == "high_ticket":
         from apps.api.services.high_ticket_onboarding import (
             HIGH_TICKET_INTAKE_SCHEMA, ensure_profile,
@@ -235,8 +236,21 @@ async def start_onboarding(
         title_to_use = title or (
             f"High-ticket scoping — {client.display_name or client.primary_email}"
         )
-        # Create the profile row at activation time (idempotent).
         await ensure_profile(db, client=client)
+    elif schema is None and client.avenue_slug == "sponsor_deals":
+        from apps.api.services.sponsor_onboarding_service import (
+            SPONSOR_INTAKE_SCHEMA, ensure_campaign,
+        )
+        schema_to_use = SPONSOR_INTAKE_SCHEMA
+        instructions_to_use = (
+            instructions
+            or SPONSOR_INTAKE_SCHEMA.get("instructions")
+            or "Please complete the following to scope your sponsor campaign."
+        )
+        title_to_use = title or (
+            f"Sponsor campaign scoping — {client.display_name or client.primary_email}"
+        )
+        await ensure_campaign(db, client=client)
     else:
         schema_to_use = schema or DEFAULT_INTAKE_SCHEMA
         instructions_to_use = (
