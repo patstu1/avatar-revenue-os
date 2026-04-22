@@ -995,6 +995,29 @@ class SmtpEmailClient:
         if not body_text and not body_html:
             msg.attach(MIMEText("", "plain", "utf-8"))
 
+        # Batch-14 fix: disambiguate use_tls vs start_tls for aiosmtplib.
+        #
+        # aiosmtplib semantics:
+        #   use_tls=True  → implicit SSL/TLS from byte 0 (port 465 style)
+        #   start_tls=True → plaintext connect, then STARTTLS upgrade (port 587 style)
+        #
+        # Before this fix, the code sent `use_tls=self.use_tls` (True) for
+        # every SMTP config, which meant it tried an SSL handshake on
+        # port 587's plaintext port → `[SSL: WRONG_VERSION_NUMBER]` every
+        # single time. Now we route by port:
+        #   port 465   → implicit SSL (use_tls=True,  start_tls=False)
+        #   port 587   → STARTTLS      (use_tls=False, start_tls=True)
+        #   port 25    → plaintext     (use_tls=False, start_tls=False)
+        #   else       → respect self.use_tls as implicit-SSL toggle
+        if self.port == 465:
+            _use_tls, _start_tls = True, False
+        elif self.port == 587:
+            _use_tls, _start_tls = False, True
+        elif self.port == 25:
+            _use_tls, _start_tls = False, False
+        else:
+            _use_tls, _start_tls = bool(self.use_tls), not bool(self.use_tls)
+
         try:
             result = await aiosmtplib.send(
                 msg,
@@ -1002,7 +1025,8 @@ class SmtpEmailClient:
                 port=self.port,
                 username=self.username or None,
                 password=self.password or None,
-                use_tls=self.use_tls,
+                use_tls=_use_tls,
+                start_tls=_start_tls,
             )
             message_id = msg.get("Message-ID") or str(result)
             logger.info(
