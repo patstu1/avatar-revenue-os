@@ -235,21 +235,24 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
     else:
         phase = "risk_managed_scale"
 
-    # ── Platform strategy ──
+    # ── Inbound channel strategy — broad-market, NOT niche-locked ──
+    # ProofHook Revenue-Ops doctrine: the GM does not recommend platforms
+    # based on niche. Every brand gets the same broad-market inbound mix
+    # because the machine sells packages to a broad market. Vertical
+    # targeting is a tactical outbound-list filter, not a platform strategy.
     platform_plan = []
     existing_platforms = set(platforms.keys())
 
-    # Platform priority by niche
-    niche_platforms = {
-        "business": ["youtube", "linkedin", "x", "tiktok", "email_newsletter"],
-        "tech": ["youtube", "x", "reddit", "tiktok", "blog"],
-        "finance": ["youtube", "tiktok", "x", "linkedin", "blog"],
-        "education": ["youtube", "tiktok", "instagram", "blog"],
-        "entertainment": ["tiktok", "youtube", "instagram", "x"],
-        "health": ["youtube", "instagram", "tiktok", "pinterest"],
-        "marketing": ["youtube", "linkedin", "x", "tiktok", "blog"],
-    }
-    priority_platforms = niche_platforms.get(niche, ["youtube", "tiktok", "instagram", "linkedin"])
+    # Broad-market inbound channels (identical for every brand — no niche
+    # routing). Order reflects ProofHook lead-gen efficiency, not audience
+    # reach, because we're generating PACKAGE LEADS, not audience.
+    priority_platforms = [
+        "email_outbound",       # cold outbound is the primary lead source
+        "linkedin",             # decision-maker reach
+        "youtube",              # high-intent search
+        "x",                    # founder reach
+        "email_newsletter",     # warm lead nurture
+    ]
 
     for i, platform in enumerate(priority_platforms):
         existing = platforms.get(platform, {})
@@ -272,37 +275,43 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
             "target_accounts": target_accounts,
             "action": action,
             "timing": "immediate" if action in ("scale", "warmup") else "week_1" if action == "launch" and i < 2 else "week_2_4",
+            "role": "inbound_lead_source",  # all channels are package-lead sources
         })
 
-    # ── Account archetype strategy ──
-    archetype_plan = []
-    # ── Archetype strategy — derived from current operating signals ──
+    # ── Inbound channel role plan — package-lead-generation focused ──
+    # These are the ROLES each inbound channel plays in lead generation,
+    # not creator archetypes. ProofHook does not run "authority educators"
+    # or "affiliate closers" — it runs inbound channels that generate
+    # qualified package leads for a creative services catalog.
     if not has_revenue:
         archetype_plan = [
-            {"archetype": "authority_educator", "count": 2, "purpose": "Build trust and audience before monetization"},
-            {"archetype": "affiliate_closer", "count": 1, "purpose": "Prepare for first revenue signal"},
+            {"archetype": "outbound_cold_email", "count": 2, "purpose": "Generate inbound qualified package leads from cold outbound"},
+            {"archetype": "decision_maker_reach", "count": 1, "purpose": "Reach buyers where they browse (LinkedIn / X founder networks)"},
         ]
     elif not has_multiple_sources:
         archetype_plan = [
-            {"archetype": "affiliate_closer", "count": 2, "purpose": "Proven revenue — scale it"},
-            {"archetype": "authority_educator", "count": 1, "purpose": "Continue audience growth"},
-            {"archetype": "sponsor_magnet", "count": 1, "purpose": "Open second revenue source"},
+            {"archetype": "outbound_cold_email", "count": 2, "purpose": "Scale the channel that's generating lead volume"},
+            {"archetype": "intent_search_content", "count": 1, "purpose": "Capture high-intent buyers searching for creative services"},
+            {"archetype": "referral_loop", "count": 1, "purpose": "Convert delivered packages into upsell and referral leads"},
         ]
     else:
         archetype_plan = [
-            {"archetype": "affiliate_closer", "count": 3, "purpose": "Scale the proven conversion model"},
-            {"archetype": "sponsor_magnet", "count": 2, "purpose": "Maximize deal flow"},
-            {"archetype": "product_seller", "count": 1, "purpose": "Add digital product revenue"},
-            {"archetype": "services_consultant", "count": 1, "purpose": "Add high-ticket service revenue"},
+            {"archetype": "outbound_cold_email", "count": 3, "purpose": "Primary lead engine at scale"},
+            {"archetype": "intent_search_content", "count": 2, "purpose": "Inbound intent capture — high-lead-quality path"},
+            {"archetype": "referral_loop", "count": 1, "purpose": "Post-delivery upsell and referral motion"},
+            {"archetype": "warm_nurture", "count": 1, "purpose": "Re-engage stale leads into package-first funnel"},
         ]
 
-    # ── Monetization timing — derived from operating constraints, not dollar bands ──
+    # ── Funnel-stage operational status — not creator monetization timing ──
+    # These flags describe the state of the ProofHook Revenue-Ops funnel:
+    #   package catalog → checkout → intake → production → delivery → upsell
+    # NOT affiliate/sponsor/product/service monetization methods (legacy).
     monetization_plan = {
-        "affiliate": "active" if has_offers and has_content else "activate_when_first_offer_and_content_exist",
-        "sponsor": "active" if has_sponsor_activity else ("pursue_now" if has_audience and has_content else "build_audience_first"),
-        "service": "active" if has_revenue else ("pursue_now" if has_content else "build_content_portfolio_first"),
-        "product": "pursue_now" if has_patterns and has_revenue else "build_after_proven_monetization_patterns",
-        "lead_gen": "pursue_now" if has_audience and has_offers else "build_audience_and_offer_base_first",
+        "package_catalog_wired": "active" if has_offers else "block_all_revenue_until_fixed",
+        "checkout_link_live": "active" if has_offers and has_revenue else ("pursue_now" if has_offers else "blocked_on_catalog"),
+        "intake_form_automated": "active" if has_revenue else ("pursue_now" if has_offers else "blocked_on_catalog"),
+        "production_queue_flowing": "active" if has_revenue and has_patterns else ("pursue_now" if has_revenue else "blocked_on_first_payment"),
+        "upsell_loop_triggered": "active" if has_multiple_sources else ("pursue_now" if has_revenue else "blocked_on_first_delivery"),
     }
 
     # ── Expansion triggers — signal-based, not threshold-based ──

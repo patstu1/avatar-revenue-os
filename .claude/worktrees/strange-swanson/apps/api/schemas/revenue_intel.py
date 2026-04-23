@@ -1,0 +1,29 @@
+"""Pydantic models for revenue ceiling APIs."""
+
+from __future__ import annotations
+
+from typing import Any, Optional
+
+from pydantic import BaseModel, Field
+
+
+class MonetizationRecRow(BaseModel):
+    id: str
+    content_item_id: Optional[str] = None
+    recommendation_type: str
+    title: str
+    description: Optional[str] = None
+    expected_revenue_uplift: float = 0.0
+    expected_cost: float = 0.0
+    confidence: float = 0.0
+    evidence: Optional[dict[str, Any]] = None
+    is_actioned: bool = False
+
+
+class RevenueIntelDashboardResponse(BaseModel):
+    brand_id: str
+    offer_stacks: list[MonetizationRecRow] = Field(default_factory=list)
+    funnel_paths: list[MonetizationRecRow] = Field(default_factory=list)
+    owned_audience: list[MonetizationRecRow] = Field(default_factory=list)
+    productization: list[MonetizationRecRow] = Field(default_factory=list)
+    density_improvements: list[MonetizationRecRow] = Field(default_factory=list)

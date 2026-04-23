@@ -1,0 +1,40 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app/apps/web
+
+COPY apps/web/package.json apps/web/package-lock.json* ./
+RUN npm ci
+
+COPY apps/web/ .
+
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+RUN npm run build
+
+# -----------------------------------------------------------
+FROM node:20-alpine
+
+WORKDIR /app
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Copy standalone server (self-contained with bundled deps)
+COPY --from=builder /app/apps/web/.next/standalone/ ./
+# Copy static assets and public files (not included in standalone)
+COPY --from=builder /app/apps/web/.next/static ./.next/static
+COPY --from=builder /app/apps/web/public ./public
+
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+EXPOSE 3000
+
+# Next.js standalone server binds to the container hostname by default,
+# which breaks localhost-based healthchecks. Force binding to 0.0.0.0
+# so the healthcheck (wget http://localhost:3000/) works.
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+
+CMD ["node", "server.js"]

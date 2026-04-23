@@ -97,6 +97,8 @@ from apps.api.routers import (
     brain_ops,
     ai_command,
     leads,
+    email_pipeline,
+    microsoft_inbox_oauth,
 )
 
 settings = get_settings()
@@ -217,6 +219,7 @@ app.include_router(expansion_pack2_phase_c.router, prefix="/api/v1/brands", tags
 app.include_router(avatars.router, prefix="/api/v1/avatars", tags=["Avatars"])
 app.include_router(offers.router, prefix="/api/v1/offers", tags=["Offers"])
 app.include_router(accounts.router, prefix="/api/v1/accounts", tags=["Creator Accounts"])
+app.include_router(microsoft_inbox_oauth.router, prefix="/api/v1", tags=["Microsoft Inbox OAuth"])  # registered BEFORE oauth.router so /oauth/callback/microsoft is not caught by the generic /callback/{platform} route
 app.include_router(oauth.router, prefix="/api/v1/oauth", tags=["OAuth Connections"])
 app.include_router(content.router, prefix="/api/v1/content", tags=["Content Pipeline"])
 app.include_router(decisions.router, prefix="/api/v1/decisions", tags=["Decisions"])
@@ -253,6 +256,9 @@ app.include_router(live_execution.router, prefix="/api/v1/brands", tags=["Live E
 app.include_router(live_execution_phase2.router, prefix="/api/v1/brands", tags=["Live Execution Phase 2: Webhooks, Triggers, Connectors, Buffer Expansion"])
 app.include_router(webhooks.router, prefix="/api/v1", tags=["Webhooks: Stripe, Shopify, Media Providers"])
 app.include_router(leads.router, prefix="/api/v1", tags=["Lead Capture: Public offer page submissions"])
+app.include_router(email_pipeline.router, prefix="/api/v1", tags=["Email Pipeline: Threads, Classification, Reply Drafts"])
+# microsoft_inbox_oauth moved above oauth.router to prevent /oauth/callback/{platform} from swallowing /oauth/callback/microsoft
+# landing_pages.public_router removed — not present in container's landing_pages module
 app.include_router(creator_revenue.router, prefix="/api/v1/brands", tags=["Creator Revenue: Opportunities, UGC, Consulting, Premium Access"])
 app.include_router(provider_registry.router, prefix="/api/v1/brands", tags=["Provider Registry: Inventory, Readiness, Dependencies, Blockers"])
 app.include_router(copilot.router, prefix="/api/v1/brands", tags=["Operator Copilot"])
