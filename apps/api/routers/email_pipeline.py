@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import desc, func, select
 
-from apps.api.deps import DBSession
+from apps.api.deps import DBSession, OperatorUser
 from packages.db.models.email_pipeline import (
     EmailClassification,
     EmailMessage,
@@ -191,14 +191,34 @@ async def get_thread(thread_id: str, db: DBSession):
 
 
 @router.get("/drafts")
-async def list_drafts(db: DBSession, status: str = "pending", limit: int = 50):
-    """List reply drafts by status (pending, approved, sent, rejected)."""
-    rows = (await db.execute(
-        select(EmailReplyDraft).where(
-            EmailReplyDraft.status == status,
-            EmailReplyDraft.is_active.is_(True),
-        ).order_by(desc(EmailReplyDraft.created_at)).limit(limit)
-    )).scalars().all()
+async def list_drafts(
+    current_user: OperatorUser,
+    db: DBSession,
+    status: str = "pending",
+    limit: int = 50,
+):
+    """List reply drafts by status (pending, approved, sent, rejected).
+
+    Org-scoped: operators only see their own organization's drafts. The
+    ``intent`` field is pulled from the linked EmailClassification row,
+    not from ``reasoning`` (which holds the full decision trace JSON).
+    """
+    rows = (
+        await db.execute(
+            select(EmailReplyDraft, EmailClassification)
+            .outerjoin(
+                EmailClassification,
+                EmailClassification.id == EmailReplyDraft.classification_id,
+            )
+            .where(
+                EmailReplyDraft.org_id == current_user.organization_id,
+                EmailReplyDraft.status == status,
+                EmailReplyDraft.is_active.is_(True),
+            )
+            .order_by(desc(EmailReplyDraft.created_at))
+            .limit(limit)
+        )
+    ).all()
 
     return [
         {
@@ -209,46 +229,89 @@ async def list_drafts(db: DBSession, status: str = "pending", limit: int = 50):
             "reply_mode": d.reply_mode,
             "status": d.status,
             "confidence": d.confidence,
-            "intent": d.reasoning,
+            "intent": classification.intent if classification is not None else None,
+            "classification_confidence": (
+                classification.confidence if classification is not None else None
+            ),
+            "mode_source": (
+                d.decision_trace.get("mode_source")
+                if isinstance(d.decision_trace, dict)
+                else None
+            ),
             "package_offered": d.package_offered,
+            "approved_by": d.approved_by,
             "created_at": d.created_at.isoformat(),
         }
-        for d in rows
+        for d, classification in rows
     ]
 
 
 @router.post("/drafts/{draft_id}/approve")
-async def approve_draft(draft_id: str, db: DBSession):
-    """Approve a pending draft for sending."""
-    draft = (await db.execute(
-        select(EmailReplyDraft).where(EmailReplyDraft.id == uuid.UUID(draft_id))
-    )).scalar_one_or_none()
+async def approve_draft(
+    draft_id: str,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Approve a pending draft for sending.
 
-    if not draft:
-        raise HTTPException(404, "Draft not found")
-    if draft.status != "pending":
-        raise HTTPException(400, f"Draft is {draft.status}, not pending")
+    Attribution, events, and operator-action audit are handled by the
+    shared ``reply_draft_actions.approve_draft`` service.
+    """
+    from apps.api.services.reply_draft_actions import DraftActionError, approve_draft as approve_svc
 
-    from datetime import datetime, timezone
-    draft.status = "approved"
-    draft.approved_at = datetime.now(timezone.utc)
+    try:
+        draft = await approve_svc(
+            db, draft_id=uuid.UUID(draft_id), actor=current_user
+        )
+    except DraftActionError as exc:
+        if exc.current_status == "missing":
+            raise HTTPException(404, "Draft not found")
+        raise HTTPException(400, str(exc))
+
+    if draft.org_id != current_user.organization_id:
+        raise HTTPException(403, "Draft belongs to another organization")
+
     await db.commit()
-    return {"id": str(draft.id), "status": "approved"}
+    return {
+        "id": str(draft.id),
+        "status": draft.status,
+        "approved_by": draft.approved_by,
+        "approved_at": draft.approved_at.isoformat() if draft.approved_at else None,
+    }
+
+
+class RejectDraftBody(BaseModel):
+    reason: str | None = None
 
 
 @router.post("/drafts/{draft_id}/reject")
-async def reject_draft(draft_id: str, db: DBSession):
-    """Reject a pending draft."""
-    draft = (await db.execute(
-        select(EmailReplyDraft).where(EmailReplyDraft.id == uuid.UUID(draft_id))
-    )).scalar_one_or_none()
+async def reject_draft(
+    draft_id: str,
+    current_user: OperatorUser,
+    db: DBSession,
+    body: RejectDraftBody | None = None,
+):
+    """Reject a pending or approved draft so the send worker skips it."""
+    from apps.api.services.reply_draft_actions import DraftActionError, reject_draft as reject_svc
 
-    if not draft:
-        raise HTTPException(404, "Draft not found")
+    reason = body.reason if body else None
+    try:
+        draft = await reject_svc(
+            db,
+            draft_id=uuid.UUID(draft_id),
+            actor=current_user,
+            reason=reason,
+        )
+    except DraftActionError as exc:
+        if exc.current_status == "missing":
+            raise HTTPException(404, "Draft not found")
+        raise HTTPException(400, str(exc))
 
-    draft.status = "rejected"
+    if draft.org_id != current_user.organization_id:
+        raise HTTPException(403, "Draft belongs to another organization")
+
     await db.commit()
-    return {"id": str(draft.id), "status": "rejected"}
+    return {"id": str(draft.id), "status": draft.status}
 
 
 # ── Pipeline summary ──────────────────────────────────────────────────────

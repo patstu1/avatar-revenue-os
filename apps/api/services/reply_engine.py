@@ -718,17 +718,22 @@ async def send_approved_drafts(db: AsyncSession, org_id: uuid.UUID) -> dict:
                 )
             else:
                 if not fallback_smtp._is_configured():
-                    draft.error_message = (
-                        "inbox is not M365 xoauth2 and fallback SMTP not configured"
+                    # Represent as a structured send-failure result so the
+                    # failure branch below writes error_message AND emits
+                    # the reply.draft.send_failed event. Previously this
+                    # `continue`d out and silently skipped event emission.
+                    result = {
+                        "success": False,
+                        "error": "inbox is not M365 xoauth2 and fallback SMTP not configured",
+                        "provider": "smtp_unconfigured",
+                    }
+                else:
+                    result = await fallback_smtp.send_email(
+                        to_email=draft.to_email,
+                        subject=draft.subject,
+                        body_html=draft.body_html or "",
+                        body_text=draft.body_text or "",
                     )
-                    failed += 1
-                    continue
-                result = await fallback_smtp.send_email(
-                    to_email=draft.to_email,
-                    subject=draft.subject,
-                    body_html=draft.body_html or "",
-                    body_text=draft.body_text or "",
-                )
 
             if result.get("success"):
                 draft.status = "sent"
@@ -749,6 +754,17 @@ async def send_approved_drafts(db: AsyncSession, org_id: uuid.UUID) -> dict:
                     "reply_draft_sent draft=%s mode=%s provider=%s to=%s",
                     draft.id, draft.reply_mode, result.get("provider"), draft.to_email,
                 )
+                await _emit_send_event(
+                    db,
+                    event_type="reply.draft.sent",
+                    draft=draft,
+                    thread=thread,
+                    severity="info",
+                    details={
+                        "provider": result.get("provider"),
+                        "sent_message_id": mid,
+                    },
+                )
             else:
                 draft.error_message = (result.get("error") or "unknown")[:500]
                 failed += 1
@@ -756,10 +772,76 @@ async def send_approved_drafts(db: AsyncSession, org_id: uuid.UUID) -> dict:
                     "reply_draft_send_failed draft=%s error=%s",
                     draft.id, draft.error_message,
                 )
+                await _emit_send_event(
+                    db,
+                    event_type="reply.draft.send_failed",
+                    draft=draft,
+                    thread=thread,
+                    severity="warning",
+                    details={
+                        "provider": result.get("provider"),
+                        "error": draft.error_message,
+                    },
+                )
         except Exception as e:
             draft.error_message = str(e)[:500]
             failed += 1
             logger.exception("reply_draft_send_exception draft=%s", draft.id)
+            try:
+                await _emit_send_event(
+                    db,
+                    event_type="reply.draft.send_failed",
+                    draft=draft,
+                    thread=thread,
+                    severity="warning",
+                    details={"error": str(e)[:500], "exception": True},
+                )
+            except Exception:
+                pass
 
     await db.flush()
     return {"sent": sent, "failed": failed, "total_drafts": len(drafts)}
+
+
+async def _emit_send_event(
+    db: AsyncSession,
+    *,
+    event_type: str,
+    draft,
+    thread,
+    severity: str,
+    details: dict,
+) -> None:
+    """Emit a revenue_event for a send-loop state transition. Non-blocking."""
+    from apps.api.services.event_bus import emit_event
+
+    try:
+        await emit_event(
+            db,
+            domain="monetization",
+            event_type=event_type,
+            summary=(
+                f"Reply draft {'sent to' if event_type == 'reply.draft.sent' else 'send FAILED to'} "
+                f"{(draft.to_email or '')[:60]}"
+            ),
+            org_id=draft.org_id,
+            entity_type="email_reply_draft",
+            entity_id=draft.id,
+            previous_state="approved",
+            new_state=("sent" if event_type == "reply.draft.sent" else "approved"),
+            actor_type="worker",
+            actor_id="send_approved_reply_drafts",
+            severity=severity,
+            details={
+                "draft_id": str(draft.id),
+                "thread_id": str(thread.id) if thread else None,
+                "to_email": draft.to_email,
+                "reply_mode": draft.reply_mode,
+                **details,
+            },
+        )
+    except Exception as evt_exc:
+        logger.warning(
+            "reply_draft.event_emit_failed draft=%s error=%s",
+            draft.id, str(evt_exc)[:200],
+        )
