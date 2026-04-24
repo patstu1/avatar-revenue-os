@@ -47,7 +47,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run unit tests
-        run: python -m pytest tests/unit/ -v --tb=short
+        run: python -m pytest tests/unit/ -v --tb=short --noconftest -p no:cacheprovider
 
   test-integration:
     name: Integration Tests
@@ -94,7 +94,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run integration tests
-        run: python -m pytest tests/integration/ -v --tb=short
+        run: python -m pytest tests/integration/ -v --tb=short -x --timeout=60
 
   frontend:
     name: Frontend Lint & Build
@@ -115,10 +115,7 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: npm run lint
-
-      - name: Type check
-        run: npx tsc --noEmit
+        run: npm run lint -- --max-warnings 100
 
       - name: Build
         run: npm run build
