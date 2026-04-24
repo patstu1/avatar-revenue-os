@@ -1,0 +1,59 @@
+:80 {
+	handle /health {
+		respond "OK" 200
+	}
+	handle {
+		redir https://{$DOMAIN:localhost}{uri} permanent
+	}
+}
+
+{$DOMAIN:localhost} {
+	# ── API routes → FastAPI backend ──
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle /health {
+		reverse_proxy api:8000
+	}
+	handle /health/* {
+		reverse_proxy api:8000
+	}
+	handle /healthz {
+		reverse_proxy api:8000
+	}
+	handle /readyz {
+		reverse_proxy api:8000
+	}
+	handle /docs {
+		reverse_proxy api:8000
+	}
+	handle /openapi.json {
+		reverse_proxy api:8000
+	}
+	handle /ws/* {
+		reverse_proxy api:8000
+	}
+
+	# ── Media files → served by FastAPI static mount ──
+	handle /media/* {
+		reverse_proxy api:8000
+	}
+
+	# ── Everything else → Next.js frontend ──
+	handle {
+		reverse_proxy web:3000
+	}
+
+	# Security headers
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

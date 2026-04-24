@@ -357,6 +357,7 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     container_name: aro-web
     restart: unless-stopped
+    working_dir: /app/apps/web
     command: npm run dev
     ports:
       - "3001:3000"

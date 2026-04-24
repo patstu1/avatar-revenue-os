@@ -136,11 +136,11 @@ app.conf.update(
             "task": "workers.portfolio_worker.tasks.rebalance_portfolios",
             "schedule": crontab(hour=6, minute=0),
         },
-        # --- Learning ---
-        "learning-consolidate-daily": {
-            "task": "workers.learning_worker.tasks.consolidate_memory",
-            "schedule": crontab(hour=3, minute=0),
-        },
+        # --- Learning --- DISABLED: no downstream consumer for MemoryEntry/CommentIngestion
+        # "learning-consolidate-daily": {
+        #     "task": "workers.learning_worker.tasks.consolidate_memory",
+        #     "schedule": crontab(hour=3, minute=0),
+        # },
         # --- Scale Alerts ---
         "scale-alerts-every-4h": {
             "task": "workers.scale_alerts_worker.tasks.recompute_all_alerts",
@@ -626,11 +626,11 @@ app.conf.update(
             "task": "workers.monster_ops_worker.tasks.daily_operator_digest",
             "schedule": crontab(minute=0, hour=7),
         },
-        # --- Content Routing ---
-        "content-routing-cost-rollup-daily": {
-            "task": "workers.content_routing_worker.tasks.daily_cost_rollup",
-            "schedule": crontab(minute=30, hour=23),
-        },
+        # --- Content Routing --- DISABLED: redundant, routing service writes decisions inline
+        # "content-routing-cost-rollup-daily": {
+        #     "task": "workers.content_routing_worker.tasks.daily_cost_rollup",
+        #     "schedule": crontab(minute=30, hour=23),
+        # },
         "pattern-memory-every-6h": {
             "task": "workers.pattern_memory_worker.tasks.recompute_pattern_memory",
             "schedule": crontab(minute=30, hour="*/6"),
@@ -659,10 +659,11 @@ app.conf.update(
             "task": "workers.opportunity_cost_worker.tasks.recompute_opportunity_cost",
             "schedule": crontab(minute=50, hour="*/4"),
         },
-        "failure-family-every-6h": {
-            "task": "workers.failure_family_worker.tasks.recompute_failure_families",
-            "schedule": crontab(minute=55, hour="*/6"),
-        },
+        # --- Failure Family --- DISABLED: no router reads FailureFamilyReport
+        # "failure-family-every-6h": {
+        #     "task": "workers.failure_family_worker.tasks.recompute_failure_families",
+        #     "schedule": crontab(minute=55, hour="*/6"),
+        # },
         "landing-pages-every-8h": {
             "task": "workers.landing_page_worker.tasks.recompute_landing_pages",
             "schedule": crontab(minute=5, hour="*/8"),
@@ -695,10 +696,11 @@ app.conf.update(
             "task": "workers.executive_intel_worker.tasks.recompute_executive_intel",
             "schedule": crontab(minute=0, hour=6),
         },
-        "offer-lab-every-8h": {
-            "task": "workers.offer_lab_worker.tasks.recompute_offer_lab",
-            "schedule": crontab(minute=20, hour="*/8"),
-        },
+        # --- Offer Lab --- DISABLED: no router reads OfferLabOffer
+        # "offer-lab-every-8h": {
+        #     "task": "workers.offer_lab_worker.tasks.recompute_offer_lab",
+        #     "schedule": crontab(minute=20, hour="*/8"),
+        # },
         "revenue-leaks-every-4h": {
             "task": "workers.revenue_leak_worker.tasks.recompute_revenue_leaks",
             "schedule": crontab(minute=30, hour="*/4"),
@@ -711,10 +713,11 @@ app.conf.update(
             "task": "workers.recovery_engine_worker.tasks.scan_recovery",
             "schedule": crontab(minute="*/10"),
         },
-        "causal-attribution-every-6h": {
-            "task": "workers.causal_attribution_worker.tasks.recompute_causal_attribution",
-            "schedule": crontab(minute=45, hour="*/6"),
-        },
+        # --- Causal Attribution --- DISABLED: no active consumer for CausalAttributionReport
+        # "causal-attribution-every-6h": {
+        #     "task": "workers.causal_attribution_worker.tasks.recompute_causal_attribution",
+        #     "schedule": crontab(minute=45, hour="*/6"),
+        # },
         "trend-light-scan-tick": {
             "task": "workers.trend_viral_worker.tasks.trend_light_scan",
             "schedule": 60.0,  # Every 60s — reasonable scan rate without hammering APIs
@@ -743,6 +746,11 @@ app.conf.update(
             "task": "workers.fleet_manager_worker.tasks.recompute_fleet_status",
             "schedule": crontab(minute=0, hour="*/4"),
         },
+        # --- OAuth Token Refresh: proactively refresh expiring platform tokens ---
+        "oauth-token-refresh-hourly": {
+            "task": "workers.fleet_manager_worker.tasks.refresh_oauth_tokens",
+            "schedule": crontab(minute=17, hour="*"),
+        },
         "competitor-scan-every-12h": {
             "task": "workers.competitor_worker.tasks.scan_competitors",
             "schedule": crontab(minute=0, hour="*/12"),
@@ -754,6 +762,11 @@ app.conf.update(
         "offer-rotation-every-6h": {
             "task": "workers.offer_rotation_worker.tasks.rotate_offers",
             "schedule": crontab(minute=0, hour="*/6"),
+        },
+        # --- Offer Weight Auto-Adjustment: feedback from performance → rotation_weight ---
+        "offer-weight-adjustment-every-6h": {
+            "task": "workers.offer_rotation_worker.tasks.adjust_offer_weights",
+            "schedule": crontab(minute=30, hour="*/6"),
         },
         "repurpose-content-every-2h": {
             "task": "workers.repurposing_worker.tasks.repurpose_content",
@@ -767,10 +780,20 @@ app.conf.update(
             "task": "workers.email_campaign_worker.tasks.process_email_campaigns",
             "schedule": crontab(minute=0, hour="*/8"),
         },
-        # --- Outreach Pipeline (send emails, poll replies) ---
+        # --- Inbox Sync: ingest, classify, draft replies (Phase 1 revenue machine) ---
+        "inbox-sync-every-5m": {
+            "task": "workers.email_campaign_worker.tasks.sync_all_inboxes",
+            "schedule": crontab(minute="*/5"),
+        },
+        # --- Outreach Pipeline (send emails, poll replies, lead follow-up) ---
         "outreach-poll-inbox-every-5m": {
             "task": "workers.outreach_worker.tasks.poll_all_inboxes",
             "schedule": crontab(minute="*/5"),
+        },
+        # --- Lead Follow-Up: execute pending CloserActions via SMTP/Twilio ---
+        "lead-followup-closer-actions-every-15m": {
+            "task": "workers.outreach_worker.tasks.execute_closer_actions",
+            "schedule": crontab(minute="*/15"),
         },
         "offer-discovery-daily": {
             "task": "workers.offer_discovery_worker.tasks.discover_offers",
@@ -877,6 +900,13 @@ app.conf.update(
             "task": "workers.analytics_ingestion_worker.tasks.ingest_platform_analytics",
             "schedule": crontab(minute=13, hour="*/6"),
         },
+        # --- Affiliate Commission Sync ---
+        # Pulls commission data from Amazon Associates and Impact.
+        # Writes AffiliateConversionEvent + AffiliateCommissionEvent rows.
+        "affiliate-commission-sync-every-6h": {
+            "task": "workers.analytics_ingestion_worker.tasks.sync_affiliate_commissions",
+            "schedule": crontab(minute=43, hour="*/6"),
+        },
         # --- Strategy Adjustment (runs after analytics ingestion) ---
         # Reads ALL winning/losing patterns, generates proportional briefs,
         # deprioritizes losers, rotates offers, detects spikes, cross-pollinates.
@@ -900,6 +930,11 @@ app.conf.update(
         "system-health-check-every-5m": {
             "task": "workers.health_monitor_worker.tasks.check_system_health",
             "schedule": crontab(minute="*/5"),
+        },
+        # --- Inactive Shell Detection: flag dead brands/accounts, exclude from targeting ---
+        "inactive-shell-detection-every-4h": {
+            "task": "workers.health_monitor_worker.tasks.detect_inactive_shells",
+            "schedule": crontab(minute=45, hour="*/4"),
         },
     },
 )

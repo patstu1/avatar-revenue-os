@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "proofhook-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/pstuart/Desktop/proofhook/website",
+        "run",
+        "dev"
+      ],
+      "port": 5173
+    }
+  ]
+}

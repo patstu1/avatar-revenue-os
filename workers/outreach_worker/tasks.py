@@ -648,3 +648,147 @@ async def _poll_all_orgs_impl() -> dict:
 def poll_all_inboxes(self) -> dict:
     """Beat-schedule entry: poll inbox for all orgs with IMAP configured."""
     return _run_async(_poll_all_orgs_impl())
+
+
+# ── Task 4: Execute Lead CloserActions ─────────────────────────────────────
+
+
+async def _execute_closer_actions_impl() -> dict:
+    """Process pending CloserAction records and send real follow-up emails/SMS.
+
+    Reads CloserActions where is_active=True and is_completed=False,
+    sends via SMTP (email) or Twilio (SMS), marks completed.
+    """
+    from sqlalchemy import select
+    from packages.db.models.expansion_pack2_phase_a import CloserAction, LeadOpportunity
+    from packages.db.models.core import Brand
+    from packages.clients.external_clients import SmtpEmailClient, TwilioSmsClient
+
+    sent = 0
+    failed = 0
+    skipped = 0
+
+    async with async_session_factory() as db:
+        # Get all pending closer actions
+        actions = (await db.execute(
+            select(CloserAction).where(
+                CloserAction.is_active.is_(True),
+                CloserAction.is_completed.is_(False),
+            ).order_by(CloserAction.priority.asc()).limit(50)
+        )).scalars().all()
+
+        for ca in actions:
+            try:
+                # Load the associated lead to get contact info
+                lead = None
+                if ca.lead_opportunity_id:
+                    lead = (await db.execute(
+                        select(LeadOpportunity).where(LeadOpportunity.id == ca.lead_opportunity_id)
+                    )).scalar_one_or_none()
+
+                if not lead:
+                    skipped += 1
+                    continue
+
+                # Parse contact info from lead's message_text
+                contact_info = _parse_lead_contact(lead.message_text or "")
+                if not contact_info.get("email") and not contact_info.get("phone"):
+                    skipped += 1
+                    continue
+
+                channel = (ca.channel or "email").lower()
+                subject = ca.subject_or_opener or "Following up on your inquiry"
+                body = _build_closer_email_body(ca, lead, contact_info)
+
+                if channel == "email" and contact_info.get("email"):
+                    smtp = SmtpEmailClient()
+                    if smtp._is_configured():
+                        result = await smtp.send_email(
+                            to_email=contact_info["email"],
+                            subject=subject,
+                            body_html=body,
+                            body_text=body,
+                        )
+                        if result.get("sent"):
+                            ca.is_completed = True
+                            sent += 1
+                            log.info("closer_action.email_sent",
+                                     lead_id=str(ca.lead_opportunity_id),
+                                     to=contact_info["email"])
+                        else:
+                            failed += 1
+                            log.warning("closer_action.email_failed",
+                                        error=result.get("error", "unknown"))
+                    else:
+                        skipped += 1
+
+                elif channel == "sms" and contact_info.get("phone"):
+                    twilio = TwilioSmsClient()
+                    if twilio._is_configured():
+                        sms_body = f"{subject}\n\n{ca.rationale or ''}"
+                        result = await twilio.send_sms(
+                            to_phone=contact_info["phone"],
+                            message_body=sms_body[:1600],
+                        )
+                        if result.get("sent"):
+                            ca.is_completed = True
+                            sent += 1
+                            log.info("closer_action.sms_sent",
+                                     lead_id=str(ca.lead_opportunity_id))
+                        else:
+                            failed += 1
+                    else:
+                        skipped += 1
+                else:
+                    skipped += 1
+
+            except Exception as e:
+                log.warning("closer_action.execution_error",
+                            action_id=str(ca.id), error=str(e))
+                failed += 1
+
+        await db.commit()
+
+    return {"sent": sent, "failed": failed, "skipped": skipped}
+
+
+def _parse_lead_contact(message_text: str) -> dict:
+    """Extract email and phone from lead message_text (format: Name: X\\nEmail: Y\\n...)."""
+    contact = {}
+    for line in message_text.split("\n"):
+        line = line.strip()
+        if line.lower().startswith("email:"):
+            contact["email"] = line.split(":", 1)[1].strip()
+        elif line.lower().startswith("name:"):
+            contact["name"] = line.split(":", 1)[1].strip()
+        elif line.lower().startswith("phone:"):
+            contact["phone"] = line.split(":", 1)[1].strip()
+        elif line.lower().startswith("company:"):
+            contact["company"] = line.split(":", 1)[1].strip()
+    return contact
+
+
+def _build_closer_email_body(ca, lead, contact_info: dict) -> str:
+    """Build a follow-up email body from CloserAction + Lead data."""
+    name = contact_info.get("name", "there")
+    company = contact_info.get("company", "")
+    company_line = f" at {company}" if company else ""
+
+    return f"""<p>Hi {name},</p>
+
+<p>Thank you for your interest{company_line}. {ca.rationale or 'We wanted to follow up on your recent inquiry.'}</p>
+
+<p>{ca.expected_outcome or 'We would love to discuss how we can help you achieve your goals.'}</p>
+
+<p>Looking forward to connecting.</p>
+
+<p>Best regards</p>"""
+
+
+log = logging.getLogger(__name__)
+
+
+@shared_task(base=TrackedTask, bind=True, name="workers.outreach_worker.tasks.execute_closer_actions")
+def execute_closer_actions(self) -> dict:
+    """Beat-schedule entry: process pending CloserActions (lead follow-up)."""
+    return _run_async(_execute_closer_actions_impl())
