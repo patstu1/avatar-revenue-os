@@ -9,14 +9,19 @@ Run: python scripts/last_mile_proof.py
 Requires: PostgreSQL running
 """
 from __future__ import annotations
-import asyncio, os, sys, uuid
+
+import asyncio
+import os
+import sys
+import uuid
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 os.environ.setdefault("DATABASE_URL_SYNC", "postgresql://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 
-from sqlalchemy import text, select, func
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from packages.db.base import Base
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 import packages.db.models  # noqa
 
 P = F = 0
@@ -40,14 +45,14 @@ async def main():
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with factory() as db:
-        from packages.db.models.core import Organization, Brand
+        from apps.api.services.action_dispatcher import DISPATCH_TABLE, dispatch_autonomous_actions
+        from apps.api.services.event_bus import emit_action
+        from packages.db.enums import ContentType, MonetizationMethod, Platform
         from packages.db.models.accounts import CreatorAccount
         from packages.db.models.content import ContentItem
+        from packages.db.models.core import Brand, Organization
         from packages.db.models.offers import Offer
-        from packages.db.models.system_events import OperatorAction, SystemEvent
-        from packages.db.enums import ContentType, MonetizationMethod, Platform
-        from apps.api.services.event_bus import emit_action
-        from apps.api.services.action_dispatcher import dispatch_autonomous_actions, DISPATCH_TABLE
+        from packages.db.models.system_events import SystemEvent
 
         # Setup
         org = Organization(name=f"lm_{uuid.uuid4().hex[:6]}", slug=f"lm-{uuid.uuid4().hex[:6]}")
@@ -189,7 +194,7 @@ async def main():
         ok("Promote has state_changes", len(promote_result.get("state_changes", [])) >= 1)
 
         # 1l. Test deprioritize_low_margin reduces offer priority
-        action_depri = await emit_action(
+        await emit_action(
             db, org_id=org.id, action_type="deprioritize_low_margin",
             title="Auto-deprioritize low margin", category="monetization", priority="medium",
             brand_id=brand.id, source_module="revenue_execution",
@@ -209,7 +214,7 @@ async def main():
         zero_rev_acct = CreatorAccount(brand_id=brand.id, platform=Platform.PINTEREST,
                                         platform_username="@zero_rev", is_active=True, scale_role="active")
         db.add(zero_rev_acct); await db.flush()
-        action_reduce = await emit_action(
+        await emit_action(
             db, org_id=org.id, action_type="reduce_dead_channel",
             title="Auto-reduce dead channel", category="monetization", priority="medium",
             brand_id=brand.id, source_module="revenue_execution",
@@ -229,6 +234,7 @@ async def main():
         print("─── GAP 2: WEBHOOK → LEDGER WIRING ───")
 
         import inspect
+
         from apps.api.routers import webhooks
         src = inspect.getsource(webhooks)
 
@@ -265,7 +271,7 @@ async def main():
         ok("Runs every 4 hours", "*/4" in str(entry.get("schedule", "")))
 
         # 3c. Task calls both surface + dispatch
-        task_src = inspect.getsource(run_revenue_cycle.__wrapped__ if hasattr(run_revenue_cycle, '__wrapped__') else run_revenue_cycle)
+        inspect.getsource(run_revenue_cycle.__wrapped__ if hasattr(run_revenue_cycle, '__wrapped__') else run_revenue_cycle)
         # Check the async implementation
         from workers.monetization_worker.tasks import _do_run_revenue_cycle
         cycle_src = inspect.getsource(_do_run_revenue_cycle)

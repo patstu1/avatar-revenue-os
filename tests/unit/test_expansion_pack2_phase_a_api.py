@@ -6,15 +6,12 @@ keyword-driven scoring formulas, and the cross-function qualification pipeline
 from a product / integration perspective.
 """
 
-import pytest
 
 from packages.scoring.expansion_pack2_phase_a_engines import (
-    EP2A,
     detect_offer_opportunities,
     generate_closer_actions,
     score_lead,
 )
-
 
 # ---------------------------------------------------------------------------
 # End-to-end lead qualification pipeline

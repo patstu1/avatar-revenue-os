@@ -31,12 +31,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.services import content_pipeline_service as pipeline
 from apps.api.services import governance_bridge as gov
 from apps.api.services import intelligence_bridge as intel
-from apps.api.services import orchestration_bridge as orch
 from apps.api.services.event_bus import emit_action, emit_event
 from apps.api.services.publish_policy_engine import evaluate_publish_policy
-from packages.db.models.content import ContentBrief, ContentItem, MediaJob, Script
+from packages.db.models.content import ContentItem, Script
 from packages.db.models.core import Brand
-from packages.db.models.quality import Approval, QAReport
+from packages.db.models.quality import Approval
 
 logger = structlog.get_logger()
 

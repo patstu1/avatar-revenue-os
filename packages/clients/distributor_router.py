@@ -10,13 +10,11 @@ Strategy:
 No artificial caps. No rate limits. No retry ceilings imposed by the router.
 """
 from __future__ import annotations
-import asyncio
+
 import logging
 import os
-import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
 from dataclasses import dataclass, field
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +50,9 @@ class PublishRequest:
     text: str
     platform: str
     profile_ids: list[str] = field(default_factory=list)
-    media_urls: Optional[list[str]] = None
-    link_url: Optional[str] = None
-    scheduled_at: Optional[str] = None
+    media_urls: list[str] | None = None
+    link_url: str | None = None
+    scheduled_at: str | None = None
 
 
 @dataclass
@@ -62,10 +60,10 @@ class PublishResult:
     """Unified result from any publish method."""
     success: bool
     method: str  # "native", "buffer", "publer", "ayrshare", "all_failed", "none"
-    post_id: Optional[str] = None
-    post_url: Optional[str] = None
-    error: Optional[str] = None
-    raw_response: Optional[dict] = None
+    post_id: str | None = None
+    post_url: str | None = None
+    error: str | None = None
+    raw_response: dict | None = None
     methods_tried: list[str] = field(default_factory=list)
 
 
@@ -73,7 +71,9 @@ class PublishResult:
 
 async def _try_native_youtube(credentials: dict, content_text: str, content: Any, job: Any) -> PublishResult:
     """Publish directly to YouTube via OAuth tokens."""
-    from packages.clients.youtube_client import YouTubeClient, TransientError as YTTransient, PermanentError as YTPermanent
+    from packages.clients.youtube_client import PermanentError as YTPermanent
+    from packages.clients.youtube_client import TransientError as YTTransient
+    from packages.clients.youtube_client import YouTubeClient
 
     client = YouTubeClient()
     access_token = credentials.get("access_token")
@@ -98,8 +98,9 @@ async def _try_native_youtube(credentials: dict, content_text: str, content: Any
         # Get video asset URL
         if hasattr(content, "video_asset_id") and content.video_asset_id:
             try:
-                from packages.db.models.content import Asset
                 from sqlalchemy.orm import Session
+
+                from packages.db.models.content import Asset
                 from packages.db.session import get_sync_engine
                 engine = get_sync_engine()
                 with Session(engine) as sess:
@@ -154,8 +155,9 @@ async def _try_native_tiktok(credentials: dict, content_text: str, content: Any,
         title = getattr(content, "description", "") or getattr(content, "title", "") or title
         if hasattr(content, "video_asset_id") and content.video_asset_id:
             try:
-                from packages.db.models.content import Asset
                 from sqlalchemy.orm import Session
+
+                from packages.db.models.content import Asset
                 from packages.db.session import get_sync_engine
                 engine = get_sync_engine()
                 with Session(engine) as sess:
@@ -222,8 +224,9 @@ async def _try_native_instagram(credentials: dict, content_text: str, content: A
         caption = getattr(content, "description", "") or getattr(content, "title", "") or caption
         if hasattr(content, "video_asset_id") and content.video_asset_id:
             try:
-                from packages.db.models.content import Asset
                 from sqlalchemy.orm import Session
+
+                from packages.db.models.content import Asset
                 from packages.db.session import get_sync_engine
                 engine = get_sync_engine()
                 with Session(engine) as sess:
@@ -305,17 +308,17 @@ async def _try_native_x(credentials: dict, content_text: str, content: Any, job:
     payload: dict[str, Any] = {"text": text[:280]}
 
     # If there's a media URL, upload it first
-    media_url = None
     if content and hasattr(content, "video_asset_id") and content.video_asset_id:
         try:
-            from packages.db.models.content import Asset
             from sqlalchemy.orm import Session
+
+            from packages.db.models.content import Asset
             from packages.db.session import get_sync_engine
             engine = get_sync_engine()
             with Session(engine) as sess:
                 asset = sess.get(Asset, content.video_asset_id)
                 if asset and asset.file_path and asset.file_path.startswith("http"):
-                    media_url = asset.file_path
+                    pass
         except Exception:
             pass
 
@@ -513,7 +516,7 @@ _failure_count: dict[str, int] = {}
 
 # ── Credential resolution ─────────────────────────────────────────────────
 
-def _load_native_credentials(session, account, org_id) -> Optional[dict]:
+def _load_native_credentials(session, account, org_id) -> dict | None:
     """Load OAuth credentials for a native platform account.
 
     Checks CreatorPlatformAccount for direct_oauth connection, then
@@ -521,8 +524,9 @@ def _load_native_credentials(session, account, org_id) -> Optional[dict]:
     Returns dict with access_token + metadata, or None if unavailable.
     """
     from sqlalchemy import select
-    from packages.db.models.integration_registry import CreatorPlatformAccount, IntegrationProvider
+
     from apps.api.services.integration_manager import _decrypt
+    from packages.db.models.integration_registry import CreatorPlatformAccount, IntegrationProvider
 
     platform = account.platform.value if hasattr(account.platform, "value") else str(account.platform)
 
@@ -651,7 +655,7 @@ async def route_and_publish(db_session, publish_job, content_item, account, org_
         except TransientError as e:
             _failure_count[f"native_{platform_lower}"] = _failure_count.get(f"native_{platform_lower}", 0) + 1
             logger.warning("publish.native_transient platform=%s error=%s — falling through to aggregators", platform_lower, str(e))
-        except Exception as e:
+        except Exception:
             logger.exception("publish.native_unexpected platform=%s", platform_lower)
 
     # ── Phase 2: Aggregator fallback ───────────────────────────────────
@@ -713,14 +717,15 @@ def _resolve_profile_ids(session, job, distributor_name: str) -> list[str]:
     return []
 
 
-def _resolve_media_urls(content_item) -> Optional[list[str]]:
+def _resolve_media_urls(content_item) -> list[str] | None:
     """Extract media URLs from content item if available."""
     if not content_item:
         return None
     if hasattr(content_item, "video_asset_id") and content_item.video_asset_id:
         try:
-            from packages.db.models.content import Asset
             from sqlalchemy.orm import Session
+
+            from packages.db.models.content import Asset
             from packages.db.session import get_sync_engine
             engine = get_sync_engine()
             with Session(engine) as sess:

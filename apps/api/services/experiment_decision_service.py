@@ -154,7 +154,7 @@ def _synthetic_observed_data(
                 "days_running": 21,
             }
     if decision.target_scope_type == "content_item" and decision.target_scope_id:
-        ci = content_by_id.get(decision.target_scope_id)
+        content_by_id.get(decision.target_scope_id)
         eng = perf_by_content.get(decision.target_scope_id, 0.04)
         cr = max(0.005, min(0.25, eng * 0.6))
         va = uuid.uuid4()
@@ -410,7 +410,7 @@ async def recompute_experiment_decisions(
         })
 
     try:
-        from packages.db.models.pattern_memory import WinningPatternMemory, LosingPatternMemory
+        from packages.db.models.pattern_memory import LosingPatternMemory, WinningPatternMemory
         from packages.scoring.pattern_memory_engine import suggest_experiments_from_patterns
         win_rows = list((await db.execute(
             select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand_id, WinningPatternMemory.is_active.is_(True))

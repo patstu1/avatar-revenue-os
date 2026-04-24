@@ -11,23 +11,23 @@ import os
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 import structlog
-from sqlalchemy import func, select, desc
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.core import Brand, Organization
-from packages.db.models.accounts import CreatorAccount
-from packages.db.models.offers import Offer
-from packages.db.models.content import ContentBrief
-from packages.db.models.revenue_ledger import RevenueLedgerEntry
-from packages.db.models.gm import GMSession, GMMessage, GMBlueprint
 from apps.api.services.gm_system_prompt import (
-    GM_STARTUP_PROMPT,
-    GM_REVISION_PROMPT,
     GM_CONVERSATION_PROMPT,
+    GM_REVISION_PROMPT,
+    GM_STARTUP_PROMPT,
 )
+from packages.db.models.accounts import CreatorAccount
+from packages.db.models.content import ContentBrief
+from packages.db.models.core import Brand
+from packages.db.models.gm import GMBlueprint
+from packages.db.models.offers import Offer
+from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
 logger = structlog.get_logger()
 
@@ -225,8 +225,8 @@ async def get_startup_prompt(
     offer_count = state["offers"]["count"]
     has_llm = state["providers"]["has_llm"]
     has_publishing = state["providers"]["has_publishing"]
-    provider_count = state["providers"]["configured"]
-    content_count = state["content"]["count"]
+    state["providers"]["configured"]
+    state["content"]["count"]
 
     # Determine setup phase factually — the GM decides what to say
     phase = "empty"
@@ -465,7 +465,7 @@ async def gm_conversation(
     db: AsyncSession,
     org_id: uuid.UUID,
     machine_state: dict[str, Any],
-    blueprint_content: Optional[str],
+    blueprint_content: str | None,
     conversation_history: list[dict],
     user_message: str,
 ) -> dict[str, Any]:
@@ -525,7 +525,6 @@ async def execute_blueprint_step(
 ) -> dict[str, Any]:
     """Execute a specific step from an approved blueprint."""
     results: list[str] = []
-    errors: list[str] = []
 
     if step_key == "create_brands":
         niches = blueprint.niche_blueprint or {}
@@ -576,7 +575,7 @@ async def execute_blueprint_step(
         if not default_brand:
             return {"success": False, "error": "No brands exist. Create brands first."}
 
-        from packages.db.enums import Platform, AccountType
+        from packages.db.enums import AccountType, Platform
 
         for acct in account_list:
             platform_str = acct.get("platform", "youtube").lower()

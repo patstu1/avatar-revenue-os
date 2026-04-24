@@ -12,14 +12,12 @@ from packages.db.models.provider_registry import (
     ProviderDependency,
     ProviderReadinessReport,
     ProviderRegistryEntry,
-    ProviderUsageEvent,
 )
 from packages.scoring.provider_registry_engine import (
     audit_all_providers,
     get_dependency_map,
     get_provider_blockers,
 )
-
 
 # ---------------------------------------------------------------------------
 # WRITE: Full audit (idempotent upsert from engine)

@@ -1,10 +1,7 @@
 """Unit tests for Brain Architecture Phase A scoring engines."""
-import pytest
 
 from packages.scoring.brain_phase_a_engine import (
     ACCOUNT_STATES,
-    AUDIENCE_STATES_V2,
-    EXECUTION_STATES,
     MEMORY_ENTRY_TYPES,
     OPPORTUNITY_STATES,
     compute_account_state,
@@ -13,7 +10,6 @@ from packages.scoring.brain_phase_a_engine import (
     compute_opportunity_state,
     consolidate_brain_memory,
 )
-
 
 # ── Account State Engine ──────────────────────────────────────────────
 

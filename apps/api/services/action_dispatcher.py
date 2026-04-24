@@ -15,14 +15,12 @@ Called by: Celery Beat schedule, or POST /revenue/dispatch-autonomous
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.services.event_bus import emit_event, complete_action
+from apps.api.services.event_bus import complete_action, emit_event
 from packages.db.models.system_events import OperatorAction
 
 logger = structlog.get_logger()
@@ -149,7 +147,7 @@ async def dispatch_autonomous_actions(
     }
 
 
-def _action_summary(action: OperatorAction, status: str, result: Optional[dict] = None) -> dict:
+def _action_summary(action: OperatorAction, status: str, result: dict | None = None) -> dict:
     return {
         "action_id": str(action.id),
         "action_type": action.action_type,
@@ -176,7 +174,7 @@ async def _handle_attach_offer(db: AsyncSession, action: OperatorAction) -> dict
     if not best_offer:
         return {"skipped": True, "reason": "no active offers for brand"}
 
-    item = await assign_offer_to_content(
+    await assign_offer_to_content(
         db, action.entity_id, best_offer.id,
         org_id=action.organization_id,
     )
@@ -185,8 +183,8 @@ async def _handle_attach_offer(db: AsyncSession, action: OperatorAction) -> dict
 
 async def _handle_promote_winner(db: AsyncSession, action: OperatorAction) -> dict:
     """Promote a winning offer/pattern: increase priority + weight_boost + mark as promoted."""
-    from packages.db.models.promote_winner import PromotedWinnerRule
     from packages.db.models.offers import Offer
+    from packages.db.models.promote_winner import PromotedWinnerRule
 
     changes = []
 
@@ -224,14 +222,13 @@ async def _handle_promote_winner(db: AsyncSession, action: OperatorAction) -> di
 
 async def _handle_suppress_loser(db: AsyncSession, action: OperatorAction) -> dict:
     """Suppress a losing offer/pattern: deactivate offer, create suppression rule."""
-    from packages.db.models.failure_family import SuppressionRule
     from packages.db.models.offers import Offer
 
     changes = []
 
     # If the action targets a specific offer, deactivate it
     payload = action.action_payload or {}
-    source = payload.get("source_engine", "")
+    payload.get("source_engine", "")
 
     # Deactivate the lowest-performing active offer
     if action.brand_id:
@@ -279,7 +276,7 @@ async def _handle_repair_attribution(db: AsyncSession, action: OperatorAction) -
             entry.offer_id = item.offer_id
             entry.attribution_state = "auto_attributed"
             return {"attributed": True, "offer_id": str(item.offer_id), "method": "inferred_from_content",
-                    "state_changes": [f"ledger entry: attribution_state unattributed → auto_attributed, offer_id set"]}
+                    "state_changes": ["ledger entry: attribution_state unattributed → auto_attributed, offer_id set"]}
 
     # Try to find the best offer for this brand and attribute to it
     if entry.brand_id:
@@ -330,8 +327,9 @@ async def _handle_reduce_channel(db: AsyncSession, action: OperatorAction) -> di
 
     # Find accounts with lowest revenue and reduce their scale role
     if action.brand_id:
-        from packages.db.models.revenue_ledger import RevenueLedgerEntry
         from sqlalchemy import func as sqlfunc
+
+        from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
         # Find accounts with zero ledger revenue
         zero_rev_accounts = (await db.execute(
@@ -360,8 +358,8 @@ async def _handle_reduce_channel(db: AsyncSession, action: OperatorAction) -> di
 
 async def _handle_recover_webhook(db: AsyncSession, action: OperatorAction) -> dict:
     """Recover failed webhook: re-trigger ledger write from the original payload, then mark processed."""
+    from apps.api.services.monetization_bridge import record_product_sale_to_ledger, record_service_payment_to_ledger
     from packages.db.models.live_execution_phase2 import WebhookEvent
-    from apps.api.services.monetization_bridge import record_service_payment_to_ledger, record_product_sale_to_ledger
 
     changes = []
 
@@ -440,7 +438,6 @@ async def _handle_send_outreach(db: AsyncSession, action: OperatorAction) -> dic
     try:
         from packages.clients.external_clients import SmtpEmailClient
         client = SmtpEmailClient()
-        import asyncio
         result = await client.send_email(to=contact_email, subject=subject, body=body)
         if result.get("success"):
             return {"sent": True, "contact": contact_email, "subject": subject,

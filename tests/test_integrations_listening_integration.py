@@ -1,18 +1,29 @@
 """DB-backed integration tests for Integrations + Listening."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.core import Organization, Brand
-from packages.db.models.integrations_listening import (
-    EnterpriseConnector, SocialListeningEvent, CompetitorSignalEvent,
-    ListeningCluster, IntegrationBlocker, SignalResponseRecommendation,
-)
+
 from apps.api.services.integrations_listening_service import (
-    recompute_listening, list_connectors, list_listening, list_clusters,
-    list_blockers, get_listening_summary,
+    get_listening_summary,
+    list_blockers,
+    list_clusters,
+    list_connectors,
+    list_listening,
+    recompute_listening,
+)
+from packages.db.models.core import Brand, Organization
+from packages.db.models.integrations_listening import (
+    CompetitorSignalEvent,
+    EnterpriseConnector,
+    IntegrationBlocker,
+    ListeningCluster,
+    SignalResponseRecommendation,
+    SocialListeningEvent,
 )
 
 
@@ -119,6 +130,6 @@ async def test_idempotent(db_session, org_with_signals):
 
 
 def test_listening_worker_registered():
-    from workers.celery_app import app
     import workers.integrations_listening_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.integrations_listening_worker.tasks.recompute_listening" in app.tasks

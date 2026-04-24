@@ -6,13 +6,12 @@ import uuid
 import pytest
 from sqlalchemy import select
 
-from apps.api.services import deal_desk_service
-from apps.api.services import experiment_decision_service
+from apps.api.services import deal_desk_service, experiment_decision_service
 from packages.db.enums import MonetizationMethod
 from packages.db.models.audience_state import AudienceStateReport
+from packages.db.models.contribution import ContributionReport
 from packages.db.models.core import Brand, Organization
 from packages.db.models.deal_desk import DealDeskRecommendation
-from packages.db.models.contribution import ContributionReport
 from packages.db.models.experiment_decisions import ExperimentOutcome, ExperimentOutcomeAction
 from packages.db.models.market_timing import MarketTimingReport
 from packages.db.models.offers import Offer

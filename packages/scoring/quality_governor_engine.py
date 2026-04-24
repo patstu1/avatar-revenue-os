@@ -3,8 +3,9 @@
 Pure functions. No I/O.
 """
 from __future__ import annotations
-from typing import Any
+
 import hashlib
+from typing import Any
 
 DIMENSIONS = [
     "hook_strength", "clarity", "novelty", "conversion_fit", "trust_risk",

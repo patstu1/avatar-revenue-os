@@ -1,7 +1,8 @@
 """Revenue Leak Detector Engine — detect 14 leak types, cluster, estimate, correct. Pure functions."""
 from __future__ import annotations
-from typing import Any
+
 from collections import defaultdict
+from typing import Any
 
 LEAK_TYPES = [
     "high_impressions_low_ctr", "high_clicks_low_conversion", "high_engagement_low_monetization",

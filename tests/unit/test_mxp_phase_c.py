@@ -4,8 +4,6 @@ Persistence tests live in tests/integration/test_mxp_phase_c_persistence.py (req
 """
 from __future__ import annotations
 
-import pytest
-
 from packages.scoring.market_timing_engine import evaluate_market_timing
 from packages.scoring.recovery_engine import detect_recovery_incidents, recommend_recovery_actions
 from packages.scoring.reputation_engine import assess_reputation

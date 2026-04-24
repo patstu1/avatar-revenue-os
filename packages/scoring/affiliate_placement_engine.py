@@ -4,6 +4,7 @@ Placements: link-in-bio, in-caption, pinned-comment, description-top, end-card
 Each placement type is A/B tested and the system learns which converts best per platform.
 """
 from __future__ import annotations
+
 import random
 from typing import Any
 

@@ -1,7 +1,9 @@
 """Opportunity-Cost Ranking API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.opportunity_cost import OCReportOut, RankedActionOut, RecomputeSummaryOut

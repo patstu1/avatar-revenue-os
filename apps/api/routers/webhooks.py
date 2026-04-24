@@ -7,11 +7,11 @@ import uuid
 from datetime import datetime, timezone
 
 import structlog
-from fastapi import APIRouter, Form, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from sqlalchemy import select
 
 from apps.api.deps import DBSession
-from packages.clients.external_clients import StripeWebhookVerifier, ShopifyWebhookVerifier
+from packages.clients.external_clients import ShopifyWebhookVerifier, StripeWebhookVerifier
 from packages.db.models.live_execution_phase2 import WebhookEvent
 
 logger = structlog.get_logger()
@@ -99,8 +99,9 @@ async def stripe_webhook(request: Request, db: DBSession, stripe_signature: str 
             structlog.get_logger().warning("stripe.ledger_write_failed", error=str(ledger_err))
 
     # ── Stripe Billing: subscription & credit-pack events ──
-    from apps.api.services import stripe_billing_service as sbs
     import structlog as _sl
+
+    from apps.api.services import stripe_billing_service as sbs
     _billing_log = _sl.get_logger()
 
     try:
@@ -131,8 +132,6 @@ async def stripe_webhook(request: Request, db: DBSession, stripe_signature: str 
         await db.flush()
 
     # ── Operator payment processing: ledger writes + event_bus emissions ──
-    from apps.api.services.event_bus import emit_event
-    from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
     try:
         await _process_operator_payment_event(
@@ -161,19 +160,16 @@ async def _process_operator_payment_event(
     Covers: checkout.session.completed, invoice.paid, charge.refunded,
     customer.subscription.created, customer.subscription.deleted.
     """
-    from apps.api.services.event_bus import emit_event
-    from apps.api.services.monetization_bridge import (
-        record_service_payment_to_ledger,
-        record_refund_to_ledger,
-    )
-    from packages.db.models.revenue_ledger import RevenueLedgerEntry
-    from packages.db.models.core import Brand
     from sqlalchemy import select
+
+    from apps.api.services.event_bus import emit_event
+    from packages.db.models.core import Brand
+    from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
     # Extract attribution metadata
     offer_id = _safe_uuid(meta.get("offer_id"))
     content_item_id = _safe_uuid(meta.get("content_item_id"))
-    source_label = meta.get("source", "")
+    meta.get("source", "")
 
     # Resolve org_id from brand if brand_id present
     org_id = None
@@ -552,6 +548,7 @@ async def shopify_webhook(request: Request, db: DBSession, x_shopify_hmac_sha256
             # ── Write refund to canonical revenue ledger ──
             try:
                 from apps.api.services.monetization_bridge import record_refund_to_ledger
+
                 # Find original ledger entry for this order
                 from packages.db.models.revenue_ledger import RevenueLedgerEntry
                 original = (await db.execute(
@@ -819,7 +816,7 @@ async def affiliate_click_webhook(request: Request, db: DBSession):
         }
 
     # ── Resolve the AffiliateLink record ────────────────────────────
-    from packages.db.models.affiliate_intel import AffiliateLink, AffiliateClickEvent
+    from packages.db.models.affiliate_intel import AffiliateClickEvent, AffiliateLink
 
     af_link = None
 
@@ -972,12 +969,12 @@ async def sendgrid_inbound_parse(
         return {"status": "accepted", "detail": "invalid form ignored"}
 
     sender_full = form.get("from", "")
-    to_full = form.get("to", "")
+    form.get("to", "")
     subject = form.get("subject", "") or ""
     body_text = form.get("text", "") or ""
     body_html = form.get("html", "") or ""
     headers_raw = form.get("headers", "") or ""
-    envelope_raw = form.get("envelope", "") or ""
+    form.get("envelope", "") or ""
     spam_score = form.get("spam_score", "")
     dkim_result = form.get("dkim", "")
     spf_result = form.get("SPF", "")

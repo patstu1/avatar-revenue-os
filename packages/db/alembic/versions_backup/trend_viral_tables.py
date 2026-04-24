@@ -3,10 +3,11 @@
 Revision ID: tv_001
 Revises: ca_001
 """
-from typing import Sequence, Union
-from alembic import op
+from collections.abc import Sequence
+from typing import Union
+
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
+from alembic import op
 
 revision: str = "tv_001"
 down_revision: Union[str, None] = "ca_001"

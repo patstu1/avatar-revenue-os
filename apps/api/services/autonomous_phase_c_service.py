@@ -444,7 +444,7 @@ async def list_paid_operator(db: AsyncSession, brand_id: uuid.UUID, limit: int =
 # --- Sponsor ---
 
 async def recompute_sponsor_autonomy(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
-    from packages.db.models.offers import SponsorProfile, SponsorOpportunity
+    from packages.db.models.offers import SponsorOpportunity, SponsorProfile
 
     # Real inventory completeness — ratio of sponsor profiles with at least one opportunity
     total_profiles = (await db.execute(

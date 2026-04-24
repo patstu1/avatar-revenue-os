@@ -8,11 +8,8 @@ API docs: https://developers.google.com/youtube/v3
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
-import os
-import tempfile
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -126,7 +123,7 @@ class YouTubeClient:
         file_path_or_url: str,
         title: str,
         description: str = "",
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
         category_id: str = CATEGORY_PEOPLE_BLOGS,
         privacy: str = "private",
         is_short: bool = False,

@@ -2,28 +2,26 @@
 from __future__ import annotations
 
 import uuid
-from collections import Counter
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.core import Brand
-from packages.db.models.offers import Offer
 from packages.db.models.expansion_pack2_phase_b import (
-    PricingRecommendation,
     BundleRecommendation,
-    RetentionRecommendation,
+    PricingRecommendation,
     ReactivationCampaign,
+    RetentionRecommendation,
 )
+from packages.db.models.offers import Offer
 from packages.scoring.expansion_pack2_phase_b_engines import (
     EP2B,
-    recommend_pricing,
-    recommend_bundle,
     recommend_bundles,
-    recommend_retention,
+    recommend_pricing,
     recommend_reactivation_campaign,
+    recommend_retention,
 )
 
 

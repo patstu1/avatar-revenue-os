@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -13,10 +12,10 @@ class KillLedgerEntryOut(BaseModel):
     scope_type: str
     scope_id: str
     kill_reason: str
-    performance_snapshot_json: Optional[dict] = None
-    replacement_recommendation_json: Optional[dict] = None
+    performance_snapshot_json: dict | None = None
+    replacement_recommendation_json: dict | None = None
     confidence_score: float
-    killed_at: Optional[datetime] = None
+    killed_at: datetime | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -27,9 +26,9 @@ class KillHindsightReviewOut(BaseModel):
     brand_id: str
     kill_ledger_entry_id: str
     hindsight_outcome: str
-    was_correct_kill: Optional[bool] = None
-    explanation_json: Optional[dict] = None
-    reviewed_at: Optional[datetime] = None
+    was_correct_kill: bool | None = None
+    explanation_json: dict | None = None
+    reviewed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -42,15 +41,15 @@ class KillLedgerEntryWithHindsightOut(BaseModel):
     scope_type: str
     scope_id: str
     kill_reason: str
-    performance_snapshot_json: Optional[dict] = None
-    replacement_recommendation_json: Optional[dict] = None
+    performance_snapshot_json: dict | None = None
+    replacement_recommendation_json: dict | None = None
     confidence_score: float
-    killed_at: Optional[datetime] = None
+    killed_at: datetime | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    scope_name: Optional[str] = None
-    hindsight: Optional[KillHindsightReviewOut] = None
+    scope_name: str | None = None
+    hindsight: KillHindsightReviewOut | None = None
 
 
 class KillLedgerBundleOut(BaseModel):

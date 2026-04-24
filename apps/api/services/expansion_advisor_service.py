@@ -99,7 +99,7 @@ async def recompute_advisory(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
     db.add(AccountExpansionAdvisory(brand_id=brand_id, **advisory))
     await db.flush()
 
-    from packages.db.models.scale_alerts import OperatorAlert, LaunchCandidate
+    from packages.db.models.scale_alerts import LaunchCandidate, OperatorAlert
     if advisory["should_add_account_now"]:
         db.add(OperatorAlert(
             brand_id=brand_id,
@@ -136,7 +136,7 @@ async def recompute_advisory(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
         db.add(OperatorAlert(
             brand_id=brand_id,
             alert_type="expansion_advisor_hold",
-            title=f"Expansion Advisor: DO NOT add account yet",
+            title="Expansion Advisor: DO NOT add account yet",
             summary=f"HOLD: {hold_reason[:300]}",
             explanation=f"{hold_reason} {blocker_summary}".strip(),
             recommended_action=f"Fix: {blocker_summary[:300]}" if blocker_summary else f"Wait until: {hold_reason[:300]}",

@@ -1,12 +1,14 @@
 """Pydantic schemas for Enterprise Affiliate."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
+
 
 class AFGovRuleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; rule_type: str; rule_key: str; severity: str; explanation: Optional[str] = None
+    id: uuid.UUID; rule_type: str; rule_key: str; severity: str; explanation: str | None = None
 
 class AFBannedOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -14,7 +16,7 @@ class AFBannedOut(BaseModel):
 
 class AFApprovalOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; entity_type: str; approval_status: str; notes: Optional[str] = None
+    id: uuid.UUID; entity_type: str; approval_status: str; notes: str | None = None
 
 class AFRiskFlagOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

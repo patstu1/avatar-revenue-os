@@ -15,8 +15,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from itertools import combinations
-from typing import Optional
-
 
 # ══════════════════════════════════════════════════════════════════════════
 # DATA TYPES
@@ -70,7 +68,7 @@ class ContentRevenueProjection:
     confidence: float
     best_offer_id: str
     best_platform: str
-    optimal_publish_time: Optional[str] = None
+    optimal_publish_time: str | None = None
     revenue_ceiling: float = 0.0
     revenue_floor: float = 0.0
 
@@ -585,7 +583,7 @@ def attribute_position_based(
 def attribute_shapley(
     touchpoints: list[TouchPoint],
     conversion_value: float,
-    conversion_model: Optional[callable] = None,
+    conversion_model: callable | None = None,
 ) -> AttributionResult:
     """Shapley value attribution — game-theoretic fair credit allocation.
 
@@ -822,7 +820,7 @@ def forecast_revenue(
             "accelerating" if trend > 0 else "decelerating"
         )
 
-    total_rev = sum(values)
+    sum(values)
     growth_rate = _safe_div(values[-1] - values[0], abs(values[0]), 0.0) if n >= 2 else 0.0
 
     confidence = _clamp(1.0 - _safe_div(residual_std, abs(level), 0.5), 0.1, 0.99)
@@ -1191,7 +1189,7 @@ def compute_revenue_ceiling(
             )
 
         if best_aov > avg_aov * 1.5:
-            aov_uplift = (best_aov - avg_aov) * avg_conversion_rate
+            (best_aov - avg_aov) * avg_conversion_rate
             click_est = sum(
                 a.get("monthly_impressions", 0) * a.get("engagement_rate", 0.02)
                 for a in accounts

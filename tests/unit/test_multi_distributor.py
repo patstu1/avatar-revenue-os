@@ -1,9 +1,8 @@
 """Unit tests — multi-distributor publishing layer: clients, router, failover."""
 from __future__ import annotations
-import os
-import pytest
-import asyncio
 
+import asyncio
+import os
 
 # ── Publer Client ──
 
@@ -126,7 +125,7 @@ def test_router_publish_result_dataclass():
 
 
 def test_router_failover_all_unconfigured():
-    from packages.clients.distributor_router import publish_with_failover, PublishRequest
+    from packages.clients.distributor_router import PublishRequest, publish_with_failover
     old_buffer = os.environ.pop("BUFFER_API_KEY", None)
     old_publer = os.environ.pop("PUBLER_API_KEY", None)
     old_ayrshare = os.environ.pop("AYRSHARE_API_KEY", None)
@@ -154,7 +153,7 @@ def test_router_get_distributor_status():
 
 
 def test_router_platform_support():
-    from packages.clients.distributor_router import BufferAdapter, PublerAdapter, AyrshareAdapter
+    from packages.clients.distributor_router import AyrshareAdapter, BufferAdapter, PublerAdapter
     buffer = BufferAdapter()
     assert buffer.supports_platform("youtube")
     assert not buffer.supports_platform("reddit")
@@ -169,7 +168,7 @@ def test_router_platform_support():
 
 
 def test_router_platform_filtering():
-    from packages.clients.distributor_router import get_available_for_platform, _ADAPTER_REGISTRY
+    from packages.clients.distributor_router import get_available_for_platform
     old_buffer = os.environ.get("BUFFER_API_KEY")
     old_publer = os.environ.get("PUBLER_API_KEY")
     os.environ["BUFFER_API_KEY"] = "test"

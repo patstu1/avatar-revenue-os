@@ -1,10 +1,12 @@
 """Failure-Family Suppression API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.failure_family import FFReportOut, SuppressionRuleOut, SuppressionEventOut, RecomputeSummaryOut
+from apps.api.schemas.failure_family import FFReportOut, RecomputeSummaryOut, SuppressionEventOut, SuppressionRuleOut
 from apps.api.services import failure_family_service as svc
 from packages.db.models.core import Brand
 

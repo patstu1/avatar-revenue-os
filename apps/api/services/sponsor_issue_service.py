@@ -8,8 +8,6 @@ sponsor-specific subtypes. Severity scaling same as high_ticket
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -40,9 +38,9 @@ async def classify_sponsor_issue(
     draft: EmailReplyDraft,
     subtype: str,
     affected_cents: int = 0,
-    notes: Optional[str] = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     if subtype not in SPONSOR_ISSUE_SUBTYPES:
         raise ValueError(
@@ -93,7 +91,7 @@ async def classify_sponsor_issue(
     db.add(esc)
     await db.flush()
 
-    onboarding_event_id: Optional[uuid.UUID] = None
+    onboarding_event_id: uuid.UUID | None = None
     if client is not None:
         ce = ClientOnboardingEvent(
             client_id=client.id, org_id=client.org_id,

@@ -175,7 +175,6 @@ async def test_buffer_capabilities_recompute(api_client, sample_org_data):
 
 def test_celery_tasks_registered():
     import workers.live_execution_phase2_worker.tasks  # noqa: F401
-
     from workers.celery_app import app
 
     for name in (

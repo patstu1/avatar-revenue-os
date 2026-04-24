@@ -1,8 +1,6 @@
 """Authentication service — registration, login, password hashing."""
 from __future__ import annotations
 
-import uuid
-
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

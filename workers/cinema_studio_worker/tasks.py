@@ -1,6 +1,6 @@
 """Cinema Studio worker tasks — full pipeline from generation through QA/approval.
 
-Flow: process_studio_generation → ContentItem(media_complete) → QA → auto_approve → 
+Flow: process_studio_generation → ContentItem(media_complete) → QA → auto_approve →
       auto_publish (existing beat) → analytics ingest → revenue ceiling phases.
 """
 import re
@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 import structlog
 from sqlalchemy import select
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = structlog.get_logger()
 
@@ -52,13 +52,17 @@ def process_studio_generation(self, generation_id: str, brand_id: str) -> dict:
     QA → auto_approve_studio_content → auto_publish_approved_content → analytics → revenue ceiling.
     """
     from sqlalchemy.orm import Session
-    from packages.db.session import get_sync_engine
-    from packages.db.models.cinema_studio import (
-        StudioGeneration, StudioScene, StudioProject, StudioActivity,
-    )
-    from packages.db.models.content import MediaJob, Asset, ContentItem
+
+    from packages.db.enums import ContentType, JobStatus
     from packages.db.models.accounts import CreatorAccount
-    from packages.db.enums import JobStatus, ContentType
+    from packages.db.models.cinema_studio import (
+        StudioActivity,
+        StudioGeneration,
+        StudioProject,
+        StudioScene,
+    )
+    from packages.db.models.content import Asset, ContentItem, MediaJob
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     with Session(engine) as session:
@@ -269,7 +273,7 @@ def _sync_check_publish_readiness(session, item) -> tuple[bool, str, str]:
         if not video_asset:
             return False, "missing_video_asset", f"{ct} requires video_asset_id"
         if not _public(video_asset.file_path):
-            return False, "media_asset_not_public", f"video asset file_path is not public http(s)"
+            return False, "media_asset_not_public", "video asset file_path is not public http(s)"
         if platform == "instagram":
             mime = video_asset.mime_type or ""
             path_lower = (video_asset.file_path or "").lower()
@@ -307,11 +311,12 @@ def auto_approve_studio_content(self) -> dict:
     the associated Approval row.
     """
     from sqlalchemy.orm import Session
-    from packages.db.session import get_sync_engine
-    from packages.db.models.content import ContentItem
-    from packages.db.models.quality import QAReport, Approval
-    from packages.db.models.quality_governor import QualityGovernorReport
+
     from packages.db.enums import ApprovalStatus
+    from packages.db.models.content import ContentItem
+    from packages.db.models.quality import Approval, QAReport
+    from packages.db.models.quality_governor import QualityGovernorReport
+    from packages.db.session import get_sync_engine
 
     AUTO_APPROVE_THRESHOLD = 0.65
     engine = get_sync_engine()
@@ -425,10 +430,11 @@ def sync_studio_generations(self) -> dict:
     or manual provider status change) and keeps the studio UI in sync.
     """
     from sqlalchemy.orm import Session
-    from packages.db.session import get_sync_engine
+
+    from packages.db.enums import JobStatus
     from packages.db.models.cinema_studio import StudioGeneration, StudioScene
     from packages.db.models.content import MediaJob
-    from packages.db.enums import JobStatus
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     synced = 0

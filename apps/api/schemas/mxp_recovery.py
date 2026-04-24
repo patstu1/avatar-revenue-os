@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -14,11 +14,11 @@ class RecoveryActionOut(BaseModel):
     action_type: str
     action_mode: str
     executed: bool
-    expected_effect_json: Optional[dict[str, Any]] = None
-    result_json: Optional[dict[str, Any]] = None
+    expected_effect_json: dict[str, Any] | None = None
+    result_json: dict[str, Any] | None = None
     confidence_score: float
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class RecoveryIncidentOut(BaseModel):
@@ -27,16 +27,16 @@ class RecoveryIncidentOut(BaseModel):
     incident_type: str
     severity: str
     scope_type: str
-    scope_id: Optional[str] = None
-    detected_at: Optional[datetime] = None
+    scope_id: str | None = None
+    detected_at: datetime | None = None
     status: str
-    explanation_json: Optional[dict[str, Any]] = None
+    explanation_json: dict[str, Any] | None = None
     is_active: bool
     escalation_state: str = "open"
-    recommended_recovery_action: Optional[str] = None
-    automatic_action_taken: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    recommended_recovery_action: str | None = None
+    automatic_action_taken: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     actions: list[RecoveryActionOut] = Field(default_factory=list)
-    confidence: Optional[float] = None
-    expected_mitigation_effect: Optional[dict[str, Any]] = None
+    confidence: float | None = None
+    expected_mitigation_effect: dict[str, Any] | None = None

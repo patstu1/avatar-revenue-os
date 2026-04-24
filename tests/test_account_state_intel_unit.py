@@ -1,8 +1,10 @@
 """Unit tests for account-state intelligence engine — pure functions, no DB."""
-import pytest
 from packages.scoring.account_state_intel_engine import (
-    ACCOUNT_STATES, STATE_POLICIES,
-    classify_account_state, detect_transition, generate_actions,
+    ACCOUNT_STATES,
+    STATE_POLICIES,
+    classify_account_state,
+    detect_transition,
+    generate_actions,
 )
 
 

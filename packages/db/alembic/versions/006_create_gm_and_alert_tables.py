@@ -4,9 +4,9 @@ Revision ID: 006_gm_alerts
 Revises: b6587e9c03b5
 Create Date: 2026-04-06
 """
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision = "006_gm_alerts"
 down_revision = "b6587e9c03b5"

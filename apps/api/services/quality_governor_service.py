@@ -1,7 +1,8 @@
 """Quality Governor Service — score content, persist, block, improve."""
 from __future__ import annotations
-import uuid
+
 import hashlib
+import uuid
 from typing import Any
 
 from sqlalchemy import delete, func, select
@@ -11,9 +12,11 @@ from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
-from packages.db.models.publishing import PerformanceMetric
 from packages.db.models.quality_governor import (
-    QualityBlock, QualityDimensionScore, QualityGovernorReport, QualityImprovementAction,
+    QualityBlock,
+    QualityDimensionScore,
+    QualityGovernorReport,
+    QualityImprovementAction,
 )
 from packages.scoring.quality_governor_engine import DIMENSIONS, score_content
 
@@ -25,7 +28,7 @@ async def score_content_item(
     if not ci:
         return {"status": "not_found"}
 
-    brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
+    (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     ctx = await _build_context(db, brand_id, ci)
 
     ct = ci.content_type

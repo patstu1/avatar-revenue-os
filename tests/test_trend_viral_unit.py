@@ -1,8 +1,13 @@
 """Unit tests for trend/viral engine."""
-import pytest
 from packages.scoring.trend_viral_engine import (
-    OPPORTUNITY_TYPES, extract_signals, compute_velocity, check_duplicate,
-    score_opportunity, classify_opportunity, should_suppress, detect_blockers,
+    OPPORTUNITY_TYPES,
+    check_duplicate,
+    classify_opportunity,
+    compute_velocity,
+    detect_blockers,
+    extract_signals,
+    score_opportunity,
+    should_suppress,
 )
 
 

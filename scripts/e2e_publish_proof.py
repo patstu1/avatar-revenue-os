@@ -10,7 +10,6 @@ Usage:
 Requires: database seeded (python scripts/seed.py first)
 """
 import asyncio
-import json
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -20,8 +19,9 @@ sys.path.insert(0, "/app")
 
 
 async def main():
+    from sqlalchemy import text
+
     from packages.db.session import get_async_session_factory
-    from sqlalchemy import select, text
 
     results = {}
     errors = []
@@ -117,8 +117,8 @@ async def main():
         # ── STEP 3: Create MediaJob ─────────────────────────────────
         print("\n=== STEP 3: Create MediaJob ===")
         try:
-            from packages.db.models.content import MediaJob
             from packages.db.enums import JobStatus
+            from packages.db.models.content import MediaJob
             media_job = MediaJob(
                 brand_id=brand_id,
                 script_id=script.id,
@@ -152,8 +152,8 @@ async def main():
         # ── STEP 4: Create ContentItem + Asset ──────────────────────
         print("\n=== STEP 4: Create ContentItem + Asset ===")
         try:
-            from packages.db.models.content import Asset, ContentItem
             from packages.db.enums import ContentType
+            from packages.db.models.content import Asset, ContentItem
 
             asset = Asset(
                 brand_id=brand_id,
@@ -200,8 +200,8 @@ async def main():
         # ── STEP 5: Run QA ──────────────────────────────────────────
         print("\n=== STEP 5: QA Report ===")
         try:
-            from packages.db.models.quality import QAReport
             from packages.db.enums import QAStatus
+            from packages.db.models.quality import QAReport
 
             qa = QAReport(
                 content_item_id=item.id,
@@ -233,8 +233,8 @@ async def main():
         # ── STEP 6: Approve ─────────────────────────────────────────
         print("\n=== STEP 6: Approval ===")
         try:
-            from packages.db.models.quality import Approval
             from packages.db.enums import ApprovalStatus
+            from packages.db.models.quality import Approval
 
             approval = Approval(
                 content_item_id=item.id,
@@ -262,8 +262,8 @@ async def main():
         # ── STEP 7: Create PublishJob ───────────────────────────────
         print("\n=== STEP 7: PublishJob ===")
         try:
-            from packages.db.models.publishing import PublishJob
             from packages.db.enums import Platform as PlatformEnum
+            from packages.db.models.publishing import PublishJob
 
             # Map string platform to enum
             platform_enum = PlatformEnum(platform) if platform else PlatformEnum.YOUTUBE
@@ -369,11 +369,11 @@ def _print_summary(results: dict, errors: list):
         print(f"  [{icon}] {step}")
     print(f"\n  Score: {passed}/{total}")
     if errors:
-        print(f"\n  ERRORS:")
+        print("\n  ERRORS:")
         for e in errors:
             print(f"    - {e}")
     else:
-        print(f"\n  ALL CHAIN LINKS VERIFIED. Ready for live publish test.")
+        print("\n  ALL CHAIN LINKS VERIFIED. Ready for live publish test.")
     print("=" * 60)
 
     # Exit code

@@ -12,9 +12,10 @@ Usage:
 """
 from __future__ import annotations
 
-import structlog
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable
+
+import structlog
 
 logger = structlog.get_logger()
 
@@ -22,10 +23,10 @@ logger = structlog.get_logger()
 @dataclass(frozen=True)
 class WebhookParseResult:
     """Standardized output from any provider webhook parser."""
-    job_id: Optional[str]
+    job_id: str | None
     status: str          # "completed" | "failed" | "processing"
-    output_url: Optional[str]
-    error: Optional[str]
+    output_url: str | None
+    error: str | None
 
 
 # Type alias for parser functions

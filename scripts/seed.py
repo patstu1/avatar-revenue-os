@@ -4,46 +4,86 @@ Run: docker exec aro-api python scripts/seed.py
 Seeds core entities PLUS representative data for all post-core dashboards
 so developers see real pages instead of empty shells.
 """
-import sys
 import os
-import uuid
-from datetime import datetime, timezone, timedelta
+import sys
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from sqlalchemy.orm import Session
-from packages.db.session import get_sync_engine
-from packages.db.models.core import Organization, User, Brand, Avatar, AvatarProviderProfile, VoiceProviderProfile
-from packages.db.models.offers import Offer
-from packages.db.models.accounts import CreatorAccount, AccountPortfolio
-from packages.db.models.system import AuditLog, SystemJob, ProviderUsageCost
-from packages.db.models.scale_alerts import OperatorAlert, LaunchCandidate, ScaleBlockerReport, NotificationDelivery, LaunchReadinessReport
-from packages.db.models.revenue_ceiling_phase_a import OfferLadder, OwnedAudienceAsset, FunnelStageMetric, FunnelLeakFix
-from packages.db.models.revenue_ceiling_phase_b import HighTicketOpportunity, ProductOpportunity, RevenueDensityReport, UpsellRecommendation
-from packages.db.models.revenue_ceiling_phase_c import RecurringRevenueModel, SponsorInventory, TrustConversionReport, MonetizationMixReport, PaidPromotionCandidate
-from packages.db.models.expansion_pack2_phase_a import LeadOpportunity, CloserAction, LeadQualificationReport, OwnedOfferRecommendation
-from packages.db.models.expansion_pack2_phase_b import PricingRecommendation, BundleRecommendation, RetentionRecommendation, ReactivationCampaign
-from packages.db.models.expansion_pack2_phase_c import ReferralProgramRecommendation, CompetitiveGapReport, SponsorTarget, ProfitGuardrailReport
-from packages.db.models.experiment_decisions import ExperimentDecision
-from packages.db.models.contribution import ContributionReport
-from packages.db.models.capacity import CapacityReport, QueueAllocationDecision
-from packages.db.models.offer_lifecycle import OfferLifecycleReport
-from packages.db.models.creative_memory import CreativeMemoryAtom
-from packages.db.models.recovery import RecoveryIncident, RecoveryAction
-from packages.db.models.deal_desk import DealDeskRecommendation
-from packages.db.models.audience_state import AudienceStateReport
-from packages.db.models.reputation import ReputationReport
-from packages.db.models.market_timing import MacroSignalEvent, MarketTimingReport
-from packages.db.models.kill_ledger import KillLedgerEntry
-from packages.db.models.autonomous_execution import AutomationExecutionPolicy, AutomationExecutionRun
-from packages.db.enums import (
-    UserRole, Platform, AccountType, MonetizationMethod,
-    HealthStatus, JobStatus,
-)
-from packages.db.models.cinema_studio import (
-    StudioProject, StudioScene, CharacterBible, StylePreset, StudioActivity,
-)
+
 from apps.api.services.auth_service import hash_password
+from packages.db.enums import (
+    AccountType,
+    HealthStatus,
+    JobStatus,
+    MonetizationMethod,
+    Platform,
+    UserRole,
+)
+from packages.db.models.accounts import AccountPortfolio, CreatorAccount
+from packages.db.models.audience_state import AudienceStateReport
+from packages.db.models.autonomous_execution import AutomationExecutionPolicy, AutomationExecutionRun
+from packages.db.models.capacity import CapacityReport, QueueAllocationDecision
+from packages.db.models.cinema_studio import (
+    CharacterBible,
+    StudioActivity,
+    StudioProject,
+    StudioScene,
+    StylePreset,
+)
+from packages.db.models.contribution import ContributionReport
+from packages.db.models.core import Avatar, AvatarProviderProfile, Brand, Organization, User, VoiceProviderProfile
+from packages.db.models.creative_memory import CreativeMemoryAtom
+from packages.db.models.deal_desk import DealDeskRecommendation
+from packages.db.models.expansion_pack2_phase_a import (
+    CloserAction,
+    LeadOpportunity,
+    LeadQualificationReport,
+    OwnedOfferRecommendation,
+)
+from packages.db.models.expansion_pack2_phase_b import (
+    BundleRecommendation,
+    PricingRecommendation,
+    ReactivationCampaign,
+    RetentionRecommendation,
+)
+from packages.db.models.expansion_pack2_phase_c import (
+    CompetitiveGapReport,
+    ProfitGuardrailReport,
+    ReferralProgramRecommendation,
+    SponsorTarget,
+)
+from packages.db.models.experiment_decisions import ExperimentDecision
+from packages.db.models.kill_ledger import KillLedgerEntry
+from packages.db.models.market_timing import MacroSignalEvent, MarketTimingReport
+from packages.db.models.offer_lifecycle import OfferLifecycleReport
+from packages.db.models.offers import Offer
+from packages.db.models.recovery import RecoveryAction, RecoveryIncident
+from packages.db.models.reputation import ReputationReport
+from packages.db.models.revenue_ceiling_phase_a import FunnelLeakFix, FunnelStageMetric, OfferLadder, OwnedAudienceAsset
+from packages.db.models.revenue_ceiling_phase_b import (
+    HighTicketOpportunity,
+    ProductOpportunity,
+    RevenueDensityReport,
+    UpsellRecommendation,
+)
+from packages.db.models.revenue_ceiling_phase_c import (
+    MonetizationMixReport,
+    PaidPromotionCandidate,
+    RecurringRevenueModel,
+    SponsorInventory,
+    TrustConversionReport,
+)
+from packages.db.models.scale_alerts import (
+    LaunchCandidate,
+    LaunchReadinessReport,
+    NotificationDelivery,
+    OperatorAlert,
+    ScaleBlockerReport,
+)
+from packages.db.models.system import AuditLog, ProviderUsageCost, SystemJob
+from packages.db.session import get_sync_engine
 
 engine = get_sync_engine()
 now = datetime.now(timezone.utc)
@@ -480,31 +520,31 @@ def seed():
         db.commit()
         print("Seed complete (v3 — full dashboard + Cinema Studio data):")
         print(f"  1 organization: {org.name}")
-        print(f"  3 users (admin/operator/viewer)")
-        print(f"  2 brands with avatars and provider profiles")
-        print(f"  4 offers")
-        print(f"  8 creator accounts (YT, TT, IG, Reddit, LinkedIn, FB, X) + 1 portfolio")
-        print(f"  Scale alerts: 2 alerts, 1 launch candidate, 1 blocker, 1 readiness report, 2 notifications")
-        print(f"  Revenue Ceiling A: 2 offer ladders, 1 audience asset, 3 funnel metrics, 1 leak fix")
-        print(f"  Revenue Ceiling B: 1 high-ticket, 1 product opp, 1 density report, 1 upsell")
-        print(f"  Revenue Ceiling C: 1 recurring, 1 sponsor inventory, 1 trust, 1 mix, 1 paid promo")
-        print(f"  EP2A: 2 leads, 2 closer actions, 1 qual report, 1 owned offer rec")
-        print(f"  EP2B: 1 pricing, 1 bundle, 1 retention, 1 reactivation")
-        print(f"  EP2C: 1 referral, 1 competitive gap, 1 sponsor target, 2 profit guardrails")
-        print(f"  MXP Experiment Decisions: 1 experiment")
-        print(f"  MXP Contribution: 1 attribution report")
-        print(f"  MXP Capacity: 1 capacity report, 1 queue allocation")
-        print(f"  MXP Offer Lifecycle: 1 lifecycle report")
-        print(f"  MXP Creative Memory: 1 atom")
-        print(f"  MXP Recovery: 1 incident, 1 action")
-        print(f"  MXP Deal Desk: 1 recommendation")
-        print(f"  MXP Audience State: 1 state report")
-        print(f"  MXP Reputation: 1 risk report")
-        print(f"  MXP Market Timing: 1 timing report")
-        print(f"  MXP Kill Ledger: 1 kill entry")
-        print(f"  Autonomous Execution: 1 policy, 1 run")
-        print(f"  Cinema Studio: 8 style presets, 3 characters, 3 projects, 5 scenes, 9 activity entries")
-        print(f"  Login: admin@revenuelab.ai / admin123")
+        print("  3 users (admin/operator/viewer)")
+        print("  2 brands with avatars and provider profiles")
+        print("  4 offers")
+        print("  8 creator accounts (YT, TT, IG, Reddit, LinkedIn, FB, X) + 1 portfolio")
+        print("  Scale alerts: 2 alerts, 1 launch candidate, 1 blocker, 1 readiness report, 2 notifications")
+        print("  Revenue Ceiling A: 2 offer ladders, 1 audience asset, 3 funnel metrics, 1 leak fix")
+        print("  Revenue Ceiling B: 1 high-ticket, 1 product opp, 1 density report, 1 upsell")
+        print("  Revenue Ceiling C: 1 recurring, 1 sponsor inventory, 1 trust, 1 mix, 1 paid promo")
+        print("  EP2A: 2 leads, 2 closer actions, 1 qual report, 1 owned offer rec")
+        print("  EP2B: 1 pricing, 1 bundle, 1 retention, 1 reactivation")
+        print("  EP2C: 1 referral, 1 competitive gap, 1 sponsor target, 2 profit guardrails")
+        print("  MXP Experiment Decisions: 1 experiment")
+        print("  MXP Contribution: 1 attribution report")
+        print("  MXP Capacity: 1 capacity report, 1 queue allocation")
+        print("  MXP Offer Lifecycle: 1 lifecycle report")
+        print("  MXP Creative Memory: 1 atom")
+        print("  MXP Recovery: 1 incident, 1 action")
+        print("  MXP Deal Desk: 1 recommendation")
+        print("  MXP Audience State: 1 state report")
+        print("  MXP Reputation: 1 risk report")
+        print("  MXP Market Timing: 1 timing report")
+        print("  MXP Kill Ledger: 1 kill entry")
+        print("  Autonomous Execution: 1 policy, 1 run")
+        print("  Cinema Studio: 8 style presets, 3 characters, 3 projects, 5 scenes, 9 activity entries")
+        print("  Login: admin@revenuelab.ai / admin123")
 
 
 if __name__ == "__main__":

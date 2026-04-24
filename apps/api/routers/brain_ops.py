@@ -3,7 +3,7 @@
 Reads the latest row from each brain subsystem table and returns a unified panel.
 No new data. No reports generated. Pure surfacing of what's already running.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter

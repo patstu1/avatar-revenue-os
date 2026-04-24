@@ -5,7 +5,7 @@ plus paid performance ingestion, batch execute, and operator notifications.
 """
 import pytest
 
-from tests.conftest import register_and_login, create_brand_with_offer
+from tests.conftest import create_brand_with_offer, register_and_login
 
 
 @pytest.mark.asyncio

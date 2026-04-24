@@ -1,6 +1,7 @@
 """Enterprise Security Engine — RBAC eval, scope enforce, data policy, compliance. Pure functions."""
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 SYSTEM_ROLES = [
     {"role_name": "super_admin", "role_level": 100, "description": "Full system access"},

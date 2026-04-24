@@ -1,13 +1,11 @@
 """Unit tests for Provider Registry engine."""
-import pytest
 
 from packages.scoring.provider_registry_engine import (
     PROVIDER_INVENTORY,
-    PROVIDER_DEPENDENCIES,
     audit_all_providers,
     check_provider_credentials,
-    get_provider_blockers,
     get_dependency_map,
+    get_provider_blockers,
 )
 
 REQUIRED_FIELDS = {"provider_key", "display_name", "category", "provider_type"}

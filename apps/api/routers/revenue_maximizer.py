@@ -3,13 +3,16 @@
 All 17 engines + execution + governance in one API surface.
 """
 from __future__ import annotations
+
 import uuid
+
 from fastapi import APIRouter, Query
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
-from apps.api.services import revenue_maximizer as rev
+from apps.api.services import action_dispatcher
 from apps.api.services import revenue_engines_extended as rev_ext
 from apps.api.services import revenue_execution as rev_exec
-from apps.api.services import action_dispatcher
+from apps.api.services import revenue_maximizer as rev
 
 router = APIRouter()
 

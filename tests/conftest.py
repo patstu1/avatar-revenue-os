@@ -4,15 +4,14 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import AsyncGenerator
-from typing import Optional
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from packages.db.base import Base
 import packages.db.models  # noqa: F401
+from packages.db.base import Base
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
@@ -51,8 +50,8 @@ async def async_session(db_session):
 
 @pytest_asyncio.fixture
 async def api_client(db_session):
-    from apps.api.main import app
     from apps.api.deps import get_db
+    from apps.api.main import app
     from apps.api.rate_limit import auth_rate_limit, recompute_rate_limit
 
     async def override_get_db():
@@ -120,11 +119,11 @@ async def create_brand_with_offer(
     headers: dict,
     *,
     brand_name: str = "Test Brand",
-    brand_slug: Optional[str] = None,
+    brand_slug: str | None = None,
     niche: str = "finance",
     offer_name: str = "Test Offer",
     platform: str = "youtube",
-    platform_username: Optional[str] = None,
+    platform_username: str | None = None,
 ) -> tuple:
     """Create a brand with an offer and a creator account. Returns (brand_id, offer_id, account_id)."""
     slug = brand_slug or f"test-{uuid.uuid4().hex[:6]}"
@@ -170,9 +169,9 @@ def make_operator_user(
     full_name: str = "Operator User",
 ):
     """Build a User ORM instance compatible with the real model (hashed_password, role)."""
-    from packages.db.models.core import User
-    from packages.db.enums import UserRole
     from apps.api.services.auth_service import hash_password
+    from packages.db.enums import UserRole
+    from packages.db.models.core import User
 
     return User(
         organization_id=org_id,
@@ -185,7 +184,7 @@ def make_operator_user(
 
 def create_access_token_for_user(user):
     """Generate a JWT for the given User ORM instance."""
-    from apps.api.deps import create_access_token
     from apps.api.config import get_settings
+    from apps.api.deps import create_access_token
 
     return create_access_token(user.id, get_settings())

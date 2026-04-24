@@ -1,5 +1,6 @@
 """Niche Research Engine — score niches by monetization potential, competition, trend velocity."""
 from __future__ import annotations
+
 from typing import Any
 
 NICHE_DATABASE: list[dict[str, Any]] = [

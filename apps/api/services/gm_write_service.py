@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,10 +43,10 @@ async def audit_gm_write(
     actor: User,
     tool_name: str,
     entity_type: str,
-    entity_id: Optional[uuid.UUID],
+    entity_id: uuid.UUID | None,
     decision: str,
     action_class: str,
-    details: Optional[dict] = None,
+    details: dict | None = None,
     severity: str = "info",
 ) -> OperatorAction:
     """Write the audit row + emit the gm.write event.

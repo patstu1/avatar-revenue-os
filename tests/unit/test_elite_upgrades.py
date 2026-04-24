@@ -1,7 +1,5 @@
 """Unit tests — elite revenue upgrades: viral reactor, revenue optimization, CTA, engagement, forecast."""
 from __future__ import annotations
-import pytest
-
 
 # ── Revenue Optimization Engine ──
 

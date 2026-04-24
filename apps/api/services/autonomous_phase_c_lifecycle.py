@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from sqlalchemy import select, update
@@ -67,7 +67,7 @@ async def advance_execution_status(
     module: str,
     record_id: uuid.UUID,
     target_status: str,
-    operator_notes: Optional[str] = None,
+    operator_notes: str | None = None,
 ) -> dict[str, Any]:
     if module not in _MODEL_MAP:
         raise ValueError(f"Unknown module '{module}'. Valid: {sorted(_MODEL_MAP)}")

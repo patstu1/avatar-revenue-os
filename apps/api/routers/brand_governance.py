@@ -1,10 +1,21 @@
 """Brand Governance API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.brand_governance import BGProfileOut, BGVoiceRuleOut, BGViolationOut, BGApprovalOut, BGKnowledgeBaseOut, BGAudienceOut, BGAssetOut, RecomputeSummaryOut
+from apps.api.schemas.brand_governance import (
+    BGApprovalOut,
+    BGAssetOut,
+    BGAudienceOut,
+    BGKnowledgeBaseOut,
+    BGProfileOut,
+    BGViolationOut,
+    BGVoiceRuleOut,
+    RecomputeSummaryOut,
+)
 from apps.api.services import brand_governance_service as svc
 from packages.db.models.core import Brand
 

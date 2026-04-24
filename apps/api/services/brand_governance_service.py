@@ -1,16 +1,27 @@
 """Brand Governance Service — evaluate, persist violations, list, approve."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.brand_governance import (
-    BrandGovernanceProfile, BrandVoiceRule, BrandKnowledgeBase,
-    BrandAudienceProfile, BrandEditorialRule, BrandAssetLibrary,
-    BrandGovernanceViolation, BrandGovernanceApproval,
+    BrandAssetLibrary,
+    BrandAudienceProfile,
+    BrandEditorialRule,
+    BrandGovernanceApproval,
+    BrandGovernanceProfile,
+    BrandGovernanceViolation,
+    BrandKnowledgeBase,
+    BrandVoiceRule,
 )
 from packages.db.models.content import ContentItem
-from packages.scoring.brand_governance_engine import evaluate_voice_rules, score_editorial_compliance, check_audience_fit
+from packages.scoring.brand_governance_engine import (
+    evaluate_voice_rules,
+    score_editorial_compliance,
+)
 
 
 async def evaluate_content(db: AsyncSession, brand_id: uuid.UUID, content_item_id: uuid.UUID) -> dict[str, Any]:

@@ -9,21 +9,22 @@ Usage:
 
 Without --brand-id, uses the first active brand.
 """
+import argparse
 import asyncio
 import sys
 import uuid
-import argparse
 
 sys.path.insert(0, "/app")
 
 
 async def main(brand_id_str: str | None = None):
-    from packages.db.session import get_async_session_factory
+    from sqlalchemy import select
+
+    from apps.api.services import secrets_service
     from packages.clients.external_clients import BufferClient
     from packages.db.models.buffer_distribution import BufferProfile
     from packages.db.models.core import Brand
-    from apps.api.services import secrets_service
-    from sqlalchemy import select, text
+    from packages.db.session import get_async_session_factory
 
     async with get_async_session_factory()() as db:
         # Resolve brand

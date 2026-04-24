@@ -38,7 +38,6 @@ from __future__ import annotations
 
 from typing import Final
 
-
 # ═══════════════════════════════════════════════════════════════════════════
 #  Status flag system — the FIVE allowed statuses
 # ═══════════════════════════════════════════════════════════════════════════

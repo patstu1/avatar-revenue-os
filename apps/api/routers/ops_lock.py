@@ -279,7 +279,7 @@ def _alembic_head_revision() -> str:
                 continue
             path = os.path.join(versions_dir, fname)
             try:
-                with open(path, "r") as fh:
+                with open(path) as fh:
                     text = fh.read(4000)
                 m = rev_pat.search(text)
                 if not m:

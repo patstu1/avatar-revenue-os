@@ -26,7 +26,6 @@ from apps.api.services.package_recommender import (
     recommend_package,
 )
 from apps.api.services.reply_policy import (
-    DecisionTrace,
     ReplyPolicySettings,
     decide_reply_mode,
     get_reply_policy,
@@ -648,11 +647,14 @@ async def send_approved_drafts(db: AsyncSession, org_id: uuid.UUID) -> dict:
 
     Called by the sync worker after processing inbound emails.
     """
-    from packages.db.models.email_pipeline import (
-        EmailReplyDraft, EmailThread, EmailMessage, InboxConnection,
-    )
     from packages.clients.external_clients import SmtpEmailClient
     from packages.clients.microsoft_oauth import send_via_graph_sendmail
+    from packages.db.models.email_pipeline import (
+        EmailMessage,
+        EmailReplyDraft,
+        EmailThread,
+        InboxConnection,
+    )
 
     drafts = (await db.execute(
         select(EmailReplyDraft).where(

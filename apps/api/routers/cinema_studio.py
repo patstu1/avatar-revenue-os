@@ -10,7 +10,6 @@ from apps.api.schemas.cinema_studio import (
     CharacterBibleResponse,
     CharacterBibleUpdate,
     GenerationTrigger,
-    StudioActivityResponse,
     StudioDashboardStats,
     StudioGenerationResponse,
     StudioProjectCreate,

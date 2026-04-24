@@ -1,22 +1,31 @@
 """DB-backed integration tests for Promote-Winner Engine."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.core import Brand, Organization
-from packages.db.models.promote_winner import (
-    ActiveExperiment, PWExperimentVariant, PWExperimentWinner,
-    PWExperimentLoser, PromotedWinnerRule,
-)
-from packages.db.models.pattern_memory import WinningPatternMemory, LosingPatternMemory
 from apps.api.services.promote_winner_service import (
-    create_experiment, add_observation, evaluate_experiment,
-    run_decay_check, list_active_experiments, list_winners,
-    list_losers, list_promoted_rules, get_promoted_rules_for_brief,
+    add_observation,
+    create_experiment,
+    evaluate_experiment,
+    get_promoted_rules_for_brief,
+    list_active_experiments,
+    list_losers,
+    list_promoted_rules,
+    list_winners,
+    run_decay_check,
+)
+from packages.db.models.core import Brand, Organization
+from packages.db.models.pattern_memory import LosingPatternMemory, WinningPatternMemory
+from packages.db.models.promote_winner import (
+    PromotedWinnerRule,
+    PWExperimentLoser,
+    PWExperimentVariant,
+    PWExperimentWinner,
 )
 
 
@@ -202,6 +211,6 @@ async def test_insufficient_sample_reported(db_session, brand):
 
 
 def test_promote_winner_worker_registered():
-    from workers.celery_app import app
     import workers.promote_winner_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.promote_winner_worker.tasks.evaluate_and_promote" in app.tasks

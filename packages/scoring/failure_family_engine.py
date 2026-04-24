@@ -3,9 +3,10 @@
 Pure functions. No I/O.
 """
 from __future__ import annotations
-from typing import Any, Optional
+
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 FAMILY_TYPES = [
     "hook_type", "content_form", "offer_angle", "cta_style",
@@ -78,7 +79,7 @@ def detect_repeat_failures(
 
 def build_suppression_rules(
     repeat_families: list[dict[str, Any]],
-    now: Optional[datetime] = None,
+    now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Generate suppression rules for repeat-failure families."""
     now = now or datetime.now(timezone.utc)
@@ -106,7 +107,7 @@ def build_suppression_rules(
 
 def check_suppression_decay(
     rules: list[dict[str, Any]],
-    now: Optional[datetime] = None,
+    now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Check which suppression rules have expired and can be retested."""
     now = now or datetime.now(timezone.utc)

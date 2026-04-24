@@ -29,8 +29,8 @@ class TestExperimentDecisionModels:
 class TestContributionModels:
     def test_model_structure(self):
         from packages.db.models.contribution import (
-            ContributionReport,
             AttributionModelRun,
+            ContributionReport,
         )
 
         assert ContributionReport.__tablename__ == "contribution_reports"
@@ -59,8 +59,8 @@ class TestCapacityModels:
 class TestOfferLifecycleModels:
     def test_model_structure(self):
         from packages.db.models.offer_lifecycle import (
-            OfferLifecycleReport,
             OfferLifecycleEvent,
+            OfferLifecycleReport,
         )
 
         assert OfferLifecycleReport.__tablename__ == "offer_lifecycle_reports"
@@ -89,7 +89,7 @@ class TestCreativeMemoryModels:
 
 class TestRecoveryModels:
     def test_model_structure(self):
-        from packages.db.models.recovery import RecoveryIncident, RecoveryAction
+        from packages.db.models.recovery import RecoveryAction, RecoveryIncident
 
         assert RecoveryIncident.__tablename__ == "recovery_incidents"
         assert RecoveryAction.__tablename__ == "recovery_actions"
@@ -107,8 +107,8 @@ class TestRecoveryModels:
 class TestDealDeskModels:
     def test_model_structure(self):
         from packages.db.models.deal_desk import (
-            DealDeskRecommendation,
             DealDeskEvent,
+            DealDeskRecommendation,
         )
 
         assert DealDeskRecommendation.__tablename__ == "deal_desk_recommendations"
@@ -122,8 +122,8 @@ class TestDealDeskModels:
 class TestAudienceStateModels:
     def test_model_structure(self):
         from packages.db.models.audience_state import (
-            AudienceStateReport,
             AudienceStateEvent,
+            AudienceStateReport,
         )
 
         assert AudienceStateReport.__tablename__ == "audience_state_reports"
@@ -137,7 +137,7 @@ class TestAudienceStateModels:
 
 class TestReputationModels:
     def test_model_structure(self):
-        from packages.db.models.reputation import ReputationReport, ReputationEvent
+        from packages.db.models.reputation import ReputationEvent, ReputationReport
 
         assert ReputationReport.__tablename__ == "reputation_reports"
         assert ReputationEvent.__tablename__ == "reputation_events"
@@ -150,8 +150,8 @@ class TestReputationModels:
 class TestMarketTimingModels:
     def test_model_structure(self):
         from packages.db.models.market_timing import (
-            MarketTimingReport,
             MacroSignalEvent,
+            MarketTimingReport,
         )
 
         assert MarketTimingReport.__tablename__ == "market_timing_reports"
@@ -166,8 +166,8 @@ class TestMarketTimingModels:
 class TestKillLedgerModels:
     def test_model_structure(self):
         from packages.db.models.kill_ledger import (
-            KillLedgerEntry,
             KillHindsightReview,
+            KillLedgerEntry,
         )
 
         assert KillLedgerEntry.__tablename__ == "kill_ledger_entries"

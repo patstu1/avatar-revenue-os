@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -13,15 +13,15 @@ class AgentRunOut(BaseModel):
     brand_id: UUID
     agent_type: str
     run_status: str
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    input_context_json: Optional[Any] = None
-    output_json: Optional[Any] = None
-    commands_json: Optional[Any] = None
-    error_message: Optional[str] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    input_context_json: Any | None = None
+    output_json: Any | None = None
+    commands_json: Any | None = None
+    error_message: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -30,13 +30,13 @@ class AgentMessageOut(BaseModel):
     id: UUID
     agent_run_id: UUID
     sender_agent: str
-    receiver_agent: Optional[str] = None
+    receiver_agent: str | None = None
     message_type: str
-    payload_json: Optional[Any] = None
-    explanation: Optional[str] = None
+    payload_json: Any | None = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -49,22 +49,22 @@ class AgentOrchestrationBundleOut(BaseModel):
 class RevenuePressureReportOut(BaseModel):
     id: UUID
     brand_id: UUID
-    next_commands_json: Optional[Any] = None
-    next_launches_json: Optional[Any] = None
-    biggest_blocker: Optional[str] = None
-    biggest_missed_opportunity: Optional[str] = None
-    biggest_weak_lane_to_kill: Optional[str] = None
-    underused_monetization_class: Optional[str] = None
-    underbuilt_platform: Optional[str] = None
-    missing_account_suggestion: Optional[str] = None
-    unexploited_winner: Optional[str] = None
-    leaking_funnel: Optional[str] = None
-    inactive_asset_class: Optional[str] = None
+    next_commands_json: Any | None = None
+    next_launches_json: Any | None = None
+    biggest_blocker: str | None = None
+    biggest_missed_opportunity: str | None = None
+    biggest_weak_lane_to_kill: str | None = None
+    underused_monetization_class: str | None = None
+    underbuilt_platform: str | None = None
+    missing_account_suggestion: str | None = None
+    unexploited_winner: str | None = None
+    leaking_funnel: str | None = None
+    inactive_asset_class: str | None = None
     pressure_score: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -77,13 +77,13 @@ class OverridePolicyOut(BaseModel):
     confidence_threshold: float
     approval_needed: bool
     rollback_available: bool
-    rollback_plan: Optional[str] = None
-    hard_stop_rule: Optional[str] = None
-    audit_trail_json: Optional[Any] = None
-    explanation: Optional[str] = None
+    rollback_plan: str | None = None
+    hard_stop_rule: str | None = None
+    audit_trail_json: Any | None = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -97,12 +97,12 @@ class BlockerDetectionReportOut(BaseModel):
     operator_action_needed: str
     deadline_or_urgency: str
     consequence_if_ignored: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
     status: str
-    resolved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -112,21 +112,21 @@ class EscalationEventOut(BaseModel):
     brand_id: UUID
     command: str
     reason: str
-    supporting_data_json: Optional[Any] = None
+    supporting_data_json: Any | None = None
     confidence: float
     urgency: str
     expected_upside: float
     expected_cost: float
-    time_to_signal: Optional[str] = None
-    time_to_profit: Optional[str] = None
+    time_to_signal: str | None = None
+    time_to_profit: str | None = None
     risk: str
-    required_resources: Optional[str] = None
-    consequence_if_ignored: Optional[str] = None
+    required_resources: str | None = None
+    consequence_if_ignored: str | None = None
     status: str
-    resolved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -134,16 +134,16 @@ class EscalationEventOut(BaseModel):
 class OperatorCommandOut(BaseModel):
     id: UUID
     brand_id: UUID
-    escalation_event_id: Optional[UUID] = None
-    blocker_report_id: Optional[UUID] = None
+    escalation_event_id: UUID | None = None
+    blocker_report_id: UUID | None = None
     command_text: str
     command_type: str
     urgency: str
     status: str
-    resolved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -156,4 +156,4 @@ class EscalationBundleOut(BaseModel):
 class RecomputeSummaryOut(BaseModel):
     status: str
     detail: str
-    counts: Optional[dict[str, int]] = None
+    counts: dict[str, int] | None = None

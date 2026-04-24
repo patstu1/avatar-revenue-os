@@ -3,7 +3,6 @@
 Pure functions — no DB access. Service layer handles persistence.
 """
 from __future__ import annotations
-from typing import Any, Optional
 
 SCALE_ALERT_SOURCE = "scale_alerts_engine"
 
@@ -304,13 +303,13 @@ def _one_candidate(
     candidate_type: str,
     scale_rec: dict,
     accounts: list[dict],
-    brand_niche: Optional[str],
+    brand_niche: str | None,
     cannibalization_risk: float,
     audience_separation: float,
     offers: list[dict],
-    platform_override: Optional[str] = None,
-    geo_override: Optional[str] = None,
-    lang_override: Optional[str] = None,
+    platform_override: str | None = None,
+    geo_override: str | None = None,
+    lang_override: str | None = None,
 ) -> dict:
     readiness = float(scale_rec.get("scale_readiness_score", 0))
     inc_new = float(scale_rec.get("incremental_profit_new_account", 0))
@@ -388,7 +387,7 @@ def _one_candidate(
 def generate_launch_candidates(
     scale_rec: dict,
     accounts: list[dict],
-    brand_niche: Optional[str],
+    brand_niche: str | None,
     cannibalization_risk: float,
     audience_separation: float,
     offers: list[dict],

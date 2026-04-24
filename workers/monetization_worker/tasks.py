@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 
 from celery import shared_task
 
-from workers.base_task import TrackedTask
 from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
 
 
 def _run(coro):
@@ -24,7 +24,8 @@ def replenish_credits():
 
 async def _do_replenish_credits():
     from sqlalchemy import select
-    from packages.db.models.monetization import PlanSubscription, CreditLedger, CreditTransaction
+
+    from packages.db.models.monetization import CreditLedger, CreditTransaction, PlanSubscription
 
     factory = get_async_session_factory()
     async with factory() as db:
@@ -73,6 +74,7 @@ def check_credit_exhaustion():
 
 async def _do_check_credit_exhaustion():
     from sqlalchemy import select
+
     from packages.db.models.monetization import CreditLedger, MonetizationTelemetryEvent
 
     factory = get_async_session_factory()
@@ -117,9 +119,14 @@ def compute_ascension_profiles():
 
 
 async def _do_compute_ascension_profiles():
-    from sqlalchemy import select, func as sa_func
+    from sqlalchemy import func as sa_func
+    from sqlalchemy import select
+
     from packages.db.models.monetization import (
-        PlanSubscription, CreditLedger, CreditTransaction, MonetizationTelemetryEvent,
+        CreditLedger,
+        CreditTransaction,
+        MonetizationTelemetryEvent,
+        PlanSubscription,
     )
 
     factory = get_async_session_factory()
@@ -179,10 +186,15 @@ def compute_monetization_health():
 
 
 async def _do_compute_monetization_health():
-    from sqlalchemy import select, func as sa_func
+    from sqlalchemy import func as sa_func
+    from sqlalchemy import select
+
     from packages.db.models.monetization import (
-        CreditLedger, CreditTransaction, PlanSubscription, MultiplicationEvent,
+        CreditLedger,
+        CreditTransaction,
         MonetizationTelemetryEvent,
+        MultiplicationEvent,
+        PlanSubscription,
     )
 
     factory = get_async_session_factory()
@@ -253,9 +265,13 @@ def scan_multiplication_opportunities():
 
 
 async def _do_scan_multiplication_opportunities():
-    from sqlalchemy import select, func as sa_func
+    from sqlalchemy import func as sa_func
+    from sqlalchemy import select
+
     from packages.db.models.monetization import (
-        PlanSubscription, CreditLedger, MultiplicationEvent, MonetizationTelemetryEvent,
+        CreditLedger,
+        MultiplicationEvent,
+        PlanSubscription,
     )
 
     factory = get_async_session_factory()
@@ -322,8 +338,10 @@ def snapshot_saas_metrics():
 
 
 async def _do_snapshot_saas_metrics():
-    from sqlalchemy import select, func as sa_func
-    from packages.db.models.saas_metrics import Subscription, SubscriptionEvent, SaaSMetricSnapshot
+    from sqlalchemy import func as sa_func
+    from sqlalchemy import select
+
+    from packages.db.models.saas_metrics import SaaSMetricSnapshot, Subscription, SubscriptionEvent
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
@@ -431,8 +449,10 @@ def run_churn_prediction():
 
 
 async def _do_run_churn_prediction():
-    from sqlalchemy import select, func as sa_func
-    from packages.db.models.saas_metrics import Subscription, SubscriptionEvent, SaaSMetricSnapshot
+    from sqlalchemy import func as sa_func
+    from sqlalchemy import select
+
+    from packages.db.models.saas_metrics import Subscription, SubscriptionEvent
 
     factory = get_async_session_factory()
     async with factory() as db:
@@ -490,7 +510,9 @@ def scan_expansion_opportunities():
 
 
 async def _do_scan_expansion_opportunities():
-    from sqlalchemy import select, func as sa_func
+    from sqlalchemy import func as sa_func
+    from sqlalchemy import select
+
     from packages.db.models.saas_metrics import Subscription, SubscriptionEvent
 
     factory = get_async_session_factory()
@@ -542,8 +564,10 @@ def recompute_avenue_rankings():
 
 
 async def _do_recompute_avenue_rankings():
-    from sqlalchemy import select, func as sa_func
-    from packages.db.models.saas_metrics import Subscription, HighTicketDeal, ProductLaunch, SaaSMetricSnapshot
+    from sqlalchemy import func as sa_func
+    from sqlalchemy import select
+
+    from packages.db.models.saas_metrics import HighTicketDeal, ProductLaunch, SaaSMetricSnapshot, Subscription
 
     factory = get_async_session_factory()
     async with factory() as db:
@@ -621,6 +645,7 @@ def run_quality_feedback_loop():
 
 async def _do_run_quality_feedback_loop():
     from sqlalchemy import select
+
     from packages.db.models.core import Brand
 
     factory = get_async_session_factory()
@@ -663,8 +688,10 @@ async def _do_run_revenue_cycle():
     5. Release lock
     """
     import os
+
     import redis
     from sqlalchemy import select
+
     from packages.db.models.core import Brand, Organization
 
     # ── Backpressure: Redis lock prevents overlapping cycles ──
@@ -751,12 +778,6 @@ async def _process_brand(factory, org_id, brand_id):
         except Exception as e:
             return {"actions": 0, "brand_id": str(brand_id), "error": str(e)[:200]}
 
-    return {
-        "orgs_processed": len(orgs),
-        "actions_surfaced": total_actions,
-        "actions_auto_executed": total_executed,
-    }
-
 
 # ---------------------------------------------------------------------------
 # Autonomy Grant Updater — evaluate and manage brand auto-approval grants
@@ -794,13 +815,14 @@ def auto_attach_offers():
 async def _do_auto_attach_offers():
     import structlog
     from sqlalchemy import select
-    from packages.db.models.core import Brand
-    from packages.db.models.content import ContentItem
+
+    from apps.api.services.event_bus import emit_action
     from apps.api.services.monetization_bridge import (
         assign_offer_to_content,
         select_best_offer_for_content,
     )
-    from apps.api.services.event_bus import emit_event, emit_action
+    from packages.db.models.content import ContentItem
+    from packages.db.models.core import Brand
 
     log = structlog.get_logger()
     factory = get_async_session_factory()
@@ -891,6 +913,7 @@ def score_pipeline_deals():
 
 async def _do_score_pipeline_deals():
     from sqlalchemy import select
+
     from packages.db.models.saas_metrics import HighTicketDeal
 
     factory = get_async_session_factory()

@@ -16,7 +16,6 @@ from packages.db.models.buffer_distribution import (
 from packages.db.models.live_execution_phase2 import (
     AdReportingImport,
     BufferCapabilityCheck,
-    BufferExecutionEvent,
     BufferExecutionTruth,
     BufferRetryRecord,
     ExternalEventIngestion,
@@ -28,7 +27,6 @@ from packages.db.models.live_execution_phase2 import (
 from packages.scoring.live_execution_phase2_engine import (
     build_ingestion_summary,
     check_duplicate_submit,
-    check_idempotency,
     classify_buffer_truth_state,
     classify_webhook_source,
     compute_retry_backoff,
@@ -388,7 +386,7 @@ async def list_ad_imports(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[st
 async def run_ad_import(
     db: AsyncSession, brand_id: uuid.UUID, platform: str = "meta_ads",
 ) -> dict[str, Any]:
-    from packages.clients.external_clients import MetaAdsClient, GoogleAdsClient, TikTokAdsClient
+    from packages.clients.external_clients import GoogleAdsClient, MetaAdsClient, TikTokAdsClient
 
     clients = {
         "meta_ads": MetaAdsClient,

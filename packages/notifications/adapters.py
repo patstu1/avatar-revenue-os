@@ -11,19 +11,19 @@ import threading
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Any, Optional
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any
 
 import aiosmtplib
 import structlog
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 logger = structlog.get_logger()
 
 
 class NotificationPayload:
     def __init__(self, title: str, summary: str, urgency: float, alert_type: str,
-                 brand_id: str, alert_id: Optional[str] = None, detail_url: Optional[str] = None):
+                 brand_id: str, alert_id: str | None = None, detail_url: str | None = None):
         self.title = title
         self.summary = summary
         self.urgency = urgency
@@ -44,7 +44,7 @@ class BaseNotificationAdapter(ABC):
     channel: str = "base"
 
     @abstractmethod
-    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, Optional[str]]:
+    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, str | None]:
         ...
 
 
@@ -81,7 +81,7 @@ _in_app_store = _InAppStore()
 class InAppAdapter(BaseNotificationAdapter):
     channel = "in_app"
 
-    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, Optional[str]]:
+    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, str | None]:
         notification = {
             "id": str(uuid.uuid4()),
             "recipient": recipient,
@@ -130,7 +130,7 @@ class EmailAdapter(BaseNotificationAdapter):
         self.use_tls = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
         self.configured = bool(self.smtp_host and (self.smtp_user or self.from_email))
 
-    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, Optional[str]]:
+    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, str | None]:
         if not self.configured:
             msg = "SMTP credentials missing (SMTP_HOST/SMTP_USER not set) — email delivery unavailable"
             logger.warning("notification.email.not_configured", recipient=recipient, alert_type=payload.alert_type)
@@ -181,7 +181,7 @@ class SlackWebhookAdapter(BaseNotificationAdapter):
         self.webhook_url = webhook_url
         self.configured = bool(webhook_url)
 
-    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, Optional[str]]:
+    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, str | None]:
         if not self.configured:
             msg = "Slack webhook URL not set (SLACK_WEBHOOK_URL) — Slack delivery unavailable"
             logger.warning("notification.slack.not_configured", alert_type=payload.alert_type)
@@ -211,7 +211,7 @@ class SMSAdapter(BaseNotificationAdapter):
         self.api_key = api_key
         self.configured = bool(api_key)
 
-    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, Optional[str]]:
+    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, str | None]:
         if not self.configured:
             msg = "SMS API key not set (SMS_API_KEY) — SMS delivery unavailable"
             logger.warning("notification.sms.not_configured", recipient=recipient, alert_type=payload.alert_type)

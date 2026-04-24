@@ -1,14 +1,30 @@
 """DB-backed integration tests for Enterprise Security + Compliance."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.core import Organization, User
-from packages.db.models.enterprise_security import EnterpriseRole, EnterpriseAccessScope, AuditTrailEvent, ComplianceControlReport, SensitiveDataPolicy
+
+from apps.api.services.enterprise_security_service import (
+    check_permission,
+    list_audit_trail,
+    list_compliance_controls,
+    list_roles,
+    log_audit,
+    recompute_compliance,
+    seed_system_roles,
+)
 from packages.db.enums import UserRole
-from apps.api.services.enterprise_security_service import seed_system_roles, check_permission, log_audit, recompute_compliance, list_roles, list_audit_trail, list_compliance_controls
+from packages.db.models.core import Organization, User
+from packages.db.models.enterprise_security import (
+    AuditTrailEvent,
+    ComplianceControlReport,
+    EnterpriseAccessScope,
+    EnterpriseRole,
+)
 
 
 @pytest_asyncio.fixture
@@ -112,6 +128,6 @@ async def test_list_compliance(db_session, org_with_user):
 
 
 def test_enterprise_security_worker_registered():
-    from workers.celery_app import app
     import workers.enterprise_security_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.enterprise_security_worker.tasks.recompute_compliance" in app.tasks

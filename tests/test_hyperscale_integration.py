@@ -1,13 +1,28 @@
 """DB-backed integration tests for Hyper-Scale Execution."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from apps.api.services.hyperscale_service import (
+    get_execution_health,
+    list_capacity,
+    list_ceilings,
+    list_scale_health,
+    list_segments,
+    recompute_capacity,
+)
 from packages.db.models.core import Organization
-from packages.db.models.hyperscale import ExecutionCapacityReport, ExecutionQueueSegment, ScaleHealthReport, UsageCeilingRule
-from apps.api.services.hyperscale_service import recompute_capacity, list_capacity, list_segments, list_ceilings, list_scale_health, get_execution_health
+from packages.db.models.hyperscale import (
+    ExecutionCapacityReport,
+    ExecutionQueueSegment,
+    ScaleHealthReport,
+    UsageCeilingRule,
+)
 
 
 @pytest_asyncio.fixture
@@ -98,6 +113,6 @@ async def test_idempotent(db_session, org_with_segments):
 
 
 def test_hyperscale_worker_registered():
-    from workers.celery_app import app
     import workers.hyperscale_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.hyperscale_worker.tasks.recompute_scale_capacity" in app.tasks

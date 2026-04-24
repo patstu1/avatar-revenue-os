@@ -3,8 +3,9 @@
 Pure functions. No I/O.
 """
 from __future__ import annotations
-from typing import Any, Optional
+
 from collections import defaultdict
+from typing import Any
 
 OBJECTION_TYPES = [
     "price", "trust", "complexity", "timing", "competitor",
@@ -76,7 +77,7 @@ def extract_objections(texts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return signals
 
 
-def _classify_objection(text: str) -> Optional[str]:
+def _classify_objection(text: str) -> str | None:
     scores: dict[str, int] = {}
     for otype, keywords in OBJECTION_KEYWORDS.items():
         count = sum(1 for kw in keywords if kw in text)

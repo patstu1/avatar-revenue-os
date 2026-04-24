@@ -4,8 +4,8 @@ Uses linear regression on trailing revenue-per-post by niche/platform,
 projected forward based on planned posting cadence + fleet status.
 """
 from __future__ import annotations
+
 from typing import Any
-from datetime import datetime, timedelta
 
 
 def compute_revenue_per_post(daily_data: list[dict[str, Any]]) -> float:
@@ -46,7 +46,7 @@ def forecast_revenue(
         }
 
     slope, intercept = linear_trend(daily_revenue)
-    current_daily = daily_revenue[-1] if daily_revenue else 0
+    daily_revenue[-1] if daily_revenue else 0
     trend_daily = intercept + slope * (len(daily_revenue) + forecast_days / 2)
 
     avg_recent = sum(daily_revenue[-7:]) / 7

@@ -1,19 +1,18 @@
 """Recurring Revenue Ceiling Phase A recomputes."""
-import asyncio
 import logging
 
 from sqlalchemy import select
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
-from packages.db.session import get_async_session_factory, run_async
-from packages.db.models.core import Brand
-from apps.api.services import revenue_ceiling_phase_a_service as rca
-from apps.api.services import revenue_ceiling_phase_b_service as rcb
-from apps.api.services import revenue_ceiling_phase_c_service as rcc
 from apps.api.services import expansion_pack2_phase_a_service as ep2a
 from apps.api.services import expansion_pack2_phase_b_service as ep2b
 from apps.api.services import expansion_pack2_phase_c_service as ep2c
+from apps.api.services import revenue_ceiling_phase_a_service as rca
+from apps.api.services import revenue_ceiling_phase_b_service as rcb
+from apps.api.services import revenue_ceiling_phase_c_service as rcc
+from packages.db.models.core import Brand
+from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 

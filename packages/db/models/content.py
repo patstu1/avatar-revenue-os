@@ -1,6 +1,5 @@
 """Content pipeline: briefs, scripts, variants, assets, media jobs, content items."""
 import uuid
-from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import Boolean, Enum, Float, ForeignKey, Integer, String, Text
@@ -8,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.db.base import Base
-from packages.db.enums import ContentType, JobStatus
+from packages.db.enums import ContentType
 
 
 class ContentBrief(Base):

@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
-
+from typing import Any
 
 # Canonical recommendation keys (persisted + API)
 RK_DO_NOT_SCALE_YET = "do_not_scale_yet"
@@ -26,13 +25,13 @@ VOLUME_LIFT_FACTOR = 0.35
 EXPANSION_BEATS_EXISTING_RATIO = 1.15
 
 
-def _tokens(s: Optional[str]) -> set[str]:
+def _tokens(s: str | None) -> set[str]:
     if not s:
         return set()
     return {t for t in s.lower().replace("/", " ").replace(",", " ").split() if len(t) > 1}
 
 
-def niche_jaccard(a: Optional[str], b: Optional[str]) -> float:
+def niche_jaccard(a: str | None, b: str | None) -> float:
     ta, tb = _tokens(a), _tokens(b)
     if not ta and not tb:
         return 0.0
@@ -59,8 +58,8 @@ class AccountScaleSnapshot:
     account_id: str
     platform: str
     username: str
-    niche_focus: Optional[str]
-    sub_niche_focus: Optional[str]
+    niche_focus: str | None
+    sub_niche_focus: str | None
     revenue: float
     profit: float
     profit_per_post: float
@@ -75,7 +74,7 @@ class AccountScaleSnapshot:
     posting_capacity_per_day: int
     account_health: str
     offer_performance_score: float  # 0–1 from brand offers
-    scale_role: Optional[str] = None
+    scale_role: str | None = None
     impressions_rollup: int = 0
 
 
@@ -115,7 +114,7 @@ def compute_cannibalization_risk(accounts: list[AccountScaleSnapshot]) -> float:
     if len(accounts) < 2:
         return 0.12
     pairs: list[float] = []
-    platforms = [a.platform for a in accounts]
+    [a.platform for a in accounts]
     for i, ai in enumerate(accounts):
         for j in range(i + 1, len(accounts)):
             aj = accounts[j]
@@ -213,7 +212,7 @@ def compute_incremental_profit_new_account(
 def _pick_best_next_account(
     recommendation_key: str,
     accounts: list[AccountScaleSnapshot],
-    brand_niche: Optional[str],
+    brand_niche: str | None,
 ) -> dict[str, Any]:
     platforms_seen = {a.platform for a in accounts}
     _all_plats = ["youtube", "tiktok", "instagram", "twitter", "reddit", "linkedin", "facebook", "pinterest", "threads", "snapchat"]
@@ -364,7 +363,7 @@ def run_scale_engine(
     accounts: list[AccountScaleSnapshot],
     offers: list[dict],
     total_impressions: int,
-    brand_niche: Optional[str],
+    brand_niche: str | None,
     funnel_weak: bool,
     weak_offer_diversity: bool,
 ) -> ScaleEngineResult:

@@ -26,7 +26,6 @@ from __future__ import annotations
 import html
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Form, HTTPException
@@ -106,7 +105,7 @@ legend { font-weight: 600; font-size: 12px; color: #333; padding: 0 6px; }
 """
 
 
-def _nav(user: User, flash: Optional[str] = None) -> str:
+def _nav(user: User, flash: str | None = None) -> str:
     flash_html = (
         f'<div class="flash">{html.escape(flash)}</div>' if flash else ""
     )
@@ -130,7 +129,7 @@ def _close() -> str:
     return "</div>"
 
 
-def _page(user: User, title: str, body: str, flash: Optional[str] = None) -> str:
+def _page(user: User, title: str, body: str, flash: str | None = None) -> str:
     return (
         "<!doctype html><html lang='en'><head>"
         "<meta charset='utf-8'>"
@@ -155,7 +154,7 @@ def _pill(label: str, kind: str = "") -> str:
 
 
 @router.get("/", response_class=HTMLResponse)
-async def home(current_user: OperatorUser, db: DBSession, flash: Optional[str] = None):
+async def home(current_user: OperatorUser, db: DBSession, flash: str | None = None):
     org = current_user.organization_id
     since = datetime.now(timezone.utc) - timedelta(hours=24)
 
@@ -218,7 +217,7 @@ async def home(current_user: OperatorUser, db: DBSession, flash: Optional[str] =
 
 
 @router.get("/settings/providers", response_class=HTMLResponse)
-async def providers_page(current_user: AdminUser, db: DBSession, flash: Optional[str] = None):
+async def providers_page(current_user: AdminUser, db: DBSession, flash: str | None = None):
     rows = (
         await db.execute(
             select(IntegrationProvider).where(
@@ -285,9 +284,10 @@ async def providers_save(
     provider_category: str = Form("llm"),
     api_key: str = Form(""),
     extra_config_json: str = Form(""),
-    is_enabled: Optional[str] = Form(None),
+    is_enabled: str | None = Form(None),
 ):
     import json
+
     from apps.api.services.integration_manager import _encrypt
 
     try:
@@ -347,7 +347,7 @@ async def providers_save(
 
 
 @router.get("/settings/inbound-route", response_class=HTMLResponse)
-async def inbound_route_page(current_user: AdminUser, db: DBSession, flash: Optional[str] = None):
+async def inbound_route_page(current_user: AdminUser, db: DBSession, flash: str | None = None):
     rows = (
         await db.execute(
             select(IntegrationProvider).where(
@@ -394,7 +394,7 @@ async def inbound_route_save(
     db: DBSession,
     match_mode: str = Form(...),
     match_value: str = Form(...),
-    is_enabled: Optional[str] = Form(None),
+    is_enabled: str | None = Form(None),
 ):
     if match_mode not in ("to_address", "to_domain", "plus_token"):
         return RedirectResponse(
@@ -436,7 +436,7 @@ async def inbound_route_save(
 
 
 @router.get("/webhooks", response_class=HTMLResponse)
-async def webhooks_page(current_user: OperatorUser, db: DBSession, flash: Optional[str] = None):
+async def webhooks_page(current_user: OperatorUser, db: DBSession, flash: str | None = None):
     rows = (
         await db.execute(
             select(WebhookEvent)
@@ -472,7 +472,7 @@ async def webhooks_page(current_user: OperatorUser, db: DBSession, flash: Option
 
 
 @router.get("/pipeline", response_class=HTMLResponse)
-async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: Optional[str] = None):
+async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: str | None = None):
     org = current_user.organization_id
     limit = 25
 
@@ -652,7 +652,7 @@ async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: Option
 
 
 @router.get("/team", response_class=HTMLResponse)
-async def team_page(current_user: AdminUser, db: DBSession, flash: Optional[str] = None):
+async def team_page(current_user: AdminUser, db: DBSession, flash: str | None = None):
     users = (
         await db.execute(
             select(User).where(
@@ -741,7 +741,7 @@ async def team_invite(
 
 
 @router.get("/gm", response_class=HTMLResponse)
-async def gm_page(current_user: OperatorUser, db: DBSession, flash: Optional[str] = None):
+async def gm_page(current_user: OperatorUser, db: DBSession, flash: str | None = None):
     org = current_user.organization_id
 
     approvals = (await db.execute(

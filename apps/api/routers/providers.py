@@ -1,7 +1,7 @@
 """Avatar and voice provider profile endpoints."""
 import uuid
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, status
 
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.schemas.providers import (

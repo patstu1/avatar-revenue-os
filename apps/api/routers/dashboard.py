@@ -1,6 +1,7 @@
 """Dashboard overview endpoint — reads real persisted data."""
 import uuid
 
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 
 from apps.api.deps import CurrentUser, DBSession
@@ -23,8 +24,6 @@ from apps.api.schemas.scale import ScaleCommandCenterResponse
 from apps.api.services import growth_service as growth_svc
 from apps.api.services import revenue_service as rev_svc
 from apps.api.services import scale_service as scale_svc
-from fastapi import APIRouter, HTTPException, Query
-
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Avatar, Brand
@@ -132,7 +131,7 @@ async def get_scale_command_center(
         payload = await scale_svc.build_scale_command_center(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
     return ScaleCommandCenterResponse(**payload)
 
@@ -150,7 +149,7 @@ async def get_revenue_leaks_dashboard(
         data = await growth_svc.get_leak_reports_dashboard(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
     return LeaksDashboardResponse(
         brand_id=data["brand_id"],
@@ -173,7 +172,7 @@ async def get_growth_intel_full_dashboard(
         raw = await growth_svc.get_growth_intel_dashboard(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
     leaks = raw["leaks"]
     exp = raw["expansion"]
@@ -215,7 +214,7 @@ async def get_revenue_intel_dashboard(
         raw = await rev_svc.get_revenue_intel_dashboard(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
     return RevenueIntelDashboardResponse(
         brand_id=raw["brand_id"],

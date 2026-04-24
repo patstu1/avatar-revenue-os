@@ -1,6 +1,7 @@
 """Trend / Viral Opportunity Engine — scan, score, classify, suppress, route. Pure functions."""
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 OPPORTUNITY_TYPES = ["pure_reach", "monetization", "authority_building", "creator_acquisition", "product_promotion", "community_engagement", "retention"]
 BREAKOUT_VELOCITY = 2.0
@@ -31,7 +32,7 @@ def compute_velocity(current: float, previous: float) -> dict[str, Any]:
     return {"current_velocity": current, "previous_velocity": previous, "acceleration": round(accel, 3), "breakout": accel > 1.0 or current > BREAKOUT_VELOCITY}
 
 
-def check_duplicate(topic: str, existing: list[str], threshold: float = 0.6) -> Optional[str]:
+def check_duplicate(topic: str, existing: list[str], threshold: float = 0.6) -> str | None:
     """Check if a topic is a near-duplicate of existing ones."""
     topic_words = set(topic.lower().split())
     for ex in existing:
@@ -109,7 +110,7 @@ def classify_opportunity(scores: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def should_suppress(signal: dict[str, Any], scores: dict[str, Any], rules: list[dict[str, Any]]) -> Optional[str]:
+def should_suppress(signal: dict[str, Any], scores: dict[str, Any], rules: list[dict[str, Any]]) -> str | None:
     """Check if a signal should be suppressed."""
     topic = signal.get("topic", "").lower()
     for r in rules:

@@ -14,8 +14,6 @@ doesn't apply. This module would flag that decision for re-evaluation.
 """
 from __future__ import annotations
 
-from typing import Any
-
 
 def override_brain_decision(decision: dict, calibration_ctx: dict) -> dict:
     """Re-evaluate a BrainDecision against portfolio context.
@@ -24,7 +22,7 @@ def override_brain_decision(decision: dict, calibration_ctx: dict) -> dict:
     upgrade the confidence to reflect that the threshold is non-binding.
     """
     decision_class = decision.get("decision_class", "")
-    confidence = decision.get("confidence", 0)
+    decision.get("confidence", 0)
 
     # If the brain said "suppress" or "throttle" but the portfolio is producing revenue,
     # the suppress decision may be an artifact of fixed thresholds, not real underperformance.

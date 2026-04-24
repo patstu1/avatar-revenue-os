@@ -32,7 +32,7 @@ async def list_copilot_sessions(brand_id: uuid.UUID, current_user: CurrentUser, 
         rows = await svc.list_sessions(db, brand_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
     return rows
 
@@ -49,7 +49,7 @@ async def create_copilot_session(
         sess = await svc.create_session(db, brand_id, current_user.id, body.title)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
     return sess
 
@@ -60,7 +60,7 @@ async def list_copilot_messages(session_id: uuid.UUID, current_user: CurrentUser
         msgs = await svc.list_messages(db, session_id, current_user)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
     if msgs is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
@@ -78,7 +78,7 @@ async def post_copilot_message(
         pair = await svc.post_message(db, session_id, current_user, body.content, body.quick_prompt_key)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
     if pair is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
@@ -92,7 +92,7 @@ async def copilot_quick_status(brand_id: uuid.UUID, current_user: CurrentUser, d
         return await svc.get_quick_status_bundle(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -103,7 +103,7 @@ async def copilot_operator_actions(brand_id: uuid.UUID, current_user: CurrentUse
         return await svc.get_operator_actions_bundle(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -114,7 +114,7 @@ async def copilot_missing_items(brand_id: uuid.UUID, current_user: CurrentUser, 
         return await svc.get_missing_items_bundle(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -125,7 +125,7 @@ async def copilot_providers(brand_id: uuid.UUID, current_user: CurrentUser, db: 
         return await svc.get_providers_bundle(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -136,7 +136,7 @@ async def copilot_provider_readiness(brand_id: uuid.UUID, current_user: CurrentU
         return await svc.get_provider_readiness_bundle(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -148,7 +148,7 @@ async def copilot_autonomous_readiness(brand_id: uuid.UUID, current_user: Curren
         return evaluate_autonomous_readiness()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -160,5 +160,5 @@ async def copilot_activation_checklist(brand_id: uuid.UUID, current_user: Curren
         return get_activation_checklist()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")

@@ -9,11 +9,16 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.scale_alerts import (
-    AlertResponse, LaunchCandidateResponse, BlockerResponse,
-    ReadinessResponse, NotificationResponse, ResolveRequest,
+    AlertResponse,
+    BlockerResponse,
+    LaunchCandidateResponse,
+    NotificationResponse,
+    ReadinessResponse,
+    ResolveRequest,
 )
 from apps.api.services import scale_alerts_service as sas
 from apps.api.services.audit_service import log_action

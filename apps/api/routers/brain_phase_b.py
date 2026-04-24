@@ -36,7 +36,7 @@ async def list_brain_decisions(
         return await svc.list_brain_decisions(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -72,7 +72,7 @@ async def list_policy_evaluations(
         return await svc.list_policy_evaluations(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -86,7 +86,7 @@ async def list_confidence_reports(
         return await svc.list_confidence_reports(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -100,7 +100,7 @@ async def list_upside_cost_estimates(
         return await svc.list_upside_cost_estimates(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -114,5 +114,5 @@ async def list_arbitration_reports(
         return await svc.list_arbitration_reports(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")

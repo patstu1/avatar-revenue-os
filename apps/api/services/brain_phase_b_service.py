@@ -9,7 +9,6 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.accounts import CreatorAccount
-from packages.db.models.autonomous_phase_b import AutonomousRun, SuppressionExecution
 from packages.db.models.brain_architecture import (
     AccountStateSnapshot,
     BrainMemoryEntry,
@@ -24,7 +23,6 @@ from packages.db.models.brain_phase_b import (
     UpsideCostEstimate,
 )
 from packages.db.models.offers import Offer
-from packages.db.models.recovery import RecoveryIncident
 from packages.scoring.brain_phase_b_engine import (
     compute_arbitration,
     compute_brain_decision,

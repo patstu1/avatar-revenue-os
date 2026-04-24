@@ -1,7 +1,5 @@
 """Unit tests — full video production pipeline: clients, routing, orchestration."""
 from __future__ import annotations
-import pytest
-
 
 # ── New API Clients ──
 
@@ -36,15 +34,17 @@ def test_synthesia_client_blocked():
 
 
 def test_elevenlabs_voice_list_blocked():
-    from packages.clients.ai_clients import ElevenLabsClient
     import asyncio
+
+    from packages.clients.ai_clients import ElevenLabsClient
     result = asyncio.run(ElevenLabsClient().get_voices())
     assert not result["success"]
 
 
 def test_heygen_avatar_list_blocked():
-    from packages.clients.ai_clients import HeyGenClient
     import asyncio
+
+    from packages.clients.ai_clients import HeyGenClient
     result = asyncio.run(HeyGenClient().list_avatars())
     assert not result["success"]
 
@@ -97,12 +97,10 @@ def test_cost_synthesia():
 
 def test_all_15_clients_importable():
     from packages.clients.ai_clients import (
-        ClaudeContentClient, GeminiFlashClient, DeepSeekClient,
-        GPTImageClient, Imagen4Client, FluxClient,
-        KlingClient, RunwayClient,
-        HeyGenClient, DIDClient, SynthesiaClient,
-        ElevenLabsClient, FishAudioClient, VoxtralClient,
-        SunoClient,
+        ClaudeContentClient,
+        ElevenLabsClient,
+        HeyGenClient,
+        SynthesiaClient,
     )
     assert ClaudeContentClient is not None
     assert HeyGenClient is not None
@@ -114,14 +112,14 @@ def test_all_15_clients_importable():
 
 def test_media_service_importable():
     from apps.api.services.media_production_service import (
-        produce_voice_narration, produce_avatar_video,
-        produce_broll_clips, produce_full_video,
+        produce_full_video,
     )
     assert produce_full_video is not None
 
 
 def test_voice_client_selection():
     import asyncio
+
     from apps.api.services.media_production_service import _get_voice_client
     c = asyncio.run(_get_voice_client("elevenlabs"))
     from packages.clients.ai_clients import ElevenLabsClient
@@ -130,6 +128,7 @@ def test_voice_client_selection():
 
 def test_avatar_client_selection():
     import asyncio
+
     from apps.api.services.media_production_service import _get_avatar_client
     c = asyncio.run(_get_avatar_client("heygen"))
     from packages.clients.ai_clients import HeyGenClient

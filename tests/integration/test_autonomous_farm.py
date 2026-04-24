@@ -1,17 +1,25 @@
 """Integration tests — autonomous content farm: generation pipeline, niche scores, warmup, voice, fleet."""
 from __future__ import annotations
+
 import uuid
+from datetime import datetime, timedelta, timezone
+
 import pytest
 import pytest_asyncio
-from datetime import datetime, timezone, timedelta
-from packages.db.models.core import Organization, Brand
-from packages.db.models.accounts import CreatorAccount
-from packages.db.models.content import ContentBrief, ContentItem, Script
-from packages.db.models.autonomous_farm import (
-    NicheScore, AccountWarmupPlan, FleetStatusReport, AccountVoiceProfile,
-    ContentRepurposeRecord, CompetitorAccount, DailyIntelligenceReport,
-)
+
 from packages.db.enums import ContentType, Platform
+from packages.db.models.accounts import CreatorAccount
+from packages.db.models.autonomous_farm import (
+    AccountVoiceProfile,
+    AccountWarmupPlan,
+    CompetitorAccount,
+    ContentRepurposeRecord,
+    DailyIntelligenceReport,
+    FleetStatusReport,
+    NicheScore,
+)
+from packages.db.models.content import ContentBrief, ContentItem
+from packages.db.models.core import Brand, Organization
 
 pytestmark = pytest.mark.asyncio
 
@@ -34,7 +42,7 @@ async def setup_farm(db_session):
 
 async def test_niche_score_persistence(db_session, setup_farm):
     _, brand, _ = setup_farm
-    from packages.scoring.niche_research_engine import score_niche, NICHE_DATABASE
+    from packages.scoring.niche_research_engine import NICHE_DATABASE, score_niche
     finance = next(n for n in NICHE_DATABASE if n["niche"] == "personal_finance")
     scored = score_niche(finance, "youtube")
 

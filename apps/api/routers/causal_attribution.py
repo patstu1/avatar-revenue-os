@@ -1,10 +1,18 @@
 """Causal Attribution API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.causal_attribution import CAReportOut, CAHypothesisOut, CACreditOut, CAConfidenceOut, RecomputeSummaryOut
+from apps.api.schemas.causal_attribution import (
+    CAConfidenceOut,
+    CACreditOut,
+    CAHypothesisOut,
+    CAReportOut,
+    RecomputeSummaryOut,
+)
 from apps.api.services import causal_attribution_service as svc
 from packages.db.models.core import Brand
 

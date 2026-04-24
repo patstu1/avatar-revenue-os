@@ -1,16 +1,26 @@
 """Integrations + Listening Service — sync, cluster, route, persist."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.integrations_listening import (
-    EnterpriseConnector, EnterpriseConnectorSync, SocialListeningEvent,
-    CompetitorSignalEvent, InternalBusinessSignal, ListeningCluster,
-    SignalResponseRecommendation, IntegrationBlocker,
+    CompetitorSignalEvent,
+    EnterpriseConnector,
+    EnterpriseConnectorSync,
+    IntegrationBlocker,
+    InternalBusinessSignal,
+    ListeningCluster,
+    SignalResponseRecommendation,
+    SocialListeningEvent,
 )
 from packages.scoring.integrations_listening_engine import (
-    evaluate_connector_sync, cluster_listening_signals, extract_competitor_signals,
+    cluster_listening_signals,
+    evaluate_connector_sync,
+    extract_competitor_signals,
     generate_response_recommendations,
 )
 

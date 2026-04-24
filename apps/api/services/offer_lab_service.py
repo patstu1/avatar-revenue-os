@@ -1,5 +1,6 @@
 """Offer Lab Service — generate, score, test, learn, persist."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
 
@@ -9,14 +10,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 from packages.db.models.core import Brand
-from packages.db.models.offers import Offer
 from packages.db.models.offer_lab import (
-    OfferLabOffer, OfferLabVariant, OfferLabPricingTest, OfferLabPositioningTest,
-    OfferLabBundle, OfferLabUpsell, OfferLabBlocker, OfferLabLearning,
+    OfferLabBlocker,
+    OfferLabBundle,
+    OfferLabLearning,
+    OfferLabOffer,
+    OfferLabPositioningTest,
+    OfferLabPricingTest,
+    OfferLabUpsell,
+    OfferLabVariant,
 )
+from packages.db.models.offers import Offer
 from packages.scoring.offer_lab_engine import (
-    generate_offer, generate_variants, generate_pricing_test, generate_positioning_test,
-    generate_bundles, generate_upsells, score_offer, detect_offer_issues,
+    detect_offer_issues,
+    generate_bundles,
+    generate_offer,
+    generate_positioning_test,
+    generate_pricing_test,
+    generate_upsells,
+    generate_variants,
+    score_offer,
 )
 
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -12,17 +12,17 @@ class FunnelExecutionRunOut(BaseModel):
     brand_id: str
     funnel_action: str
     target_funnel_path: str
-    cta_path: Optional[str] = None
+    cta_path: str | None = None
     capture_mode: str
     execution_mode: str
     expected_upside: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     run_status: str
-    diagnostics_json: Optional[Any] = None
+    diagnostics_json: Any | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class PaidOperatorRunOut(BaseModel):
@@ -34,14 +34,14 @@ class PaidOperatorRunOut(BaseModel):
     expected_roi: float
     execution_mode: str
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     winner_score: float
-    content_item_id: Optional[str] = None
-    autonomous_run_id: Optional[str] = None
+    content_item_id: str | None = None
+    autonomous_run_id: str | None = None
     run_status: str
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class PaidOperatorDecisionOut(BaseModel):
@@ -54,11 +54,11 @@ class PaidOperatorDecisionOut(BaseModel):
     expected_roi: float
     execution_mode: str
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     execution_status: str = "proposed"
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class PaidOperatorBundleOut(BaseModel):
@@ -70,17 +70,17 @@ class SponsorAutonomousActionOut(BaseModel):
     id: str
     brand_id: str
     sponsor_action: str
-    package_json: Optional[Any] = None
+    package_json: Any | None = None
     target_category: str
-    target_list_json: Optional[Any] = None
+    target_list_json: Any | None = None
     pipeline_stage: str
     expected_deal_value: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     execution_status: str = "proposed"
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class RetentionAutomationActionOut(BaseModel):
@@ -88,14 +88,14 @@ class RetentionAutomationActionOut(BaseModel):
     brand_id: str
     retention_action: str
     target_segment: str
-    cohort_key: Optional[str] = None
+    cohort_key: str | None = None
     expected_incremental_value: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     execution_status: str = "proposed"
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class RecoveryEscalationOut(BaseModel):
@@ -104,30 +104,30 @@ class RecoveryEscalationOut(BaseModel):
     incident_type: str
     escalation_requirement: str
     severity: str
-    explanation: Optional[str] = None
-    related_autonomous_run_id: Optional[str] = None
+    explanation: str | None = None
+    related_autonomous_run_id: str | None = None
     status: str
-    resolved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class SelfHealingActionOut(BaseModel):
     id: str
     brand_id: str
-    recovery_escalation_id: Optional[str] = None
+    recovery_escalation_id: str | None = None
     incident_type: str
     action_taken: str
     action_mode: str
     escalation_requirement: str
-    expected_mitigation: Optional[str] = None
+    expected_mitigation: str | None = None
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     execution_status: str = "proposed"
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class RecoveryAutonomyBundleOut(BaseModel):
@@ -137,13 +137,13 @@ class RecoveryAutonomyBundleOut(BaseModel):
 
 class RecomputeSummaryOut(BaseModel):
     status: str
-    detail: Optional[str] = None
-    counts: Optional[dict] = None
+    detail: str | None = None
+    counts: dict | None = None
 
 
 class AdvanceStatusIn(BaseModel):
     target_status: str
-    operator_notes: Optional[str] = None
+    operator_notes: str | None = None
 
 
 class AdvanceStatusOut(BaseModel):
@@ -151,7 +151,7 @@ class AdvanceStatusOut(BaseModel):
     module: str
     previous_status: str
     new_status: str
-    execution_notes: Optional[str] = None
+    execution_notes: str | None = None
 
 
 class PaidPerformanceIn(BaseModel):
@@ -173,11 +173,11 @@ class PaidPerformanceOut(BaseModel):
 class BatchExecuteOut(BaseModel):
     brand_id: str
     actions_executed: int
-    details: Optional[dict] = None
+    details: dict | None = None
 
 
 class OperatorNotifyOut(BaseModel):
     brand_id: str
     notifications_sent: int
-    items: Optional[list] = None
-    notification_payload: Optional[dict] = None
+    items: list | None = None
+    notification_payload: dict | None = None

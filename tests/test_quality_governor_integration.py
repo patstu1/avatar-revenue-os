@@ -1,21 +1,28 @@
 """DB-backed integration tests for Quality Governor."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.core import Brand, Organization
+from apps.api.services.quality_governor_service import (
+    get_publish_eligibility,
+    list_blocks,
+    list_reports,
+    recompute_brand_quality,
+    score_content_item,
+)
+from packages.db.enums import ContentType, Platform
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
+from packages.db.models.core import Brand, Organization
 from packages.db.models.quality_governor import (
-    QualityGovernorReport, QualityDimensionScore, QualityBlock, QualityImprovementAction,
-)
-from packages.db.enums import Platform, ContentType
-from apps.api.services.quality_governor_service import (
-    score_content_item, recompute_brand_quality, list_reports, list_blocks, get_publish_eligibility,
+    QualityDimensionScore,
+    QualityGovernorReport,
+    QualityImprovementAction,
 )
 
 
@@ -164,6 +171,6 @@ async def test_idempotent(db_session, brand_with_content):
 
 
 def test_quality_governor_worker_registered():
-    from workers.celery_app import app
     import workers.quality_governor_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.quality_governor_worker.tasks.recompute_quality_governor" in app.tasks

@@ -1,15 +1,13 @@
 """Celery tasks for Live Execution Closure Phase 1."""
 from __future__ import annotations
 
-import asyncio
 import uuid
 
 from celery import shared_task
 from sqlalchemy import select
 
-from workers.base_task import TrackedTask
-
 from packages.db.session import AsyncSessionLocal, run_async
+from workers.base_task import TrackedTask
 
 
 async def _sync_analytics(brand_id: uuid.UUID) -> None:

@@ -2,38 +2,38 @@
 from __future__ import annotations
 
 import uuid
+
 import pytest
 import pytest_asyncio
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.core import Brand, Organization
-from packages.db.models.accounts import CreatorAccount
-from packages.db.models.content import ContentItem
-from packages.db.models.publishing import PerformanceMetric
-from packages.db.models.pattern_memory import (
-    WinningPatternMemory,
-    WinningPatternEvidence,
-    WinningPatternCluster,
-    LosingPatternMemory,
-    PatternReuseRecommendation,
-    PatternDecayReport,
-)
-from packages.db.enums import ContentType, Platform
 from apps.api.services.pattern_memory_service import (
-    recompute_patterns,
+    get_allocation_weights,
+    get_experiment_suggestions,
+    list_clusters,
+    list_decay,
+    list_losers,
+    list_patterns,
+    list_reuse,
     recompute_clusters,
     recompute_decay,
+    recompute_patterns,
     recompute_reuse,
-    list_patterns,
-    list_clusters,
-    list_losers,
-    list_reuse,
-    list_decay,
-    get_experiment_suggestions,
-    get_allocation_weights,
 )
+from packages.db.enums import ContentType, Platform
+from packages.db.models.accounts import CreatorAccount
+from packages.db.models.content import ContentItem
+from packages.db.models.core import Brand, Organization
+from packages.db.models.pattern_memory import (
+    LosingPatternMemory,
+    PatternDecayReport,
+    PatternReuseRecommendation,
+    WinningPatternCluster,
+    WinningPatternEvidence,
+    WinningPatternMemory,
+)
+from packages.db.models.publishing import PerformanceMetric
 
 
 @pytest_asyncio.fixture
@@ -265,8 +265,8 @@ async def test_list_decay(db_session, brand_with_content):
 # ── worker task registration ────────────────────────────────────────────
 
 def test_pattern_memory_worker_registered():
-    from workers.celery_app import app
     import workers.pattern_memory_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.pattern_memory_worker.tasks.recompute_pattern_memory" in app.tasks
 
 
@@ -303,7 +303,7 @@ async def test_structured_metadata_extraction(db_session, brand_with_content):
         items[0].offer_angle = "premium"
     await db_session.flush()
 
-    result = await recompute_patterns(db_session, brand.id)
+    await recompute_patterns(db_session, brand.id)
     await db_session.commit()
 
     all_winners = (await db_session.execute(

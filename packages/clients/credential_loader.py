@@ -25,7 +25,6 @@ Usage in a worker task::
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -39,7 +38,7 @@ logger = structlog.get_logger()
 from apps.api.services.integration_manager import _decrypt
 
 
-def load_credential(session: Session, org_id: uuid.UUID, provider_key: str) -> Optional[str]:
+def load_credential(session: Session, org_id: uuid.UUID, provider_key: str) -> str | None:
     """Synchronous: get decrypted API key for a provider.
 
     Lookup order:
@@ -73,7 +72,7 @@ def load_credential_for_task(
     org_id: uuid.UUID,
     category: str,
     quality_tier: str = "standard",
-) -> Optional[dict]:
+) -> dict | None:
     """Synchronous: route to best provider for category + tier, return key + metadata.
 
     Returns dict with: provider_key, provider_name, api_key, quality_tier, cost_per_unit

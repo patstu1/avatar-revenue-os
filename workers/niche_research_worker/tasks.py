@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import logging
-import uuid
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +12,11 @@ logger = logging.getLogger(__name__)
 @app.task(base=TrackedTask, bind=True, name="workers.niche_research_worker.tasks.recompute_niche_scores")
 def recompute_niche_scores(self) -> dict:
     """Score niches across platforms for every active brand, incorporating trend signals."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
     from packages.db.models.core import Brand
+    from packages.db.session import get_sync_engine
     from packages.scoring.niche_research_engine import rank_niches
 
     engine = get_sync_engine()

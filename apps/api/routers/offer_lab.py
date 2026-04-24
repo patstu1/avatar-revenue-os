@@ -1,10 +1,19 @@
 """Offer Lab API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.offer_lab import OLOfferOut, OLVariantOut, OLBundleOut, OLBlockerOut, OLLearningOut, RecomputeSummaryOut
+from apps.api.schemas.offer_lab import (
+    OLBlockerOut,
+    OLBundleOut,
+    OLLearningOut,
+    OLOfferOut,
+    OLVariantOut,
+    RecomputeSummaryOut,
+)
 from apps.api.services import offer_lab_service as svc
 from packages.db.models.core import Brand
 

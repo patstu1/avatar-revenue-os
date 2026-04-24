@@ -13,7 +13,6 @@ logger = structlog.get_logger()
 from packages.db.models.audience_state import AudienceStateEvent, AudienceStateReport
 from packages.db.models.core import Brand
 from packages.db.models.offers import AudienceSegment
-from packages.db.models.publishing import PerformanceMetric
 from packages.scoring.audience_state_engine import (
     AUDIENCE_STATE,
     infer_audience_states,

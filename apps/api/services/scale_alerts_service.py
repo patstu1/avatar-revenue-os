@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Literal, Optional, Tuple
+from typing import Any, Literal
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,11 +16,16 @@ from packages.db.models.accounts import CreatorAccount
 from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
 from packages.db.models.portfolio import (
-    RevenueLeakReport, ScaleRecommendation, TrustSignalReport,
+    RevenueLeakReport,
+    ScaleRecommendation,
+    TrustSignalReport,
 )
 from packages.db.models.scale_alerts import (
-    LaunchCandidate, LaunchReadinessReport, NotificationDelivery,
-    OperatorAlert, ScaleBlockerReport,
+    LaunchCandidate,
+    LaunchReadinessReport,
+    NotificationDelivery,
+    OperatorAlert,
+    ScaleBlockerReport,
 )
 from packages.notifications.adapters import NotificationPayload
 from packages.scoring.scale_alerts_engine import (
@@ -258,7 +263,7 @@ async def recompute_launch_readiness(db: AsyncSession, brand_id: uuid.UUID) -> d
 
 async def acknowledge_alert(
     db: AsyncSession, alert_id: uuid.UUID, organization_id: uuid.UUID
-) -> Tuple[Optional[OperatorAlert], Optional[AccessError]]:
+) -> tuple[OperatorAlert | None, AccessError | None]:
     alert = await db.get(OperatorAlert, alert_id)
     if not alert:
         return None, "not_found"
@@ -272,8 +277,8 @@ async def acknowledge_alert(
 
 
 async def resolve_alert(
-    db: AsyncSession, alert_id: uuid.UUID, organization_id: uuid.UUID, notes: Optional[str] = None
-) -> Tuple[Optional[OperatorAlert], Optional[AccessError]]:
+    db: AsyncSession, alert_id: uuid.UUID, organization_id: uuid.UUID, notes: str | None = None
+) -> tuple[OperatorAlert | None, AccessError | None]:
     alert = await db.get(OperatorAlert, alert_id)
     if not alert:
         return None, "not_found"
@@ -294,9 +299,9 @@ async def resolve_alert(
 async def get_alerts(
     db: AsyncSession,
     brand_id: uuid.UUID,
-    status: Optional[str] = None,
-    alert_type: Optional[str] = None,
-    severity: Optional[str] = None,
+    status: str | None = None,
+    alert_type: str | None = None,
+    severity: str | None = None,
 ) -> list[dict]:
     rows = list((await db.execute(
         select(OperatorAlert).where(OperatorAlert.brand_id == brand_id, OperatorAlert.is_active.is_(True))
@@ -322,7 +327,7 @@ async def get_launch_candidates(db: AsyncSession, brand_id: uuid.UUID) -> list[d
 
 async def get_launch_candidate_detail(
     db: AsyncSession, candidate_id: uuid.UUID, organization_id: uuid.UUID
-) -> Tuple[Optional[dict], Optional[AccessError]]:
+) -> tuple[dict | None, AccessError | None]:
     c = await db.get(LaunchCandidate, candidate_id)
     if not c:
         return None, "not_found"
@@ -343,7 +348,7 @@ async def get_scale_blockers(db: AsyncSession, brand_id: uuid.UUID) -> list[dict
     } for b in rows]
 
 
-async def get_launch_readiness(db: AsyncSession, brand_id: uuid.UUID) -> Optional[dict]:
+async def get_launch_readiness(db: AsyncSession, brand_id: uuid.UUID) -> dict | None:
     r = (await db.execute(
         select(LaunchReadinessReport).where(LaunchReadinessReport.brand_id == brand_id, LaunchReadinessReport.is_active.is_(True))
         .order_by(LaunchReadinessReport.created_at.desc()).limit(1)

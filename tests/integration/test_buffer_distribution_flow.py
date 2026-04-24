@@ -80,7 +80,7 @@ async def test_submit_job_fails_without_api_key(api_client, sample_org_data):
         json={"display_name": "TK", "platform": "tiktok"},
         headers=headers,
     )
-    profile_id = profile_resp.json()["id"]
+    profile_resp.json()["id"]
 
     await api_client.post(f"/api/v1/brands/{bid}/buffer-publish-jobs/recompute", headers=headers)
 

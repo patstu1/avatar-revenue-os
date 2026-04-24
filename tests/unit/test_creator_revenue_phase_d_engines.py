@@ -1,7 +1,6 @@
 """Unit tests for Creator Revenue Avenues Phase D hub engine."""
 from __future__ import annotations
 
-import pytest
 from packages.scoring.creator_revenue_engine import (
     AVENUE_DISPLAY_NAMES,
     AVENUE_MISSING_INTEGRATIONS,
@@ -11,7 +10,6 @@ from packages.scoring.creator_revenue_engine import (
     determine_operator_next_action,
     rank_hub_entries,
 )
-
 
 # ── classify_avenue_truth_state ────────────────────────────────────────
 

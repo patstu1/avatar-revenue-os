@@ -2,7 +2,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, status
 
 from apps.api.deps import CurrentUser, DBSession
 from apps.api.schemas.core import OrganizationResponse

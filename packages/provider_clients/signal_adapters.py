@@ -7,7 +7,6 @@ import asyncio
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 
 import structlog
 
@@ -46,8 +45,9 @@ class InternalPerformanceAdapter(SignalAdapter):
 
     def fetch_signals(self, brand_id: uuid.UUID, config: dict) -> list[RawSignal]:
         from sqlalchemy.orm import Session
-        from packages.db.session import get_sync_engine
+
         from packages.db.models.publishing import PerformanceMetric
+        from packages.db.session import get_sync_engine
 
         engine = get_sync_engine()
         signals = []
@@ -82,8 +82,9 @@ class InternalCommentsAdapter(SignalAdapter):
 
     def fetch_signals(self, brand_id: uuid.UUID, config: dict) -> list[RawSignal]:
         from sqlalchemy.orm import Session
-        from packages.db.session import get_sync_engine
+
         from packages.db.models.learning import CommentIngestion
+        from packages.db.session import get_sync_engine
 
         engine = get_sync_engine()
         signals = []
@@ -156,14 +157,16 @@ class GenericTrendFeedAdapter(SignalAdapter):
 
     def fetch_signals(self, brand_id: uuid.UUID, config: dict) -> list[RawSignal]:
         from packages.clients.trend_data_clients import (
-            GoogleTrendsClient, YouTubeTrendingClient,
-            RedditTrendingClient, TikTokTrendClient,
+            GoogleTrendsClient,
+            RedditTrendingClient,
+            TikTokTrendClient,
+            YouTubeTrendingClient,
         )
 
         signals: list[RawSignal] = []
         sources = config.get("sources", ["google_trends", "youtube", "reddit", "tiktok"])
         region = config.get("region", "US")
-        query = config.get("query", "")
+        config.get("query", "")
         subreddits = config.get("subreddits", ["popular"])
 
         async def _gather() -> list[RawSignal]:

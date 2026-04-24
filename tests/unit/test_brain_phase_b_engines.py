@@ -1,17 +1,15 @@
 """Unit tests for Brain Architecture Phase B scoring engines."""
-import pytest
 
 from packages.scoring.brain_phase_b_engine import (
+    CONFIDENCE_BANDS,
     DECISION_CLASSES,
     POLICY_MODES,
-    CONFIDENCE_BANDS,
-    compute_brain_decision,
-    compute_policy_evaluation,
-    compute_confidence_report,
-    compute_upside_cost_estimate,
     compute_arbitration,
+    compute_brain_decision,
+    compute_confidence_report,
+    compute_policy_evaluation,
+    compute_upside_cost_estimate,
 )
-
 
 # ── Master Decision Engine ────────────────────────────────────────────
 

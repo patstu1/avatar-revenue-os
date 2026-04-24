@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Optional
+from typing import Any
 
 
 def _stable_hash(s: str) -> int:
@@ -39,8 +39,8 @@ def build_offer_ladder_for_opportunity(
     epc: float,
     cvr: float,
     aov: float,
-    content_item_id: Optional[str] = None,
-    offer_id: Optional[str] = None,
+    content_item_id: str | None = None,
+    offer_id: str | None = None,
 ) -> dict[str, Any]:
     """One offer ladder row from opportunity + economics."""
     first_val = round(epc * cvr * 100, 2)
@@ -122,7 +122,7 @@ def generate_owned_audience_assets(brand_niche: str, content_families: list[str]
             ctas = [
                 f"Get the free {brand_niche} checklist — {fam.replace('_', ' ')}",
                 f"Join the waitlist for our {fam} playbook",
-                f"SMS 'SCALE' for the bonus module",
+                "SMS 'SCALE' for the bonus module",
             ]
             out.append({
                 "asset_type": atype,
@@ -234,7 +234,7 @@ def generate_all_message_sequences(brand_voice: str = "helpful expert") -> list[
 
 def compute_funnel_stage_metrics(
     content_family: str,
-    base_rates: Optional[dict[str, float]] = None,
+    base_rates: dict[str, float] | None = None,
 ) -> list[dict]:
     """Synthetic stage conversion chain 0..1."""
     br = base_rates or {}

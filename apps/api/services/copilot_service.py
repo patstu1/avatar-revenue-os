@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import os
 import uuid
-
-import structlog
 from datetime import datetime, timezone
 from typing import Any
 
+import structlog
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,14 +62,14 @@ async def get_session_for_user(db: AsyncSession, session_id: uuid.UUID, user: Us
 
 async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Gather grounded context from real DB state — not empty lists."""
-    from packages.db.models.scale_alerts import OperatorAlert, GrowthCommand
-    from packages.db.models.creator_revenue import CreatorRevenueBlocker
-    from packages.db.models.live_execution import MessagingBlocker
-    from packages.db.models.buffer_distribution import BufferBlocker
-    from packages.db.models.provider_registry import ProviderBlocker
-    from packages.db.models.gatekeeper import GatekeeperAlert
-    from packages.db.models.expansion_advisor import AccountExpansionAdvisory
     from packages.db.models.autonomous_execution import ExecutionBlockerEscalation
+    from packages.db.models.buffer_distribution import BufferBlocker
+    from packages.db.models.creator_revenue import CreatorRevenueBlocker
+    from packages.db.models.expansion_advisor import AccountExpansionAdvisory
+    from packages.db.models.gatekeeper import GatekeeperAlert
+    from packages.db.models.live_execution import MessagingBlocker
+    from packages.db.models.provider_registry import ProviderBlocker
+    from packages.db.models.scale_alerts import GrowthCommand, OperatorAlert
 
     def _to_dicts(rows, **extra_fields):
         out = []
@@ -160,7 +159,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
     quick["active_experiments"] = [{"name": e.experiment_name, "variable": e.tested_variable, "status": e.status} for e in active_exps]
     quick["promoted_winner_rules"] = [{"rule_type": r.rule_type, "rule_key": r.rule_key, "boost": r.weight_boost} for r in promo_rules]
 
-    from packages.db.models.capital_allocator import CapitalAllocationReport, CAAllocationDecision
+    from packages.db.models.capital_allocator import CAAllocationDecision, CapitalAllocationReport
     alloc_report = (await db.execute(
         select(CapitalAllocationReport).where(CapitalAllocationReport.brand_id == brand_id).order_by(CapitalAllocationReport.created_at.desc()).limit(1)
     )).scalar_one_or_none()
@@ -184,7 +183,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         for s in acct_states[:10]
     ]
 
-    from packages.db.models.quality_governor import QualityGovernorReport, QualityBlock
+    from packages.db.models.quality_governor import QualityBlock, QualityGovernorReport
     qg_fails = list((await db.execute(
         select(QualityGovernorReport).where(QualityGovernorReport.brand_id == brand_id, QualityGovernorReport.verdict == "fail", QualityGovernorReport.is_active.is_(True)).limit(10)
     )).scalars().all())
@@ -213,7 +212,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         logger.debug("copilot context enrichment failed", exc_info=True)
         quick["top_opportunity_actions"] = []
 
-    from packages.db.models.failure_family import SuppressionRule, FailureFamilyReport
+    from packages.db.models.failure_family import FailureFamilyReport, SuppressionRule
     ff_reports = list((await db.execute(
         select(FailureFamilyReport).where(FailureFamilyReport.brand_id == brand_id, FailureFamilyReport.is_active.is_(True)).order_by(FailureFamilyReport.failure_count.desc()).limit(5)
     )).scalars().all())
@@ -223,13 +222,16 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
     quick["failure_families"] = [{"type": f.family_type, "key": f.family_key, "count": f.failure_count, "alt": f.recommended_alternative} for f in ff_reports]
     quick["active_suppressions"] = [{"type": r.family_type, "key": r.family_key, "mode": r.suppression_mode, "reason": r.reason} for r in ff_rules]
 
-    from packages.db.models.campaigns import Campaign as CampModel, CampaignBlocker as CBModel
+    from packages.db.models.campaigns import Campaign as CampModel
+    from packages.db.models.campaigns import CampaignBlocker as CBModel
     camps = list((await db.execute(select(CampModel).where(CampModel.brand_id == brand_id, CampModel.is_active.is_(True)).order_by(CampModel.confidence.desc()).limit(5))).scalars().all())
     camp_blockers = list((await db.execute(select(CBModel).where(CBModel.brand_id == brand_id, CBModel.is_active.is_(True)).limit(5))).scalars().all())
     quick["campaigns"] = [{"name": c.campaign_name, "type": c.campaign_type, "status": c.launch_status, "confidence": c.confidence} for c in camps]
     quick["campaign_blockers"] = [{"type": b.blocker_type, "desc": b.description} for b in camp_blockers]
 
-    from packages.db.models.affiliate_intel import AffiliateOffer as AFO, AffiliateLeak as AFL, AffiliateBlocker as AFB
+    from packages.db.models.affiliate_intel import AffiliateBlocker as AFB
+    from packages.db.models.affiliate_intel import AffiliateLeak as AFL
+    from packages.db.models.affiliate_intel import AffiliateOffer as AFO
     af_top = list((await db.execute(select(AFO).where(AFO.brand_id == brand_id, AFO.is_active.is_(True)).order_by(AFO.rank_score.desc()).limit(5))).scalars().all())
     af_leaks = list((await db.execute(select(AFL).where(AFL.brand_id == brand_id, AFL.is_active.is_(True)).limit(5))).scalars().all())
     af_blockers = list((await db.execute(select(AFB).where(AFB.brand_id == brand_id, AFB.is_active.is_(True)).limit(5))).scalars().all())
@@ -325,7 +327,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     # Fleet status, warmup phases, shadow ban alerts
     try:
-        from packages.db.models.autonomous_farm import FleetStatusReport, AccountWarmupPlan, AccountVoiceProfile
+        from packages.db.models.autonomous_farm import AccountWarmupPlan, FleetStatusReport
         fleet = (await db.execute(
             select(FleetStatusReport).where(FleetStatusReport.is_active.is_(True)).order_by(FleetStatusReport.created_at.desc()).limit(1)
         )).scalar_one_or_none()
@@ -363,10 +365,12 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     # Revenue forecast
     try:
-        from packages.scoring.revenue_forecast_engine import forecast_revenue, generate_forecast_summary
-        from packages.db.models.publishing import PerformanceMetric
-        from sqlalchemy import func as sqlfunc
         from datetime import timedelta
+
+        from sqlalchemy import func as sqlfunc
+
+        from packages.db.models.publishing import PerformanceMetric
+        from packages.scoring.revenue_forecast_engine import forecast_revenue, generate_forecast_summary
         daily_revs = [
             float(r[0]) for r in (await db.execute(
                 select(sqlfunc.coalesce(sqlfunc.sum(PerformanceMetric.revenue), 0.0))
@@ -388,8 +392,9 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     # Monthly accumulated revenue
     try:
-        from packages.db.models.publishing import PerformanceMetric
         from sqlalchemy import func as sqlfunc
+
+        from packages.db.models.publishing import PerformanceMetric
         month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         mtd_revenue = (await db.execute(
             select(sqlfunc.coalesce(sqlfunc.sum(PerformanceMetric.revenue), 0.0))
@@ -401,9 +406,11 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     # Niche research data for setup guidance
     try:
-        from packages.scoring.niche_research_engine import rank_niches, get_affiliate_programs_for_niche, NICHE_AFFILIATE_MAP
         from packages.clients.affiliate_program_clients import AFFILIATE_PROGRAMS, get_best_programs_for_niche
         from packages.db.models.accounts import CreatorAccount
+        from packages.scoring.niche_research_engine import (
+            rank_niches,
+        )
 
         top_niches = rank_niches(top_n=10)
         quick["niche_rankings"] = [
@@ -448,9 +455,10 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     # Revenue by niche
     try:
-        from packages.db.models.publishing import PerformanceMetric
-        from packages.db.models.accounts import CreatorAccount
         from sqlalchemy import func as sqlfunc
+
+        from packages.db.models.accounts import CreatorAccount
+        from packages.db.models.publishing import PerformanceMetric
 
         niche_revenue = {}
         accts = list((await db.execute(

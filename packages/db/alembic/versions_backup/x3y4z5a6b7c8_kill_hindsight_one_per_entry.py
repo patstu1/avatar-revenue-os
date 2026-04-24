@@ -3,7 +3,8 @@
 Revision ID: x3y4z5a6b7c8
 Revises: w1x2y3z4a5b6
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 from alembic import op
 

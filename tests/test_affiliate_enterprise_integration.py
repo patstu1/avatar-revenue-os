@@ -1,20 +1,30 @@
 """DB-backed integration tests for Enterprise Affiliate."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.core import Organization
-from packages.db.models.affiliate_intel import AffiliateOffer, AffiliateMerchant
-from packages.db.models.affiliate_enterprise import (
-    AffiliateGovernanceRule, AffiliateBannedEntity, AffiliateRiskFlag,
-    OwnedAffiliatePartner, OwnedPartnerConversion,
-)
+
 from apps.api.services.affiliate_enterprise_service import (
-    recompute_governance, recompute_partner_scores, list_governance_rules,
-    list_banned, list_risk_flags, list_partners,
+    list_banned,
+    list_governance_rules,
+    list_partners,
+    list_risk_flags,
+    recompute_governance,
+    recompute_partner_scores,
 )
+from packages.db.models.affiliate_enterprise import (
+    AffiliateBannedEntity,
+    AffiliateGovernanceRule,
+    AffiliateRiskFlag,
+    OwnedAffiliatePartner,
+    OwnedPartnerConversion,
+)
+from packages.db.models.affiliate_intel import AffiliateMerchant, AffiliateOffer
+from packages.db.models.core import Organization
 
 
 @pytest_asyncio.fixture

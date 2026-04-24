@@ -129,7 +129,7 @@ def evaluate_market_timing(
     niche_parts = _niche_tokens(niche)
     month = int(brand_context.get("month", 1))
     audience_size = int(brand_context.get("audience_size", 0))
-    avg_revenue = float(brand_context.get("avg_monthly_revenue", 0))
+    float(brand_context.get("avg_monthly_revenue", 0))
     offer_count = int(brand_context.get("active_offer_count", 0))
 
     results: list[dict[str, Any]] = []
@@ -268,7 +268,7 @@ def evaluate_market_timing(
             round(score * 0.12, 4),
             _confidence(score, audience_size, offer_count),
             f"CPM-friendly window (score {score:.2f}). "
-            f"{'Month {0} historically shows lower ad costs. '.format(month) if is_cheap_month else ''}"
+            f"{f'Month {month} historically shows lower ad costs. ' if is_cheap_month else ''}"
             f"CPM index: {cpm_val if cpm_val is not None else 'unknown'}.",
         ))
 
@@ -287,7 +287,7 @@ def evaluate_market_timing(
             round(score * 0.15, 4),
             _confidence(score, audience_size, offer_count),
             f"Low-competition launch window (score {score:.2f}). "
-            f"{'Month {0} sees fewer competitor launches. '.format(month) if is_quiet_month else ''}"
+            f"{f'Month {month} sees fewer competitor launches. ' if is_quiet_month else ''}"
             f"Competitor launch count: {competitor_count if competitor_count is not None else 'unknown'}.",
         ))
 

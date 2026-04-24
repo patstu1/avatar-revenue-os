@@ -1,7 +1,10 @@
 """Growth Hub API — audience discovery, sponsor pipeline, service sales, quality loop, platform adaptation, outreach, proposals."""
 from __future__ import annotations
+
 import uuid
+
 from fastapi import APIRouter, Query
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 
 router = APIRouter()

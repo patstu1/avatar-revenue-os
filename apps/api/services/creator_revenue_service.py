@@ -46,10 +46,10 @@ from packages.scoring.creator_revenue_engine import (
 
 
 async def _brand_context(db: AsyncSession, brand_id: uuid.UUID) -> dict:
+    from packages.db.models.accounts import CreatorAccount
     from packages.db.models.content import ContentItem
     from packages.db.models.core import Avatar, Brand
     from packages.db.models.offers import Offer
-    from packages.db.models.accounts import CreatorAccount
 
     brand_q = await db.execute(select(Brand).where(Brand.id == brand_id))
     brand = brand_q.scalar_one_or_none()

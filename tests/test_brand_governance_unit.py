@@ -1,6 +1,10 @@
 """Unit tests for brand governance engine."""
-import pytest
-from packages.scoring.brand_governance_engine import evaluate_voice_rules, score_editorial_compliance, check_audience_fit, check_multi_brand_isolation
+from packages.scoring.brand_governance_engine import (
+    check_audience_fit,
+    check_multi_brand_isolation,
+    evaluate_voice_rules,
+    score_editorial_compliance,
+)
 
 
 class TestVoiceRules:

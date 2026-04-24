@@ -1,6 +1,7 @@
 """Landing Page Engine — generate, variant, score pages. Pure functions."""
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 PAGE_TYPES = ["product", "review", "comparison", "advertorial", "presell", "optin", "lead_magnet", "quiz_funnel", "authority", "creator_revenue", "sponsor"]
 

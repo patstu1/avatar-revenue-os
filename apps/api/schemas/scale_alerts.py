@@ -1,45 +1,48 @@
 """Pydantic models for scale alerts APIs."""
 from __future__ import annotations
-from typing import Any, Optional
-from pydantic import BaseModel, Field
+
+from typing import Any
+
+from pydantic import BaseModel
+
 
 class AlertResponse(BaseModel):
     id: str
     alert_type: str
     title: str
     summary: str
-    explanation: Optional[str] = None
-    recommended_action: Optional[str] = None
+    explanation: str | None = None
+    recommended_action: str | None = None
     confidence: float = 0.0
     urgency: float = 0.0
     expected_upside: float = 0.0
     expected_cost: float = 0.0
     expected_time_to_signal_days: int = 14
-    supporting_metrics: Optional[dict[str, Any]] = None
-    blocking_factors: Optional[list] = None
-    severity: Optional[str] = None
-    dashboard_section: Optional[str] = None
-    linked_scale_recommendation_id: Optional[str] = None
-    linked_launch_candidate_id: Optional[str] = None
+    supporting_metrics: dict[str, Any] | None = None
+    blocking_factors: list | None = None
+    severity: str | None = None
+    dashboard_section: str | None = None
+    linked_scale_recommendation_id: str | None = None
+    linked_launch_candidate_id: str | None = None
     status: str = "unread"
-    acknowledged_at: Optional[str] = None
-    resolved_at: Optional[str] = None
-    created_at: Optional[str] = None
+    acknowledged_at: str | None = None
+    resolved_at: str | None = None
+    created_at: str | None = None
 
 class LaunchCandidateResponse(BaseModel):
     id: str
-    linked_scale_recommendation_id: Optional[str] = None
+    linked_scale_recommendation_id: str | None = None
     candidate_type: str
     primary_platform: str
-    secondary_platform: Optional[str] = None
+    secondary_platform: str | None = None
     niche: str
-    sub_niche: Optional[str] = None
+    sub_niche: str | None = None
     language: str = "en"
     geography: str = "US"
-    avatar_persona_strategy: Optional[str] = None
-    monetization_path: Optional[str] = None
-    content_style: Optional[str] = None
-    posting_strategy: Optional[str] = None
+    avatar_persona_strategy: str | None = None
+    monetization_path: str | None = None
+    content_style: str | None = None
+    posting_strategy: str | None = None
     expected_monthly_revenue_min: float = 0.0
     expected_monthly_revenue_max: float = 0.0
     expected_launch_cost: float = 0.0
@@ -49,36 +52,36 @@ class LaunchCandidateResponse(BaseModel):
     audience_separation_score: float = 0.0
     confidence: float = 0.0
     urgency: float = 0.0
-    supporting_reasons: Optional[list] = None
-    required_resources: Optional[list] = None
-    launch_blockers: Optional[list] = None
+    supporting_reasons: list | None = None
+    required_resources: list | None = None
+    launch_blockers: list | None = None
 
 class BlockerResponse(BaseModel):
     id: str
     blocker_type: str
     severity: str = "medium"
     title: str
-    explanation: Optional[str] = None
-    recommended_fix: Optional[str] = None
+    explanation: str | None = None
+    recommended_fix: str | None = None
     current_value: float = 0.0
     threshold_value: float = 0.0
 
 class ReadinessResponse(BaseModel):
     id: str
     launch_readiness_score: float = 0.0
-    explanation: Optional[str] = None
+    explanation: str | None = None
     recommended_action: str = "monitor"
-    gating_factors: Optional[list] = None
-    components: Optional[dict[str, Any]] = None
+    gating_factors: list | None = None
+    components: dict[str, Any] | None = None
 
 class NotificationResponse(BaseModel):
     id: str
-    alert_id: Optional[str] = None
+    alert_id: str | None = None
     channel: str
     status: str = "pending"
     attempts: int = 0
-    last_error: Optional[str] = None
-    delivered_at: Optional[str] = None
+    last_error: str | None = None
+    delivered_at: str | None = None
 
 class ResolveRequest(BaseModel):
-    notes: Optional[str] = None
+    notes: str | None = None

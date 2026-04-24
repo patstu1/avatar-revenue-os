@@ -1,7 +1,6 @@
 """Unit tests for landing page + campaign engines."""
-import pytest
-from packages.scoring.landing_page_engine import PAGE_TYPES, generate_page, generate_variant, score_page_quality
 from packages.scoring.campaign_engine import CAMPAIGN_TYPES, construct_campaign, construct_variant, detect_blockers
+from packages.scoring.landing_page_engine import PAGE_TYPES, generate_page, generate_variant, score_page_quality
 
 
 class TestLandingPageEngine:

@@ -9,15 +9,13 @@ without error. The system degrades gracefully.
 """
 from __future__ import annotations
 
-import asyncio
 import uuid
-from datetime import datetime, timezone
 
 import structlog
 from celery import shared_task
 
-from workers.base_task import TrackedTask
 from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
 
 logger = structlog.get_logger()
 
@@ -68,6 +66,7 @@ async def _resolve_content_item_id(
     if not platform_post_id:
         return None
     from sqlalchemy import select
+
     from packages.db.models.publishing import PublishJob
     row = (await db.execute(
         select(PublishJob.content_item_id).where(
@@ -87,13 +86,16 @@ def ingest_platform_analytics():
 async def _do_ingest_platform_analytics():
     from sqlalchemy import select
     from sqlalchemy.orm import Session as SyncSession
+
+    from packages.clients.analytics_clients import (
+        InstagramAnalyticsClient,
+        TikTokAnalyticsClient,
+        YouTubeAnalyticsClient,
+    )
     from packages.db.models.accounts import CreatorAccount
     from packages.db.models.core import Brand
     from packages.db.models.publishing import PerformanceMetric
     from packages.db.session import get_sync_engine
-    from packages.clients.analytics_clients import (
-        YouTubeAnalyticsClient, TikTokAnalyticsClient, InstagramAnalyticsClient,
-    )
 
     # Load credentials from encrypted DB (sync, for credential_loader)
     engine = get_sync_engine()
@@ -319,11 +321,12 @@ def ingest_trend_signals():
 async def _do_ingest_trend_signals():
     from sqlalchemy import select
     from sqlalchemy.orm import Session as SyncSession
-    from packages.db.models.discovery import TopicCandidate, TrendSignal
-    from packages.db.models.core import Brand
-    from packages.db.enums import SignalStrength
-    from packages.db.session import get_sync_engine
+
     from packages.clients.analytics_clients import TrendSignalClient
+    from packages.db.enums import SignalStrength
+    from packages.db.models.core import Brand
+    from packages.db.models.discovery import TrendSignal
+    from packages.db.session import get_sync_engine
 
     # Load credentials from first available org
     engine = get_sync_engine()
@@ -420,15 +423,17 @@ def ingest_metrics_for_content_item(content_item_id: str, account_id: str):
 
 async def _do_ingest_single_item(content_item_id_str: str, account_id_str: str):
     from sqlalchemy import select
-    from packages.db.models.accounts import CreatorAccount
-    from packages.db.models.content import ContentItem
-    from packages.db.models.publishing import PublishJob, PerformanceMetric
-    from packages.db.models.core import Brand
-    from packages.db.session import get_sync_engine
     from sqlalchemy.orm import Session as SyncSession
+
     from packages.clients.analytics_clients import (
-        YouTubeAnalyticsClient, TikTokAnalyticsClient, InstagramAnalyticsClient,
+        InstagramAnalyticsClient,
+        TikTokAnalyticsClient,
+        YouTubeAnalyticsClient,
     )
+    from packages.db.models.accounts import CreatorAccount
+    from packages.db.models.core import Brand
+    from packages.db.models.publishing import PerformanceMetric, PublishJob
+    from packages.db.session import get_sync_engine
 
     content_item_id = uuid.UUID(content_item_id_str)
     account_id = uuid.UUID(account_id_str)

@@ -1,5 +1,4 @@
 """Monetization Machine API — Credits, plans, packs, telemetry, and upgrade triggers."""
-import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Query

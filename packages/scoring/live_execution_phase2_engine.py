@@ -1,7 +1,7 @@
 """Live Execution Phase 2 + Buffer Expansion — pure scoring/logic functions."""
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 # ── Constants ──
 
@@ -327,7 +327,7 @@ def evaluate_analytics_sync_readiness(
 
 def classify_buffer_truth_state(
     job_status: str,
-    buffer_post_id: Optional[str],
+    buffer_post_id: str | None,
     retry_count: int,
     hours_since_submit: float,
 ) -> dict[str, Any]:
@@ -404,7 +404,7 @@ def detect_stale_jobs(hours_since_submit: float, current_state: str) -> dict[str
 
 def evaluate_buffer_profile_readiness(
     credential_status: str,
-    buffer_profile_id: Optional[str],
+    buffer_profile_id: str | None,
     platform: str,
     is_active: bool,
 ) -> dict[str, Any]:

@@ -1,7 +1,6 @@
 """Celery tasks for Creator Revenue Avenues (all phases)."""
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 

@@ -14,7 +14,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Any, Optional
+from typing import Any
 
 import aiosmtplib
 import httpx
@@ -399,7 +399,7 @@ class BufferClient:
 
     GRAPHQL_URL = "https://api.buffer.com"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.environ.get("BUFFER_API_KEY", "")
 
     def _is_configured(self) -> bool:
@@ -411,7 +411,7 @@ class BufferClient:
             "Authorization": f"Bearer {self.api_key}",
         }
 
-    async def _graphql(self, query: str, variables: Optional[dict] = None) -> dict[str, Any]:
+    async def _graphql(self, query: str, variables: dict | None = None) -> dict[str, Any]:
         """Execute a GraphQL query/mutation against Buffer's API."""
         if not self._is_configured():
             return _blocked("BUFFER_API_KEY not configured")
@@ -460,7 +460,7 @@ class BufferClient:
             }
         """)
 
-    async def get_profiles(self, organization_id: Optional[str] = None) -> dict[str, Any]:
+    async def get_profiles(self, organization_id: str | None = None) -> dict[str, Any]:
         """Fetch connected channels/profiles.
 
         If organization_id is not provided, fetches it first.
@@ -518,12 +518,12 @@ class BufferClient:
         profile_ids: list[str],
         text: str,
         *,
-        media: Optional[dict[str, str]] = None,
-        scheduled_at: Optional[str] = None,
+        media: dict[str, str] | None = None,
+        scheduled_at: str | None = None,
         shorten: bool = True,
         mode: str = "addToQueue",
-        assets: Optional[dict[str, Any]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        assets: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a post via GraphQL createPost mutation.
 

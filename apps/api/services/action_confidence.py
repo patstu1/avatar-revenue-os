@@ -20,7 +20,6 @@ from __future__ import annotations
 import math
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import func, select
@@ -44,7 +43,7 @@ async def compute_action_confidence(
     brand_id: uuid.UUID,
     action_type: str,
     expected_value: float = 0.0,
-    risk_score: Optional[float] = None,
+    risk_score: float | None = None,
 ) -> dict:
     """Compute confidence for an action based on 4 real signals.
 

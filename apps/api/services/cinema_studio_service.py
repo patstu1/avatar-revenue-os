@@ -1,14 +1,14 @@
 from __future__ import annotations
+
 """Cinema Studio service: CRUD for projects, scenes, characters, styles, generations.
 
 Generation trigger bridges into the existing MediaJob pipeline so scene metadata
 flows to real providers (Runway, HeyGen, D-ID, etc.).
 """
 import uuid
-from typing import Optional
 
 import structlog
-from sqlalchemy import select, func, desc
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
@@ -23,7 +23,6 @@ from packages.db.models.cinema_studio import (
     StylePreset,
 )
 from packages.db.models.content import MediaJob
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -79,7 +78,7 @@ async def _get_or_404(
 # ---------------------------------------------------------------------------
 
 async def list_projects(
-    db: AsyncSession, brand_id: uuid.UUID, status: Optional[str] = None, page: int = 1,
+    db: AsyncSession, brand_id: uuid.UUID, status: str | None = None, page: int = 1,
 ) -> list[StudioProject]:
     q = select(StudioProject).where(StudioProject.brand_id == brand_id)
     if status:
@@ -123,7 +122,7 @@ async def delete_project(db: AsyncSession, project_id: uuid.UUID, brand_id: uuid
 # ---------------------------------------------------------------------------
 
 async def list_scenes(
-    db: AsyncSession, brand_id: uuid.UUID, project_id: Optional[uuid.UUID] = None, page: int = 1,
+    db: AsyncSession, brand_id: uuid.UUID, project_id: uuid.UUID | None = None, page: int = 1,
 ) -> list[StudioScene]:
     q = select(StudioScene).where(StudioScene.brand_id == brand_id)
     if project_id:
@@ -212,7 +211,7 @@ async def delete_character(db: AsyncSession, character_id: uuid.UUID, brand_id: 
 # ---------------------------------------------------------------------------
 
 async def list_styles(
-    db: AsyncSession, brand_id: uuid.UUID, category: Optional[str] = None,
+    db: AsyncSession, brand_id: uuid.UUID, category: str | None = None,
 ) -> list[StylePreset]:
     q = select(StylePreset).where(
         (StylePreset.brand_id == brand_id) | (StylePreset.brand_id.is_(None))
@@ -260,8 +259,8 @@ async def delete_style(db: AsyncSession, style_id: uuid.UUID, brand_id: uuid.UUI
 async def list_generations(
     db: AsyncSession,
     brand_id: uuid.UUID,
-    scene_id: Optional[uuid.UUID] = None,
-    status: Optional[str] = None,
+    scene_id: uuid.UUID | None = None,
+    status: str | None = None,
     page: int = 1,
 ) -> list[StudioGeneration]:
     q = select(StudioGeneration).where(StudioGeneration.brand_id == brand_id)

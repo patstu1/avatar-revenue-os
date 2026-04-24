@@ -16,8 +16,8 @@ from datetime import datetime, timezone
 
 import structlog
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = structlog.get_logger()
 
@@ -50,7 +50,7 @@ def _evaluate_gate(session, brand_id: uuid.UUID, loop_step: str, confidence: flo
 
 def _record_run(session, brand_id, loop_step, status, confidence, input_payload, output_payload=None):
     """Persist an execution run record for audit trail."""
-    from packages.db.models.autonomous_execution import AutomationExecutionRun, AutomationExecutionPolicy
+    from packages.db.models.autonomous_execution import AutomationExecutionPolicy, AutomationExecutionRun
 
     policy = session.query(AutomationExecutionPolicy).filter(
         AutomationExecutionPolicy.brand_id == brand_id,
@@ -85,13 +85,14 @@ def _record_run(session, brand_id, loop_step, status, confidence, input_payload,
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.execute_kill_ledger_actions")
 def execute_kill_ledger_actions(self) -> dict:
     """Read active KillLedgerEntry rows that haven't been executed and deactivate targets."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
-    from packages.db.models.kill_ledger import KillLedgerEntry
-    from packages.db.models.offers import Offer
+    from sqlalchemy.orm import Session
+
     from packages.db.models.accounts import CreatorAccount
     from packages.db.models.content import ContentItem
+    from packages.db.models.kill_ledger import KillLedgerEntry
+    from packages.db.models.offers import Offer
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     executed = 0
@@ -157,11 +158,12 @@ def execute_kill_ledger_actions(self) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.execute_offer_lifecycle_transitions")
 def execute_offer_lifecycle_transitions(self) -> dict:
     """When offers transition to sunset/killed, deactivate them in the offers table."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
     from packages.db.models.offer_lifecycle import OfferLifecycleEvent
     from packages.db.models.offers import Offer
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     deactivated = 0
@@ -208,10 +210,11 @@ def execute_offer_lifecycle_transitions(self) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.execute_recovery_actions")
 def execute_recovery_actions(self) -> dict:
     """Execute pending recovery actions where action_mode is 'auto'."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
     from packages.db.models.recovery import RecoveryAction, RecoveryIncident
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     executed = 0
@@ -267,10 +270,11 @@ def execute_recovery_actions(self) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.enforce_capacity_throttle")
 def enforce_capacity_throttle(self) -> dict:
     """Read capacity recommendations and log throttle enforcement decisions."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
     from packages.db.models.capacity import CapacityReport
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     throttles_applied = 0
@@ -313,11 +317,12 @@ def enforce_capacity_throttle(self) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.link_reputation_to_recovery")
 def link_reputation_to_recovery(self) -> dict:
     """Create RecoveryIncident from high-severity ReputationReport rows."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
-    from packages.db.models.reputation import ReputationReport
+    from sqlalchemy.orm import Session
+
     from packages.db.models.recovery import RecoveryIncident
+    from packages.db.models.reputation import ReputationReport
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     incidents_created = 0
@@ -368,10 +373,11 @@ def link_reputation_to_recovery(self) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.advance_experiment_outcome_actions")
 def advance_experiment_outcome_actions(self) -> dict:
     """Process pending experiment outcome actions through the execution gate."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
     from packages.db.models.experiment_decisions import ExperimentOutcomeAction
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     advanced = 0
@@ -412,11 +418,12 @@ def advance_experiment_outcome_actions(self) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.execute_brain_decisions")
 def execute_brain_decisions(self) -> dict:
     """Read brain decisions with downstream_action set and create executable artifacts."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
     from packages.db.models.brain_phase_b import BrainDecision
     from packages.db.models.scale_alerts import OperatorAlert
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     processed = 0

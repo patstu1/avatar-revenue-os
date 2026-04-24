@@ -3,9 +3,10 @@
 Each client handles authentication, offer discovery, and link generation for its network.
 """
 from __future__ import annotations
-import os
+
 import logging
-from typing import Any, Optional
+import os
+from typing import Any
 
 import httpx
 
@@ -139,7 +140,6 @@ class SpotifyAffiliateClient:
     async def fetch_conversions(self, start_date: str, end_date: str) -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("Spotify affiliate uses Impact network — set IMPACT_ACCOUNT_SID / IMPACT_AUTH_TOKEN")
-        from packages.clients.affiliate_network_clients import ImpactClient
         client = ImpactClient()
         return await client.fetch_conversions(start_date, end_date)
 
@@ -163,7 +163,6 @@ class TargetAffiliateClient:
     async def fetch_conversions(self, start_date: str, end_date: str) -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("Target affiliate uses Impact network — set IMPACT_ACCOUNT_SID / IMPACT_AUTH_TOKEN")
-        from packages.clients.affiliate_network_clients import ImpactClient
         client = ImpactClient()
         return await client.fetch_conversions(start_date, end_date)
 
@@ -229,7 +228,7 @@ class TikTokShoppingClient:
         return f"{base}?affiliate_id={affiliate_id}" if affiliate_id else base
 
 
-from packages.clients.affiliate_network_clients import ShareASaleClient, ImpactClient  # noqa: F401 — re-exported
+from packages.clients.affiliate_network_clients import ImpactClient, ShareASaleClient  # noqa: F401 — re-exported
 
 
 class EtsyAffiliateClient:

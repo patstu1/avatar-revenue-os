@@ -8,20 +8,20 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.core import Brand
-from packages.db.models.offers import Offer, AudienceSegment, SponsorProfile
 from packages.db.models.expansion_pack2_phase_c import (
-    ReferralProgramRecommendation,
     CompetitiveGapReport,
-    SponsorTarget,
-    SponsorOutreachSequence,
     ProfitGuardrailReport,
+    ReferralProgramRecommendation,
+    SponsorOutreachSequence,
+    SponsorTarget,
 )
+from packages.db.models.offers import AudienceSegment, Offer, SponsorProfile
 from packages.scoring.expansion_pack2_phase_c_engines import (
-    recommend_referral_program,
     analyze_competitive_gaps,
-    identify_sponsor_targets,
-    generate_sponsor_outreach_sequence,
     analyze_profit_guardrails,
+    generate_sponsor_outreach_sequence,
+    identify_sponsor_targets,
+    recommend_referral_program,
 )
 
 
@@ -55,7 +55,7 @@ async def recompute_referral_program_recommendations(
         }
         for s in audience_segments
     ]
-    
+
     # DATA BOUNDARY: Static referral benchmarks — no live referral tracking feed yet.
     # Engine uses these as priors; replace with real program data when available.
     historical_referral_data = [
@@ -153,7 +153,7 @@ async def recompute_competitive_gap_reports(
         {'competitor_name': 'CompCo Basic', 'offer_id': 'comp_offer_1', 'name': 'Basic Product', 'features': ['A', 'B'], 'pricing': 90.0},
         {'competitor_name': 'CompCo Premium', 'offer_id': 'comp_offer_2', 'name': 'Premium Product', 'features': ['A', 'B', 'C', 'D'], 'pricing': 150.0},
     ]
-    
+
     # DATA BOUNDARY: Static market feedback — no live sentiment feed yet.
     market_feedback = [
         {'feedback_id': 'fb_1', 'offer_id': own_offers[0]['offer_id'] if own_offers else None, 'sentiment': 'negative', 'comment': 'Missing feature X'},
@@ -395,7 +395,7 @@ async def recompute_sponsor_outreach_sequences(
             'target_company_size_category': '',
         },
     ]
-    
+
     # DATA BOUNDARY: Static outreach performance benchmarks — no live CRM data yet.
     historical_outreach_performance = [
         {'sequence_name': 'Tech Enterprise Outreach', 'response_rate': 0.18, 'conversion_rate': 0.03, 'industry': 'tech', 'company_size_category': 'enterprise'},

@@ -1,10 +1,13 @@
 """Brand Governance workers."""
-import asyncio, logging
+import logging
+
 from celery import shared_task
 from sqlalchemy import select
+
+from packages.db.models.core import Brand
 from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
-from packages.db.models.core import Brand
+
 logger = logging.getLogger(__name__)
 
 async def _run():

@@ -1,6 +1,5 @@
 """Unit tests for Phase 3 scoring engines: publish score, QA, similarity."""
-import pytest
-from packages.scoring.publish import PublishScoreInput, compute_publish_score, WEIGHTS
+from packages.scoring.publish import WEIGHTS, PublishScoreInput, compute_publish_score
 from packages.scoring.qa import QAInput, compute_qa_score
 from packages.scoring.similarity import SimilarityInput, compute_similarity
 

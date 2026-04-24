@@ -21,8 +21,8 @@ if not DATABASE_URL:
 engine = create_engine(DATABASE_URL)
 
 print("Loading all models ...")
-from packages.db.base import Base  # noqa: E402
 import packages.db.models  # noqa: E402, F401
+from packages.db.base import Base  # noqa: E402
 
 print(f"Models define {len(Base.metadata.tables)} tables.")
 

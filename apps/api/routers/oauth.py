@@ -6,23 +6,20 @@ POST /oauth/disconnect/{account_id} — Revoke + clear stored credentials
 """
 from __future__ import annotations
 
-import json
 import os
 import secrets
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 
-from apps.api.deps import CurrentUser, DBSession, OperatorUser
+from apps.api.deps import DBSession, OperatorUser
 from apps.api.services.audit_service import log_action
 from apps.api.services.integration_manager import _encrypt
 from packages.clients.oauth_flows import (
-    PLATFORM_CONFIG,
     exchange_code,
     get_auth_url,
 )
@@ -64,7 +61,7 @@ async def oauth_connect(
     current_user: OperatorUser,
     db: DBSession,
     brand_id: uuid.UUID = Query(..., description="Brand to connect the account for"),
-    account_id: Optional[uuid.UUID] = Query(None, description="Existing account to re-connect"),
+    account_id: uuid.UUID | None = Query(None, description="Existing account to re-connect"),
 ):
     """Generate a state token and redirect to the platform's OAuth consent screen."""
     platform = platform.lower()
@@ -140,8 +137,8 @@ async def oauth_callback(
     db: DBSession,
     code: str = Query(..., description="Authorization code from platform"),
     state: str = Query(..., description="State token for CSRF validation"),
-    error: Optional[str] = Query(None),
-    error_description: Optional[str] = Query(None),
+    error: str | None = Query(None),
+    error_description: str | None = Query(None),
 ):
     """Handle the OAuth callback: validate state, exchange code, store encrypted tokens."""
     platform = platform.lower()

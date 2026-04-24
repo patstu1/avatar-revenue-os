@@ -1,14 +1,14 @@
 """Scheduled growth pack recomputes — persists status via TrackedTask."""
-import asyncio
 import uuid
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
-from packages.db.session import get_async_session_factory, run_async
-from apps.api.services import growth_pack_service as gps
-from apps.api.services import growth_commander_service as gcs
 from sqlalchemy import select
+
+from apps.api.services import growth_commander_service as gcs
+from apps.api.services import growth_pack_service as gps
 from packages.db.models.core import Brand
+from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 
 async def _run_brand(brand_id: uuid.UUID) -> dict:

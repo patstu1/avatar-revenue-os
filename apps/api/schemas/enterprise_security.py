@@ -1,12 +1,14 @@
 """Pydantic schemas for Enterprise Security."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
+
 
 class ESRoleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; role_name: str; role_level: int; description: Optional[str] = None; is_system: bool
+    id: uuid.UUID; role_name: str; role_level: int; description: str | None = None; is_system: bool
 
 class ESPermissionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -14,7 +16,7 @@ class ESPermissionOut(BaseModel):
 
 class ESAuditOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; action: str; resource_type: str; detail: Optional[str] = None
+    id: uuid.UUID; action: str; resource_type: str; detail: str | None = None
 
 class ESDataPolicyOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -26,7 +28,7 @@ class ESComplianceOut(BaseModel):
 
 class ESModelIsolationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; provider_key: str; isolation_mode: str; data_residency: Optional[str] = None
+    id: uuid.UUID; provider_key: str; isolation_mode: str; data_residency: str | None = None
 
 class ESRiskOverrideOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

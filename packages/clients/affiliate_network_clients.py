@@ -3,9 +3,10 @@
 Each client handles authentication, data fetching, and tracked link generation.
 """
 from __future__ import annotations
-import os
+
 import logging
-from typing import Any, Optional
+import os
+from typing import Any
 from urllib.parse import quote_plus
 
 import httpx

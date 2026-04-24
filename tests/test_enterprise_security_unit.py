@@ -1,8 +1,12 @@
 """Unit tests for enterprise security engine."""
-import pytest
 from packages.scoring.enterprise_security_engine import (
-    SYSTEM_ROLES, evaluate_permission, evaluate_scope, evaluate_sensitive_data,
-    evaluate_model_isolation, assess_compliance, build_audit_event,
+    SYSTEM_ROLES,
+    assess_compliance,
+    build_audit_event,
+    evaluate_model_isolation,
+    evaluate_permission,
+    evaluate_scope,
+    evaluate_sensitive_data,
 )
 
 

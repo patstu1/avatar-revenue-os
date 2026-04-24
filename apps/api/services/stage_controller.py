@@ -22,10 +22,9 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_event
@@ -69,7 +68,7 @@ STAGE_CATALOGUE: dict[tuple[str, str], StageSpec] = {
 }
 
 
-def compute_sla_deadline(entity_type: str, stage: str, entered_at: datetime) -> Optional[datetime]:
+def compute_sla_deadline(entity_type: str, stage: str, entered_at: datetime) -> datetime | None:
     spec = STAGE_CATALOGUE.get((entity_type, stage))
     if spec is None:
         return None
@@ -88,7 +87,7 @@ async def mark_stage(
     entity_type: str,
     entity_id: uuid.UUID,
     stage: str,
-    metadata: Optional[dict] = None,
+    metadata: dict | None = None,
 ) -> StageState:
     """Upsert a StageState row, setting previous_stage + entered_at +
     SLA deadline. Resets ``is_stuck`` + ``stuck_reason`` on transition
@@ -147,13 +146,13 @@ async def request_approval(
     entity_type: str,
     entity_id: uuid.UUID,
     title: str,
-    description: Optional[str] = None,
-    reason: Optional[str] = None,
+    description: str | None = None,
+    reason: str | None = None,
     risk_level: str = "medium",
-    proposed_payload: Optional[dict] = None,
+    proposed_payload: dict | None = None,
     confidence: float = 0.0,
-    expires_in_hours: Optional[int] = 72,
-    source_module: Optional[str] = None,
+    expires_in_hours: int | None = 72,
+    source_module: str | None = None,
 ) -> tuple[GMApproval, bool]:
     """Idempotent GMApproval insert. Emits ``gm.approval.requested`` on
     first insert only. Returns (approval, is_new).
@@ -229,7 +228,7 @@ async def resolve_approval(
     approval: GMApproval,
     decision: str,  # approved | rejected
     decided_by: str,
-    notes: Optional[str] = None,
+    notes: str | None = None,
 ) -> GMApproval:
     if approval.status != "pending":
         raise ValueError(f"approval is {approval.status}, not pending")
@@ -271,11 +270,11 @@ async def open_escalation(
     entity_id: uuid.UUID,
     reason_code: str,
     title: str,
-    description: Optional[str] = None,
+    description: str | None = None,
     severity: str = "warning",
-    stage: Optional[str] = None,
-    details: Optional[dict] = None,
-    source_module: Optional[str] = None,
+    stage: str | None = None,
+    details: dict | None = None,
+    source_module: str | None = None,
 ) -> tuple[GMEscalation, bool]:
     """Idempotent GMEscalation insert. On duplicate, bumps
     occurrence_count + last_seen_at and emits a fresh escalation event.
@@ -358,7 +357,7 @@ async def resolve_escalation(
     *,
     escalation: GMEscalation,
     resolved_by: str,
-    notes: Optional[str] = None,
+    notes: str | None = None,
 ) -> GMEscalation:
     if escalation.status == "resolved":
         return escalation
@@ -399,8 +398,8 @@ async def resolve_escalation(
 async def run_stuck_stage_watcher(
     db: AsyncSession,
     *,
-    org_id: Optional[uuid.UUID] = None,
-    now: Optional[datetime] = None,
+    org_id: uuid.UUID | None = None,
+    now: datetime | None = None,
 ) -> dict:
     """Scan ``stage_states`` for entries past their SLA deadline and
     open an escalation for each. Optionally scoped to a single org.

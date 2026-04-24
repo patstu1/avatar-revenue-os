@@ -22,7 +22,6 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import select
 
 # ---------------------------------------------------------------------------
@@ -44,9 +43,9 @@ def _uuid() -> str:
 async def test_content_pipeline_end_to_end(db, api, seed, webhook_payloads, mock_storage):
     """Full pipeline: create brief + content item, dispatch media, receive webhook,
     verify pipeline continuation was triggered."""
+    from packages.db.enums import ContentType
     from packages.db.models.content import ContentBrief, ContentItem
     from packages.db.models.media_jobs import MediaJob
-    from packages.db.enums import ContentType
 
     # -- Step 1: Create a ContentBrief directly in DB --
     brief = ContentBrief(
@@ -133,9 +132,9 @@ async def test_native_publish_fallback(db):
     """When native client raises TransientError, route_and_publish falls
     through to aggregator chain."""
     from packages.clients.distributor_router import (
-        route_and_publish,
         PublishResult,
         TransientError,
+        route_and_publish,
     )
 
     # Build minimal mock objects
@@ -278,7 +277,6 @@ async def test_affiliate_link_generation():
 async def test_stripe_webhook_revenue(db, api, seed, webhook_payloads):
     """POST a mock checkout.session.completed payload to /webhooks/stripe and
     verify a RevenueLedgerEntry is created with correct amount and attribution."""
-    from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
     event_id = f"evt_{uuid.uuid4().hex[:16]}"
     amount_cents = 4999
@@ -318,7 +316,7 @@ async def test_stripe_webhook_revenue(db, api, seed, webhook_payloads):
     ), patch(
         "apps.api.services.monetization_bridge.record_service_payment_to_ledger",
         new_callable=AsyncMock,
-    ) as mock_ledger:
+    ):
         resp = await api.post(
             "/webhooks/stripe",
             content=json.dumps(payload),
@@ -423,9 +421,9 @@ async def test_outreach_send_reply(db, seed, mock_smtp):
 async def test_strategy_adjustment(db, seed):
     """Insert mock WinningPatternMemory records with varying win_scores,
     call _generate_winner_briefs, and verify briefs created proportionally."""
-    from packages.db.models.pattern_memory import WinningPatternMemory
-    from packages.db.models.content import ContentBrief
     from packages.db.models.accounts import CreatorAccount
+    from packages.db.models.content import ContentBrief
+    from packages.db.models.pattern_memory import WinningPatternMemory
     from workers.strategy_adjustment_worker.tasks import _generate_winner_briefs
 
     brand_id = uuid.UUID(seed.brand_id)
@@ -579,7 +577,7 @@ async def test_gm_chat_creates_records(db, seed):
         ):
             from apps.api.services.gm_ai import gm_conversation
 
-            result = await gm_conversation(
+            await gm_conversation(
                 db=db,
                 org_id=org_id,
                 brand_id=brand_id,
@@ -625,7 +623,7 @@ async def test_trend_express_publish():
     with patch(
         "workers.publishing_worker.tasks.express_publish.delay",
         side_effect=mock_delay,
-    ) as mock_express:
+    ):
         # Simulate what the trend worker would do
         from workers.publishing_worker.tasks import express_publish
         express_publish.delay(content_item_id, brand_id, "trend_reactive")

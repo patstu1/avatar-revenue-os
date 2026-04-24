@@ -1,18 +1,33 @@
 """DB-backed integration tests for Landing Pages + Campaigns."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.core import Brand, Organization
-from packages.db.models.accounts import CreatorAccount
-from packages.db.models.offers import Offer
-from packages.db.models.landing_pages import LandingPage, LandingPageVariant, LandingPageQualityReport
-from packages.db.models.campaigns import Campaign, CampaignVariant, CampaignBlocker
+
+from apps.api.services.campaign_service import (
+    get_campaign_for_content,
+    list_campaign_blockers,
+    list_campaign_variants,
+    list_campaigns,
+    recompute_campaigns,
+)
+from apps.api.services.landing_page_service import (
+    get_best_page_for_offer,
+    list_pages,
+    list_quality,
+    list_variants,
+    recompute_landing_pages,
+)
 from packages.db.enums import Platform
-from apps.api.services.landing_page_service import recompute_landing_pages, list_pages, list_variants, list_quality, get_best_page_for_offer
-from apps.api.services.campaign_service import recompute_campaigns, list_campaigns, list_campaign_variants, list_campaign_blockers, get_campaign_for_content
+from packages.db.models.accounts import CreatorAccount
+from packages.db.models.campaigns import Campaign, CampaignBlocker, CampaignVariant
+from packages.db.models.core import Brand, Organization
+from packages.db.models.landing_pages import LandingPage, LandingPageQualityReport, LandingPageVariant
+from packages.db.models.offers import Offer
 
 
 @pytest_asyncio.fixture
@@ -154,7 +169,8 @@ async def test_list_helpers(db_session, brand_with_offer):
 
 
 def test_lp_worker_registered():
+    import workers.campaign_worker.tasks
+    import workers.landing_page_worker.tasks  # noqa: F401, E702
     from workers.celery_app import app
-    import workers.landing_page_worker.tasks; import workers.campaign_worker.tasks  # noqa: F401, E702
     assert "workers.landing_page_worker.tasks.recompute_landing_pages" in app.tasks
     assert "workers.campaign_worker.tasks.recompute_campaigns" in app.tasks

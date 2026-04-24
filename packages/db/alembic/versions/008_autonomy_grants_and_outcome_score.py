@@ -4,8 +4,8 @@ Revision ID: 008_autonomy_grants
 Revises: 007_publish_policy
 Create Date: 2026-04-16
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = "008_autonomy_grants"

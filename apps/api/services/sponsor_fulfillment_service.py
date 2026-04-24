@@ -12,15 +12,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_event
 from packages.db.models.sponsor_campaigns import (
-    SponsorCampaign, SponsorPlacement,
+    SponsorCampaign,
+    SponsorPlacement,
 )
 
 logger = structlog.get_logger()
@@ -39,9 +38,9 @@ async def schedule_placement(
     placement_type: str,
     scheduled_at: datetime,
     position: int = 0,
-    notes: Optional[str] = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> SponsorPlacement:
     if placement_type not in VALID_PLACEMENT_TYPES:
         raise ValueError(
@@ -85,11 +84,11 @@ async def record_placement_delivered(
     db: AsyncSession,
     *,
     placement: SponsorPlacement,
-    delivered_at: Optional[datetime] = None,
-    metrics: Optional[dict] = None,
-    notes: Optional[str] = None,
+    delivered_at: datetime | None = None,
+    metrics: dict | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     if placement.status in ("delivered", "cancelled"):
         return {
@@ -137,10 +136,10 @@ async def record_placement_missed(
     placement: SponsorPlacement,
     reason: str,
     make_good: bool = True,
-    make_good_placement_type: Optional[str] = None,
-    make_good_scheduled_at: Optional[datetime] = None,
+    make_good_placement_type: str | None = None,
+    make_good_scheduled_at: datetime | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Mark a placement missed. If ``make_good=True``, also creates a
     new SponsorPlacement with ``make_good_of_placement_id`` pointing
@@ -160,7 +159,7 @@ async def record_placement_missed(
         placement.notes = f"[missed: {reason}]"
     await db.flush()
 
-    make_good_id: Optional[uuid.UUID] = None
+    make_good_id: uuid.UUID | None = None
     if make_good:
         mg_type = make_good_placement_type or placement.placement_type
         if mg_type not in VALID_PLACEMENT_TYPES:

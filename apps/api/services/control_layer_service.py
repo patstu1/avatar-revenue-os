@@ -14,12 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.enums import JobStatus
 from packages.db.models.accounts import CreatorAccount
-from packages.db.models.content import ContentItem, MediaJob
+from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
-from packages.db.models.publishing import PublishJob
 from packages.db.models.system import ProviderUsageCost, SystemJob
-from packages.db.models.system_events import OperatorAction, SystemEvent, SystemHealthSnapshot
+from packages.db.models.system_events import OperatorAction, SystemEvent
 
 logger = structlog.get_logger()
 

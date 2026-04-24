@@ -6,12 +6,10 @@ functions: get_auth_url, exchange_code, refresh_access_token.
 """
 from __future__ import annotations
 
-import hashlib
 import base64
+import hashlib
 import secrets
-import time
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import httpx
@@ -94,8 +92,8 @@ def get_auth_url(
     platform: str,
     client_id: str,
     redirect_uri: str,
-    state: Optional[str] = None,
-    code_verifier: Optional[str] = None,
+    state: str | None = None,
+    code_verifier: str | None = None,
 ) -> dict:
     """Build the authorization URL the user should be redirected to.
 
@@ -120,7 +118,7 @@ def get_auth_url(
         "state": state,
     }
 
-    verifier_out: Optional[str] = None
+    verifier_out: str | None = None
 
     if platform == "youtube":
         params["client_id"] = client_id
@@ -171,7 +169,7 @@ async def exchange_code(
     client_secret: str,
     code: str,
     redirect_uri: str,
-    code_verifier: Optional[str] = None,
+    code_verifier: str | None = None,
 ) -> dict:
     """Exchange authorization code for tokens + basic user info.
 
@@ -371,7 +369,7 @@ async def refresh_access_token(
 # ---------------------------------------------------------------------------
 
 
-async def ensure_valid_token(db, account) -> Optional[str]:
+async def ensure_valid_token(db, account) -> str | None:
     """Check if a CreatorAccount's access token is still valid; auto-refresh if expired.
 
     Args:
@@ -382,7 +380,6 @@ async def ensure_valid_token(db, account) -> Optional[str]:
     Returns:
         A valid access_token string, or None if refresh failed / no credentials.
     """
-    import os
     from apps.api.services.integration_manager import _encrypt
 
     if not account.platform_access_token:

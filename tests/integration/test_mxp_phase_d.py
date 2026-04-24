@@ -10,10 +10,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 
+from apps.api.deps import get_current_user, get_db
 from apps.api.main import app
-from apps.api.deps import get_db, get_current_user
-from apps.api.services import deal_desk_service
-from apps.api.services import kill_ledger_service
+from apps.api.services import deal_desk_service, kill_ledger_service
 from packages.db.enums import MonetizationMethod, Platform
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.core import Brand, Organization
@@ -169,8 +168,8 @@ async def test_kill_bundle_merges_hindsight(db_session):
 @pytest.mark.asyncio
 async def test_api_deal_desk_and_kill_ledger_routes(db_session):
     """Smoke-test GET routes with dependency overrides (no JWT)."""
-    from packages.db.models.core import User
     from packages.db.enums import UserRole
+    from packages.db.models.core import User
 
     org = Organization(name="API DD Org", slug="api-dd-org")
     db_session.add(org)

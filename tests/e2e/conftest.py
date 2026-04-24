@@ -8,8 +8,6 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import AsyncGenerator
-from datetime import datetime, timezone
-from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -17,8 +15,8 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from packages.db.base import Base
 import packages.db.models  # noqa: F401 — force model registration
+from packages.db.base import Base
 
 # ---------------------------------------------------------------------------
 # Database
@@ -30,7 +28,7 @@ TEST_DATABASE_URL = os.getenv(
 )
 
 # Track whether DB is reachable so we can give explicit skip reasons
-_DB_AVAILABLE: Optional[bool] = None
+_DB_AVAILABLE: bool | None = None
 _DB_SKIP_REASON: str = ""
 
 
@@ -77,8 +75,8 @@ def _skip_if_no_db(reason_suffix: str = ""):
 
 @pytest_asyncio.fixture
 async def api(db):
-    from apps.api.main import app
     from apps.api.deps import get_db
+    from apps.api.main import app
     from apps.api.rate_limit import auth_rate_limit, recompute_rate_limit
 
     async def _override_db():
@@ -238,7 +236,7 @@ def mock_smtp():
     with patch("smtplib.SMTP", autospec=True) as smtp_cls, \
          patch("smtplib.SMTP_SSL", autospec=True) as smtp_ssl_cls:
         for cls in (smtp_cls, smtp_ssl_cls):
-            inst = cls.return_value.__enter__ = MagicMock()
+            cls.return_value.__enter__ = MagicMock()
             cls.return_value.__exit__ = MagicMock(return_value=False)
             cls.return_value.sendmail = MagicMock()
             cls.return_value.send_message = MagicMock()

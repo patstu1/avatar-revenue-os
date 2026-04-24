@@ -1,8 +1,10 @@
 """Pydantic schemas for Workflow Builder."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
+
 
 class WFDefinitionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -14,7 +16,7 @@ class WFInstanceOut(BaseModel):
 
 class WFApprovalOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; notes: Optional[str] = None
+    id: uuid.UUID; notes: str | None = None
 
 class WFRejectionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

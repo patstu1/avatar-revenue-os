@@ -16,20 +16,16 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import structlog
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_action, emit_event
 from packages.db.enums import JobStatus
-from packages.db.models.core import Brand
 from packages.db.models.provider_registry import (
     ProviderBlocker,
-    ProviderReadinessReport,
     ProviderRegistryEntry,
-    ProviderUsageEvent,
 )
-from packages.db.models.system import AuditLog, ProviderUsageCost, SystemJob
-from packages.db.models.system_events import SystemEvent
+from packages.db.models.system import SystemJob
 
 logger = structlog.get_logger()
 

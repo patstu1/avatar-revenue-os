@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.accounts import CreatorAccount
@@ -16,7 +16,6 @@ from packages.scoring.revenue_intelligence import (
     OfferPerformanceProfile,
     TouchPoint,
     attribute_multi_model,
-    compute_optimal_offer_mix,
     compute_revenue_ceiling,
     compute_revenue_health_score,
     detect_revenue_anomalies,

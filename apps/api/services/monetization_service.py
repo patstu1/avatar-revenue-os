@@ -5,17 +5,17 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from sqlalchemy import select, func, update, and_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.monetization import (
     CreditLedger,
     CreditTransaction,
-    UsageMeterSnapshot,
-    PlanSubscription,
-    PackPurchase,
-    MultiplicationEvent,
     MonetizationTelemetryEvent,
+    MultiplicationEvent,
+    PackPurchase,
+    PlanSubscription,
+    UsageMeterSnapshot,
 )
 
 logger = structlog.get_logger()

@@ -12,8 +12,8 @@ No columns are added to existing tables. No foreign keys from existing
 tables into the new ones. Preserves the Batch 2B reply send-loop path
 untouched.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision = "010_proposals_payments"

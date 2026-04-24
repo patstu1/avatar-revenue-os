@@ -25,18 +25,16 @@ import io
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 import structlog
-from sqlalchemy import select, text, update
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_event
 from packages.db.models.core import Brand
 from packages.db.models.email_pipeline import (
-    EmailMessage,
     EmailReplyDraft,
-    EmailThread,
 )
 from packages.db.models.expansion_pack2_phase_c import (
     SponsorOutreachSequence,
@@ -90,7 +88,7 @@ async def bulk_import_leads_with_avenue(
     imported = 0
     skipped = 0
     errors: list[str] = []
-    first_id: Optional[uuid.UUID] = None
+    first_id: uuid.UUID | None = None
 
     for i, raw in enumerate(rows or []):
         company = (raw.get("company_name") or "").strip()
@@ -219,7 +217,7 @@ async def qualify_lead(
     avenue_slug_override: str | None = None,
     notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Update a sponsor_target with qualification verdict.
 
@@ -326,7 +324,7 @@ async def launch_outreach_for_segment(
     lead_ids: list[uuid.UUID] | None = None,
     sequence_template_slug: str = "default_v1",
     max_leads: int = 200,
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Create a SponsorOutreachSequence row for each lead in scope and
     schedule the outreach worker to send the first email.
@@ -462,7 +460,7 @@ async def pause_outreach_for_avenue(
     org_id: uuid.UUID,
     avenue_slug: str | None = None,
     sequence_ids: list[uuid.UUID] | None = None,
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Pause outreach by marking sequences is_active=false.
 
@@ -530,11 +528,11 @@ async def rewrite_draft(
     db: AsyncSession,
     *,
     draft: EmailReplyDraft,
-    new_subject: Optional[str] = None,
-    new_body_text: Optional[str] = None,
-    new_body_html: Optional[str] = None,
-    reason: Optional[str] = None,
-    actor_id: Optional[str] = None,
+    new_subject: str | None = None,
+    new_body_text: str | None = None,
+    new_body_html: str | None = None,
+    reason: str | None = None,
+    actor_id: str | None = None,
 ) -> EmailReplyDraft:
     """Replace a draft's subject/body, preserving the prior version in
     ``rewrite_history_json``. Does not send — status stays ``pending``."""
@@ -593,7 +591,7 @@ async def force_send_draft(
     db: AsyncSession,
     *,
     draft: EmailReplyDraft,
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Force-send a single approved draft via the existing
     ``reply_engine.send_approved_drafts`` path, bypassing the 60-second
@@ -631,18 +629,21 @@ async def route_lead_to_proposal(
     *,
     org_id: uuid.UUID,
     lead_id: uuid.UUID,
-    package_slug: Optional[str],
+    package_slug: str | None,
     line_items: list[dict],
-    title: Optional[str] = None,
+    title: str | None = None,
     summary: str = "",
-    notes: Optional[str] = None,
-    actor_id: Optional[str] = None,
+    notes: str | None = None,
+    actor_id: str | None = None,
 ) -> Proposal:
     """Create a Proposal from a qualified lead, carrying avenue_slug
     forward and back-linking via extra_json.source_lead_id.
     """
     from apps.api.services.proposals_service import (
-        LineItemInput, create_proposal as svc_create,
+        LineItemInput,
+    )
+    from apps.api.services.proposals_service import (
+        create_proposal as svc_create,
     )
 
     target = (

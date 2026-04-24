@@ -13,8 +13,6 @@ Money arriving should change the machine everywhere it should.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -131,15 +129,15 @@ async def handle_payment_received(
 
 async def auto_create_brief_from_decision(
     db: AsyncSession, brand_id: uuid.UUID,
-    *, decision_class: str, objective: str, target_platform: Optional[str] = None,
+    *, decision_class: str, objective: str, target_platform: str | None = None,
 ) -> dict:
     """Auto-generate a content brief from a brain decision or revenue opportunity.
 
     When the machine decides "create content for monetize opportunity X,"
     this function actually creates the ContentBrief instead of just labeling it.
     """
-    from packages.db.models.content import ContentBrief
     from packages.db.enums import ContentType
+    from packages.db.models.content import ContentBrief
     from packages.db.models.offers import Offer
 
     # Find the best offer to monetize with

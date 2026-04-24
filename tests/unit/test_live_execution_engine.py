@@ -1,5 +1,4 @@
 """Unit tests for Live Execution Closure Phase 1 engine logic."""
-import pytest
 
 from packages.scoring.live_execution_engine import (
     classify_analytics_source,
@@ -10,7 +9,6 @@ from packages.scoring.live_execution_engine import (
     validate_email_send,
     validate_sms_send,
 )
-
 
 # ── classify_analytics_source ──────────────────────────────────────────
 

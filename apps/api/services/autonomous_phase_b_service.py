@@ -22,7 +22,6 @@ from packages.db.models.autonomous_phase_b import (
     AutonomousRun,
     AutonomousRunStep,
     DistributionPlan,
-    ExecutionFailure,
     ExecutionPolicy,
     MonetizationRoute,
     SuppressionExecution,

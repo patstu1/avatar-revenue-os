@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import func, select
@@ -27,11 +26,10 @@ from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
 from packages.db.models.learning import MemoryEntry
-from packages.db.models.offers import Offer, SponsorProfile, SponsorOpportunity
-from packages.db.models.pattern_memory import WinningPatternMemory, LosingPatternMemory
-from packages.db.models.publishing import PerformanceMetric
+from packages.db.models.offers import Offer, SponsorOpportunity, SponsorProfile
+from packages.db.models.pattern_memory import LosingPatternMemory, WinningPatternMemory
 from packages.db.models.revenue_ledger import RevenueLedgerEntry
-from packages.db.models.system_events import OperatorAction, SystemEvent
+from packages.db.models.system_events import OperatorAction
 
 logger = structlog.get_logger()
 
@@ -42,7 +40,7 @@ async def run_full_scan(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     This is the research phase — gathering all data before producing a blueprint.
     """
     now = datetime.now(timezone.utc)
-    day_30 = now - timedelta(days=30)
+    now - timedelta(days=30)
     day_90 = now - timedelta(days=90)
 
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
@@ -182,7 +180,7 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
     if "error" in scan:
         return scan
 
-    niche = scan["brand"]["niche"] or "general"
+    scan["brand"]["niche"] or "general"
     platforms = scan["platforms"]
     accounts = scan["accounts"]["data"]
     revenue = scan["revenue"]
@@ -200,14 +198,14 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
     has_revenue = total_revenue > 0
     has_patterns = len(patterns["winning"]) > 0
     has_multiple_sources = len(revenue["by_source"]) >= 2
-    has_sponsor_activity = scan["sponsors"]["active_deals"] > 0
+    scan["sponsors"]["active_deals"] > 0
     monetization_density = scan["content"]["published"] - scan["content"]["unmonetized"]  # content WITH offers
-    content_velocity = scan["content"]["total"]  # total content produced
+    scan["content"]["total"]  # total content produced
     platform_count = len(platforms)
     account_count = len(accounts)
 
     # Revenue per follower (yield efficiency)
-    rev_per_follower = total_revenue / total_followers if total_followers > 0 else 0
+    total_revenue / total_followers if total_followers > 0 else 0
     # Monetization rate
     mon_rate = monetization_density / scan["content"]["published"] if scan["content"]["published"] > 0 else 0
 
@@ -330,7 +328,7 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
 
     # ── Suppress decisions — based on relative underperformance, not fixed thresholds ──
     suppress_list = []
-    avg_rev_per_account = total_revenue / len(accounts) if accounts else 0
+    total_revenue / len(accounts) if accounts else 0
     avg_content_per_account = scan["content"]["total"] / len(accounts) if accounts else 0
     for a in accounts:
         # Suppress if: has content but produces zero revenue AND is below average on all metrics
@@ -437,14 +435,14 @@ async def get_gm_directive(db: AsyncSession, brand_id: uuid.UUID) -> dict:
             "risk_warning": "Compounding works both ways. Suppress losers as aggressively as you scale winners.",
         },
         "channel_diversification": {
-            "headline": f"CHANNEL DIVERSIFICATION — Revenue proven but concentrated in one source.",
+            "headline": "CHANNEL DIVERSIFICATION — Revenue proven but concentrated in one source.",
             "priority_1": "Activate the next highest-potential revenue source per the blueprint",
             "priority_2": "Expand to platforms where the niche has untapped audience",
             "priority_3": "Begin sponsor/service pipeline if not yet active",
             "risk_warning": "Revenue concentration is the #1 scaling risk. Diversify before scaling harder.",
         },
         "high_yield_scaling": {
-            "headline": f"HIGH-YIELD SCALING — Multiple revenue sources, patterns proven, scaling up.",
+            "headline": "HIGH-YIELD SCALING — Multiple revenue sources, patterns proven, scaling up.",
             "priority_1": "Scale winning accounts — more content, more offers, more platforms",
             "priority_2": "Launch high-ticket monetization (services, products, premium sponsors)",
             "priority_3": "Automate everything that can be automated — the machine should handle it",
@@ -465,7 +463,7 @@ async def get_gm_directive(db: AsyncSession, brand_id: uuid.UUID) -> dict:
             "risk_warning": "The goal is not more content — it's more revenue per content piece.",
         },
         "risk_managed_scale": {
-            "headline": f"RISK-MANAGED SCALE — Scaling with governance and risk controls active.",
+            "headline": "RISK-MANAGED SCALE — Scaling with governance and risk controls active.",
             "priority_1": "Continue scaling highest-yield paths while monitoring risk signals",
             "priority_2": "Ensure platform diversification prevents single-point-of-failure",
             "priority_3": "Build moat: owned audience, proprietary data, exclusive deals",
@@ -537,7 +535,7 @@ def _status_line(health: float, revenue: float, followers: int, accounts: int) -
         return f"{followers:,} followers across {accounts} accounts. No revenue yet — monetization activation needed."
     # Dynamic: describe revenue relative to portfolio capacity
     rev_per_follower = revenue / followers if followers > 0 else 0
-    rev_per_account = revenue / accounts if accounts > 0 else 0
+    revenue / accounts if accounts > 0 else 0
     if rev_per_follower < 0.01:
         return f"${revenue:,.0f}/90d — low yield per follower. Monetization density needs improvement."
     if rev_per_follower < 0.05:
@@ -552,14 +550,11 @@ def _status_line(health: float, revenue: float, followers: int, accounts: int) -
 import json
 import os
 
-from packages.db.models.content import ContentBrief
-from packages.db.models.offers import Offer
-from packages.db.models.operator_permission_matrix import OperatorPermissionMatrix
-from packages.db.enums import ContentType
-
-from apps.api.services.event_bus import emit_event, emit_action
+from apps.api.services.event_bus import emit_action, emit_event
 from apps.api.services.gm_system_prompt import GM_OPERATOR_PROMPT
-
+from packages.db.enums import ContentType
+from packages.db.models.content import ContentBrief
+from packages.db.models.operator_permission_matrix import OperatorPermissionMatrix
 
 # ── Tool Definitions for Claude API ──────────────────────────────────────────
 
@@ -876,7 +871,7 @@ async def _exec_resume_account(
 
     await emit_event(
         db, domain="gm", event_type="gm.account_resumed",
-        summary=f"GM resumed account",
+        summary="GM resumed account",
         org_id=org_id, brand_id=brand_id,
         entity_type="creator_account", entity_id=acct.id,
         actor_type="system", actor_id="gm_ai",
@@ -951,7 +946,7 @@ async def _exec_add_account(
         )
         return {"status": "approval_required", "action_id": str(action.id)}
 
-    from packages.db.enums import Platform, AccountType
+    from packages.db.enums import AccountType, Platform
     _platform_aliases = {"x": "twitter", "twitter/x": "twitter", "x/twitter": "twitter"}
     raw = params["platform"].lower().strip()
     raw = _platform_aliases.get(raw, raw)
@@ -1288,7 +1283,7 @@ async def gm_conversation(
 async def get_startup_prompt(
     db: AsyncSession,
     org_id: uuid.UUID,
-) -> Optional[str]:
+) -> str | None:
     """Return a state-aware GM opening message, or None if fully configured.
 
     Checks org-level counts and returns the appropriate conversational opener:

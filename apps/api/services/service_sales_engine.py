@@ -13,7 +13,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_action
-from packages.db.models.core import Brand
 from packages.db.models.revenue_ledger import RevenueLedgerEntry
 from packages.db.models.saas_metrics import HighTicketDeal
 

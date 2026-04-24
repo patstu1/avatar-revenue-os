@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -117,7 +116,7 @@ async def reject_draft(
     *,
     draft_id: uuid.UUID,
     actor: User,
-    reason: Optional[str] = None,
+    reason: str | None = None,
 ) -> EmailReplyDraft:
     """Reject a draft so the send worker never picks it up.
 

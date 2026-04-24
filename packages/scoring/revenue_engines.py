@@ -6,8 +6,6 @@ All functions are pure/deterministic — no DB access. Service layer handles per
 
 from __future__ import annotations
 
-from typing import Any, Optional
-
 REVENUE_INTEL_SOURCE = "revenue_intel_engine"
 
 MONETIZATION_LAYERS = [
@@ -23,7 +21,7 @@ MONETIZATION_LAYERS = [
 def optimize_offer_stack(
     content: dict,
     offers: list[dict],
-    segment: Optional[dict],
+    segment: dict | None,
 ) -> list[dict]:
     """Rank offer combinations (primary + secondary + downsell) for a content item."""
     if not offers:

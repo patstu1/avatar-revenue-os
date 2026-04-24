@@ -23,8 +23,8 @@ import pytest
 from sqlalchemy import select
 
 from packages.db.models.clients import IntakeRequest
-from packages.db.models.delivery import Delivery, ProductionQAReview
-from packages.db.models.fulfillment import ClientProject, ProductionJob, ProjectBrief
+from packages.db.models.delivery import Delivery
+from packages.db.models.fulfillment import ClientProject, ProductionJob
 from packages.db.models.system_events import SystemEvent
 
 

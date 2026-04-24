@@ -8,8 +8,8 @@ Batch 3B. Additive schema — no changes to existing tables. Each table
 is guarded by ``IF NOT EXISTS`` so re-running on a partially migrated
 DB is safe.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision = "011_clients_intake"

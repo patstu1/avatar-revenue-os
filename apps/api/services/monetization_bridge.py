@@ -19,17 +19,16 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_action, emit_event
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
-from packages.db.models.creator_revenue import CreatorRevenueBlocker, CreatorRevenueEvent, CreatorRevenueOpportunity
-from packages.db.models.offers import Offer, SponsorOpportunity, SponsorProfile
+from packages.db.models.creator_revenue import CreatorRevenueBlocker
+from packages.db.models.offers import Offer
 from packages.db.models.publishing import AttributionEvent, PerformanceMetric
 from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
@@ -41,7 +40,7 @@ logger = structlog.get_logger()
 
 async def select_best_offer_for_content(
     db: AsyncSession, brand_id: uuid.UUID,
-) -> Optional[Offer]:
+) -> Offer | None:
     """Pick the highest-value active offer for a brand.
 
     Weighted by EPC (70%) and priority (30%, scaled by 0.03):
@@ -65,7 +64,7 @@ async def select_best_offer_for_content(
 
 async def assign_offer_to_content(
     db: AsyncSession, content_id: uuid.UUID, offer_id: uuid.UUID,
-    *, org_id: Optional[uuid.UUID] = None, actor_id: Optional[str] = None,
+    *, org_id: uuid.UUID | None = None, actor_id: str | None = None,
 ) -> ContentItem:
     """Link an offer to a content item for revenue attribution."""
     item = (await db.execute(select(ContentItem).where(ContentItem.id == content_id))).scalar_one_or_none()
@@ -99,12 +98,12 @@ async def assign_offer_to_content(
 
 async def record_affiliate_commission_to_ledger(
     db: AsyncSession, *, brand_id: uuid.UUID, gross_amount: float,
-    offer_id: Optional[uuid.UUID] = None, content_item_id: Optional[uuid.UUID] = None,
-    creator_account_id: Optional[uuid.UUID] = None, affiliate_link_id: Optional[uuid.UUID] = None,
-    source_object_id: Optional[uuid.UUID] = None, net_amount: Optional[float] = None,
-    platform_fee: float = 0.0, external_transaction_id: Optional[str] = None,
-    payment_processor: Optional[str] = None, description: Optional[str] = None,
-    metadata: Optional[dict] = None,
+    offer_id: uuid.UUID | None = None, content_item_id: uuid.UUID | None = None,
+    creator_account_id: uuid.UUID | None = None, affiliate_link_id: uuid.UUID | None = None,
+    source_object_id: uuid.UUID | None = None, net_amount: float | None = None,
+    platform_fee: float = 0.0, external_transaction_id: str | None = None,
+    payment_processor: str | None = None, description: str | None = None,
+    metadata: dict | None = None,
 ) -> RevenueLedgerEntry:
     """Record an affiliate commission to the canonical ledger."""
     entry = RevenueLedgerEntry(
@@ -138,12 +137,12 @@ async def record_affiliate_commission_to_ledger(
 
 async def record_sponsor_payment_to_ledger(
     db: AsyncSession, *, brand_id: uuid.UUID, gross_amount: float,
-    sponsor_id: Optional[uuid.UUID] = None, source_object_id: Optional[uuid.UUID] = None,
-    content_item_id: Optional[uuid.UUID] = None, creator_account_id: Optional[uuid.UUID] = None,
-    campaign_id: Optional[uuid.UUID] = None, net_amount: Optional[float] = None,
+    sponsor_id: uuid.UUID | None = None, source_object_id: uuid.UUID | None = None,
+    content_item_id: uuid.UUID | None = None, creator_account_id: uuid.UUID | None = None,
+    campaign_id: uuid.UUID | None = None, net_amount: float | None = None,
     platform_fee: float = 0.0, payment_state: str = "pending",
-    external_transaction_id: Optional[str] = None, payment_processor: Optional[str] = None,
-    description: Optional[str] = None, metadata: Optional[dict] = None,
+    external_transaction_id: str | None = None, payment_processor: str | None = None,
+    description: str | None = None, metadata: dict | None = None,
 ) -> RevenueLedgerEntry:
     """Record a sponsor deal payment to the canonical ledger."""
     entry = RevenueLedgerEntry(
@@ -184,11 +183,11 @@ async def record_sponsor_payment_to_ledger(
 
 async def record_service_payment_to_ledger(
     db: AsyncSession, *, brand_id: uuid.UUID, gross_amount: float,
-    source_object_id: Optional[uuid.UUID] = None, net_amount: Optional[float] = None,
-    platform_fee: float = 0.0, external_transaction_id: Optional[str] = None,
-    payment_processor: str = "stripe", webhook_ref: Optional[str] = None,
-    content_item_id: Optional[uuid.UUID] = None, creator_account_id: Optional[uuid.UUID] = None,
-    description: Optional[str] = None, metadata: Optional[dict] = None,
+    source_object_id: uuid.UUID | None = None, net_amount: float | None = None,
+    platform_fee: float = 0.0, external_transaction_id: str | None = None,
+    payment_processor: str = "stripe", webhook_ref: str | None = None,
+    content_item_id: uuid.UUID | None = None, creator_account_id: uuid.UUID | None = None,
+    description: str | None = None, metadata: dict | None = None,
     auto_close_pipeline: bool = True,
 ) -> RevenueLedgerEntry:
     """Record a service/consulting payment to the canonical ledger.
@@ -236,11 +235,11 @@ async def record_service_payment_to_ledger(
 
 async def record_product_sale_to_ledger(
     db: AsyncSession, *, brand_id: uuid.UUID, gross_amount: float,
-    source_object_id: Optional[uuid.UUID] = None, offer_id: Optional[uuid.UUID] = None,
-    content_item_id: Optional[uuid.UUID] = None, net_amount: Optional[float] = None,
-    platform_fee: float = 0.0, external_transaction_id: Optional[str] = None,
-    payment_processor: str = "shopify", webhook_ref: Optional[str] = None,
-    description: Optional[str] = None, metadata: Optional[dict] = None,
+    source_object_id: uuid.UUID | None = None, offer_id: uuid.UUID | None = None,
+    content_item_id: uuid.UUID | None = None, net_amount: float | None = None,
+    platform_fee: float = 0.0, external_transaction_id: str | None = None,
+    payment_processor: str = "shopify", webhook_ref: str | None = None,
+    description: str | None = None, metadata: dict | None = None,
 ) -> RevenueLedgerEntry:
     """Record a product sale to the canonical ledger."""
     entry = RevenueLedgerEntry(
@@ -272,9 +271,9 @@ async def record_product_sale_to_ledger(
 
 async def record_ad_revenue_to_ledger(
     db: AsyncSession, *, brand_id: uuid.UUID, gross_amount: float,
-    content_item_id: Optional[uuid.UUID] = None, creator_account_id: Optional[uuid.UUID] = None,
-    platform_fee: float = 0.0, payment_processor: Optional[str] = None,
-    description: Optional[str] = None, metadata: Optional[dict] = None,
+    content_item_id: uuid.UUID | None = None, creator_account_id: uuid.UUID | None = None,
+    platform_fee: float = 0.0, payment_processor: str | None = None,
+    description: str | None = None, metadata: dict | None = None,
 ) -> RevenueLedgerEntry:
     """Record platform ad revenue to the canonical ledger."""
     entry = RevenueLedgerEntry(
@@ -296,8 +295,8 @@ async def record_ad_revenue_to_ledger(
 
 async def record_refund_to_ledger(
     db: AsyncSession, *, brand_id: uuid.UUID, refund_amount: float,
-    refund_of_id: uuid.UUID, reason: Optional[str] = None,
-    webhook_ref: Optional[str] = None, metadata: Optional[dict] = None,
+    refund_of_id: uuid.UUID, reason: str | None = None,
+    webhook_ref: str | None = None, metadata: dict | None = None,
 ) -> RevenueLedgerEntry:
     """Record a refund as a negative ledger entry linked to the original."""
     original = (await db.execute(
@@ -388,8 +387,8 @@ async def get_ledger_summary(
 
 
 async def get_ledger_entries(
-    db: AsyncSession, brand_id: uuid.UUID, *, source_type: Optional[str] = None,
-    payment_state: Optional[str] = None, limit: int = 50, offset: int = 0,
+    db: AsyncSession, brand_id: uuid.UUID, *, source_type: str | None = None,
+    payment_state: str | None = None, limit: int = 50, offset: int = 0,
 ) -> list[dict]:
     """Paginated ledger entries with optional filters."""
     query = select(RevenueLedgerEntry).where(
@@ -514,8 +513,8 @@ async def get_brand_revenue_state(db: AsyncSession, brand_id: uuid.UUID) -> dict
 async def attribute_revenue_event(
     db: AsyncSession, brand_id: uuid.UUID, *, revenue: float,
     event_type: str = "conversion", source: str = "webhook",
-    offer_id: Optional[uuid.UUID] = None, content_item_id: Optional[uuid.UUID] = None,
-    metadata: Optional[dict] = None,
+    offer_id: uuid.UUID | None = None, content_item_id: uuid.UUID | None = None,
+    metadata: dict | None = None,
 ) -> dict:
     """Create attribution event AND canonical ledger entry."""
     if content_item_id and not offer_id:

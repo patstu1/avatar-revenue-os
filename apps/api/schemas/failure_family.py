@@ -1,7 +1,8 @@
 """Pydantic schemas for Failure-Family Suppression."""
 from __future__ import annotations
+
 import uuid
-from typing import Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -12,8 +13,8 @@ class FFReportOut(BaseModel):
     family_key: str
     failure_count: int
     avg_fail_score: float
-    recommended_alternative: Optional[str] = None
-    explanation: Optional[str] = None
+    recommended_alternative: str | None = None
+    explanation: str | None = None
 
 
 class SuppressionRuleOut(BaseModel):
@@ -23,7 +24,7 @@ class SuppressionRuleOut(BaseModel):
     family_key: str
     suppression_mode: str
     retest_after_days: int
-    reason: Optional[str] = None
+    reason: str | None = None
     is_active: bool
 
 
@@ -32,7 +33,7 @@ class SuppressionEventOut(BaseModel):
     id: uuid.UUID
     blocked_target: str
     blocked_context: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class RecomputeSummaryOut(BaseModel):

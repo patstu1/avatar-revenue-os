@@ -318,11 +318,11 @@ def select_monetization_route(
     """
     hint = str(content_context.get("monetization_path_hint", ""))
     content_family = str(content_context.get("content_family", "general"))
-    niche = str(content_context.get("niche", ""))
-    urgency = _clamp(float(content_context.get("urgency", 0.5)))
+    str(content_context.get("niche", ""))
+    _clamp(float(content_context.get("urgency", 0.5)))
 
     conversion_intent = _clamp(float(audience_signals.get("conversion_intent", 0.3)))
-    engagement_rate = float(audience_signals.get("engagement_rate", 0.02))
+    float(audience_signals.get("engagement_rate", 0.02))
     email_list = int(audience_signals.get("email_list_size", 0))
     community_size = int(audience_signals.get("community_size", 0))
     follower_count = int(audience_signals.get("follower_count", 0))
@@ -502,7 +502,7 @@ def evaluate_suppressions(
                 "affected_entity_id": acct.get("account_id"),
                 "trigger_reason": f"Account maturity '{maturity}' — blocking expansion.",
                 "duration_hours": None,
-                "lift_condition": f"maturity_state in ('stable', 'scaling')",
+                "lift_condition": "maturity_state in ('stable', 'scaling')",
                 "confidence": 0.80,
                 "explanation": f"Blocking expansion for {maturity} account.",
                 EPE: True,

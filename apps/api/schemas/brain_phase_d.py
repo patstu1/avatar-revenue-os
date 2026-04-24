@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -23,14 +23,14 @@ class MetaMonitoringReportOut(BaseModel):
     dead_agent_count: int
     low_signal_count: int
     wasted_action_count: int
-    weak_areas_json: Optional[Any] = None
-    recommended_corrections_json: Optional[Any] = None
-    inputs_json: Optional[Any] = None
+    weak_areas_json: Any | None = None
+    recommended_corrections_json: Any | None = None
+    inputs_json: Any | None = None
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -43,12 +43,12 @@ class SelfCorrectionActionOut(BaseModel):
     effect_target: str
     severity: str
     applied: bool
-    payload_json: Optional[Any] = None
+    payload_json: Any | None = None
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -58,15 +58,15 @@ class ReadinessBrainReportOut(BaseModel):
     brand_id: UUID
     readiness_score: float
     readiness_band: str
-    blockers_json: Optional[Any] = None
-    allowed_actions_json: Optional[Any] = None
-    forbidden_actions_json: Optional[Any] = None
-    inputs_json: Optional[Any] = None
+    blockers_json: Any | None = None
+    allowed_actions_json: Any | None = None
+    forbidden_actions_json: Any | None = None
+    inputs_json: Any | None = None
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -80,13 +80,13 @@ class BrainEscalationOut(BaseModel):
     expected_upside_unlocked: float
     expected_cost_of_delay: float
     affected_scope: str
-    supporting_data_json: Optional[Any] = None
+    supporting_data_json: Any | None = None
     confidence: float
     resolved: bool
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -94,4 +94,4 @@ class BrainEscalationOut(BaseModel):
 class RecomputeSummaryOut(BaseModel):
     status: str
     detail: str
-    counts: Optional[Any] = None
+    counts: Any | None = None

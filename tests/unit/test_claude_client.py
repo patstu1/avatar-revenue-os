@@ -2,8 +2,8 @@
 import pytest
 
 from packages.clients.claude_client import (
-    ClaudeCopilotClient,
     SYSTEM_PROMPT,
+    ClaudeCopilotClient,
     _build_context_block,
     _hash_context,
 )

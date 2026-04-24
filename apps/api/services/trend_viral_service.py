@@ -1,22 +1,36 @@
 """Trend / Viral Opportunity Service — scan, score, persist, suppress."""
 from __future__ import annotations
+
 import asyncio
 import logging
 import uuid
-from typing import Any
 from datetime import datetime, timezone
+from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.core import Brand
 from packages.db.models.discovery import TrendSignal as DiscoveryTrend
 from packages.db.models.trend_viral import (
-    TrendSignalEvent, TrendVelocityReport, ViralOpportunity, TrendOpportunityScore,
-    TrendDuplicate, TrendSuppressionRule, TrendBlocker, TrendSourceHealth,
+    TrendBlocker,
+    TrendDuplicate,
+    TrendOpportunityScore,
+    TrendSignalEvent,
+    TrendSourceHealth,
+    TrendSuppressionRule,
+    TrendVelocityReport,
+    ViralOpportunity,
 )
 from packages.scoring.trend_viral_engine import (
-    extract_signals, compute_velocity, check_duplicate, score_opportunity,
-    classify_opportunity, should_suppress, detect_blockers,
+    check_duplicate,
+    classify_opportunity,
+    compute_velocity,
+    detect_blockers,
+    extract_signals,
+    score_opportunity,
+    should_suppress,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,8 +59,10 @@ async def _fetch_external_trends(db: AsyncSession, brand_id: uuid.UUID) -> list[
     """
     from apps.api.services.integration_manager import get_credential
     from packages.clients.trend_data_clients import (
-        YouTubeTrendingClient, GoogleTrendsClient,
-        RedditTrendingClient, TikTokTrendClient,
+        GoogleTrendsClient,
+        RedditTrendingClient,
+        TikTokTrendClient,
+        YouTubeTrendingClient,
     )
 
     brand = (await db.execute(

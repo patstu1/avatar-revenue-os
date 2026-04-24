@@ -1,5 +1,6 @@
 """Hyper-Scale Execution Engine — partitioning, burst, degradation, ceilings. Pure functions."""
 from __future__ import annotations
+
 from typing import Any
 
 SEGMENT_TYPES = ["brand", "team", "region", "workflow", "language", "priority"]
@@ -97,8 +98,8 @@ def schedule_priority(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def balance_market_workload(allocations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Balance workload across markets/languages."""
-    total_allocated = sum(a.get("allocated_capacity", 0) for a in allocations)
-    total_used = sum(a.get("used_capacity", 0) for a in allocations)
+    sum(a.get("allocated_capacity", 0) for a in allocations)
+    sum(a.get("used_capacity", 0) for a in allocations)
 
     balanced = []
     for a in allocations:

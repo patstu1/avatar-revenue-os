@@ -1,9 +1,14 @@
 """Unit tests for opportunity-cost ranking engine — pure functions, no DB."""
 import pytest
+
 from packages.scoring.opportunity_cost_engine import (
-    ACTION_TYPES, SAFE_WAIT_THRESHOLD,
-    generate_candidates, score_upside, score_cost_of_delay,
-    score_urgency, rank_actions, build_report,
+    ACTION_TYPES,
+    build_report,
+    generate_candidates,
+    rank_actions,
+    score_cost_of_delay,
+    score_upside,
+    score_urgency,
 )
 
 

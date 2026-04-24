@@ -3,6 +3,7 @@
 Each account gets a persistent, differentiated voice so no two accounts sound alike.
 """
 from __future__ import annotations
+
 import hashlib
 import random
 from typing import Any

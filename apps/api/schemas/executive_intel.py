@@ -1,8 +1,10 @@
 """Pydantic schemas for Executive Intelligence."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
+
 
 class EIKPIOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -10,11 +12,11 @@ class EIKPIOut(BaseModel):
 
 class EIForecastOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; forecast_type: str; forecast_period: str; predicted_value: float; confidence: float; explanation: Optional[str] = None
+    id: uuid.UUID; forecast_type: str; forecast_period: str; predicted_value: float; confidence: float; explanation: str | None = None
 
 class EIUsageCostOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; period: str; provider_key: Optional[str] = None; tasks_executed: int; cost_incurred: float
+    id: uuid.UUID; period: str; provider_key: str | None = None; tasks_executed: int; cost_incurred: float
 
 class EIUptimeOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -22,11 +24,11 @@ class EIUptimeOut(BaseModel):
 
 class EIOversightOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; mode: str; auto_approved_count: int; human_reviewed_count: int; override_count: int; ai_accuracy_estimate: float; recommendation: Optional[str] = None
+    id: uuid.UUID; mode: str; auto_approved_count: int; human_reviewed_count: int; override_count: int; ai_accuracy_estimate: float; recommendation: str | None = None
 
 class EIAlertOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; alert_type: str; severity: str; title: str; detail: str; recommended_action: Optional[str] = None
+    id: uuid.UUID; alert_type: str; severity: str; title: str; detail: str; recommended_action: str | None = None
 
 class RecomputeSummaryOut(BaseModel):
     rows_processed: int = 0; status: str = "completed"

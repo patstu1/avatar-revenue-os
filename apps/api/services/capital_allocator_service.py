@@ -1,5 +1,6 @@
 """Portfolio Capital Allocator Service — gather inputs, solve, persist, rebalance."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
 
@@ -8,17 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.capital_allocator import (
-    CAAllocationConstraint, CAAllocationDecision, CAAllocationRebalance,
-    AllocationTarget, CapitalAllocationReport,
+    AllocationTarget,
+    CAAllocationConstraint,
+    CAAllocationDecision,
+    CAAllocationRebalance,
+    CapitalAllocationReport,
 )
-from packages.db.models.content import ContentItem
-from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
-from packages.db.models.pattern_memory import WinningPatternCluster, WinningPatternMemory
-from packages.db.models.promote_winner import ActiveExperiment, PromotedWinnerRule
+from packages.db.models.pattern_memory import WinningPatternCluster
+from packages.db.models.promote_winner import ActiveExperiment
 from packages.db.models.publishing import PerformanceMetric
 from packages.scoring.capital_allocator_engine import (
-    rebalance as engine_rebalance,
     solve_allocation,
 )
 

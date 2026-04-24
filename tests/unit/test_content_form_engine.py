@@ -1,8 +1,6 @@
 """Unit tests for Content Form Selection + Mix Allocation engine."""
 from __future__ import annotations
 
-import pytest
-
 from packages.scoring.content_form_engine import (
     AVATAR_MODES,
     CONTENT_FORMS,

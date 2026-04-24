@@ -1,6 +1,12 @@
 """Unit tests for affiliate intelligence engine."""
-import pytest
-from packages.scoring.affiliate_intel_engine import rank_offer, rank_offers, select_best_offer, build_affiliate_link, detect_leaks, detect_blockers
+from packages.scoring.affiliate_intel_engine import (
+    build_affiliate_link,
+    detect_blockers,
+    detect_leaks,
+    rank_offer,
+    rank_offers,
+    select_best_offer,
+)
 
 
 class TestRanking:

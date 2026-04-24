@@ -37,14 +37,12 @@ ContentItem is allowed to transition into `approved` state at all.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.content import Asset, ContentItem
-
 
 # Platforms that require a media asset to publish at all.
 MEDIA_REQUIRED_PLATFORMS = {"instagram", "tiktok", "youtube"}
@@ -67,25 +65,25 @@ class ReadinessResult:
         return self.ok
 
 
-def _is_public_http_url(path: Optional[str]) -> bool:
+def _is_public_http_url(path: str | None) -> bool:
     if not path:
         return False
     return path.startswith("http://") or path.startswith("https://")
 
 
-def _is_video_mime(mime: Optional[str]) -> bool:
+def _is_video_mime(mime: str | None) -> bool:
     if not mime:
         return False
     return mime.startswith("video/")
 
 
-def _is_image_mime(mime: Optional[str]) -> bool:
+def _is_image_mime(mime: str | None) -> bool:
     if not mime:
         return False
     return mime.startswith("image/")
 
 
-async def _load_asset(db: AsyncSession, asset_id: Optional[UUID]) -> Optional[Asset]:
+async def _load_asset(db: AsyncSession, asset_id: UUID | None) -> Asset | None:
     if not asset_id:
         return None
     return (

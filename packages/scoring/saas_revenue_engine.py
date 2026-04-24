@@ -14,14 +14,12 @@ import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _parse_date(d: str | datetime | None) -> Optional[datetime]:
+def _parse_date(d: str | datetime | None) -> datetime | None:
     if d is None:
         return None
     if isinstance(d, datetime):
@@ -280,12 +278,12 @@ class CustomerHealthSignals:
     login_frequency_30d: int
     feature_adoption_pct: float
     support_tickets_30d: int
-    nps_score: Optional[float] = None
+    nps_score: float | None = None
     usage_trend: str = "stable"
     billing_issues: int = 0
     engagement_score: float = 50.0
     last_active_days_ago: int = 0
-    contract_months_remaining: Optional[int] = None
+    contract_months_remaining: int | None = None
     expansion_signals: int = 0
 
 
@@ -627,7 +625,6 @@ def batch_churn_analysis(
 
     priority_queue = sorted(profiles, key=lambda p: (-p.revenue_at_risk, -p.churn_probability))
 
-    avg_retention_lift = 0.20
     expected_saves = 0
     expected_revenue_recovered = 0.0
     intervention_plan: list[dict] = []
@@ -684,7 +681,7 @@ class ExpansionOpportunity:
     recommended_approach: str = ""
 
 
-def _find_next_plan(current_plan: str, plan_ladder: list[dict]) -> Optional[dict]:
+def _find_next_plan(current_plan: str, plan_ladder: list[dict]) -> dict | None:
     """Find the next tier up from the current plan."""
     sorted_plans = sorted(plan_ladder, key=lambda p: p.get("mrr", 0))
     found_current = False
@@ -696,7 +693,7 @@ def _find_next_plan(current_plan: str, plan_ladder: list[dict]) -> Optional[dict
     return None
 
 
-def _find_plan_by_name(name: str, plan_ladder: list[dict]) -> Optional[dict]:
+def _find_plan_by_name(name: str, plan_ladder: list[dict]) -> dict | None:
     for plan in plan_ladder:
         if plan.get("plan_name", "") == name:
             return plan
@@ -707,7 +704,7 @@ def _score_upsell_readiness(
     customer: CustomerHealthSignals,
     usage_pcts: dict[str, float],
     current_plan: dict,
-    next_plan: Optional[dict],
+    next_plan: dict | None,
 ) -> tuple[float, list[str], str]:
     """Score upsell readiness [0-1] and identify trigger signals."""
     if next_plan is None:
@@ -1055,9 +1052,9 @@ def optimize_pricing_tiers(
             revenue_max_price = current_price * 1.15
 
         if unit_cost > 0 and elasticity < -1:
-            profit_max_price = unit_cost * abs(elasticity) / (abs(elasticity) - 1)
+            unit_cost * abs(elasticity) / (abs(elasticity) - 1)
         else:
-            profit_max_price = revenue_max_price
+            pass
 
         recommended = max(revenue_max_price, min_price_for_margin)
 
@@ -1707,12 +1704,7 @@ def prioritize_revenue_avenues(
         if skill_gap > 0:
             base_score *= (1.0 - skill_gap * 0.25)
 
-        ttr = float(profile["time_to_revenue_months"])
-        time_label = (
-            "immediate" if ttr == 0
-            else f"{ttr:.0f} month{'s' if ttr != 1 else ''}" if ttr <= 2
-            else f"{ttr:.0f} months"
-        )
+        float(profile["time_to_revenue_months"])
 
         reasoning_parts = []
         if avenue in active_avenues:
@@ -1770,8 +1762,8 @@ def prioritize_revenue_avenues(
 class RevenueIntelligenceReport:
     """Top-level output combining all engines into a single actionable report."""
     generated_at: str
-    saas_metrics: Optional[SaaSMetrics] = None
-    churn_analysis: Optional[dict] = None
+    saas_metrics: SaaSMetrics | None = None
+    churn_analysis: dict | None = None
     expansion_opportunities: list[ExpansionOpportunity] = field(default_factory=list)
     pricing_recommendations: list[PricingRecommendation] = field(default_factory=list)
     cohort_analysis: list[CohortMetrics] = field(default_factory=list)

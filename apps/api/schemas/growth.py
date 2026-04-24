@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,13 +13,13 @@ class AudienceSegmentResponse(BaseModel):
 
     id: uuid.UUID
     name: str
-    description: Optional[str] = None
-    segment_criteria: Optional[dict[str, Any]] = None
+    description: str | None = None
+    segment_criteria: dict[str, Any] | None = None
     estimated_size: int = 0
     revenue_contribution: float = 0.0
     conversion_rate: float = 0.0
     avg_ltv: float = 0.0
-    platforms: Optional[Any] = None
+    platforms: Any | None = None
     is_active: bool = True
 
 
@@ -29,13 +29,13 @@ class LtvModelResponse(BaseModel):
     id: uuid.UUID
     segment_name: str
     model_type: str = "rules_based"
-    parameters: Optional[dict[str, Any]] = None
+    parameters: dict[str, Any] | None = None
     estimated_ltv_30d: float = 0.0
     estimated_ltv_90d: float = 0.0
     estimated_ltv_365d: float = 0.0
     confidence: float = 0.0
     sample_size: int = 0
-    last_trained_at: Optional[str] = None
+    last_trained_at: str | None = None
     is_active: bool = True
 
 
@@ -43,13 +43,13 @@ class RevenueLeakRow(BaseModel):
     id: str
     leak_type: str
     affected_entity_type: str
-    affected_entity_id: Optional[str] = None
+    affected_entity_id: str | None = None
     estimated_leaked_revenue: float
     estimated_recoverable: float
-    root_cause: Optional[str] = None
-    recommended_fix: Optional[str] = None
+    root_cause: str | None = None
+    recommended_fix: str | None = None
     severity: str = "medium"
-    details: Optional[dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 
 
 class LeaksDashboardResponse(BaseModel):
@@ -63,18 +63,18 @@ class GeoLanguageRecRow(BaseModel):
     id: str
     target_geography: str
     target_language: str
-    target_platform: Optional[str] = None
+    target_platform: str | None = None
     estimated_audience_size: int = 0
     estimated_revenue_potential: float = 0.0
     entry_cost_estimate: float = 0.0
-    rationale: Optional[str] = None
+    rationale: str | None = None
     confidence: str = "medium"
 
 
 class ExpansionRecommendationsResponse(BaseModel):
     geo_language_recommendations: list[GeoLanguageRecRow] = Field(default_factory=list)
     cross_platform_flow_plans: list[dict[str, Any]] = Field(default_factory=list)
-    latest_expansion_decision_id: Optional[str] = None
+    latest_expansion_decision_id: str | None = None
 
 
 class PaidJobRow(BaseModel):
@@ -85,7 +85,7 @@ class PaidJobRow(BaseModel):
     spent: float
     status: str
     roi: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_candidate: bool = False
 
 
@@ -96,7 +96,7 @@ class PaidAmplificationResponse(BaseModel):
 
 class TrustReportRow(BaseModel):
     id: str
-    creator_account_id: Optional[str] = None
+    creator_account_id: str | None = None
     trust_score: float
     components: dict[str, Any] = Field(default_factory=dict)
     recommendations: list[Any] = Field(default_factory=list)

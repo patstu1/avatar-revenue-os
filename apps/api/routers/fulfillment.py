@@ -8,7 +8,6 @@ needed.
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException
@@ -38,7 +37,7 @@ router = APIRouter(tags=["Fulfillment"])
 async def list_projects(
     current_user: OperatorUser,
     db: DBSession,
-    status: Optional[str] = None,
+    status: str | None = None,
     limit: int = 50,
 ):
     q = select(ClientProject).where(
@@ -136,7 +135,7 @@ async def get_brief(
 
 class LaunchProductionBody(BaseModel):
     job_type: str = "content_pack"
-    title: Optional[str] = None
+    title: str | None = None
 
 
 @router.post("/briefs/{brief_id}/launch-production", status_code=201)
@@ -166,7 +165,7 @@ async def launch_production(
 async def list_production_jobs(
     current_user: OperatorUser,
     db: DBSession,
-    status: Optional[str] = None,
+    status: str | None = None,
     limit: int = 50,
 ):
     q = select(ProductionJob).where(

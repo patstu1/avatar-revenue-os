@@ -2,19 +2,18 @@
 import pytest
 
 from packages.scoring.pattern_memory_engine import (
+    LOSE_THRESHOLD,
     PATTERN_TYPES,
     WIN_THRESHOLD,
-    LOSE_THRESHOLD,
-    extract_patterns_from_content,
-    score_pattern,
-    detect_decay,
     cluster_patterns,
-    recommend_reuse,
-    suggest_experiments_from_patterns,
-    ingest_experiment_outcome,
     compute_pattern_allocation_weights,
+    detect_decay,
+    extract_patterns_from_content,
+    ingest_experiment_outcome,
+    recommend_reuse,
+    score_pattern,
+    suggest_experiments_from_patterns,
 )
-
 
 # ── fixtures ────────────────────────────────────────────────────────────
 

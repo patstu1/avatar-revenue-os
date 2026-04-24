@@ -1,8 +1,9 @@
 """Unit tests for scoring engines — opportunity, forecast, offer fit, saturation."""
 import pytest
-from packages.scoring.opportunity import OpportunityInput, compute_opportunity_score, WEIGHTS
+
 from packages.scoring.forecast import ForecastInput, compute_profit_forecast
 from packages.scoring.offer_fit import OfferFitInput, compute_offer_fit
+from packages.scoring.opportunity import WEIGHTS, OpportunityInput, compute_opportunity_score
 from packages.scoring.saturation import SaturationInput, compute_saturation
 
 

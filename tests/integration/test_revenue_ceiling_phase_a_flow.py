@@ -156,7 +156,6 @@ async def test_offer_ladder_persisted_rows(api_client, db_session, sample_org_da
 
 def test_celery_tasks_registered():
     import workers.revenue_ceiling_worker.tasks  # noqa: F401 — registers tasks on the Celery app
-
     from workers.celery_app import app
 
     names = [

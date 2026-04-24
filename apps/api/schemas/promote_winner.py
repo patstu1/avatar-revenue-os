@@ -1,7 +1,9 @@
 """Pydantic schemas for Promote-Winner Engine."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -11,10 +13,10 @@ class ActiveExperimentOut(BaseModel):
     experiment_name: str
     hypothesis: str
     tested_variable: str
-    target_platform: Optional[str] = None
+    target_platform: str | None = None
     primary_metric: str
     status: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class PWVariantOut(BaseModel):
@@ -33,7 +35,7 @@ class PWWinnerOut(BaseModel):
     confidence: float
     sample_size: int
     promoted: bool
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class PWLoserOut(BaseModel):
@@ -41,7 +43,7 @@ class PWLoserOut(BaseModel):
     id: uuid.UUID
     loss_margin: float
     suppressed: bool
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class PromotedRuleOut(BaseModel):
@@ -49,11 +51,11 @@ class PromotedRuleOut(BaseModel):
     id: uuid.UUID
     rule_type: str
     rule_key: str
-    rule_value: Optional[Any] = None
-    target_platform: Optional[str] = None
+    rule_value: Any | None = None
+    target_platform: str | None = None
     weight_boost: float
     is_active: bool
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class CreateExperimentIn(BaseModel):
@@ -64,16 +66,16 @@ class CreateExperimentIn(BaseModel):
     primary_metric: str = "engagement_rate"
     min_sample_size: int = 30
     confidence_threshold: float = 0.90
-    target_platform: Optional[str] = None
-    target_niche: Optional[str] = None
-    target_offer_id: Optional[uuid.UUID] = None
+    target_platform: str | None = None
+    target_niche: str | None = None
+    target_offer_id: uuid.UUID | None = None
 
 
 class AddObservationIn(BaseModel):
     variant_id: uuid.UUID
     metric_name: str
     metric_value: float
-    content_item_id: Optional[uuid.UUID] = None
+    content_item_id: uuid.UUID | None = None
 
 
 class RecomputeSummaryOut(BaseModel):

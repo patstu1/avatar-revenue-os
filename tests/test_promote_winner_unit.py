@@ -1,13 +1,14 @@
 """Unit tests for promote-winner engine — pure functions, no DB."""
 import pytest
+
 from packages.scoring.promote_winner_engine import (
     EXPERIMENT_TYPES,
-    create_experiment,
     assign_variant,
-    detect_winner,
     build_promotion_rules,
     build_suppression_rules,
     check_decay_retest,
+    create_experiment,
+    detect_winner,
 )
 
 

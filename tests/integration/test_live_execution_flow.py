@@ -13,14 +13,9 @@ from packages.db.models.live_execution import (
     AnalyticsEvent,
     AnalyticsImport,
     ConversionEvent,
-    ConversionImport,
-    CrmContact,
     CrmSync,
-    EmailSendRequest,
     ExperimentLiveResult,
-    ExperimentObservationImport,
     MessagingBlocker,
-    SmsSendRequest,
 )
 
 BRAND_ID = uuid.UUID("00000000-0000-0000-0000-000000000099")

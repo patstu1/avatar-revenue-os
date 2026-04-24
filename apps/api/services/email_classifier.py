@@ -205,7 +205,7 @@ def classify_email(subject: str, body: str) -> ClassificationResult:
                 scores.append((intent, base_confidence, f"Matched: '{body_match.group(0)}'"))
             elif clean_subject and re.search(pattern_str, clean_subject):
                 # Subject-only match — discount confidence since subjects are often inherited
-                scores.append((intent, base_confidence * 0.7, f"Matched in subject only"))
+                scores.append((intent, base_confidence * 0.7, "Matched in subject only"))
 
     if not scores:
         # Nothing matched post-strip. Two sub-cases:
@@ -365,6 +365,7 @@ async def classify_and_persist(
         The persisted (or pre-existing) EmailClassification row.
     """
     from sqlalchemy import select
+
     from packages.db.models.email_pipeline import EmailClassification
 
     existing = (

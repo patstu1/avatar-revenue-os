@@ -11,11 +11,10 @@ import asyncio
 import uuid
 from datetime import datetime, timezone
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
-
 import workers.publishing_worker.auto_publish  # noqa: F401
 import workers.publishing_worker.measured_data_cascade  # noqa: F401
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.publishing_worker.publish_content")
@@ -28,12 +27,13 @@ def publish_content(self, publish_job_id: str) -> dict:
     3. If all fail: emit event, system retries on next cycle.
     """
     from sqlalchemy.orm import Session
-    from packages.db.session import get_sync_engine
-    from packages.db.models.publishing import PublishJob
-    from packages.db.models.content import ContentItem
-    from packages.db.models.accounts import CreatorAccount
-    from packages.db.enums import JobStatus
+
     from apps.api.services.event_bus import emit_event_sync
+    from packages.db.enums import JobStatus
+    from packages.db.models.accounts import CreatorAccount
+    from packages.db.models.content import ContentItem
+    from packages.db.models.publishing import PublishJob
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     with Session(engine) as session:
@@ -200,16 +200,16 @@ def express_publish(self, content_item_id: str, brand_id: str, reason: str = "tr
         brand_id: UUID of the brand.
         reason: Why this is express ("trend_reactive", "time_sensitive", "breaking").
     """
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
+    from apps.api.services.event_bus import emit_event_sync
+    from packages.db.enums import JobStatus
+    from packages.db.models.accounts import CreatorAccount
     from packages.db.models.content import ContentItem
     from packages.db.models.core import Brand
-    from packages.db.models.integration_registry import CreatorPlatformAccount
-    from packages.db.models.accounts import CreatorAccount
-    from packages.db.enums import JobStatus
     from packages.db.models.publishing import PublishJob
-    from apps.api.services.event_bus import emit_event_sync
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     with Session(engine) as session:

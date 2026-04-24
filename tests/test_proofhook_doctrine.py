@@ -16,25 +16,18 @@ Test groups:
 """
 from __future__ import annotations
 
-import re
-
-import pytest
-
 from apps.api.services.package_recommender import (
     PackageRecommendation,
-    extract_lead_signals,
     recommend_package,
 )
 from apps.api.services.reply_engine import _build_reply_body
 from apps.api.services.reply_policy import (
     DecisionTrace,
-    FORCED_DRAFT_PATTERNS,
     ReplyPolicySettings,
     decide_reply_mode,
     detect_forced_draft,
 )
 from packages.clients.email_templates import FIRST_TOUCH, PACKAGES
-
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -150,8 +143,8 @@ class TestPackageRouting:
             from_email="buyer@acme.co",
         )
         assert rec.slug != "ugc-starter-pack", (
-            f"Starter pack was picked as default for a signal-less lead — "
-            f"this is the exact bug the user called out."
+            "Starter pack was picked as default for a signal-less lead — "
+            "this is the exact bug the user called out."
         )
         assert rec.anchor_avoided is True
 

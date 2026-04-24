@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import logging
-import uuid
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -13,12 +12,14 @@ logger = logging.getLogger(__name__)
 @app.task(base=TrackedTask, bind=True, name="workers.intelligence_report_worker.tasks.generate_daily_report")
 def generate_daily_report(self) -> dict:
     """Gather last-24h metrics and produce an intelligence report."""
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import func, select
     from sqlalchemy.orm import Session
-    from sqlalchemy import select, func
-    from packages.db.session import get_sync_engine
+
     from packages.db.models.content import ContentItem
     from packages.db.models.publishing import PerformanceMetric
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)

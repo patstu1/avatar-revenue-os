@@ -4,8 +4,8 @@ Revision ID: ae03phase_c_001
 Revises: ae02phase_b_001
 Create Date: 2026-03-30
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "ae03phase_c_001"

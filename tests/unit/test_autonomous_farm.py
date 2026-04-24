@@ -1,13 +1,12 @@
 """Unit tests — autonomous content farm: niche research, warmup, voice, generation, ideation."""
 from __future__ import annotations
-import pytest
-from datetime import datetime, timezone, timedelta
 
+from datetime import datetime, timedelta, timezone
 
 # ── Niche Research Engine ──
 
 def test_score_niche_basic():
-    from packages.scoring.niche_research_engine import score_niche, NICHE_DATABASE
+    from packages.scoring.niche_research_engine import NICHE_DATABASE, score_niche
     finance = next(n for n in NICHE_DATABASE if n["niche"] == "personal_finance")
     result = score_niche(finance, "youtube")
     assert result["composite_score"] > 0
@@ -33,7 +32,7 @@ def test_recommend_initial_niches_unique():
 
 
 def test_niche_trend_velocity_boost():
-    from packages.scoring.niche_research_engine import score_niche, NICHE_DATABASE
+    from packages.scoring.niche_research_engine import NICHE_DATABASE, score_niche
     finance = next(n for n in NICHE_DATABASE if n["niche"] == "personal_finance")
     no_trends = score_niche(finance, "youtube", trend_signals=[])
     with_trends = score_niche(finance, "youtube", trend_signals=[
@@ -173,7 +172,7 @@ def test_voice_profiles_unique():
 
 
 def test_voice_prompt_injection():
-    from packages.scoring.voice_profile_engine import generate_voice_profile, build_voice_prompt_injection
+    from packages.scoring.voice_profile_engine import build_voice_prompt_injection, generate_voice_profile
     profile = generate_voice_profile("acct-xyz", "instagram", "beauty")
     injection = build_voice_prompt_injection(profile)
     assert "VOICE STYLE:" in injection
@@ -208,8 +207,9 @@ def test_estimate_duration():
 
 
 def test_build_generation_prompt():
-    from apps.api.services.content_generation_service import _build_generation_prompt
     from unittest.mock import MagicMock
+
+    from apps.api.services.content_generation_service import _build_generation_prompt
     brief = MagicMock()
     brief.title = "Test Topic"
     brief.target_platform = "youtube"
@@ -235,7 +235,11 @@ def test_build_generation_prompt():
 # ── Trend Data Clients ──
 
 def test_trend_clients_importable():
-    from packages.clients.trend_data_clients import YouTubeTrendingClient, GoogleTrendsClient, RedditTrendingClient, TikTokTrendClient
+    from packages.clients.trend_data_clients import (
+        GoogleTrendsClient,
+        RedditTrendingClient,
+        YouTubeTrendingClient,
+    )
     assert YouTubeTrendingClient is not None
     assert GoogleTrendsClient is not None
     assert RedditTrendingClient is not None

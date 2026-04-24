@@ -3,7 +3,8 @@
 Business inputs mix first-class DB counts with proxies where list/email telemetry
 is not modeled — see docs/16-growth-pack-architecture.md."""
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 from packages.scoring.growth_commander import COMMANDER_SOURCE, rank_commands
 
@@ -19,7 +20,7 @@ def compute_gatekeeper_inputs(
     sponsor_profile_count: int,
     sponsor_open_deal_count: int,
     audience_segment_total_estimated_size: int,
-    readiness: Optional[dict],
+    readiness: dict | None,
     trust_avg: float,
     leak_count: int,
     scale_rec: dict,
@@ -141,7 +142,7 @@ def apply_gatekeeper_to_commands(
     gatekeeper: dict[str, Any],
     *,
     has_high_cannibalization: bool,
-    brand_niche: Optional[str],
+    brand_niche: str | None,
 ) -> list[dict]:
     """Suppress or defer expansion commands when a primary gate is active."""
     gate_key, explanation = pick_primary_gate(gatekeeper, has_high_cannibalization=has_high_cannibalization)

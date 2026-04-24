@@ -4,12 +4,15 @@ Chains: Script → Voice Narration → Avatar Video → B-Roll → Assembly → 
 This is the core pipeline that transforms text scripts into publishable video content.
 """
 from __future__ import annotations
-import uuid
+
 import logging
-from typing import Any, Optional
+import uuid
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.content import Script, ContentItem, Asset
+
+from packages.db.models.content import Asset, ContentItem, Script
 from packages.scoring.tiered_routing_engine import classify_task_tier, route_to_provider
 
 logger = logging.getLogger(__name__)
@@ -27,7 +30,7 @@ async def _get_voice_client(provider_key: str):
 
 
 async def _get_avatar_client(provider_key: str):
-    from packages.clients.ai_clients import HeyGenClient, DIDClient, SynthesiaClient
+    from packages.clients.ai_clients import DIDClient, HeyGenClient, SynthesiaClient
     if provider_key == "heygen":
         return HeyGenClient()
     elif provider_key == "did":
@@ -38,7 +41,7 @@ async def _get_avatar_client(provider_key: str):
 
 
 async def _get_video_client(provider_key: str):
-    from packages.clients.ai_clients import RunwayClient, KlingClient, WanClient, HiggsFieldClient
+    from packages.clients.ai_clients import HiggsFieldClient, KlingClient, RunwayClient, WanClient
     if provider_key == "higgsfield":
         return HiggsFieldClient()
     elif provider_key == "runway":
@@ -98,7 +101,7 @@ async def produce_avatar_video(
 ) -> dict[str, Any]:
     """Generate avatar video from script + optional voice audio."""
     provider_key = route_to_provider("avatar", tier)
-    client = await _get_avatar_client(provider_key)
+    await _get_avatar_client(provider_key)
 
     text = script.full_script or script.body_text or ""
     fallback_order = ["heygen", "did", "synthesia"]

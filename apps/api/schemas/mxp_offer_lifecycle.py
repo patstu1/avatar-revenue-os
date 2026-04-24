@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -15,13 +14,13 @@ class OfferLifecycleReportOut(BaseModel):
     health_score: float
     dependency_risk_score: float
     decay_score: float
-    recommended_next_action: Optional[str] = None
-    expected_impact_json: Optional[dict] = None
+    recommended_next_action: str | None = None
+    expected_impact_json: dict | None = None
     confidence_score: float
-    explanation_json: Optional[dict] = None
+    explanation_json: dict | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class OfferLifecycleEventOut(BaseModel):
@@ -29,8 +28,8 @@ class OfferLifecycleEventOut(BaseModel):
     brand_id: str
     offer_id: str
     event_type: str
-    from_state: Optional[str] = None
-    to_state: Optional[str] = None
-    reason_json: Optional[dict] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    from_state: str | None = None
+    to_state: str | None = None
+    reason_json: dict | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None

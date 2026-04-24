@@ -1,7 +1,10 @@
 """Unit tests for digital twin engine."""
-import pytest
 from packages.scoring.digital_twin_engine import (
-    SCENARIO_TYPES, generate_scenarios, estimate_outcome, compare_options, build_recommendation,
+    SCENARIO_TYPES,
+    build_recommendation,
+    compare_options,
+    estimate_outcome,
+    generate_scenarios,
 )
 
 

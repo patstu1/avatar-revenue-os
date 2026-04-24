@@ -1,8 +1,8 @@
 """Unit tests for Account Expansion Advisor engine."""
 from packages.scoring.expansion_advisor_engine import (
-    compute_expansion_advisory,
     EXPAND_REC_KEYS,
     HOLD_REC_KEYS,
+    compute_expansion_advisory,
 )
 
 

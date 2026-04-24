@@ -8,6 +8,7 @@ VOICE:  hero -> elevenlabs,  standard -> fish_audio,  bulk -> voxtral
 MUSIC:  all tiers -> suno
 """
 from __future__ import annotations
+
 from typing import Any
 
 QUALITY_TIERS = ["hero", "standard", "bulk"]

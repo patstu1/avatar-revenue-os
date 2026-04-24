@@ -1,21 +1,25 @@
 """Revenue Leak Detector Service — detect, cluster, estimate, persist."""
 from __future__ import annotations
+
 import uuid
-from typing import Any
 from datetime import datetime, timezone
-from sqlalchemy import delete, func, select
+from typing import Any
+
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.accounts import CreatorAccount
+
 from packages.db.models.account_state_intel import AccountStateReport
-from packages.db.models.content import ContentItem
 from packages.db.models.offer_lab import OfferLabOffer
 from packages.db.models.provider_registry import ProviderBlocker
 from packages.db.models.publishing import PerformanceMetric
 from packages.db.models.revenue_leak_detector import (
-    RevenueLeakReport, RevenueLeakEvent, LeakCluster,
-    LeakCorrectionAction, RevenueLossEstimate,
+    LeakCluster,
+    LeakCorrectionAction,
+    RevenueLeakEvent,
+    RevenueLeakReport,
+    RevenueLossEstimate,
 )
-from packages.scoring.revenue_leak_engine import detect_leaks, cluster_leaks, estimate_total_loss, generate_corrections
+from packages.scoring.revenue_leak_engine import cluster_leaks, detect_leaks, estimate_total_loss, generate_corrections
 
 
 async def recompute_leaks(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:

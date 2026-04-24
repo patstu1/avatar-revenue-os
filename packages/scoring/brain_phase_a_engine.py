@@ -22,7 +22,7 @@ MEMORY_ENTRY_TYPES = [
 # ── Account State Engine ──────────────────────────────────────────────
 
 def compute_account_state(ctx: dict[str, Any]) -> dict[str, Any]:
-    follower_count = ctx.get("follower_count", 0)
+    ctx.get("follower_count", 0)
     age_days = ctx.get("age_days", 0)
     avg_engagement = ctx.get("avg_engagement", 0.0)
     profit_per_post = ctx.get("profit_per_post", 0.0)
@@ -191,7 +191,7 @@ def compute_execution_state(ctx: dict[str, Any]) -> dict[str, Any]:
 def compute_audience_state_v2(ctx: dict[str, Any]) -> dict[str, Any]:
     purchase_count = ctx.get("purchase_count", 0)
     ltv = ctx.get("ltv", 0.0)
-    engagement_recency_days = ctx.get("engagement_recency_days", 999)
+    ctx.get("engagement_recency_days", 999)
     churn_risk = ctx.get("churn_risk", 0.0)
     objection_signals = ctx.get("objection_signals", 0)
     referral_activity = ctx.get("referral_activity", 0)
@@ -275,7 +275,7 @@ def consolidate_brain_memory(ctx: dict[str, Any]) -> list[dict[str, Any]]:
     accounts = ctx.get("accounts", [])
     offers = ctx.get("offers", [])
     suppression_history = ctx.get("suppression_history", [])
-    top_content = ctx.get("top_content", [])
+    ctx.get("top_content", [])
     recovery_incidents = ctx.get("recovery_incidents", [])
 
     for a in accounts:
@@ -326,7 +326,7 @@ def consolidate_brain_memory(ctx: dict[str, Any]) -> list[dict[str, Any]]:
                 "reuse_recommendation": "Use as primary offer in scaling accounts",
                 "suppression_caution": None,
                 "detail_json": {"epc": epc, "conversion_rate": cvr},
-                "explanation": f"Offer exceeds EPC and CVR thresholds",
+                "explanation": "Offer exceeds EPC and CVR thresholds",
             })
 
     for s in suppression_history:

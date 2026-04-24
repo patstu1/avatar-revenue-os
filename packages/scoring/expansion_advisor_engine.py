@@ -5,7 +5,7 @@ a single, opinionated advisory: add now, or hold (with exact reasons).
 """
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 CONTENT_ROLES = {
     "add_experimental": "experimental", "add_experimental_account": "experimental",
@@ -81,8 +81,8 @@ TIME_TO_SIGNAL = {
 def compute_expansion_advisory(
     scale_result: dict[str, Any],
     accounts: list[dict[str, Any]],
-    brand_niche: Optional[str],
-    brand_sub_niche: Optional[str],
+    brand_niche: str | None,
+    brand_sub_niche: str | None,
     offer_count: int,
     content_count: int,
     avg_account_health: str = "healthy",
@@ -104,7 +104,7 @@ def compute_expansion_advisory(
     explanation_raw = scale_result.get("explanation", "")
 
     should_add = rec_key in EXPAND_REC_KEYS
-    hold_reason: Optional[str] = None
+    hold_reason: str | None = None
     blockers: list[dict[str, str]] = []
 
     if not should_add:

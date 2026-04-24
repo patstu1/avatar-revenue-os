@@ -6,18 +6,27 @@ service handles business logic; the lifecycle service adds coordination.
 """
 import uuid
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.schemas.content_pipeline import (
-    ApprovalAction, ApprovalResponse, BriefResponse, BriefUpdate,
-    ContentItemResponse, MediaJobResponse, PublishJobResponse,
-    QAReportResponse, ScheduleRequest, ScriptResponse, ScriptUpdate,
+    ApprovalAction,
+    ApprovalResponse,
+    BriefResponse,
+    BriefUpdate,
+    ContentItemResponse,
+    MediaJobResponse,
+    PublishJobResponse,
+    QAReportResponse,
+    ScheduleRequest,
+    ScriptResponse,
+    ScriptUpdate,
     SimilarityReportResponse,
 )
-from apps.api.services import content_pipeline_service as cps
 from apps.api.services import content_lifecycle as lifecycle
+from apps.api.services import content_pipeline_service as cps
 from apps.api.services.audit_service import log_action
 from packages.db.models.content import ContentBrief, ContentItem, MediaJob, Script
 from packages.db.models.quality import Approval
@@ -146,7 +155,7 @@ async def get_qa(content_id: uuid.UUID, current_user: CurrentUser, db: DBSession
         result = await cps.get_qa_report(db, content_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
     qa = result["qa_report"]
     sim = result["similarity_report"]
@@ -228,7 +237,7 @@ async def get_publish_status(content_id: uuid.UUID, current_user: CurrentUser, d
         return await cps.get_publish_status(db, content_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 

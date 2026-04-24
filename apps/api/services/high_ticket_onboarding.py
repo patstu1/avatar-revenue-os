@@ -25,9 +25,7 @@ new client in the discovery queue immediately.
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -35,7 +33,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_event
 from packages.db.models.clients import (
-    Client, ClientHighTicketProfile, ClientOnboardingEvent,
+    Client,
+    ClientHighTicketProfile,
+    ClientOnboardingEvent,
 )
 
 logger = structlog.get_logger()
@@ -112,7 +112,7 @@ async def _write_onboarding_event(
     step: str,
     details: dict,
     actor_type: str,
-    actor_id: Optional[str],
+    actor_id: str | None,
 ) -> ClientOnboardingEvent:
     evt = ClientOnboardingEvent(
         client_id=client.id,
@@ -173,10 +173,10 @@ async def schedule_discovery_call(
     client: Client,
     when: datetime,
     attendees: list[dict] | None = None,
-    agenda: Optional[str] = None,
-    notes: Optional[str] = None,
+    agenda: str | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Record the discovery call date + attendees. Doesn't SEND a
     calendar invite — that's an integration concern for a later batch.
@@ -219,12 +219,12 @@ async def record_sow_sent(
     *,
     client: Client,
     sow_url: str,
-    signer_email: Optional[str] = None,
-    sent_at: Optional[datetime] = None,
-    counterparty_name: Optional[str] = None,
-    notes: Optional[str] = None,
+    signer_email: str | None = None,
+    sent_at: datetime | None = None,
+    counterparty_name: str | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     profile = await ensure_profile(db, client=client)
     prior_status = profile.status
@@ -265,11 +265,11 @@ async def record_sow_countersigned(
     db: AsyncSession,
     *,
     client: Client,
-    signed_at: Optional[datetime] = None,
-    counterparty_name: Optional[str] = None,
-    notes: Optional[str] = None,
+    signed_at: datetime | None = None,
+    counterparty_name: str | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Terminal on the signing branch. Idempotent — calling again on
     an already-signed profile returns {"already_signed": true} without
@@ -320,9 +320,9 @@ async def set_kickoff_date(
     client: Client,
     kickoff_at: datetime,
     team_members: list[dict] | None = None,
-    notes: Optional[str] = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     profile = await ensure_profile(db, client=client)
     prior_status = profile.status

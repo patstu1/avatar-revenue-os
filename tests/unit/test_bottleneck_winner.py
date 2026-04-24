@@ -1,5 +1,4 @@
 """Unit tests for bottleneck classifier and winner detection engines."""
-import pytest
 from packages.scoring.bottleneck import BottleneckInput, classify_bottleneck
 from packages.scoring.winner import ContentPerformance, detect_winners
 

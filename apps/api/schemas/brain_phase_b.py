@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -14,19 +14,19 @@ class BrainDecisionOut(BaseModel):
     decision_class: str
     objective: str
     target_scope: str
-    target_id: Optional[UUID] = None
+    target_id: UUID | None = None
     selected_action: str
-    alternatives_json: Optional[Any] = None
+    alternatives_json: Any | None = None
     confidence: float
     policy_mode: str
     expected_upside: float
     expected_cost: float
-    downstream_action: Optional[str] = None
-    inputs_json: Optional[Any] = None
-    explanation: Optional[str] = None
+    downstream_action: str | None = None
+    inputs_json: Any | None = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -34,20 +34,20 @@ class BrainDecisionOut(BaseModel):
 class PolicyEvaluationOut(BaseModel):
     id: UUID
     brand_id: UUID
-    decision_id: Optional[UUID] = None
+    decision_id: UUID | None = None
     action_ref: str
     policy_mode: str
     reason: str
     approval_needed: bool
-    hard_stop_rule: Optional[str] = None
-    rollback_rule: Optional[str] = None
+    hard_stop_rule: str | None = None
+    rollback_rule: str | None = None
     risk_score: float
     cost_impact: float
-    inputs_json: Optional[Any] = None
-    explanation: Optional[str] = None
+    inputs_json: Any | None = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -55,7 +55,7 @@ class PolicyEvaluationOut(BaseModel):
 class ConfidenceReportOut(BaseModel):
     id: UUID
     brand_id: UUID
-    decision_id: Optional[UUID] = None
+    decision_id: UUID | None = None
     scope_label: str
     confidence_score: float
     confidence_band: str
@@ -66,11 +66,11 @@ class ConfidenceReportOut(BaseModel):
     data_completeness: float
     execution_history: float
     blocker_severity: float
-    uncertainty_factors_json: Optional[Any] = None
-    explanation: Optional[str] = None
+    uncertainty_factors_json: Any | None = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -78,7 +78,7 @@ class ConfidenceReportOut(BaseModel):
 class UpsideCostEstimateOut(BaseModel):
     id: UUID
     brand_id: UUID
-    decision_id: Optional[UUID] = None
+    decision_id: UUID | None = None
     scope_label: str
     expected_upside: float
     expected_cost: float
@@ -86,11 +86,11 @@ class UpsideCostEstimateOut(BaseModel):
     operational_burden: float
     concentration_risk: float
     net_value: float
-    inputs_json: Optional[Any] = None
-    explanation: Optional[str] = None
+    inputs_json: Any | None = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -98,17 +98,17 @@ class UpsideCostEstimateOut(BaseModel):
 class ArbitrationReportOut(BaseModel):
     id: UUID
     brand_id: UUID
-    ranked_priorities_json: Optional[Any] = None
+    ranked_priorities_json: Any | None = None
     chosen_winner_class: str
     chosen_winner_label: str
-    rejected_actions_json: Optional[Any] = None
+    rejected_actions_json: Any | None = None
     competing_count: int
     net_value_chosen: float
-    inputs_json: Optional[Any] = None
-    explanation: Optional[str] = None
+    inputs_json: Any | None = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -116,4 +116,4 @@ class ArbitrationReportOut(BaseModel):
 class RecomputeSummaryOut(BaseModel):
     status: str
     detail: str
-    counts: Optional[Any] = None
+    counts: Any | None = None

@@ -1,16 +1,19 @@
 """Account-State Intelligence Service — classify, persist, transition, act."""
 from __future__ import annotations
+
 import uuid
-from typing import Any
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.accounts import CreatorAccount
 from packages.db.models.account_state_intel import (
-    AccountStateAction, AccountStateReport, AccountStateTransition,
+    AccountStateAction,
+    AccountStateReport,
+    AccountStateTransition,
 )
+from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
 from packages.db.models.publishing import PerformanceMetric
 from packages.scoring.account_state_intel_engine import (

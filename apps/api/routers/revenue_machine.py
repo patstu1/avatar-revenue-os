@@ -1,5 +1,4 @@
 """Revenue Machine API — The capstone operating model."""
-import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Query

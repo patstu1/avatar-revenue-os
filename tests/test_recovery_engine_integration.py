@@ -1,14 +1,21 @@
 """DB-backed integration tests for Recovery Engine."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from apps.api.services.recovery_engine_service import (
+    get_recovery_summary,
+    list_incidents,
+    recompute_recovery,
+)
 from packages.db.models.core import Organization
-from packages.db.models.provider_registry import ProviderBlocker, ProviderRegistryEntry
-from packages.db.models.recovery_engine import RecoveryIncidentV2, RollbackAction, RerouteAction, ThrottlingAction
-from apps.api.services.recovery_engine_service import recompute_recovery, list_incidents, list_rollbacks, list_reroutes, list_throttles, get_recovery_summary
+from packages.db.models.provider_registry import ProviderBlocker
+from packages.db.models.recovery_engine import RecoveryIncidentV2, RerouteAction, ThrottlingAction
 
 
 @pytest_asyncio.fixture
@@ -87,6 +94,6 @@ async def test_idempotent(db_session, org_with_failures):
 
 
 def test_recovery_worker_registered():
-    from workers.celery_app import app
     import workers.recovery_engine_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.recovery_engine_worker.tasks.scan_recovery" in app.tasks

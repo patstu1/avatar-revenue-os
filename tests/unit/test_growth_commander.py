@@ -1,8 +1,12 @@
 """Unit tests for Growth Commander engine."""
 
 from packages.scoring.growth_commander import (
-    generate_growth_commands, assess_portfolio_balance, compute_portfolio_directive,
-    find_whitespace, map_content_role, rank_commands, COMMAND_TYPES,
+    assess_portfolio_balance,
+    compute_portfolio_directive,
+    find_whitespace,
+    generate_growth_commands,
+    map_content_role,
+    rank_commands,
 )
 from packages.scoring.scale import RK_ADD_NICHE_SPINOFF, RK_ADD_PLATFORM_SPECIFIC
 

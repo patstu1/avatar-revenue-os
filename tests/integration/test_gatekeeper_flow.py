@@ -1,7 +1,6 @@
 """DB-backed integration tests for AI Gatekeeper APIs."""
 import pytest
 
-
 GK = "/api/v1/brands/{bid}/gatekeeper"
 
 GET_ENDPOINTS = [

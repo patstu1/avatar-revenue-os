@@ -17,13 +17,11 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
-import logging
-import structlog
 import os
 import socket
-import uuid
 from datetime import datetime, timedelta, timezone
 
+import structlog
 from celery import shared_task
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine

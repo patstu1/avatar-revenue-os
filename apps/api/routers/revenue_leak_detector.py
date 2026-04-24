@@ -1,10 +1,18 @@
 """Revenue Leak Detector API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.revenue_leak_detector import RLDReportOut, RLDEventOut, RLDClusterOut, RLDCorrectionOut, RecomputeSummaryOut
+from apps.api.schemas.revenue_leak_detector import (
+    RecomputeSummaryOut,
+    RLDClusterOut,
+    RLDCorrectionOut,
+    RLDEventOut,
+    RLDReportOut,
+)
 from apps.api.services import revenue_leak_service as svc
 from packages.db.models.core import Brand
 

@@ -1,17 +1,15 @@
 """Autonomous Phase C workers — funnel, paid operator, sponsor, retention, recovery."""
 from __future__ import annotations
 
-import asyncio
-
 import structlog
 from sqlalchemy import select
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
-from packages.db.session import get_async_session_factory, run_async
-from packages.db.models.core import Brand
-from apps.api.services import autonomous_phase_c_service as svc
 from apps.api.services import autonomous_phase_c_lifecycle as lifecycle
+from apps.api.services import autonomous_phase_c_service as svc
+from packages.db.models.core import Brand
+from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = structlog.get_logger()
 

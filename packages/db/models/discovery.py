@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.db.base import Base
-from packages.db.enums import Platform, SignalStrength
+from packages.db.enums import SignalStrength
 
 
 class TopicSource(Base):

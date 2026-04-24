@@ -13,11 +13,10 @@ One view. Everything that matters. Nothing that doesn't.
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Query
-from sqlalchemy import and_, case, desc, func, select
+from fastapi import APIRouter
+from sqlalchemy import and_, case, func, select
 
 from apps.api.deps import CurrentUser, DBSession
 from packages.db.models.accounts import CreatorAccount
@@ -40,7 +39,7 @@ async def portfolio_overview(current_user: CurrentUser, db: DBSession):
 
     # Brands
     brands_result = (await db.execute(
-        select(Brand).where(Brand.organization_id == org_id, Brand.is_active == True)
+        select(Brand).where(Brand.organization_id == org_id, Brand.is_active)
     )).scalars().all()
 
     # Revenue 30d
@@ -55,7 +54,7 @@ async def portfolio_overview(current_user: CurrentUser, db: DBSession):
     accounts_result = (await db.execute(
         select(CreatorAccount)
         .join(Brand, CreatorAccount.brand_id == Brand.id)
-        .where(Brand.organization_id == org_id, CreatorAccount.is_active == True)
+        .where(Brand.organization_id == org_id, CreatorAccount.is_active)
     )).scalars().all()
     total_followers = sum(a.follower_count or 0 for a in accounts_result)
     active_accounts = len(accounts_result)

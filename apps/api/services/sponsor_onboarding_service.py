@@ -13,9 +13,7 @@ State machine:
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -23,7 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_event
 from packages.db.models.clients import (
-    Client, ClientOnboardingEvent,
+    Client,
+    ClientOnboardingEvent,
 )
 from packages.db.models.sponsor_campaigns import SponsorCampaign
 
@@ -82,7 +81,7 @@ async def ensure_campaign(
 
 async def _write_onboarding_event(
     db: AsyncSession, *, client: Client, step: str,
-    details: dict, actor_type: str, actor_id: Optional[str],
+    details: dict, actor_type: str, actor_id: str | None,
 ) -> ClientOnboardingEvent:
     evt = ClientOnboardingEvent(
         client_id=client.id, org_id=client.org_id,
@@ -123,11 +122,11 @@ async def record_contract_signed(
     *,
     client: Client,
     contract_url: str,
-    signed_at: Optional[datetime] = None,
-    counterparty_name: Optional[str] = None,
-    notes: Optional[str] = None,
+    signed_at: datetime | None = None,
+    counterparty_name: str | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Record contract signing. Idempotent — calling again on an
     already-signed campaign returns {'already_signed': true}."""
@@ -179,9 +178,9 @@ async def record_brief_received(
     *,
     client: Client,
     brief_json: dict,
-    notes: Optional[str] = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     campaign = await ensure_campaign(db, client=client)
     prior = campaign.status
@@ -216,10 +215,10 @@ async def set_campaign_start(
     *,
     client: Client,
     campaign_start_at: datetime,
-    campaign_end_at: Optional[datetime] = None,
-    notes: Optional[str] = None,
+    campaign_end_at: datetime | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     campaign = await ensure_campaign(db, client=client)
     prior = campaign.status

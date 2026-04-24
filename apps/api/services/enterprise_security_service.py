@@ -1,17 +1,26 @@
 """Enterprise Security Service — RBAC, audit, compliance, data policies."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.enterprise_security import (
-    EnterpriseRole, EnterprisePermission, EnterpriseUserGroup,
-    EnterpriseAccessScope, AuditTrailEvent, SensitiveDataPolicy,
-    ModelIsolationPolicy, ComplianceControlReport, RiskOverrideEvent,
+    AuditTrailEvent,
+    ComplianceControlReport,
+    EnterpriseAccessScope,
+    EnterprisePermission,
+    EnterpriseRole,
+    ModelIsolationPolicy,
+    RiskOverrideEvent,
+    SensitiveDataPolicy,
 )
 from packages.scoring.enterprise_security_engine import (
-    SYSTEM_ROLES, assess_compliance, evaluate_permission, evaluate_scope,
-    evaluate_sensitive_data, evaluate_model_isolation, build_audit_event,
+    SYSTEM_ROLES,
+    assess_compliance,
+    evaluate_permission,
 )
 
 

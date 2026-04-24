@@ -3,28 +3,29 @@
 Core Phase 4 orchestration. All business logic in service layer.
 """
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.enums import (
-    ActorType, BottleneckType, ConfidenceLevel, DecisionMode, DecisionType,
-    JobStatus, Platform, RecommendedAction, SuppressionReason,
+    ActorType,
+    ConfidenceLevel,
+    DecisionMode,
+    DecisionType,
+    JobStatus,
+    Platform,
+    RecommendedAction,
+    SuppressionReason,
 )
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
-from packages.db.models.core import Brand
 from packages.db.models.decisions import SuppressionDecision
 from packages.db.models.experiments import WinnerCloneJob
 from packages.db.models.learning import MemoryEntry
-from packages.db.models.offers import Offer
 from packages.db.models.publishing import AttributionEvent, PerformanceMetric
 from packages.db.models.system import SuppressionAction
 from packages.scoring.bottleneck import BottleneckInput, classify_bottleneck
 from packages.scoring.winner import ContentPerformance, detect_winners
-
 
 # ── Performance Ingestion ────────────────────────────────────────────────────
 
@@ -534,7 +535,6 @@ async def _update_memory(
     db: AsyncSession, brand_id: uuid.UUID, key: str,
     memory_type: str, category: str, value: str, structured: dict,
 ):
-    from sqlalchemy import update
     existing = (await db.execute(
         select(MemoryEntry).where(MemoryEntry.brand_id == brand_id, MemoryEntry.key == key)
     )).scalar_one_or_none()

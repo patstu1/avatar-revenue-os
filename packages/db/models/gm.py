@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, Float
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,10 +25,10 @@ class GMSession(Base):
     )
     title: Mapped[str] = mapped_column(String(255), default="GM Strategy Session")
     status: Mapped[str] = mapped_column(String(30), default="active")  # active, archived
-    machine_phase: Mapped[Optional[str]] = mapped_column(String(40))  # pre_ignition, configuring, first_launch, warmup, scaling, compounding
+    machine_phase: Mapped[str | None] = mapped_column(String(40))  # pre_ignition, configuring, first_launch, warmup, scaling, compounding
     message_count: Mapped[int] = mapped_column(Integer, default=0)
-    last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    active_blueprint_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    active_blueprint_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -49,9 +48,9 @@ class GMMessage(Base):
     message_type: Mapped[str] = mapped_column(
         String(30), default="conversation",
     )  # conversation, blueprint_presentation, blueprint_revision, execution_report, machine_scan
-    blueprint_data: Mapped[Optional[dict]] = mapped_column(JSONB)  # structured blueprint if this message contains one
-    machine_state_snapshot: Mapped[Optional[dict]] = mapped_column(JSONB)  # machine state at time of message
-    generation_model: Mapped[Optional[str]] = mapped_column(String(60))
+    blueprint_data: Mapped[dict | None] = mapped_column(JSONB)  # structured blueprint if this message contains one
+    machine_state_snapshot: Mapped[dict | None] = mapped_column(JSONB)  # machine state at time of message
+    generation_model: Mapped[str | None] = mapped_column(String(60))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -74,19 +73,19 @@ class GMBlueprint(Base):
     )  # proposed, approved, executing, completed, superseded
 
     # The 6 blueprint sections
-    account_blueprint: Mapped[Optional[dict]] = mapped_column(JSONB)
-    niche_blueprint: Mapped[Optional[dict]] = mapped_column(JSONB)
-    identity_blueprint: Mapped[Optional[dict]] = mapped_column(JSONB)
-    platform_blueprint: Mapped[Optional[dict]] = mapped_column(JSONB)
-    monetization_blueprint: Mapped[Optional[dict]] = mapped_column(JSONB)
-    scaling_blueprint: Mapped[Optional[dict]] = mapped_column(JSONB)
-    operator_inputs_needed: Mapped[Optional[dict]] = mapped_column(JSONB)
-    machine_assessment: Mapped[Optional[dict]] = mapped_column(JSONB)
+    account_blueprint: Mapped[dict | None] = mapped_column(JSONB)
+    niche_blueprint: Mapped[dict | None] = mapped_column(JSONB)
+    identity_blueprint: Mapped[dict | None] = mapped_column(JSONB)
+    platform_blueprint: Mapped[dict | None] = mapped_column(JSONB)
+    monetization_blueprint: Mapped[dict | None] = mapped_column(JSONB)
+    scaling_blueprint: Mapped[dict | None] = mapped_column(JSONB)
+    operator_inputs_needed: Mapped[dict | None] = mapped_column(JSONB)
+    machine_assessment: Mapped[dict | None] = mapped_column(JSONB)
 
     # Execution tracking
-    execution_progress: Mapped[Optional[dict]] = mapped_column(JSONB)  # {step_key: {status, result, completed_at}}
-    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    execution_progress: Mapped[dict | None] = mapped_column(JSONB)  # {step_key: {status, result, completed_at}}
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -104,6 +103,6 @@ class GMConversation(Base):
         UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"),
         nullable=False, index=True,
     )
-    messages: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
-    actions_log: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
+    messages: Mapped[dict | None] = mapped_column(JSONB, default=list)
+    actions_log: Mapped[dict | None] = mapped_column(JSONB, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

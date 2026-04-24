@@ -27,32 +27,21 @@ from sqlalchemy import select
 
 from apps.api.services.gm_doctrine import (
     ACTION_CLASS_APPROVAL,
-    ACTION_CLASS_AUTO,
     ACTION_CLASS_ESCALATE,
-    ANTI_NARROWING_RULE,
     CANONICAL_DATA_TABLES,
-    DORMANT_AVENUE_RULE,
     FLOOR_MONTH_1_CENTS,
     FLOOR_MONTH_12_CENTS,
-    FLOORS_NOT_CEILINGS_RULE,
-    FORBIDDEN_BEHAVIORS,
     GM_REVENUE_DOCTRINE,
-    NO_MONEY_CAPPING_RULE,
-    PILLARS,
     PRIORITY_RANK,
     REVENUE_AVENUES,
-    STAGE_MACHINE,
     STATUS_DISABLED_BY_OPERATOR,
     STATUS_FLAGS,
-    STATUS_LIVE_AND_ACTIVE,
-    STATUS_LIVE_AND_VERY_ACTIVE,
     STATUS_LIVE_BUT_DORMANT,
     STATUS_PRESENT_IN_CODE_ONLY,
     STRATEGIC_ENGINES,
     classify_action,
     floor_for_month,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Pure-data + pure-function tests (no DB, no HTTP)
@@ -368,9 +357,9 @@ async def test_floor_status_does_not_double_count_stripe_origin_events(
     and ``creator_revenue_events`` (event_type='stripe_charge_sync').
     Recognized revenue must count it ONCE, not twice.
     """
-    from packages.db.models.proposals import Payment
-    from packages.db.models.creator_revenue import CreatorRevenueEvent
     from packages.db.models.core import Brand
+    from packages.db.models.creator_revenue import CreatorRevenueEvent
+    from packages.db.models.proposals import Payment
 
     headers, org_id = await _auth(api_client, sample_org_data)
 
@@ -431,8 +420,8 @@ async def test_floor_status_includes_non_stripe_creator_revenue(
     in recognized revenue — it represents real money that does not
     flow through the payments table.
     """
-    from packages.db.models.creator_revenue import CreatorRevenueEvent
     from packages.db.models.core import Brand
+    from packages.db.models.creator_revenue import CreatorRevenueEvent
 
     headers, org_id = await _auth(api_client, sample_org_data)
 
@@ -523,7 +512,7 @@ async def test_floor_status_carries_canonical_rule_text(
 
 @pytest.mark.asyncio
 async def test_doctrine_text_has_recognized_revenue_rule(api_client, sample_org_data):
-    from apps.api.services.gm_doctrine import RECOGNIZED_REVENUE_RULE, GM_REVENUE_DOCTRINE
+    from apps.api.services.gm_doctrine import GM_REVENUE_DOCTRINE, RECOGNIZED_REVENUE_RULE
     assert "RECOGNIZED-REVENUE RULE" in RECOGNIZED_REVENUE_RULE
     assert "RECOGNIZED-REVENUE RULE" in GM_REVENUE_DOCTRINE
     assert "payments" in GM_REVENUE_DOCTRINE

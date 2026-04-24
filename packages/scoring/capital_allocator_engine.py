@@ -3,7 +3,8 @@
 Pure functions. No I/O.
 """
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 TARGET_TYPES = ["account", "platform", "offer", "content_form", "monetization_path", "experiment", "creator_revenue_avenue", "brand"]
 

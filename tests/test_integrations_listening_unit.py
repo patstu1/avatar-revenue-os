@@ -1,9 +1,12 @@
 """Unit tests for integrations + listening engine."""
-import pytest
 from packages.scoring.integrations_listening_engine import (
-    SIGNAL_TYPES, CONNECTOR_TYPES, evaluate_connector_sync,
-    cluster_listening_signals, extract_competitor_signals,
-    route_business_signal, generate_response_recommendations,
+    CONNECTOR_TYPES,
+    SIGNAL_TYPES,
+    cluster_listening_signals,
+    evaluate_connector_sync,
+    extract_competitor_signals,
+    generate_response_recommendations,
+    route_business_signal,
 )
 
 

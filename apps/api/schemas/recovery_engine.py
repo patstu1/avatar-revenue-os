@@ -1,8 +1,10 @@
 """Pydantic schemas for Recovery Engine."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
+
 
 class RECIncidentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

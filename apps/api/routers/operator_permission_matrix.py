@@ -1,9 +1,11 @@
 """Operator Permission Matrix API."""
 import uuid
+
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
-from apps.api.schemas.operator_permission_matrix import OPMMatrixOut, OPMExecutionModeOut, RecomputeSummaryOut
+from apps.api.schemas.operator_permission_matrix import OPMExecutionModeOut, OPMMatrixOut, RecomputeSummaryOut
 from apps.api.services import operator_permission_service as svc
 from packages.db.models.core import Organization
 

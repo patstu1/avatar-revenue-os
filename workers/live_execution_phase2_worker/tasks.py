@@ -1,7 +1,6 @@
 """Live Execution Phase 2 + Buffer Expansion workers."""
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 
@@ -9,8 +8,8 @@ from celery import shared_task
 from sqlalchemy import select
 
 from packages.db.models.core import Brand
-from workers.base_task import TrackedTask
 from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +76,9 @@ async def _do_recompute_buffer_execution_truth(brand_id: uuid.UUID) -> None:
 
 async def _do_detect_stale_buffer_jobs(brand_id: uuid.UUID) -> None:
     from datetime import datetime, timezone
+
     from sqlalchemy import select
+
     from packages.db.models.buffer_distribution import BufferPublishJob
     from packages.scoring.live_execution_phase2_engine import detect_stale_jobs
 

@@ -16,10 +16,10 @@ async def db(db_session):
 
 @pytest_asyncio.fixture
 async def seed_brand(db: AsyncSession):
-    from packages.db.models.core import Brand, Organization
-    from packages.db.models.content import ContentItem
-    from packages.db.models.offers import Offer
     from packages.db.enums import ContentType, MonetizationMethod
+    from packages.db.models.content import ContentItem
+    from packages.db.models.core import Brand, Organization
+    from packages.db.models.offers import Offer
 
     org_id = uuid.uuid4()
     brand_id = uuid.uuid4()
@@ -36,7 +36,7 @@ async def seed_brand(db: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_merch_recompute(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_merch, list_merch
+    from apps.api.services.creator_revenue_service import list_merch, recompute_merch
     result = await recompute_merch(db, seed_brand)
     assert result["created"] >= 1
     items = await list_merch(db, seed_brand)
@@ -48,7 +48,7 @@ async def test_merch_recompute(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_merch_idempotent(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_merch, list_merch
+    from apps.api.services.creator_revenue_service import list_merch, recompute_merch
     await recompute_merch(db, seed_brand)
     first = await list_merch(db, seed_brand)
     await recompute_merch(db, seed_brand)
@@ -59,7 +59,7 @@ async def test_merch_idempotent(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_live_events_recompute(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_live_events, list_live_events
+    from apps.api.services.creator_revenue_service import list_live_events, recompute_live_events
     result = await recompute_live_events(db, seed_brand)
     assert result["created"] >= 1
     items = await list_live_events(db, seed_brand)
@@ -70,7 +70,7 @@ async def test_live_events_recompute(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_live_events_idempotent(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_live_events, list_live_events
+    from apps.api.services.creator_revenue_service import list_live_events, recompute_live_events
     await recompute_live_events(db, seed_brand)
     first = await list_live_events(db, seed_brand)
     await recompute_live_events(db, seed_brand)
@@ -81,7 +81,10 @@ async def test_live_events_idempotent(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_owned_affiliate_program_recompute(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_owned_affiliate_program, list_owned_affiliate_program
+    from apps.api.services.creator_revenue_service import (
+        list_owned_affiliate_program,
+        recompute_owned_affiliate_program,
+    )
     result = await recompute_owned_affiliate_program(db, seed_brand)
     assert result["created"] >= 1
     items = await list_owned_affiliate_program(db, seed_brand)
@@ -92,7 +95,10 @@ async def test_owned_affiliate_program_recompute(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_owned_affiliate_idempotent(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_owned_affiliate_program, list_owned_affiliate_program
+    from apps.api.services.creator_revenue_service import (
+        list_owned_affiliate_program,
+        recompute_owned_affiliate_program,
+    )
     await recompute_owned_affiliate_program(db, seed_brand)
     first = await list_owned_affiliate_program(db, seed_brand)
     await recompute_owned_affiliate_program(db, seed_brand)
@@ -103,7 +109,7 @@ async def test_owned_affiliate_idempotent(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_blockers_include_phase_c(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_blockers, list_blockers
+    from apps.api.services.creator_revenue_service import list_blockers, recompute_blockers
     result = await recompute_blockers(db, seed_brand)
     assert result["created"] >= 1
     items = await list_blockers(db, seed_brand)

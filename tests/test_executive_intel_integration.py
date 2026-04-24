@@ -1,17 +1,32 @@
 """DB-backed integration tests for Executive Intelligence."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.core import Organization, Brand
+
+from apps.api.services.executive_intel_service import (
+    get_executive_summary,
+    list_alerts,
+    list_forecasts,
+    list_kpis,
+    list_oversight,
+    recompute_executive_intel,
+)
+from packages.db.enums import ContentType, Platform
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
+from packages.db.models.core import Brand, Organization
+from packages.db.models.executive_intel import (
+    ExecutiveAlert,
+    ExecutiveForecast,
+    ExecutiveKPIReport,
+    OversightModeReport,
+)
 from packages.db.models.publishing import PerformanceMetric
-from packages.db.models.executive_intel import ExecutiveKPIReport, ExecutiveForecast, OversightModeReport, ExecutiveAlert
-from packages.db.enums import Platform, ContentType
-from apps.api.services.executive_intel_service import recompute_executive_intel, list_kpis, list_forecasts, list_alerts, list_oversight, get_executive_summary
 
 
 @pytest_asyncio.fixture
@@ -120,6 +135,6 @@ async def test_idempotent(db_session, org_with_data):
 
 
 def test_executive_intel_worker_registered():
-    from workers.celery_app import app
     import workers.executive_intel_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.executive_intel_worker.tasks.recompute_executive_intel" in app.tasks

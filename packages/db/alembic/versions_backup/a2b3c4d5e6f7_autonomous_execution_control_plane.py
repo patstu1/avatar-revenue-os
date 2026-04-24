@@ -3,10 +3,11 @@
 Revision ID: a2b3c4d5e6f7
 Revises: z1a2b3c4d5e6
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "a2b3c4d5e6f7"

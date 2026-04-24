@@ -1,14 +1,21 @@
 """Affiliate Intelligence Service — rank, link, detect leaks, persist."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.affiliate_intel import (
-    AffiliateOffer, AffiliateLink, AffiliateClickEvent, AffiliateConversionEvent,
-    AffiliateCommissionEvent, AffiliatePayoutEvent, AffiliateBlocker, AffiliateLeak,
+    AffiliateBlocker,
+    AffiliateCommissionEvent,
+    AffiliateLeak,
+    AffiliateLink,
+    AffiliateOffer,
+    AffiliatePayoutEvent,
 )
-from packages.scoring.affiliate_intel_engine import rank_offers, detect_leaks, detect_blockers, build_affiliate_link
+from packages.scoring.affiliate_intel_engine import detect_blockers, detect_leaks, rank_offers
 
 
 async def recompute_ranking(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:

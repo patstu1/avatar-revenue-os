@@ -1,6 +1,5 @@
 """Unit tests for Revenue Ceiling Phase C scoring engines."""
 
-import pytest
 
 from packages.scoring.revenue_ceiling_phase_c_engines import (
     RECURRING_OFFER_TYPES,

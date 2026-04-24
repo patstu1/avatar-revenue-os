@@ -6,24 +6,32 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.enums import (
-    ActorType, ConfidenceLevel, DecisionMode, DecisionType,
-    JobStatus, RecommendedAction, SignalClassification, SignalStrength,
+    ActorType,
+    ConfidenceLevel,
+    DecisionMode,
+    DecisionType,
+    JobStatus,
+    RecommendedAction,
+    SignalClassification,
+    SignalStrength,
 )
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.core import Brand
-from packages.db.models.decisions import MonetizationDecision, OpportunityDecision
-from packages.db.models.discovery import NicheCluster, TopicCandidate, TopicSignal, TopicSource, TrendSignal
+from packages.db.models.decisions import OpportunityDecision
+from packages.db.models.discovery import NicheCluster, TopicCandidate, TrendSignal
 from packages.db.models.offers import Offer
 from packages.db.models.publishing import SignalIngestionRun
 from packages.db.models.scoring import (
-    OfferFitScore, OpportunityScore, ProfitForecast,
-    RecommendationQueue, SaturationReport,
+    OfferFitScore,
+    OpportunityScore,
+    ProfitForecast,
+    RecommendationQueue,
+    SaturationReport,
 )
 from packages.scoring.forecast import ForecastInput, compute_profit_forecast
 from packages.scoring.offer_fit import OfferFitInput, compute_offer_fit
@@ -449,8 +457,8 @@ async def trigger_brief_for_topic(
     db: AsyncSession, brand_id: uuid.UUID, topic_id: uuid.UUID,
 ) -> dict:
     """Prepare a brief trigger from a recommended topic. Creates the content_brief stub."""
-    from packages.db.models.content import ContentBrief
     from packages.db.enums import ContentType
+    from packages.db.models.content import ContentBrief
 
     topic = (await db.execute(select(TopicCandidate).where(TopicCandidate.id == topic_id))).scalar_one_or_none()
     if not topic:

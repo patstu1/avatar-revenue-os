@@ -9,10 +9,8 @@ from typing import Any
 
 from packages.scoring.provider_registry_engine import (
     PROVIDER_INVENTORY,
-    PROVIDER_DEPENDENCIES,
     audit_all_providers,
     check_provider_credentials,
-    get_provider_blockers,
 )
 
 QUICK_PROMPTS = {

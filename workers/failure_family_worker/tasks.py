@@ -1,14 +1,13 @@
 """Failure-Family Suppression workers — with auto kill-ledger population."""
-import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
 
 from celery import shared_task
 from sqlalchemy import select
+
+from packages.db.models.core import Brand
 from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
-from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
 

@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
-from packages.db.models.core import Brand, Organization
+from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
 from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
@@ -168,7 +168,7 @@ async def compute_portfolio_allocation(db: AsyncSession, org_id: uuid.UUID) -> d
     # Compute package-efficiency marginal score per brand
     for b in brands:
         rev = b["package_revenue_90d"]
-        packages_sold = max(b["packages_sold_90d"], 1)
+        max(b["packages_sold_90d"], 1)
         active_packages = max(b["active_packages"], 1)
 
         # Four inputs, no audience metrics:
@@ -226,7 +226,7 @@ def _portfolio_directive(brands: list, total_rev: float) -> str:
     if not brands:
         return "No brands configured. Create your first brand to begin."
     scaling = [b for b in brands if b["allocation"] == "scale"]
-    investing = [b for b in brands if b["allocation"] == "invest_or_pause"]
+    [b for b in brands if b["allocation"] == "invest_or_pause"]
     if not scaling and total_rev == 0:
         return "No revenue yet across any brand. Focus on the highest-potential brand first."
     if scaling:

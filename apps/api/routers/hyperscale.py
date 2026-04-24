@@ -1,10 +1,18 @@
 """Hyper-Scale Execution API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.hyperscale import HSCapacityOut, HSQueueSegmentOut, HSCeilingOut, HSScaleHealthOut, RecomputeSummaryOut
+from apps.api.schemas.hyperscale import (
+    HSCapacityOut,
+    HSCeilingOut,
+    HSQueueSegmentOut,
+    HSScaleHealthOut,
+    RecomputeSummaryOut,
+)
 from apps.api.services import hyperscale_service as svc
 from packages.db.models.core import Organization
 

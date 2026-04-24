@@ -17,33 +17,33 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.services.event_bus import emit_action, emit_event
-from packages.scoring.adaptive_calibration import get_calibration_context, normalize, relative_threshold
-from packages.scoring.ceiling_override import override_opportunity_score, override_recommendation_action, filter_suppress_decisions
+from apps.api.services.event_bus import emit_action
 from packages.db.models.accounts import CreatorAccount
-from packages.db.models.brain_phase_b import ArbitrationReport, BrainDecision
+from packages.db.models.brain_phase_b import BrainDecision
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
-from packages.db.models.creator_revenue import CreatorRevenueOpportunity
 from packages.db.models.failure_family import FailureFamilyReport, SuppressionRule
 from packages.db.models.learning import MemoryEntry
 from packages.db.models.offers import Offer, SponsorOpportunity, SponsorProfile
 from packages.db.models.pattern_memory import (
     LosingPatternMemory,
-    PatternDecayReport,
-    WinningPatternCluster,
     WinningPatternMemory,
 )
-from packages.db.models.promote_winner import ActiveExperiment, PromotedWinnerRule
+from packages.db.models.promote_winner import PromotedWinnerRule
 from packages.db.models.publishing import PerformanceMetric
 from packages.db.models.revenue_ledger import RevenueLedgerEntry
-from packages.db.models.scoring import OpportunityScore, ProfitForecast, RecommendationQueue
+from packages.db.models.scoring import RecommendationQueue
+from packages.scoring.adaptive_calibration import get_calibration_context
+from packages.scoring.ceiling_override import (
+    filter_suppress_decisions,
+    override_opportunity_score,
+    override_recommendation_action,
+)
 
 logger = structlog.get_logger()
 
@@ -151,7 +151,7 @@ async def compute_creator_monetization_fit(
         # Portfolio-relative normalization: use the portfolio's own scale as the reference
         max_followers = max((a.follower_count or 0) for a in accounts) if accounts else 1
         follower_ratio = followers / max(max_followers, 1)  # 0-1 relative to best account
-        revenue_ratio = min(1.0, float(ledger_revenue) / max(float(ledger_revenue) + 1, 1))  # has revenue = 1.0
+        min(1.0, float(ledger_revenue) / max(float(ledger_revenue) + 1, 1))  # has revenue = 1.0
 
         base = max(0, follower_ratio * 0.3 + min(1.0, engagement * 10) * 0.3 + (0.4 if health == "healthy" else 0.2) - scale_penalty)
 
@@ -638,7 +638,7 @@ async def compute_monetization_mix(
 
 async def get_next_best_revenue_actions(
     db: AsyncSession, brand_id: uuid.UUID,
-    org_id: Optional[uuid.UUID] = None,
+    org_id: uuid.UUID | None = None,
 ) -> list[dict]:
     """The master 'what to do next' engine. Top actions ranked by expected value."""
     actions = []
@@ -693,7 +693,7 @@ async def get_next_best_revenue_actions(
 
 async def get_revenue_command_center(
     db: AsyncSession, brand_id: uuid.UUID,
-    org_id: Optional[uuid.UUID] = None,
+    org_id: uuid.UUID | None = None,
 ) -> dict:
     """The complete revenue maximization picture in one call."""
     from apps.api.services.monetization_bridge import get_brand_revenue_state, get_ledger_summary

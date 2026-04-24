@@ -3,10 +3,11 @@
 Revision ID: y5z6a7b8c9d0
 Revises: x3y4z5a6b7c8
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision: str = "y5z6a7b8c9d0"
 down_revision: Union[str, None] = "x3y4z5a6b7c8"

@@ -12,10 +12,6 @@ Tests cover:
 - Recompute idempotency (delete-before-insert pattern)
 """
 import importlib
-import uuid
-
-import pytest
-
 
 # ─── A1: Request ID Middleware ────────────────────────────────────────────
 
@@ -154,6 +150,7 @@ class TestRateLimiting:
 class TestNotificationAdapters:
     def test_unconfigured_email_returns_clear_error(self):
         import asyncio
+
         from packages.notifications.adapters import EmailAdapter, NotificationPayload
         adapter = EmailAdapter(smtp_host="", smtp_user="")
         payload = NotificationPayload(title="Test", summary="Test", urgency=50, alert_type="test", brand_id="x")
@@ -163,7 +160,8 @@ class TestNotificationAdapters:
 
     def test_unconfigured_slack_returns_clear_error(self):
         import asyncio
-        from packages.notifications.adapters import SlackWebhookAdapter, NotificationPayload
+
+        from packages.notifications.adapters import NotificationPayload, SlackWebhookAdapter
         adapter = SlackWebhookAdapter(webhook_url="")
         payload = NotificationPayload(title="Test", summary="Test", urgency=50, alert_type="test", brand_id="x")
         ok, err = asyncio.run(adapter.send(payload, "channel"))
@@ -172,7 +170,8 @@ class TestNotificationAdapters:
 
     def test_unconfigured_sms_returns_clear_error(self):
         import asyncio
-        from packages.notifications.adapters import SMSAdapter, NotificationPayload
+
+        from packages.notifications.adapters import NotificationPayload, SMSAdapter
         adapter = SMSAdapter(api_key="")
         payload = NotificationPayload(title="Test", summary="Test", urgency=50, alert_type="test", brand_id="x")
         ok, err = asyncio.run(adapter.send(payload, "+1234567890"))
@@ -181,6 +180,7 @@ class TestNotificationAdapters:
 
     def test_in_app_always_succeeds(self):
         import asyncio
+
         from packages.notifications.adapters import InAppAdapter, NotificationPayload
         adapter = InAppAdapter()
         payload = NotificationPayload(title="Test", summary="Test", urgency=50, alert_type="test", brand_id="x")
@@ -198,7 +198,7 @@ class TestRecomputeIdempotency:
     def _check_module_has_delete(self, module_path: str):
         mod = importlib.import_module(module_path)
         source_file = mod.__file__
-        with open(source_file, "r") as f:
+        with open(source_file) as f:
             content = f.read()
         assert "delete(" in content, f"{module_path} does not use delete() — potential idempotency gap"
 
@@ -232,7 +232,7 @@ class TestSeedDataCoverage:
     def test_seed_imports_scale_alerts(self):
         import scripts.seed as seed_mod
         source = seed_mod.__file__
-        with open(source, "r") as f:
+        with open(source) as f:
             content = f.read()
         assert "OperatorAlert" in content
         assert "LaunchCandidate" in content
@@ -240,7 +240,7 @@ class TestSeedDataCoverage:
 
     def test_seed_imports_revenue_ceiling(self):
         import scripts.seed as seed_mod
-        with open(seed_mod.__file__, "r") as f:
+        with open(seed_mod.__file__) as f:
             content = f.read()
         assert "OfferLadder" in content
         assert "HighTicketOpportunity" in content
@@ -248,7 +248,7 @@ class TestSeedDataCoverage:
 
     def test_seed_imports_expansion_packs(self):
         import scripts.seed as seed_mod
-        with open(seed_mod.__file__, "r") as f:
+        with open(seed_mod.__file__) as f:
             content = f.read()
         assert "LeadOpportunity" in content
         assert "PricingRecommendation" in content
@@ -257,14 +257,14 @@ class TestSeedDataCoverage:
 
     def test_seed_imports_autonomous_execution(self):
         import scripts.seed as seed_mod
-        with open(seed_mod.__file__, "r") as f:
+        with open(seed_mod.__file__) as f:
             content = f.read()
         assert "AutomationExecutionPolicy" in content
         assert "AutomationExecutionRun" in content
 
     def test_seed_covers_all_platforms(self):
         import scripts.seed as seed_mod
-        with open(seed_mod.__file__, "r") as f:
+        with open(seed_mod.__file__) as f:
             content = f.read()
         for p in ["YOUTUBE", "TIKTOK", "INSTAGRAM", "TWITTER", "REDDIT", "LINKEDIN", "FACEBOOK"]:
             assert f"Platform.{p}" in content, f"Seed missing Platform.{p}"
@@ -324,5 +324,6 @@ class TestOrgScopeHelper:
 
     def test_require_brand_access_is_async(self):
         import asyncio
+
         from apps.api.deps import require_brand_access
         assert asyncio.iscoroutinefunction(require_brand_access)

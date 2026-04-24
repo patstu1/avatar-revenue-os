@@ -4,12 +4,12 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.brain_architecture import BrainMemoryEntry
-from packages.db.models.brain_phase_b import BrainDecision, ConfidenceReport, PolicyEvaluation
+from packages.db.models.brain_phase_b import BrainDecision, PolicyEvaluation
 from packages.db.models.brain_phase_c import AgentRunV2, SharedContextEvent
 from packages.db.models.brain_phase_d import (
     BrainEscalation,

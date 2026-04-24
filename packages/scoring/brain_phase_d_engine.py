@@ -271,7 +271,7 @@ def compute_readiness_brain(ctx: dict[str, Any]) -> dict[str, Any]:
 
 def compute_brain_escalations(ctx: dict[str, Any]) -> list[dict[str, Any]]:
     escalations: list[dict[str, Any]] = []
-    blockers = ctx.get("blockers", [])
+    ctx.get("blockers", [])
     health = ctx.get("health_score", 0.5)
     has_offers = ctx.get("has_offers", False)
     has_accounts = ctx.get("has_accounts", False)

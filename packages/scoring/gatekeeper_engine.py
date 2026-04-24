@@ -4,6 +4,7 @@ Every function evaluates real system state and returns pass/fail with severity.
 No soft passes. No fake approvals. If something is incomplete, say so.
 """
 from __future__ import annotations
+
 from typing import Any
 
 # Gate severity levels

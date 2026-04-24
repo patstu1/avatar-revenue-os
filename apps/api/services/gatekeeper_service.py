@@ -22,7 +22,6 @@ from packages.db.models.gatekeeper import (
 )
 from packages.scoring.gatekeeper_engine import (
     SYSTEM_MODULES,
-    build_audit_entry,
     detect_contradictions,
     evaluate_completion,
     evaluate_dependency_readiness,

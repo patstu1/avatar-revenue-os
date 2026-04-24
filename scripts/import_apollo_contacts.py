@@ -15,8 +15,6 @@ from __future__ import annotations
 import csv
 import os
 import sys
-import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 
 # Add project root to path
@@ -166,7 +164,7 @@ def main():
     # Collect all rows from all CSV files
     all_rows = []
     for csv_path in args.csv_files:
-        with open(csv_path, "r", encoding="utf-8-sig") as f:
+        with open(csv_path, encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 all_rows.append(row)
@@ -191,7 +189,7 @@ def main():
 
     with Session(engine) as session:
         from packages.db.models.core import Brand
-        from packages.db.models.expansion_pack2_phase_a import LeadOpportunity, CloserAction
+        from packages.db.models.expansion_pack2_phase_a import CloserAction, LeadOpportunity
 
         # Load brand map by vertical
         brand_map = {}
@@ -311,11 +309,11 @@ def main():
 
         session.commit()
 
-    print(f"\nDone!")
+    print("\nDone!")
     print(f"  Leads created: {leads_created}")
     print(f"  CloserActions queued: {actions_created}")
     print(f"  Skipped (duplicate/empty): {skipped}")
-    print(f"\nThe outreach worker runs every 15 minutes and will send these via Brevo SMTP.")
+    print("\nThe outreach worker runs every 15 minutes and will send these via Brevo SMTP.")
 
 
 if __name__ == "__main__":

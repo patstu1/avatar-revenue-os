@@ -6,17 +6,17 @@ then sends the report to the sponsor contact.
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import select, and_, or_
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_event
 from packages.db.models.sponsor_campaigns import (
-    SponsorCampaign, SponsorPlacement, SponsorReport,
+    SponsorCampaign,
+    SponsorPlacement,
+    SponsorReport,
 )
 
 logger = structlog.get_logger()
@@ -60,7 +60,7 @@ async def compile_report(
     period_end: datetime,
     report_type: str = "monthly",
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> SponsorReport:
     """Compile placement metrics for [period_start, period_end] into
     a SponsorReport row. Status=draft; a separate ``send_report`` call
@@ -127,7 +127,7 @@ async def send_report(
     report: SponsorReport,
     recipient_email: str,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Mark the report sent + attempt SMTP delivery. Graceful failure."""
     if report.status == "sent":

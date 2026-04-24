@@ -1,20 +1,24 @@
 """DB-backed integration tests for Opportunity-Cost Ranking."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.core import Brand, Organization
-from packages.db.models.accounts import CreatorAccount
-from packages.db.models.account_state_intel import AccountStateReport
-from packages.db.models.opportunity_cost import OpportunityCostReport, RankedAction, CostOfDelayModel
-from packages.db.enums import Platform
 from apps.api.services.opportunity_cost_service import (
-    recompute_ranking, list_reports, list_ranked_actions, get_top_actions,
+    get_top_actions,
+    list_ranked_actions,
+    list_reports,
+    recompute_ranking,
 )
+from packages.db.enums import Platform
+from packages.db.models.account_state_intel import AccountStateReport
+from packages.db.models.accounts import CreatorAccount
+from packages.db.models.core import Brand, Organization
+from packages.db.models.opportunity_cost import CostOfDelayModel, OpportunityCostReport, RankedAction
 
 
 @pytest_asyncio.fixture
@@ -142,6 +146,6 @@ async def test_idempotent(db_session, brand_with_state):
 
 
 def test_opportunity_cost_worker_registered():
-    from workers.celery_app import app
     import workers.opportunity_cost_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.opportunity_cost_worker.tasks.recompute_opportunity_cost" in app.tasks

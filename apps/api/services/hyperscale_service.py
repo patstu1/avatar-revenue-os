@@ -1,16 +1,28 @@
 """Hyper-Scale Execution Service — capacity, segments, ceilings, health."""
 from __future__ import annotations
+
 import uuid
-from typing import Any
 from datetime import datetime, timedelta, timezone
+from typing import Any
+
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.hyperscale import (
-    ExecutionCapacityReport, ExecutionQueueSegment, WorkloadAllocation,
-    ThroughputEvent, BurstEvent, UsageCeilingRule, DegradationEvent, ScaleHealthReport,
+    BurstEvent,
+    DegradationEvent,
+    ExecutionCapacityReport,
+    ExecutionQueueSegment,
+    ScaleHealthReport,
+    UsageCeilingRule,
 )
-from packages.db.models.system import SystemJob
-from packages.scoring.hyperscale_engine import evaluate_capacity, detect_burst, plan_degradation, enforce_ceiling, build_scale_health
+from packages.scoring.hyperscale_engine import (
+    build_scale_health,
+    detect_burst,
+    enforce_ceiling,
+    evaluate_capacity,
+    plan_degradation,
+)
 
 
 async def recompute_capacity(db: AsyncSession, org_id: uuid.UUID) -> dict[str, Any]:

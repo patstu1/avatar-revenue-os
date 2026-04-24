@@ -1,14 +1,27 @@
 """DB-backed integration tests for Offer Lab."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from apps.api.services.offer_lab_service import (
+    get_best_offer,
+    list_offers,
+    list_variants,
+    recompute_offer_lab,
+)
 from packages.db.models.core import Brand, Organization
+from packages.db.models.offer_lab import (
+    OfferLabBundle,
+    OfferLabOffer,
+    OfferLabPricingTest,
+    OfferLabVariant,
+)
 from packages.db.models.offers import Offer
-from packages.db.models.offer_lab import OfferLabOffer, OfferLabVariant, OfferLabPricingTest, OfferLabBundle, OfferLabBlocker
-from apps.api.services.offer_lab_service import recompute_offer_lab, list_offers, list_variants, list_bundles, list_blockers, get_best_offer
 
 
 @pytest_asyncio.fixture
@@ -102,6 +115,6 @@ async def test_idempotent(db_session, brand_with_offers):
 
 
 def test_offer_lab_worker_registered():
-    from workers.celery_app import app
     import workers.offer_lab_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.offer_lab_worker.tasks.recompute_offer_lab" in app.tasks

@@ -30,7 +30,7 @@ Endpoints:
 from __future__ import annotations
 
 import uuid
-from typing import Optional
+from datetime import datetime, timezone
 
 import structlog
 from fastapi import APIRouter, HTTPException
@@ -39,9 +39,6 @@ from sqlalchemy import select
 
 from apps.api.deps import DBSession, OperatorUser
 from apps.api.services.gm_doctrine import (
-    ACTION_CLASS_APPROVAL,
-    ACTION_CLASS_AUTO,
-    ACTION_CLASS_ESCALATE,
     REVENUE_AVENUES,
     STATUS_DISABLED_BY_OPERATOR,
     classify_action,
@@ -53,13 +50,14 @@ from apps.api.services.gm_write_service import (
 from packages.db.models.clients import Client, IntakeRequest
 from packages.db.models.delivery import Delivery
 from packages.db.models.email_pipeline import EmailReplyDraft
-from packages.db.models.expansion_pack2_phase_c import SponsorTarget
-from packages.db.models.fulfillment import ClientProject, ProductionJob, ProjectBrief
+from packages.db.models.fulfillment import ProductionJob, ProjectBrief
 from packages.db.models.gm_control import GMApproval, GMEscalation
-from packages.db.models.invoices import Invoice, InvoiceMilestone
-from packages.db.models.proposals import Payment, PaymentLink, Proposal
+from packages.db.models.invoices import Invoice
+from packages.db.models.proposals import Proposal
 from packages.db.models.sponsor_campaigns import (
-    SponsorCampaign, SponsorPlacement, SponsorReport,
+    SponsorCampaign,
+    SponsorPlacement,
+    SponsorReport,
 )
 
 logger = structlog.get_logger()
@@ -73,7 +71,7 @@ router = APIRouter(prefix="/gm/write", tags=["GM Write Authority"])
 
 
 class ApprovalDecisionBody(BaseModel):
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @router.post("/approvals/{approval_id}/approve")
@@ -159,7 +157,7 @@ async def reject_approval(
 
 
 class EscalationResolveBody(BaseModel):
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @router.post("/escalations/{escalation_id}/resolve")
@@ -204,7 +202,7 @@ async def resolve_escalation(
 
 
 class DraftDecisionBody(BaseModel):
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 @router.post("/drafts/{draft_id}/approve")
@@ -214,7 +212,10 @@ async def approve_draft(
     db: DBSession,
 ):
     from apps.api.services.reply_draft_actions import (
-        DraftActionError, approve_draft as svc,
+        DraftActionError,
+    )
+    from apps.api.services.reply_draft_actions import (
+        approve_draft as svc,
     )
 
     did = _parse_uuid(draft_id)
@@ -255,7 +256,10 @@ async def reject_draft(
     db: DBSession,
 ):
     from apps.api.services.reply_draft_actions import (
-        DraftActionError, reject_draft as svc,
+        DraftActionError,
+    )
+    from apps.api.services.reply_draft_actions import (
+        reject_draft as svc,
     )
 
     did = _parse_uuid(draft_id)
@@ -296,8 +300,8 @@ class ProposalLineItemBody(BaseModel):
     description: str = Field(..., max_length=500)
     unit_amount_cents: int = Field(..., ge=0)
     quantity: int = Field(1, ge=1)
-    offer_id: Optional[uuid.UUID] = None
-    package_slug: Optional[str] = Field(None, max_length=100)
+    offer_id: uuid.UUID | None = None
+    package_slug: str | None = Field(None, max_length=100)
     currency: str = "usd"
     position: int = 0
 
@@ -306,13 +310,13 @@ class CreateProposalBody(BaseModel):
     recipient_email: str = Field(..., max_length=255)
     title: str = Field(..., max_length=500)
     line_items: list[ProposalLineItemBody] = Field(..., min_length=1)
-    brand_id: Optional[uuid.UUID] = None
+    brand_id: uuid.UUID | None = None
     recipient_name: str = ""
     recipient_company: str = ""
     summary: str = ""
-    package_slug: Optional[str] = None
+    package_slug: str | None = None
     currency: str = "usd"
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @router.post("/proposals", status_code=201)
@@ -322,7 +326,10 @@ async def create_proposal(
     db: DBSession,
 ):
     from apps.api.services.proposals_service import (
-        LineItemInput, create_proposal as svc,
+        LineItemInput,
+    )
+    from apps.api.services.proposals_service import (
+        create_proposal as svc,
     )
 
     action_class = classify_action(confidence=1.0, money_involved=True)
@@ -391,7 +398,7 @@ async def send_proposal(
     from apps.api.services.proposals_service import mark_proposal_sent as svc
 
     pid = _parse_uuid(proposal_id)
-    proposal = await _require_owned_proposal(db, pid, current_user.organization_id)
+    await _require_owned_proposal(db, pid, current_user.organization_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
         tool_name="proposals.send", action_class=action_class,
@@ -424,9 +431,9 @@ async def send_proposal(
 
 
 class CreatePaymentLinkBody(BaseModel):
-    amount_cents: Optional[int] = Field(None, ge=0)
-    currency: Optional[str] = Field(None, max_length=10)
-    product_name: Optional[str] = Field(None, max_length=500)
+    amount_cents: int | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    product_name: str | None = Field(None, max_length=500)
 
 
 @router.post("/proposals/{proposal_id}/payment-link", status_code=201)
@@ -604,7 +611,7 @@ class MarkStageBody(BaseModel):
             "without row-level event evidence."
         ),
     )
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @router.post("/stages/mark", status_code=201)
@@ -619,7 +626,8 @@ async def mark_stage(
     Doctrine rule enforced: "Do NOT mark a stage complete without a
     row-level event to cite."
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
+
     from apps.api.services.stage_controller import mark_stage as svc
     from packages.db.models.system_events import SystemEvent
 
@@ -698,7 +706,7 @@ async def mark_stage(
 
 
 class IntakeResendBody(BaseModel):
-    note: Optional[str] = Field(None, max_length=1000)
+    note: str | None = Field(None, max_length=1000)
 
 
 @router.post("/intake/{intake_request_id}/resend")
@@ -771,8 +779,8 @@ async def resend_intake_invite(
 
 class ProductionLaunchBody(BaseModel):
     job_type: str = Field("content_pack", max_length=60)
-    title: Optional[str] = Field(None, max_length=500)
-    metadata: Optional[dict] = None
+    title: str | None = Field(None, max_length=500)
+    metadata: dict | None = None
 
 
 @router.post("/production/briefs/{brief_id}/launch", status_code=201)
@@ -829,7 +837,7 @@ async def launch_production(
 
 class ProductionSubmitOutputBody(BaseModel):
     deliverable_url: str = Field(..., min_length=1, max_length=2000)
-    notes: Optional[str] = Field(None, max_length=2000)
+    notes: str | None = Field(None, max_length=2000)
     auto_dispatch_delivery: bool = True
 
 
@@ -890,9 +898,9 @@ async def submit_production_output(
 
 class DeliveryDispatchBody(BaseModel):
     channel: str = "email"
-    subject: Optional[str] = Field(None, max_length=1000)
-    message: Optional[str] = Field(None, max_length=10000)
-    deliverable_url: Optional[str] = Field(None, max_length=2000)
+    subject: str | None = Field(None, max_length=1000)
+    message: str | None = Field(None, max_length=10000)
+    deliverable_url: str | None = Field(None, max_length=2000)
     followup_days: int = Field(7, ge=1, le=60)
 
 
@@ -952,7 +960,7 @@ async def force_dispatch_delivery(
 
 
 class DeliveryFollowupBody(BaseModel):
-    when_iso: Optional[str] = Field(
+    when_iso: str | None = Field(
         None,
         description="ISO-8601 timestamp. If omitted, defaults to now + 7 days.",
     )
@@ -967,7 +975,8 @@ async def schedule_delivery_followup(
 ):
     """Set or reset the follow-up send time on a delivery. The beat
     task dispatches followups whose time has matured."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
+
     from apps.api.services.qa_delivery_service import schedule_followup
 
     did = _parse_uuid(delivery_id)
@@ -1018,7 +1027,7 @@ async def schedule_delivery_followup(
 
 
 class DunningSendBody(BaseModel):
-    note: Optional[str] = Field(None, max_length=2000)
+    note: str | None = Field(None, max_length=2000)
 
 
 @router.post("/proposals/{proposal_id}/dunning/send")
@@ -1082,7 +1091,7 @@ class IssueClassificationBody(BaseModel):
         ),
     )
     severity: str = Field("info", pattern="^(info|warning|critical)$")
-    notes: Optional[str] = Field(None, max_length=4000)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/issues/drafts/{draft_id}/classify")
@@ -1202,24 +1211,24 @@ async def classify_issue(
 
 class LeadRowBody(BaseModel):
     company_name: str = Field(..., min_length=1, max_length=255)
-    contact_name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    instagram_handle: Optional[str] = None
-    website_url: Optional[str] = None
-    industry: Optional[str] = None
-    niche_tag: Optional[str] = None
-    estimated_size: Optional[str] = None
-    estimated_deal_value: Optional[float] = None
-    fit_score: Optional[float] = None
-    confidence: Optional[float] = None
-    notes: Optional[str] = None
+    contact_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    instagram_handle: str | None = None
+    website_url: str | None = None
+    industry: str | None = None
+    niche_tag: str | None = None
+    estimated_size: str | None = None
+    estimated_deal_value: float | None = None
+    fit_score: float | None = None
+    confidence: float | None = None
+    notes: str | None = None
 
 
 class LeadImportBody(BaseModel):
     avenue_slug: str = Field(..., min_length=1, max_length=60)
     rows: list[LeadRowBody] = Field(..., min_length=1, max_length=500)
-    csv: Optional[str] = Field(
+    csv: str | None = Field(
         None, description="Optional raw CSV. If present, rows+csv are merged.",
         max_length=500_000,
     )
@@ -1234,7 +1243,8 @@ async def gm_leads_import(
     """Bulk-import leads (``sponsor_targets``) and tag each with
     ``avenue_slug``. Wraps ``gm_front_of_funnel_service.bulk_import_leads_with_avenue``."""
     from apps.api.services.gm_front_of_funnel_service import (
-        bulk_import_leads_with_avenue, parse_csv_rows,
+        bulk_import_leads_with_avenue,
+        parse_csv_rows,
     )
 
     rows = [r.model_dump(exclude_none=False) for r in body.rows]
@@ -1285,8 +1295,8 @@ class LeadQualifyBody(BaseModel):
         pattern="^(hot|warm|cold|parked|disqualified)$",
     )
     reason_codes: list[str] = Field(default_factory=list)
-    avenue_slug_override: Optional[str] = Field(None, max_length=60)
-    notes: Optional[str] = Field(None, max_length=4000)
+    avenue_slug_override: str | None = Field(None, max_length=60)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/leads/{lead_id}/qualify")
@@ -1343,16 +1353,16 @@ class LeadRouteToProposalLineItem(BaseModel):
     unit_amount_cents: int = Field(..., ge=0)
     quantity: int = Field(1, ge=1)
     currency: str = "usd"
-    package_slug: Optional[str] = Field(None, max_length=100)
+    package_slug: str | None = Field(None, max_length=100)
     position: int = 0
 
 
 class LeadRouteToProposalBody(BaseModel):
-    package_slug: Optional[str] = Field(None, max_length=100)
-    title: Optional[str] = Field(None, max_length=500)
+    package_slug: str | None = Field(None, max_length=100)
+    title: str | None = Field(None, max_length=500)
     summary: str = ""
     line_items: list[LeadRouteToProposalLineItem] = Field(..., min_length=1)
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @router.post("/leads/{lead_id}/route-to-proposal", status_code=201)
@@ -1413,7 +1423,7 @@ async def gm_leads_route_to_proposal(
 
 class OutreachLaunchBody(BaseModel):
     avenue_slug: str = Field(..., min_length=1, max_length=60)
-    lead_ids: Optional[list[uuid.UUID]] = None
+    lead_ids: list[uuid.UUID] | None = None
     sequence_template_slug: str = Field("default_v1", max_length=100)
     max_leads: int = Field(200, ge=1, le=1000)
 
@@ -1459,8 +1469,8 @@ async def gm_outreach_launch(
 
 
 class OutreachPauseBody(BaseModel):
-    avenue_slug: Optional[str] = Field(None, max_length=60)
-    sequence_ids: Optional[list[uuid.UUID]] = None
+    avenue_slug: str | None = Field(None, max_length=60)
+    sequence_ids: list[uuid.UUID] | None = None
 
 
 @router.post("/outreach/pause")
@@ -1497,10 +1507,10 @@ async def gm_outreach_pause(
 
 
 class DraftRewriteBody(BaseModel):
-    subject: Optional[str] = Field(None, max_length=1000)
-    body_text: Optional[str] = Field(None, max_length=100_000)
-    body_html: Optional[str] = Field(None, max_length=200_000)
-    reason: Optional[str] = Field(None, max_length=2000)
+    subject: str | None = Field(None, max_length=1000)
+    body_text: str | None = Field(None, max_length=100_000)
+    body_html: str | None = Field(None, max_length=200_000)
+    reason: str | None = Field(None, max_length=2000)
 
 
 @router.post("/replies/drafts/{draft_id}/rewrite")
@@ -1623,15 +1633,15 @@ class RetentionLineItem(BaseModel):
     unit_amount_cents: int = Field(..., ge=0)
     quantity: int = Field(1, ge=1)
     currency: str = "usd"
-    package_slug: Optional[str] = Field(None, max_length=100)
+    package_slug: str | None = Field(None, max_length=100)
     position: int = 0
 
 
 class ClientRenewBody(BaseModel):
     package_slug: str = Field(..., min_length=1, max_length=100)
     line_items: list[RetentionLineItem] = Field(..., min_length=1)
-    title: Optional[str] = Field(None, max_length=500)
-    notes: Optional[str] = None
+    title: str | None = Field(None, max_length=500)
+    notes: str | None = None
     force: bool = False
 
 
@@ -1696,9 +1706,9 @@ async def gm_client_renew(
 
 class ClientReactivateBody(BaseModel):
     template_slug: str = Field("reactivation_default_v1", max_length=100)
-    subject: Optional[str] = Field(None, max_length=1000)
-    body_override: Optional[str] = Field(None, max_length=50_000)
-    notes: Optional[str] = None
+    subject: str | None = Field(None, max_length=1000)
+    body_override: str | None = Field(None, max_length=50_000)
+    notes: str | None = None
     force: bool = False
 
 
@@ -1759,8 +1769,8 @@ async def gm_client_reactivate(
 class ClientUpsellBody(BaseModel):
     package_slug: str = Field(..., min_length=1, max_length=100)
     line_items: list[RetentionLineItem] = Field(..., min_length=1)
-    title: Optional[str] = Field(None, max_length=500)
-    notes: Optional[str] = None
+    title: str | None = Field(None, max_length=500)
+    notes: str | None = None
     force: bool = False
 
 
@@ -1823,8 +1833,8 @@ async def gm_client_upsell(
 
 class ClientCancelBody(BaseModel):
     reason: str = Field(..., min_length=1, max_length=200)
-    effective_at_iso: Optional[str] = None
-    notes: Optional[str] = Field(None, max_length=4000)
+    effective_at_iso: str | None = None
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/clients/{client_id}/cancel-subscription")
@@ -1837,7 +1847,9 @@ async def gm_client_cancel_subscription(
     """Terminal cancellation — flips retention_state to 'churned' and
     is_recurring to False. Idempotent (returns the existing event
     if client is already churned)."""
-    from datetime import datetime as _dt, timezone as _tz
+    from datetime import datetime as _dt
+    from datetime import timezone as _tz
+
     from apps.api.services.retention_service import cancel_subscription
 
     cid = _parse_uuid(client_id)
@@ -1904,12 +1916,13 @@ async def gm_client_cancel_subscription(
 # canonical service → audit_gm_write + gm.write.<tool> event).
 
 
-def _parse_dt(s: Optional[str], field: str) -> Optional[datetime]:
+def _parse_dt(s: str | None, field: str) -> datetime | None:
     """Parse an ISO-8601 datetime; return None on empty. Raise 400 on
     malformed. Always normalizes to UTC if naive."""
     if s is None or s == "":
         return None
-    from datetime import datetime, timezone as _tz
+    from datetime import datetime
+    from datetime import timezone as _tz
     try:
         dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
     except (ValueError, TypeError):
@@ -1951,8 +1964,8 @@ def _require_high_ticket(client: Client) -> None:
 class HTScheduleDiscoveryBody(BaseModel):
     when_iso: str = Field(..., min_length=1, max_length=40)
     attendees: list[dict] = Field(default_factory=list, max_length=20)
-    agenda: Optional[str] = Field(None, max_length=4000)
-    notes: Optional[str] = Field(None, max_length=4000)
+    agenda: str | None = Field(None, max_length=4000)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/clients/{client_id}/high-ticket/schedule-discovery")
@@ -2004,10 +2017,10 @@ async def gm_ht_schedule_discovery(
 
 class HTSowSentBody(BaseModel):
     sow_url: str = Field(..., min_length=1, max_length=2048)
-    signer_email: Optional[str] = Field(None, max_length=255)
-    sent_at_iso: Optional[str] = Field(None, max_length=40)
-    counterparty_name: Optional[str] = Field(None, max_length=255)
-    notes: Optional[str] = Field(None, max_length=4000)
+    signer_email: str | None = Field(None, max_length=255)
+    sent_at_iso: str | None = Field(None, max_length=40)
+    counterparty_name: str | None = Field(None, max_length=255)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/clients/{client_id}/high-ticket/sow-sent")
@@ -2057,9 +2070,9 @@ async def gm_ht_sow_sent(
 
 
 class HTSowCountersignedBody(BaseModel):
-    signed_at_iso: Optional[str] = Field(None, max_length=40)
-    counterparty_name: Optional[str] = Field(None, max_length=255)
-    notes: Optional[str] = Field(None, max_length=4000)
+    signed_at_iso: str | None = Field(None, max_length=40)
+    counterparty_name: str | None = Field(None, max_length=255)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/clients/{client_id}/high-ticket/sow-countersigned")
@@ -2110,7 +2123,7 @@ async def gm_ht_sow_countersigned(
 class HTKickoffBody(BaseModel):
     kickoff_at_iso: str = Field(..., min_length=1, max_length=40)
     team_members: list[dict] = Field(default_factory=list, max_length=20)
-    notes: Optional[str] = Field(None, max_length=4000)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/clients/{client_id}/high-ticket/kickoff")
@@ -2167,7 +2180,7 @@ class HTIssueClassifyBody(BaseModel):
         ),
     )
     affected_cents: int = Field(0, ge=0)
-    notes: Optional[str] = Field(None, max_length=4000)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/issues/drafts/{draft_id}/high-ticket-classify")
@@ -2237,8 +2250,8 @@ async def gm_ht_issue_classify(
 class HTCreditBody(BaseModel):
     amount_cents: int = Field(..., gt=0)
     reason: str = Field(..., min_length=1, max_length=2000)
-    reference_project_id: Optional[uuid.UUID] = None
-    notes: Optional[str] = Field(None, max_length=4000)
+    reference_project_id: uuid.UUID | None = None
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/clients/{client_id}/high-ticket/credit", status_code=201)
@@ -2378,14 +2391,14 @@ def _require_sponsor_deals(client: Client) -> None:
 class InvoiceMilestoneBody(BaseModel):
     label: str = Field(..., min_length=1, max_length=255)
     amount_cents: int = Field(..., ge=0)
-    due_date_iso: Optional[str] = Field(None, max_length=40)
+    due_date_iso: str | None = Field(None, max_length=40)
     position: int = 0
 
 
 class CreateInvoiceBody(BaseModel):
     milestones: list[InvoiceMilestoneBody] = Field(default_factory=list)
-    due_date_iso: Optional[str] = Field(None, max_length=40)
-    notes: Optional[str] = Field(None, max_length=4000)
+    due_date_iso: str | None = Field(None, max_length=40)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/proposals/{proposal_id}/invoice", status_code=201)
@@ -2450,7 +2463,7 @@ async def gm_create_invoice(
 
 
 class InvoiceSendBody(BaseModel):
-    notes: Optional[str] = Field(None, max_length=2000)
+    notes: str | None = Field(None, max_length=2000)
 
 
 @router.post("/invoices/{invoice_id}/send")
@@ -2504,8 +2517,8 @@ class InvoiceMarkPaidBody(BaseModel):
         ..., pattern="^(wire|ach|check|stripe|other)$"
     )
     payment_reference: str = Field(..., min_length=1, max_length=255)
-    milestone_position: Optional[int] = Field(None, ge=0)
-    paid_at_iso: Optional[str] = Field(None, max_length=40)
+    milestone_position: int | None = Field(None, ge=0)
+    paid_at_iso: str | None = Field(None, max_length=40)
 
 
 @router.post("/invoices/{invoice_id}/mark-paid")
@@ -2612,9 +2625,9 @@ async def gm_void_invoice(
 
 class SponsorContractSignedBody(BaseModel):
     contract_url: str = Field(..., min_length=1, max_length=2048)
-    signed_at_iso: Optional[str] = Field(None, max_length=40)
-    counterparty_name: Optional[str] = Field(None, max_length=255)
-    notes: Optional[str] = Field(None, max_length=4000)
+    signed_at_iso: str | None = Field(None, max_length=40)
+    counterparty_name: str | None = Field(None, max_length=255)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/clients/{client_id}/sponsor/record-contract-signed")
@@ -2658,7 +2671,7 @@ async def gm_sponsor_record_contract_signed(
 
 class SponsorBriefReceivedBody(BaseModel):
     brief_json: dict
-    notes: Optional[str] = Field(None, max_length=4000)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/clients/{client_id}/sponsor/record-brief-received")
@@ -2698,8 +2711,8 @@ async def gm_sponsor_record_brief_received(
 
 class SponsorCampaignStartBody(BaseModel):
     campaign_start_at_iso: str = Field(..., min_length=1, max_length=40)
-    campaign_end_at_iso: Optional[str] = Field(None, max_length=40)
-    notes: Optional[str] = Field(None, max_length=4000)
+    campaign_end_at_iso: str | None = Field(None, max_length=40)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/clients/{client_id}/sponsor/set-campaign-start")
@@ -2752,7 +2765,7 @@ class SponsorPlacementBody(BaseModel):
     )
     scheduled_at_iso: str = Field(..., min_length=1, max_length=40)
     position: int = 0
-    notes: Optional[str] = Field(None, max_length=4000)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/sponsor-campaigns/{campaign_id}/placements", status_code=201)
@@ -2808,9 +2821,9 @@ async def gm_sponsor_schedule_placement(
 
 
 class PlacementDeliveredBody(BaseModel):
-    delivered_at_iso: Optional[str] = Field(None, max_length=40)
-    metrics: Optional[dict] = None
-    notes: Optional[str] = Field(None, max_length=4000)
+    delivered_at_iso: str | None = Field(None, max_length=40)
+    metrics: dict | None = None
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/sponsor-placements/{placement_id}/record-delivered")
@@ -2854,8 +2867,8 @@ async def gm_sponsor_record_delivered(
 class PlacementMissedBody(BaseModel):
     reason: str = Field(..., min_length=1, max_length=500)
     make_good: bool = True
-    make_good_placement_type: Optional[str] = Field(None, max_length=40)
-    make_good_scheduled_at_iso: Optional[str] = Field(None, max_length=40)
+    make_good_placement_type: str | None = Field(None, max_length=40)
+    make_good_scheduled_at_iso: str | None = Field(None, max_length=40)
 
 
 @router.post("/sponsor-placements/{placement_id}/record-missed")
@@ -3019,7 +3032,7 @@ class SponsorIssueClassifyBody(BaseModel):
         ),
     )
     affected_cents: int = Field(0, ge=0)
-    notes: Optional[str] = Field(None, max_length=4000)
+    notes: str | None = Field(None, max_length=4000)
 
 
 @router.post("/issues/drafts/{draft_id}/sponsor-classify")

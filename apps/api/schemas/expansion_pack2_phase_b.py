@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
-import uuid
 
 from pydantic import BaseModel
 
@@ -18,7 +16,7 @@ class PricingRecommendationOut(BaseModel):
     price_elasticity: float
     estimated_revenue_impact: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -33,7 +31,7 @@ class BundleRecommendationOut(BaseModel):
     estimated_upsell_rate: float
     estimated_revenue_impact: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -44,10 +42,10 @@ class RetentionRecommendationOut(BaseModel):
     brand_id: str
     customer_segment: str
     recommendation_type: str
-    action_details: Optional[dict] = None
+    action_details: dict | None = None
     estimated_retention_lift: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -59,12 +57,12 @@ class ReactivationCampaignOut(BaseModel):
     campaign_name: str
     target_segment: str
     campaign_type: str
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
+    start_date: datetime | None = None
+    end_date: datetime | None = None
     estimated_reactivation_rate: float
     estimated_revenue_impact: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

@@ -1,14 +1,17 @@
 """Recovery Engine workers."""
-import asyncio, logging
+import logging
+
 from celery import shared_task
 from sqlalchemy import select
+
+from packages.db.models.core import Organization
 from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
-from packages.db.models.core import Organization
+
 logger = logging.getLogger(__name__)
 
 async def _run():
-    from apps.api.services.recovery_engine_service import recompute_recovery, execute_pending_recovery_actions
+    from apps.api.services.recovery_engine_service import execute_pending_recovery_actions, recompute_recovery
     async with get_async_session_factory()() as db:
         orgs = list((await db.execute(select(Organization.id))).scalars().all())
     c = 0

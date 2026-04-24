@@ -1,8 +1,13 @@
 """Unit tests for Platform Registry Engine — execution truth and readiness."""
 from packages.scoring.platform_registry_engine import (
-    PLATFORM_REGISTRY, BUFFER_SUPPORTED_PLATFORMS, PLATFORM_BY_KEY,
-    get_platform_info, get_platform_readiness, get_all_platform_readiness,
-    get_expansion_candidates, detect_platform_blockers, get_monetization_fit,
+    BUFFER_SUPPORTED_PLATFORMS,
+    PLATFORM_BY_KEY,
+    PLATFORM_REGISTRY,
+    detect_platform_blockers,
+    get_all_platform_readiness,
+    get_expansion_candidates,
+    get_monetization_fit,
+    get_platform_readiness,
 )
 
 

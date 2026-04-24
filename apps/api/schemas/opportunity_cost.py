@@ -1,7 +1,8 @@
 """Pydantic schemas for Opportunity-Cost Ranking."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -9,10 +10,10 @@ class OCReportOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     total_actions: int
-    top_action_type: Optional[str] = None
+    top_action_type: str | None = None
     total_opportunity_cost: float
     safe_to_wait_count: int
-    summary: Optional[str] = None
+    summary: str | None = None
 
 
 class RankedActionOut(BaseModel):
@@ -27,7 +28,7 @@ class RankedActionOut(BaseModel):
     composite_rank: float
     rank_position: int
     safe_to_wait: bool
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class CostOfDelayOut(BaseModel):

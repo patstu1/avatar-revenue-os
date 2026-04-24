@@ -4,9 +4,10 @@ Builds network-specific links (ClickBank hop, Amazon tag+ASIN, Semrush ref, Shar
 with per-content tracking IDs for attribution.
 """
 from __future__ import annotations
+
 import hashlib
 import os
-from typing import Any, Optional
+from typing import Any
 
 
 def generate_tracking_id(content_item_id: str, account_id: str = "", platform: str = "") -> str:

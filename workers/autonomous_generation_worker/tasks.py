@@ -3,17 +3,15 @@
 Runs on schedule. Finds briefs in 'draft' or 'ready' status, generates real AI content,
 scores through quality governor, and auto-approves passing content for publishing.
 """
-import asyncio
 import logging
-import uuid
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
-from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.content import ContentBrief
 from packages.db.models.core import Brand
+from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +60,7 @@ async def _process_pending_briefs():
 
 async def _cleanup_stuck_briefs():
     """Reset briefs stuck in 'generating' for over 30 minutes back to 'draft'."""
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
     async with get_async_session_factory()() as db:
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
         stuck = list((await db.execute(

@@ -5,16 +5,15 @@ Two entry points:
   2. attribute_revenue_for_content_item: per-item fast path (event-driven, triggered
      by analytics ingestion ~5-6 min after publish)
 """
-import asyncio
 import logging
 import uuid
 
 from celery import shared_task
 from sqlalchemy import select
 
+from packages.db.models.core import Brand
 from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
-from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
 

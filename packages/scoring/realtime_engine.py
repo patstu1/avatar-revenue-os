@@ -6,15 +6,14 @@ circuit breaker patterns, and live performance monitoring.
 from __future__ import annotations
 
 import math
-import time
 import statistics
 import threading
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional, Any
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # 1. Circuit Breaker for External Services
@@ -417,7 +416,7 @@ def compute_optimal_schedule(
     if now.hour > max(selected):
         base_date += timedelta(days=1)
 
-    score_lookup = dict(hour_scores)
+    dict(hour_scores)
     best_prior = max(v[0] for v in hour_posteriors.values()) or 1.0
 
     for h in selected:
@@ -756,7 +755,7 @@ class RevenueVelocity:
     monthly_projection: float
     velocity_score: float
     momentum_index: float
-    time_to_next_milestone: Optional[float]
+    time_to_next_milestone: float | None
 
 
 def compute_revenue_velocity(

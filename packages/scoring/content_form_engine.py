@@ -5,7 +5,7 @@ Avatar is one option — not the default.
 """
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 CONTENT_FORMS = [
     "avatar_led_video",
@@ -158,7 +158,7 @@ def recommend_content_forms(
     account_maturity: str = "new",
     trust_need: str = "low",
     niche: str = "general",
-    account_id: Optional[str] = None,
+    account_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """Score all content forms and return ranked list."""
     scored: list[tuple[float, str]] = []
@@ -234,7 +234,7 @@ def compute_mix_reports(
         })
 
     for stage in ("awareness", "consideration", "conversion", "retention"):
-        stage_recs = [r for r in recommendations if r.get("details_json", {}).get("funnel_stage") == stage or True]
+        [r for r in recommendations if r.get("details_json", {}).get("funnel_stage") == stage or True]
         forms_for_stage = FUNNEL_STAGE_FIT.get(stage, [])
         if forms_for_stage:
             n = len(forms_for_stage)

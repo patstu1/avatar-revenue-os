@@ -1,19 +1,23 @@
 """Phase 4 seed: performance metrics, attribution events, memory entries.
 Run: docker exec aro-api python scripts/seed_phase4.py
 """
-import sys, os, uuid
+import os
+import sys
+import uuid
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from packages.db.session import get_sync_engine
-from packages.db.models.core import Brand
-from packages.db.models.content import ContentItem
-from packages.db.models.accounts import CreatorAccount
-from packages.db.models.offers import Offer
-from packages.db.models.publishing import PerformanceMetric, AttributionEvent
-from packages.db.models.learning import MemoryEntry
+
 from packages.db.enums import Platform
+from packages.db.models.accounts import CreatorAccount
+from packages.db.models.content import ContentItem
+from packages.db.models.core import Brand
+from packages.db.models.learning import MemoryEntry
+from packages.db.models.offers import Offer
+from packages.db.models.publishing import AttributionEvent, PerformanceMetric
+from packages.db.session import get_sync_engine
 
 engine = get_sync_engine()
 
@@ -99,7 +103,7 @@ def seed():
         db.add_all(memories)
         db.commit()
 
-        print(f"Phase 4 seed complete:")
+        print("Phase 4 seed complete:")
         print(f"  {len(metrics)} performance metrics")
         print(f"  {len(events)} attribution events")
         print(f"  {len(memories)} memory entries")

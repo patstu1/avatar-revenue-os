@@ -1,16 +1,18 @@
 """Pydantic schemas for Integrations + Listening."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
+
 
 class ILConnectorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; connector_name: str; connector_type: str; status: str; sync_direction: str; last_sync_status: Optional[str] = None
+    id: uuid.UUID; connector_name: str; connector_type: str; status: str; sync_direction: str; last_sync_status: str | None = None
 
 class ILListeningOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; signal_type: str; platform: Optional[str] = None; raw_text: str; sentiment: float; relevance_score: float
+    id: uuid.UUID; signal_type: str; platform: str | None = None; raw_text: str; sentiment: float; relevance_score: float
 
 class ILCompetitorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -18,7 +20,7 @@ class ILCompetitorOut(BaseModel):
 
 class ILClusterOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; cluster_type: str; cluster_label: str; signal_count: int; avg_sentiment: float; recommended_action: Optional[str] = None
+    id: uuid.UUID; cluster_type: str; cluster_label: str; signal_count: int; avg_sentiment: float; recommended_action: str | None = None
 
 class ILBlockerOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

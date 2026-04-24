@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 import uuid
-from typing import Any, Generic, Type, TypeVar
+from typing import Any, Generic, TypeVar
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,7 @@ ModelT = TypeVar("ModelT", bound=Base)
 
 
 class CRUDService(Generic[ModelT]):
-    def __init__(self, model: Type[ModelT]):
+    def __init__(self, model: type[ModelT]):
         self.model = model
 
     async def create(self, db: AsyncSession, **kwargs: Any) -> ModelT:

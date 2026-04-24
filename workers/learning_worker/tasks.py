@@ -1,6 +1,6 @@
 """Learning worker tasks — memory consolidation, comment analysis, knowledge graph."""
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.learning_worker.tasks.consolidate_memory")
@@ -10,13 +10,15 @@ def consolidate_memory(self) -> dict:
     Reads winner/loser signals, suppression patterns, and experiment outcomes
     to generate new MemoryEntry rows that inform future decisions.
     """
-    from sqlalchemy.orm import Session
+    from datetime import datetime, timedelta, timezone
+
     from sqlalchemy import func, select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
+    from packages.db.models.decisions import SuppressionAction
     from packages.db.models.learning import MemoryEntry
     from packages.db.models.publishing import WinnerSignal
-    from packages.db.models.decisions import SuppressionAction
-    from datetime import datetime, timezone, timedelta
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     new_memories = 0
@@ -89,10 +91,11 @@ def analyze_comments(self, brand_id: str) -> dict:
     When CommentIngestion rows exist, this task clusters them and extracts
     monetizable patterns. Requires comment ingestion pipeline to be active.
     """
-    from sqlalchemy.orm import Session
     from sqlalchemy import func, select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
     from packages.db.models.learning import CommentIngestion
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     import uuid

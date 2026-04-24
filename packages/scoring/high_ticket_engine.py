@@ -10,11 +10,9 @@ from __future__ import annotations
 import math
 import statistics
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional
-
 
 # ---------------------------------------------------------------------------
 # Enums & Constants
@@ -95,7 +93,7 @@ class Deal:
     stage: DealStage
     created_at: datetime
     last_activity_at: datetime
-    expected_close_date: Optional[datetime]
+    expected_close_date: datetime | None
     probability: float
     source: str
     product_type: str
@@ -158,7 +156,7 @@ class ConsultingPackage:
     ideal_client_profile: str
     avg_close_rate: float
     avg_ltv: float
-    upsell_path: Optional[str]
+    upsell_path: str | None
 
 
 @dataclass
@@ -240,7 +238,7 @@ def analyze_pipeline(
     all_deals = deals + historical_deals
     active = _active_deals(deals)
     won = _won_deals(all_deals)
-    lost = _lost_deals(all_deals)
+    _lost_deals(all_deals)
     closed = _closed_deals(all_deals)
 
     # --- basic aggregates ---
@@ -1370,7 +1368,7 @@ def compute_revenue_stack(
     revenue_at_risk = max_share * total_monthly
 
     # --- growth trajectory ---
-    growth_rates = [a.get("growth_rate", 0.0) for a in active_avenues]
+    [a.get("growth_rate", 0.0) for a in active_avenues]
     weighted_growth = sum(
         a.get("growth_rate", 0.0) * _safe_div(a.get("monthly_revenue", 0), total_monthly, 0.0)
         for a in active_avenues

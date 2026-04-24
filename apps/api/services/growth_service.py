@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,12 +47,11 @@ from packages.scoring.growth_intel import (
 )
 from packages.scoring.winner import ContentPerformance
 
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _uuid_or_none(s: Optional[str]) -> Optional[uuid.UUID]:
+def _uuid_or_none(s: str | None) -> uuid.UUID | None:
     if not s:
         return None
     try:
@@ -218,7 +217,7 @@ def _serialize_trust(t: TrustSignalReport) -> dict:
 async def recompute_growth_intel(
     db: AsyncSession,
     brand_id: uuid.UUID,
-    user_id: Optional[uuid.UUID] = None,
+    user_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """Recompute and persist all Phase 6 artifacts for a brand. Idempotent: cleans
     prior Phase 6-owned rows before inserting fresh ones."""

@@ -30,7 +30,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.db.base import Base
 
-
 CLIENT_STATUSES = ["active", "paused", "churned", "archived"]
 INTAKE_REQUEST_STATUSES = ["pending", "sent", "viewed", "completed", "expired"]
 

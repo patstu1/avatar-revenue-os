@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.contribution import AttributionModelRun, ContributionReport
@@ -79,7 +79,6 @@ async def recompute_contribution_reports(
         })
 
     if not touchpoints:
-        niche = brand.niche or "general"
         for scope, val in [("organic", 50.0), ("paid", 80.0), ("referral", 30.0)]:
             touchpoints.append({
                 "scope_type": scope,

@@ -12,10 +12,9 @@ Every client: real httpx calls, blocked result on missing key, structured respon
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import time
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 import structlog

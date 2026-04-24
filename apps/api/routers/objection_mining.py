@@ -1,11 +1,17 @@
 """Objection Mining API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.objection_mining import (
-    ObjectionSignalOut, ObjectionClusterOut, ObjectionResponseOut, ObjectionPriorityReportOut, RecomputeSummaryOut,
+    ObjectionClusterOut,
+    ObjectionPriorityReportOut,
+    ObjectionResponseOut,
+    ObjectionSignalOut,
+    RecomputeSummaryOut,
 )
 from apps.api.services import objection_mining_service as svc
 from packages.db.models.core import Brand

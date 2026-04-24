@@ -4,6 +4,7 @@ Every platform must have an explicit publish_mode and execution_truth label.
 No vague "supported" without stating how content gets there.
 """
 from __future__ import annotations
+
 import os
 from typing import Any
 

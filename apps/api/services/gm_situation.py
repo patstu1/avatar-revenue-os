@@ -31,15 +31,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
-from sqlalchemy import and_, func, select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.gm_doctrine import (
     FLOOR_MONTH_1_CENTS,
     FLOOR_MONTH_12_CENTS,
-    PRIORITY_RANK,
     REVENUE_AVENUES,
     STAGE_MACHINE,
     STATUS_DISABLED_BY_OPERATOR,
@@ -50,18 +49,15 @@ from apps.api.services.gm_doctrine import (
     STRATEGIC_ENGINES,
     floor_for_month,
 )
-from packages.db.models.clients import Client, IntakeRequest, IntakeSubmission
-from packages.db.models.delivery import Delivery, ProductionQAReview
+from packages.db.models.clients import Client, IntakeRequest
 from packages.db.models.email_pipeline import (
     EmailClassification,
     EmailReplyDraft,
 )
-from packages.db.models.fulfillment import ClientProject, ProductionJob, ProjectBrief
+from packages.db.models.fulfillment import ProductionJob
 from packages.db.models.gm_control import GMApproval, GMEscalation, StageState
 from packages.db.models.integration_registry import IntegrationProvider
-from packages.db.models.proposals import Payment, PaymentLink, Proposal
-from packages.db.models.system_events import OperatorAction, SystemEvent
-
+from packages.db.models.proposals import Payment, Proposal
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Helper: safely fetch row counts from arbitrary table names
@@ -80,7 +76,7 @@ async def _table_exists(db: AsyncSession, name: str) -> bool:
     ).scalar())
 
 
-async def _count_table(db: AsyncSession, name: str, where: str = "") -> Optional[int]:
+async def _count_table(db: AsyncSession, name: str, where: str = "") -> int | None:
     """Return row count for a table, or None if the table doesn't exist.
 
     Uses a savepoint so a column-mismatch (e.g. schema drift between test
@@ -100,7 +96,7 @@ async def _count_table(db: AsyncSession, name: str, where: str = "") -> Optional
 
 async def _recent_activity_cutoff(
     db: AsyncSession, table: str, since: datetime
-) -> Optional[int]:
+) -> int | None:
     """Count rows in ``table`` with created_at >= since, if column exists.
     Returns None if table missing, 0 if no column or count zero. Savepoint
     -protected so column mismatches do not abort the outer transaction.
@@ -139,7 +135,7 @@ STRIPE_ORIGIN_EVENT_TYPES: frozenset = frozenset({
 })
 
 
-def _attribute_payment_to_avenue(payment_metadata: Optional[dict]) -> str:
+def _attribute_payment_to_avenue(payment_metadata: dict | None) -> str:
     """Map a Payment row's metadata to its canonical avenue_id.
 
     Precedence:

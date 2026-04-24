@@ -1,16 +1,18 @@
 """Pydantic schemas for Landing Pages."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
+
 
 class LandingPageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; page_type: str; headline: str; subheadline: Optional[str] = None; hook_angle: Optional[str] = None; status: str; publish_status: str; truth_label: str; blocker_state: Optional[str] = None; destination_url: Optional[str] = None
+    id: uuid.UUID; page_type: str; headline: str; subheadline: str | None = None; hook_angle: str | None = None; status: str; publish_status: str; truth_label: str; blocker_state: str | None = None; destination_url: str | None = None
 
 class LPVariantOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: uuid.UUID; variant_label: str; headline: str; hook_angle: Optional[str] = None; is_control: bool; conversion_rate: float
+    id: uuid.UUID; variant_label: str; headline: str; hook_angle: str | None = None; is_control: bool; conversion_rate: float
 
 class LPQualityOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -1,11 +1,11 @@
 """Unit tests — last-mile closure: affiliate clients, disclosure, permission enforcement, landing page publish, recovery auto-exec."""
 from __future__ import annotations
-import pytest
 
 # ── 1. Affiliate Network Clients ──
 
 def test_impact_client_blocked_without_creds():
     import asyncio
+
     from packages.clients.affiliate_network_clients import ImpactClient
     c = ImpactClient()
     result = asyncio.run(c.fetch_conversions("2025-01-01", "2025-01-07"))
@@ -15,6 +15,7 @@ def test_impact_client_blocked_without_creds():
 
 def test_shareasale_client_blocked_without_creds():
     import asyncio
+
     from packages.clients.affiliate_network_clients import ShareASaleClient
     c = ShareASaleClient()
     result = asyncio.run(c.fetch_activity("2025-01-01", "2025-01-07"))
@@ -24,6 +25,7 @@ def test_shareasale_client_blocked_without_creds():
 
 def test_cj_client_blocked_without_creds():
     import asyncio
+
     from packages.clients.affiliate_network_clients import CJClient
     c = CJClient()
     result = asyncio.run(c.fetch_commissions("2025-01-01", "2025-01-07"))

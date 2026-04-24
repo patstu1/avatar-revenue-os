@@ -4,6 +4,7 @@ This is the original MXP recovery module used by recovery_service.py and MXP wor
 The newer Recovery/Rollback Engine lives in recovery_rollback_engine.py.
 """
 from __future__ import annotations
+
 from typing import Any
 
 RECOVERY = {

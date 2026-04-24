@@ -45,14 +45,13 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Optional, Protocol
+from typing import Protocol
 
 from apps.api.services.package_recommender import (
     PackageRecommendation,
     recommend_package,
 )
 from apps.api.services.reply_policy import (
-    FORCED_ESCALATION_PATTERNS,
     ReplyPolicySettings,
     detect_forced_draft,
     detect_forced_escalation,
@@ -62,7 +61,6 @@ from packages.clients.email_templates import (
     package_checkout_url,
     package_intake_url,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Approved triggers
@@ -373,7 +371,7 @@ def build_avatar_script(
     trigger: AvatarTrigger,
     recommendation: PackageRecommendation,
     brand_name: str = "",
-    settings: Optional[ReplyPolicySettings] = None,
+    settings: ReplyPolicySettings | None = None,
 ) -> AvatarScript:
     """Build a doctrine-compliant avatar script.
 
@@ -487,10 +485,10 @@ def decide_avatar_eligibility(
     trigger: AvatarTrigger | str,
     lead_confidence: float,
     lead_score: int,
-    last_avatar_sent_at: Optional[datetime] = None,
+    last_avatar_sent_at: datetime | None = None,
     is_cold_first_touch: bool = False,
-    settings: Optional[ReplyPolicySettings] = None,
-    now: Optional[datetime] = None,
+    settings: ReplyPolicySettings | None = None,
+    now: datetime | None = None,
 ) -> AvatarEligibility:
     """Deterministic rule stack — first miss returns not-eligible.
 
@@ -587,8 +585,8 @@ class AvatarSendDecision:
     rationale: str
     rules_evaluated: list[str] = field(default_factory=list)
     # Mirror reply_policy traces so we can audit the full path
-    forced_escalation_match: Optional[str] = None
-    forced_draft_match: Optional[str] = None
+    forced_escalation_match: str | None = None
+    forced_draft_match: str | None = None
     quality_gate_issues: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -624,7 +622,7 @@ def decide_avatar_send_mode(
     inbound_body: str,
     recommendation_confidence: float,
     quality_spec: AvatarQualitySpec,
-    settings: Optional[ReplyPolicySettings] = None,
+    settings: ReplyPolicySettings | None = None,
 ) -> AvatarSendDecision:
     """Route the built avatar to auto / draft / escalate.
 
@@ -901,9 +899,9 @@ class AvatarFollowupRecord:
     """
     record_id: uuid.UUID = field(default_factory=uuid.uuid4)
     # Linkage
-    contact_id: Optional[str] = None
-    opportunity_id: Optional[str] = None
-    thread_id: Optional[str] = None
+    contact_id: str | None = None
+    opportunity_id: str | None = None
+    thread_id: str | None = None
     # Routing
     trigger: str = ""
     package_slug: str = ""
@@ -932,11 +930,11 @@ class AvatarFollowupRecord:
     checkout_url: str = ""
     intake_url: str = ""
     # Eligibility trace
-    eligibility: Optional[AvatarEligibility] = None
+    eligibility: AvatarEligibility | None = None
     # Timestamps
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    sent_at: Optional[datetime] = None
-    viewed_at: Optional[datetime] = None
+    sent_at: datetime | None = None
+    viewed_at: datetime | None = None
 
     def transition(self, new_state: AvatarAssetState, reason: str = "") -> None:
         if not can_transition(self.state, new_state):
@@ -996,15 +994,15 @@ def generate_avatar_followup(
     brand_name: str = "",
     lead_confidence: float = 0.85,
     lead_score: int = 75,
-    last_avatar_sent_at: Optional[datetime] = None,
+    last_avatar_sent_at: datetime | None = None,
     is_cold_first_touch: bool = False,
-    contact_id: Optional[str] = None,
-    opportunity_id: Optional[str] = None,
-    thread_id: Optional[str] = None,
+    contact_id: str | None = None,
+    opportunity_id: str | None = None,
+    thread_id: str | None = None,
     avatar_id: str = "proofhook_founder_01",
     voice_id: str = "proofhook_founder_voice_01",
-    provider: Optional[AvatarProviderAdapter] = None,
-    settings: Optional[ReplyPolicySettings] = None,
+    provider: AvatarProviderAdapter | None = None,
+    settings: ReplyPolicySettings | None = None,
 ) -> AvatarFollowupRecord:
     """Full pipeline: eligibility → package → script → quality → send → generate.
 

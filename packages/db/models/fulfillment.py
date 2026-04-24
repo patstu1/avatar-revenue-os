@@ -25,7 +25,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.db.base import Base
 
-
 PROJECT_STATUSES = [
     "active",      # briefs being written / production running
     "on_hold",     # paused (awaiting info / operator decision)

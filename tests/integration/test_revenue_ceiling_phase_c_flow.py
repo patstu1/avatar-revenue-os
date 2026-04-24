@@ -225,7 +225,6 @@ async def test_phase_c_recurring_revenue_recompute_is_idempotent(api_client, sam
 
 def test_phase_c_celery_tasks_registered():
     import workers.revenue_ceiling_worker.tasks  # noqa: F401
-
     from workers.celery_app import app
 
     for name in (

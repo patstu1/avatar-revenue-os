@@ -1,10 +1,19 @@
 """Enterprise Affiliate API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.affiliate_enterprise import AFGovRuleOut, AFBannedOut, AFApprovalOut, AFRiskFlagOut, AFPartnerOut, RecomputeSummaryOut
+from apps.api.schemas.affiliate_enterprise import (
+    AFApprovalOut,
+    AFBannedOut,
+    AFGovRuleOut,
+    AFPartnerOut,
+    AFRiskFlagOut,
+    RecomputeSummaryOut,
+)
 from apps.api.services import affiliate_enterprise_service as svc
 from packages.db.models.core import Organization
 

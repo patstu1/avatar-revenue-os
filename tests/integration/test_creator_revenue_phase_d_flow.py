@@ -5,7 +5,6 @@ import uuid
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -16,10 +15,10 @@ async def db(db_session):
 
 @pytest_asyncio.fixture
 async def seed_brand(db: AsyncSession):
-    from packages.db.models.core import Brand, Organization
-    from packages.db.models.content import ContentItem
-    from packages.db.models.offers import Offer
     from packages.db.enums import ContentType, MonetizationMethod
+    from packages.db.models.content import ContentItem
+    from packages.db.models.core import Brand, Organization
+    from packages.db.models.offers import Offer
 
     org_id = uuid.uuid4()
     brand_id = uuid.uuid4()
@@ -75,7 +74,7 @@ async def test_hub_summary_totals(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_hub_recompute_persists_truth(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_hub, list_truth
+    from apps.api.services.creator_revenue_service import list_truth, recompute_hub
     result = await recompute_hub(db, seed_brand)
     assert result["created"] == 9
     truth = await list_truth(db, seed_brand)
@@ -86,7 +85,7 @@ async def test_hub_recompute_persists_truth(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_hub_recompute_idempotent(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_hub, list_truth
+    from apps.api.services.creator_revenue_service import list_truth, recompute_hub
     await recompute_hub(db, seed_brand)
     first = await list_truth(db, seed_brand)
     await recompute_hub(db, seed_brand)
@@ -97,7 +96,7 @@ async def test_hub_recompute_idempotent(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_hub_with_actions_shows_counts(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_merch, recompute_live_events, get_hub
+    from apps.api.services.creator_revenue_service import get_hub, recompute_live_events, recompute_merch
     await recompute_merch(db, seed_brand)
     await recompute_live_events(db, seed_brand)
     hub = await get_hub(db, seed_brand)
@@ -109,7 +108,7 @@ async def test_hub_with_actions_shows_counts(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_blocker_aggregation_in_hub(db: AsyncSession, seed_brand):
-    from apps.api.services.creator_revenue_service import recompute_blockers, get_hub
+    from apps.api.services.creator_revenue_service import get_hub, recompute_blockers
     await recompute_blockers(db, seed_brand)
     hub = await get_hub(db, seed_brand)
     assert hub["total_blockers"] >= 1
@@ -119,8 +118,8 @@ async def test_blocker_aggregation_in_hub(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_event_rollup_in_hub(db: AsyncSession, seed_brand):
-    from packages.db.models.creator_revenue import CreatorRevenueEvent
     from apps.api.services.creator_revenue_service import get_hub
+    from packages.db.models.creator_revenue import CreatorRevenueEvent
     db.add(CreatorRevenueEvent(
         brand_id=seed_brand,
         avenue_type="consulting",
@@ -139,8 +138,8 @@ async def test_event_rollup_in_hub(db: AsyncSession, seed_brand):
 
 @pytest.mark.asyncio
 async def test_truth_state_reflects_revenue(db: AsyncSession, seed_brand):
+    from apps.api.services.creator_revenue_service import get_hub, recompute_merch
     from packages.db.models.creator_revenue import CreatorRevenueEvent
-    from apps.api.services.creator_revenue_service import recompute_merch, get_hub
     await recompute_merch(db, seed_brand)
     db.add(CreatorRevenueEvent(
         brand_id=seed_brand,

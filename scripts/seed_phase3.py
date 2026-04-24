@@ -1,17 +1,20 @@
 """Phase 3 seed: content items for QA/approval/publish testing.
 Run: docker exec aro-api python scripts/seed_phase3.py
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from packages.db.session import get_sync_engine
-from packages.db.models.core import Brand, Avatar
-from packages.db.models.content import ContentBrief, ContentItem, Script
-from packages.db.models.accounts import CreatorAccount
-from packages.db.models.offers import Offer
+
 from packages.db.enums import ContentType
+from packages.db.models.accounts import CreatorAccount
+from packages.db.models.content import ContentBrief, ContentItem, Script
+from packages.db.models.core import Brand
+from packages.db.models.offers import Offer
+from packages.db.session import get_sync_engine
 
 engine = get_sync_engine()
 

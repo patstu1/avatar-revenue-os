@@ -21,9 +21,7 @@ Entry points:
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -49,8 +47,8 @@ async def submit_production_output(
     db: AsyncSession,
     *,
     job: ProductionJob,
-    output_url: Optional[str] = None,
-    output_payload: Optional[dict] = None,
+    output_url: str | None = None,
+    output_payload: dict | None = None,
     auto_qa: bool = True,
     auto_dispatch: bool = True,
 ) -> dict:
@@ -59,7 +57,7 @@ async def submit_production_output(
 
     Returns a dict summary suitable for API responses.
     """
-    now = datetime.now(timezone.utc)
+    datetime.now(timezone.utc)
     job.output_url = output_url
     job.output_payload_json = output_payload
     job.status = "qa_pending"
@@ -110,11 +108,11 @@ async def run_qa_review(
     db: AsyncSession,
     *,
     job: ProductionJob,
-    scores: Optional[dict] = None,
-    issues: Optional[list] = None,
-    notes: Optional[str] = None,
+    scores: dict | None = None,
+    issues: list | None = None,
+    notes: str | None = None,
     reviewer_type: str = "auto",
-    reviewer_id: Optional[str] = None,
+    reviewer_id: str | None = None,
     force_fail: bool = False,
 ) -> ProductionQAReview:
     """Create a ProductionQAReview for the current attempt of ``job`` and
@@ -251,9 +249,9 @@ async def dispatch_delivery(
     *,
     job: ProductionJob,
     channel: str = "email",
-    subject: Optional[str] = None,
-    message: Optional[str] = None,
-    deliverable_url: Optional[str] = None,
+    subject: str | None = None,
+    message: str | None = None,
+    deliverable_url: str | None = None,
     followup_days: int = DEFAULT_FOLLOWUP_DAYS,
 ) -> Delivery:
     """Create a Delivery row, transition job to completed, emit

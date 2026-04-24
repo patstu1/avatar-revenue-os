@@ -3,10 +3,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ── Analytics ──────────────────────────────────────────────────────────
 
@@ -25,7 +24,7 @@ class AnalyticsImportOut(BaseModel):
     events_new: int
     import_mode: str
     status: str
-    error_message: Optional[str] = None
+    error_message: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -33,13 +32,13 @@ class AnalyticsImportOut(BaseModel):
 class AnalyticsEventOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    import_id: Optional[uuid.UUID] = None
-    content_item_id: Optional[uuid.UUID] = None
-    creator_account_id: Optional[uuid.UUID] = None
+    import_id: uuid.UUID | None = None
+    content_item_id: uuid.UUID | None = None
+    creator_account_id: uuid.UUID | None = None
     source: str
     event_type: str
-    platform: Optional[str] = None
-    external_post_id: Optional[str] = None
+    platform: str | None = None
+    external_post_id: str | None = None
     metric_value: float
     truth_level: str
     created_at: datetime
@@ -62,7 +61,7 @@ class ConversionImportOut(BaseModel):
     conversions_imported: int
     revenue_imported: float
     status: str
-    error_message: Optional[str] = None
+    error_message: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -70,9 +69,9 @@ class ConversionImportOut(BaseModel):
 class ConversionEventOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    import_id: Optional[uuid.UUID] = None
-    content_item_id: Optional[uuid.UUID] = None
-    offer_id: Optional[uuid.UUID] = None
+    import_id: uuid.UUID | None = None
+    content_item_id: uuid.UUID | None = None
+    offer_id: uuid.UUID | None = None
     source: str
     conversion_type: str
     revenue: float
@@ -98,7 +97,7 @@ class ExperimentObservationImportOut(BaseModel):
     observations_imported: int
     observations_matched: int
     status: str
-    error_message: Optional[str] = None
+    error_message: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -106,9 +105,9 @@ class ExperimentObservationImportOut(BaseModel):
 class ExperimentLiveResultOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    import_id: Optional[uuid.UUID] = None
-    experiment_id: Optional[uuid.UUID] = None
-    variant_id: Optional[uuid.UUID] = None
+    import_id: uuid.UUID | None = None
+    experiment_id: uuid.UUID | None = None
+    variant_id: uuid.UUID | None = None
     source: str
     observation_type: str
     metric_name: str
@@ -116,7 +115,7 @@ class ExperimentLiveResultOut(BaseModel):
     sample_size: int
     confidence: float
     truth_level: str
-    previous_truth_level: Optional[str] = None
+    previous_truth_level: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -125,10 +124,10 @@ class ExperimentLiveResultOut(BaseModel):
 # ── CRM / Contacts ────────────────────────────────────────────────────
 
 class CrmContactCreate(BaseModel):
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    name: Optional[str] = None
-    segment: Optional[str] = None
+    email: str | None = None
+    phone: str | None = None
+    name: str | None = None
+    segment: str | None = None
     lifecycle_stage: str = "subscriber"
     source: str = "manual"
     tags: list[str] = Field(default_factory=list)
@@ -136,11 +135,11 @@ class CrmContactCreate(BaseModel):
 class CrmContactOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    external_id: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    name: Optional[str] = None
-    segment: Optional[str] = None
+    external_id: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    name: str | None = None
+    segment: str | None = None
     lifecycle_stage: str
     source: str
     sync_status: str
@@ -158,7 +157,7 @@ class CrmSyncOut(BaseModel):
     contacts_updated: int
     contacts_failed: int
     status: str
-    error_message: Optional[str] = None
+    error_message: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -169,23 +168,23 @@ class CrmSyncOut(BaseModel):
 class EmailSendCreate(BaseModel):
     to_email: str
     subject: str
-    body_html: Optional[str] = None
-    body_text: Optional[str] = None
-    template_id: Optional[str] = None
-    sequence_step: Optional[str] = None
+    body_html: str | None = None
+    body_text: str | None = None
+    template_id: str | None = None
+    sequence_step: str | None = None
     provider: str = "smtp"
-    contact_id: Optional[uuid.UUID] = None
+    contact_id: uuid.UUID | None = None
 
 class EmailSendOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    contact_id: Optional[uuid.UUID] = None
+    contact_id: uuid.UUID | None = None
     to_email: str
     subject: str
     provider: str
     status: str
-    sent_at: Optional[str] = None
-    error_message: Optional[str] = None
+    sent_at: str | None = None
+    error_message: str | None = None
     retry_count: int
     created_at: datetime
     class Config:
@@ -197,20 +196,20 @@ class EmailSendOut(BaseModel):
 class SmsSendCreate(BaseModel):
     to_phone: str
     message_body: str
-    sequence_step: Optional[str] = None
+    sequence_step: str | None = None
     provider: str = "twilio"
-    contact_id: Optional[uuid.UUID] = None
+    contact_id: uuid.UUID | None = None
 
 class SmsSendOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    contact_id: Optional[uuid.UUID] = None
+    contact_id: uuid.UUID | None = None
     to_phone: str
     message_body: str
     provider: str
     status: str
-    sent_at: Optional[str] = None
-    error_message: Optional[str] = None
+    sent_at: str | None = None
+    error_message: str | None = None
     retry_count: int
     created_at: datetime
     class Config:
@@ -238,4 +237,4 @@ class MessagingBlockerOut(BaseModel):
 class RecomputeSummaryOut(BaseModel):
     created: int = 0
     updated: int = 0
-    details: Optional[str] = None
+    details: str | None = None

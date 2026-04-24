@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,11 +36,11 @@ class IntegrationProvider(Base):
     )
 
     # Credentials (encrypted at application layer before storage)
-    api_key_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    api_secret_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    oauth_token_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    oauth_refresh_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    extra_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict,
+    api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    api_secret_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    oauth_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    oauth_refresh_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extra_config: Mapped[dict | None] = mapped_column(JSONB, default=dict,
         comment="Additional config: webhook_secret, account_id, region, model_name, etc."
     )
 
@@ -58,10 +57,10 @@ class IntegrationProvider(Base):
         String(20), default="unknown",
         comment="healthy, degraded, down, unknown, unconfigured"
     )
-    last_health_check: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    last_successful_call: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_health_check: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_successful_call: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error_count_24h: Mapped[int] = mapped_column(Integer, default=0)
-    avg_latency_ms: Mapped[Optional[float]] = mapped_column(Float)
+    avg_latency_ms: Mapped[float | None] = mapped_column(Float)
 
     # Usage
     total_calls: Mapped[int] = mapped_column(Integer, default=0)
@@ -90,26 +89,26 @@ class CreatorPlatformAccount(Base):
 
     organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    creator_account_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True,
         comment="FK-less ref to creator_accounts.id"
     )
 
     # Platform identity
     platform: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
-    platform_username: Mapped[Optional[str]] = mapped_column(String(200))
-    platform_external_id: Mapped[Optional[str]] = mapped_column(String(200))
-    platform_url: Mapped[Optional[str]] = mapped_column(String(500))
+    platform_username: Mapped[str | None] = mapped_column(String(200))
+    platform_external_id: Mapped[str | None] = mapped_column(String(200))
+    platform_url: Mapped[str | None] = mapped_column(String(500))
 
     # Connection
     connection_status: Mapped[str] = mapped_column(
         String(30), default="disconnected",
         comment="connected, disconnected, expired, error"
     )
-    connected_via: Mapped[Optional[str]] = mapped_column(
+    connected_via: Mapped[str | None] = mapped_column(
         String(40), comment="buffer, publer, ayrshare, direct_oauth"
     )
-    publishing_profile_id: Mapped[Optional[str]] = mapped_column(
+    publishing_profile_id: Mapped[str | None] = mapped_column(
         String(200), comment="Buffer profile ID, Publer account ID, etc."
     )
 
@@ -122,16 +121,16 @@ class CreatorPlatformAccount(Base):
         String(30), default="active",
         comment="warmup, active, scaling, paused, reduced"
     )
-    monetization_role: Mapped[Optional[str]] = mapped_column(
+    monetization_role: Mapped[str | None] = mapped_column(
         String(40), comment="affiliate, sponsor, dtc, services, hybrid"
     )
-    assigned_niche: Mapped[Optional[str]] = mapped_column(String(100))
-    assigned_archetype: Mapped[Optional[str]] = mapped_column(String(60))
+    assigned_niche: Mapped[str | None] = mapped_column(String(100))
+    assigned_archetype: Mapped[str | None] = mapped_column(String(60))
 
     # Metrics
     follower_count: Mapped[int] = mapped_column(Integer, default=0)
     engagement_rate: Mapped[float] = mapped_column(Float, default=0.0)
-    posting_frequency: Mapped[Optional[str]] = mapped_column(String(30), comment="daily, 3x_week, weekly, etc.")
+    posting_frequency: Mapped[str | None] = mapped_column(String(30), comment="daily, 3x_week, weekly, etc.")
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 

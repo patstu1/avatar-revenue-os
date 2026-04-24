@@ -1,7 +1,8 @@
 """Pydantic schemas for Content Routing APIs."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -14,9 +15,9 @@ class RoutingDecisionOut(BaseModel):
     platform: str
     is_promoted: bool
     estimated_cost: float
-    actual_cost: Optional[float] = None
-    success: Optional[bool] = None
-    explanation: Optional[str] = None
+    actual_cost: float | None = None
+    success: bool | None = None
+    explanation: str | None = None
 
 
 class CostReportOut(BaseModel):
@@ -25,9 +26,9 @@ class CostReportOut(BaseModel):
     report_date: str
     total_cost: float
     total_decisions: int
-    by_provider: Optional[dict] = None
-    by_tier: Optional[dict] = None
-    by_content_type: Optional[dict] = None
+    by_provider: dict | None = None
+    by_tier: dict | None = None
+    by_content_type: dict | None = None
 
 
 class RouteTaskRequest(BaseModel):

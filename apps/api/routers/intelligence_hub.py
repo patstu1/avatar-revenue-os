@@ -7,7 +7,6 @@ recommends, and what it has learned.
 import uuid
 
 from fastapi import APIRouter, Query
-from sqlalchemy import select
 
 from apps.api.deps import CurrentUser, DBSession
 from apps.api.services import intelligence_bridge as intel

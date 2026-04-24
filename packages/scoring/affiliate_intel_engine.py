@@ -1,6 +1,7 @@
 """Elite Affiliate Intelligence Engine — rank, detect leaks, select best. Pure functions."""
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 
 def rank_offer(offer: dict[str, Any]) -> float:
@@ -28,7 +29,7 @@ def rank_offers(offers: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(scored, key=lambda x: -x["rank_score"])
 
 
-def select_best_offer(offers: list[dict[str, Any]], platform: str = "", content_form: str = "") -> Optional[dict[str, Any]]:
+def select_best_offer(offers: list[dict[str, Any]], platform: str = "", content_form: str = "") -> dict[str, Any] | None:
     """Pick the single best offer for given context."""
     ranked = rank_offers(offers)
     if platform:

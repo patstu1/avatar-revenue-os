@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable
 
 import structlog
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
-from jose import jwt, JWTError
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from jose import JWTError, jwt
 
 from apps.api.config import get_settings
 
@@ -322,7 +321,6 @@ async def websocket_live_dashboard(websocket: WebSocket, brand_id: uuid.UUID):
 
 async def _stream_revenue_ticks(websocket: WebSocket, brand_id: uuid.UUID):
     """Stream revenue velocity updates every 5 seconds."""
-    from packages.scoring.realtime_engine import compute_revenue_velocity
 
     while True:
         try:

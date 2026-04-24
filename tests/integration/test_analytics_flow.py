@@ -1,6 +1,6 @@
 """Integration tests for Phase 4 analytics, attribution, and intelligence."""
+
 import pytest
-import uuid
 
 
 async def _setup_analytics(api_client, sample_org_data):

@@ -1,5 +1,6 @@
 """Brand Governance Engine — rule eval, off-brand detection, editorial scoring. Pure functions."""
 from __future__ import annotations
+
 from typing import Any
 
 RULE_TYPES = ["banned_phrase", "required_phrase", "tone", "claim", "cta", "disclosure", "trust_risk", "style"]

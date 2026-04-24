@@ -1,14 +1,12 @@
 """Unit tests for scale alerts, launch candidates, blockers, readiness engines."""
 
 from packages.scoring.scale_alerts_engine import (
-    generate_scale_alerts,
-    generate_launch_candidates,
-    diagnose_scale_blockers,
+    ALERT_TYPES,
     compute_launch_readiness,
     dedupe_alerts_by_type,
-    ALERT_TYPES,
-    CANDIDATE_TYPES,
-    BLOCKER_TYPES,
+    diagnose_scale_blockers,
+    generate_launch_candidates,
+    generate_scale_alerts,
 )
 
 

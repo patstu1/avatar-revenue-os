@@ -7,7 +7,7 @@ All get_* functions are READ-ONLY.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,7 +40,6 @@ from packages.scoring.phase7_engines import (
 )
 from packages.scoring.winner import ContentPerformance, detect_winners
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -67,7 +66,7 @@ def _accounts_as_dicts(accounts: list) -> list[dict]:
 async def recompute_phase7(
     db: AsyncSession,
     brand_id: uuid.UUID,
-    user_id: Optional[uuid.UUID] = None,
+    user_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """Recompute and persist all Phase 7 artifacts. Idempotent."""
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
@@ -368,8 +367,8 @@ async def get_operator_cockpit(db: AsyncSession, brand_id: uuid.UUID) -> dict[st
         select(GeoLanguageExpansionRecommendation).where(GeoLanguageExpansionRecommendation.brand_id == brand_id).limit(5)
     )).scalars().all())
 
-    from apps.api.services import revenue_service as rsvc
     from apps.api.services import growth_commander_service as gcs
+    from apps.api.services import revenue_service as rsvc
     rev_stacks = await rsvc.get_offer_stacks(db, brand_id)
     rev_funnels = await rsvc.get_funnel_paths(db, brand_id)
     growth_cmds = await gcs.get_growth_commands(db, brand_id)

@@ -3,15 +3,19 @@
 Cross-platform replication: when a trend fires, generate platform-specific content for
 EVERY active platform and dispatch via express_publish for fastest time-to-publish.
 """
-import asyncio, logging, uuid
+import logging
+import uuid
+
 from celery import shared_task
 from sqlalchemy import select
-from packages.db.session import get_async_session_factory, run_async
-from workers.base_task import TrackedTask
-from packages.db.models.core import Brand
+
+from packages.db.enums import ContentType, Platform
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentBrief
-from packages.db.enums import ContentType, Platform
+from packages.db.models.core import Brand
+from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
+
 logger = logging.getLogger(__name__)
 
 VIRAL_SCORE_THRESHOLD = 0.75
@@ -167,7 +171,8 @@ async def _light_scan():
     Brands without a configured interval fall back to DEFAULT_TREND_SCAN_INTERVAL_SECONDS so
     Discovery does not stall on fresh installs.
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timezone
+
     from apps.api.services.trend_viral_service import light_scan
     from packages.db.models.trend_viral import TrendSourceHealth, ViralOpportunity
 

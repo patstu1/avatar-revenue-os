@@ -4,17 +4,16 @@ Scans marketplace APIs (ClickBank, Amazon, ShareASale) for top-performing produc
 in each active niche. Creates new Offer records for products meeting quality thresholds.
 """
 from __future__ import annotations
-import asyncio
+
 import logging
 import uuid
 
 from celery import shared_task
 from sqlalchemy import select
 
-from workers.base_task import TrackedTask
-
-from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.core import Brand, Offer
+from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +117,6 @@ async def _persist_discovered_offers(db, brand_id: uuid.UUID, discovered: list[d
 
 
 async def _run_discovery():
-    from packages.scoring.niche_research_engine import NICHE_DATABASE
 
     async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand).where(Brand.is_active.is_(True)))).scalars().all())

@@ -1,17 +1,16 @@
 """Engagement Automation Worker — perform warmup engagement actions for seed/trickle accounts."""
 from __future__ import annotations
-import asyncio
+
 import logging
 
 from celery import shared_task
 from sqlalchemy import select
 
-from workers.base_task import TrackedTask
-
-from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.autonomous_farm import AccountWarmupPlan
+from packages.db.session import get_async_session_factory, run_async
 from packages.scoring.engagement_automation_engine import generate_engagement_plan
+from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -18,7 +18,7 @@ class CompletionReportOut(_GKBase):
     missing_layers: list
     gate_passed: bool
     severity: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
     has_model: bool
     has_migration: bool
     has_engine: bool
@@ -39,7 +39,7 @@ class TruthReportOut(_GKBase):
     mislabeled_as_live: bool
     gate_passed: bool
     severity: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class ExecutionClosureReportOut(_GKBase):
@@ -52,7 +52,7 @@ class ExecutionClosureReportOut(_GKBase):
     orphaned_recommendation: bool
     gate_passed: bool
     severity: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class TestReportOut(_GKBase):
@@ -64,20 +64,20 @@ class TestReportOut(_GKBase):
     high_risk_flows_tested: bool
     gate_passed: bool
     severity: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class DependencyReportOut(_GKBase):
     id: uuid.UUID
     module_name: str
-    provider_key: Optional[str] = None
+    provider_key: str | None = None
     dependency_met: bool
     credential_present: bool
     integration_live: bool
     blocked_by_external: bool
     gate_passed: bool
     severity: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class ContradictionReportOut(_GKBase):
@@ -100,7 +100,7 @@ class OperatorCommandReportOut(_GKBase):
     quality_score: float
     gate_passed: bool
     severity: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class ExpansionPermissionOut(_GKBase):
@@ -113,7 +113,7 @@ class ExpansionPermissionOut(_GKBase):
     permission_granted: bool
     blocking_reasons: list
     severity: str
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class AlertOut(_GKBase):
@@ -122,8 +122,8 @@ class AlertOut(_GKBase):
     severity: str
     title: str
     description: str
-    source_module: Optional[str] = None
-    operator_action: Optional[str] = None
+    source_module: str | None = None
+    operator_action: str | None = None
     resolved: bool
 
 
@@ -131,10 +131,10 @@ class AuditLedgerOut(_GKBase):
     id: uuid.UUID
     gate_type: str
     action: str
-    module_name: Optional[str] = None
+    module_name: str | None = None
     result: str
-    details_json: Optional[dict] = None
-    created_at: Optional[Any] = None
+    details_json: dict | None = None
+    created_at: Any | None = None
 
 
 class RecomputeSummaryOut(BaseModel):

@@ -3,7 +3,7 @@
 Evaluates content items across 6 quality dimensions. Returns decomposed scores,
 blocking issues, and a recommended QA status (pass/fail/review).
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 FORMULA_VERSION = "v1"
 

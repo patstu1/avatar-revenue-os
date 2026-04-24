@@ -36,7 +36,6 @@ from packages.db.models.email_pipeline import (
 )
 from packages.db.models.integration_registry import IntegrationProvider
 
-
 INBOUND_URL = "/api/v1/webhooks/inbound-email"
 TEST_INBOUND_ADDRESS = "reply-test@inbound.proofhook.dev"
 TEST_SENDER = "ceo@acme-brand.example"
@@ -174,7 +173,7 @@ async def test_inbound_email_persists_full_pipeline(api_client, db_session):
 @pytest.mark.asyncio
 async def test_inbound_email_is_idempotent_on_message_id(api_client, db_session):
     """Re-posting the same Message-ID does not duplicate rows."""
-    org_id = await _seed_org_and_route(db_session)
+    await _seed_org_and_route(db_session)
 
     first = await api_client.post(INBOUND_URL, data=_webhook_form())
     assert first.status_code == 200

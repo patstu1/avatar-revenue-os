@@ -2,13 +2,18 @@
 POST recompute writes. All GETs are read-only.
 """
 from __future__ import annotations
+
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.growth_commander import (
-    GrowthCommandResponse, GrowthCommandRunResponse, PortfolioAssessmentResponse,
+    GrowthCommandResponse,
+    GrowthCommandRunResponse,
+    PortfolioAssessmentResponse,
 )
 from apps.api.services import growth_commander_service as gcs
 from apps.api.services.audit_service import log_action

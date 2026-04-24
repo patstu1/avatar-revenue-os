@@ -4,9 +4,10 @@ Publer supports: YouTube, TikTok, Instagram, X, LinkedIn, Reddit, Pinterest, Fac
 API docs: https://publer.io/docs/api
 """
 from __future__ import annotations
-import os
+
 import logging
-from typing import Any, Optional
+import os
+from typing import Any
 
 import httpx
 
@@ -27,7 +28,7 @@ class PublerClient:
 
     BASE_URL = "https://app.publer.io/api/v1"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.environ.get("PUBLER_API_KEY", "")
 
     def _is_configured(self) -> bool:
@@ -55,9 +56,9 @@ class PublerClient:
         account_ids: list[str],
         text: str,
         *,
-        media_urls: Optional[list[str]] = None,
-        link_url: Optional[str] = None,
-        scheduled_at: Optional[str] = None,
+        media_urls: list[str] | None = None,
+        link_url: str | None = None,
+        scheduled_at: str | None = None,
         is_draft: bool = False,
     ) -> dict[str, Any]:
         """Create and schedule a post across selected accounts."""

@@ -9,8 +9,8 @@ pattern from 008_autonomy_grants) so re-runs on partially-migrated DBs
 do not fail. The pre-existing multi-head situation in the alembic chain
 (005_media_jobs_v2 still a side tip) is deliberately NOT touched here.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision = "009_email_pipeline"

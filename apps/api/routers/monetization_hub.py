@@ -87,9 +87,11 @@ async def mark_ledger_paid(
     ledger_id: uuid.UUID = Query(...),
 ):
     """Mark a pending ledger entry as paid."""
-    from sqlalchemy import select
-    from packages.db.models.revenue_ledger import RevenueLedgerEntry
     from datetime import datetime, timezone
+
+    from sqlalchemy import select
+
+    from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
     entry = (await db.execute(
         select(RevenueLedgerEntry).where(RevenueLedgerEntry.id == ledger_id)
@@ -131,7 +133,7 @@ async def assign_offer_to_content(
 ):
     """Link an offer to content for attribution tracking."""
     try:
-        item = await mon.assign_offer_to_content(
+        await mon.assign_offer_to_content(
             db, content_id, offer_id, org_id=current_user.organization_id, actor_id=str(current_user.id),
         )
         await db.commit()

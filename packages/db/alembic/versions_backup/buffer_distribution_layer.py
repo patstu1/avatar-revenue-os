@@ -4,8 +4,8 @@ Revision ID: buffer_dist_001
 Revises: brain_phase_d_001
 Create Date: 2026-03-31
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "buffer_dist_001"

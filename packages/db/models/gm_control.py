@@ -28,7 +28,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.db.base import Base
 
-
 GM_APPROVAL_STATUSES = [
     "pending", "approved", "rejected", "expired", "auto_approved",
 ]

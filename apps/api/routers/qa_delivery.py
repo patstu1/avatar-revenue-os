@@ -8,10 +8,9 @@ control.
 from __future__ import annotations
 
 import uuid
-from typing import Optional
+from datetime import datetime
 
 import structlog
-from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import desc, select
@@ -19,9 +18,13 @@ from sqlalchemy import desc, select
 from apps.api.deps import DBSession, OperatorUser
 from apps.api.services.qa_delivery_service import (
     dispatch_delivery as svc_dispatch,
+)
+from apps.api.services.qa_delivery_service import (
     run_qa_review,
-    schedule_followup as svc_schedule_followup,
     submit_production_output,
+)
+from apps.api.services.qa_delivery_service import (
+    schedule_followup as svc_schedule_followup,
 )
 from packages.db.models.delivery import Delivery, ProductionQAReview
 from packages.db.models.fulfillment import ProductionJob
@@ -35,8 +38,8 @@ router = APIRouter(tags=["QA & Delivery"])
 
 
 class SubmitOutputBody(BaseModel):
-    output_url: Optional[str] = None
-    output_payload: Optional[dict] = None
+    output_url: str | None = None
+    output_payload: dict | None = None
     auto_qa: bool = True
     auto_dispatch: bool = True
 
@@ -65,9 +68,9 @@ async def submit_output(
 
 
 class ReviewBody(BaseModel):
-    scores: Optional[dict] = None
-    issues: Optional[list] = None
-    notes: Optional[str] = None
+    scores: dict | None = None
+    issues: list | None = None
+    notes: str | None = None
     force_fail: bool = False
 
 
@@ -111,9 +114,9 @@ async def submit_qa_review(
 
 class DispatchBody(BaseModel):
     channel: str = "email"
-    subject: Optional[str] = None
-    message: Optional[str] = None
-    deliverable_url: Optional[str] = None
+    subject: str | None = None
+    message: str | None = None
+    deliverable_url: str | None = None
     followup_days: int = 7
 
 
@@ -150,7 +153,7 @@ async def dispatch_delivery_route(
 async def list_deliveries(
     current_user: OperatorUser,
     db: DBSession,
-    status: Optional[str] = None,
+    status: str | None = None,
     limit: int = 50,
 ):
     q = select(Delivery).where(
@@ -216,7 +219,7 @@ async def reschedule_followup(
 async def list_qa_reviews(
     current_user: OperatorUser,
     db: DBSession,
-    result: Optional[str] = None,
+    result: str | None = None,
     limit: int = 50,
 ):
     q = select(ProductionQAReview).where(

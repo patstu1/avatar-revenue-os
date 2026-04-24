@@ -41,7 +41,6 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -118,10 +117,10 @@ class AlertRouter:
         severity: str,
         title: str,
         message: str,
-        org_id: Optional[uuid.UUID] = None,
-        brand_id: Optional[uuid.UUID] = None,
-        source_event_id: Optional[uuid.UUID] = None,
-        metadata: Optional[dict] = None,
+        org_id: uuid.UUID | None = None,
+        brand_id: uuid.UUID | None = None,
+        source_event_id: uuid.UUID | None = None,
+        metadata: dict | None = None,
     ) -> list[AlertDeliveryLog]:
         """Route an alert to the appropriate channels. Returns delivery log entries."""
         channels = await self._resolve_channels_async(db, severity, org_id)
@@ -187,8 +186,8 @@ class AlertRouter:
         self,
         channel: str,
         payload: NotificationPayload,
-        prefs: Optional[OperatorNotificationPreference],
-    ) -> tuple[bool, Optional[str]]:
+        prefs: OperatorNotificationPreference | None,
+    ) -> tuple[bool, str | None]:
         """Deliver to a single channel."""
         recipient = self._resolve_recipient(channel, prefs)
         try:
@@ -208,7 +207,7 @@ class AlertRouter:
             return False, str(e)
 
     async def _resolve_channels_async(
-        self, db: AsyncSession, severity: str, org_id: Optional[uuid.UUID]
+        self, db: AsyncSession, severity: str, org_id: uuid.UUID | None
     ) -> list[str]:
         """Resolve channel list from DB prefs or defaults."""
         if not org_id:
@@ -220,7 +219,7 @@ class AlertRouter:
 
     async def _get_prefs_async(
         self, db: AsyncSession, org_id: uuid.UUID
-    ) -> Optional[OperatorNotificationPreference]:
+    ) -> OperatorNotificationPreference | None:
         result = await db.execute(
             select(OperatorNotificationPreference).where(
                 OperatorNotificationPreference.organization_id == org_id
@@ -239,10 +238,10 @@ class AlertRouter:
         severity: str,
         title: str,
         message: str,
-        org_id: Optional[uuid.UUID] = None,
-        brand_id: Optional[uuid.UUID] = None,
-        source_event_id: Optional[uuid.UUID] = None,
-        metadata: Optional[dict] = None,
+        org_id: uuid.UUID | None = None,
+        brand_id: uuid.UUID | None = None,
+        source_event_id: uuid.UUID | None = None,
+        metadata: dict | None = None,
     ) -> list[AlertDeliveryLog]:
         """Synchronous version for Celery workers. Logs delivery attempts
         but actual async sends are deferred — the log entries with status='pending'
@@ -288,7 +287,7 @@ class AlertRouter:
         return logs
 
     def _resolve_channels_sync(
-        self, session: Session, severity: str, org_id: Optional[uuid.UUID]
+        self, session: Session, severity: str, org_id: uuid.UUID | None
     ) -> list[str]:
         if not org_id:
             return DEFAULT_CHANNEL_MAP.get(severity, ["in_app"])
@@ -299,7 +298,7 @@ class AlertRouter:
 
     def _get_prefs_sync(
         self, session: Session, org_id: uuid.UUID
-    ) -> Optional[OperatorNotificationPreference]:
+    ) -> OperatorNotificationPreference | None:
         return session.execute(
             select(OperatorNotificationPreference).where(
                 OperatorNotificationPreference.organization_id == org_id
@@ -327,7 +326,7 @@ class AlertRouter:
 
     @staticmethod
     def _resolve_recipient(
-        channel: str, prefs: Optional[OperatorNotificationPreference]
+        channel: str, prefs: OperatorNotificationPreference | None
     ) -> str:
         """Resolve recipient string for a channel."""
         if channel == "in_app":

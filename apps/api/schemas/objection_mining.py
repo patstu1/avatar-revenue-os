@@ -1,7 +1,8 @@
 """Pydantic schemas for Objection Mining."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -13,7 +14,7 @@ class ObjectionSignalOut(BaseModel):
     extracted_objection: str
     severity: float
     monetization_impact: float
-    platform: Optional[str] = None
+    platform: str | None = None
 
 
 class ObjectionClusterOut(BaseModel):
@@ -24,7 +25,7 @@ class ObjectionClusterOut(BaseModel):
     signal_count: int
     avg_severity: float
     avg_monetization_impact: float
-    recommended_response_angle: Optional[str] = None
+    recommended_response_angle: str | None = None
 
 
 class ObjectionResponseOut(BaseModel):
@@ -41,8 +42,8 @@ class ObjectionPriorityReportOut(BaseModel):
     id: uuid.UUID
     total_signals: int
     total_clusters: int
-    highest_impact_type: Optional[str] = None
-    summary: Optional[str] = None
+    highest_impact_type: str | None = None
+    summary: str | None = None
 
 
 class RecomputeSummaryOut(BaseModel):

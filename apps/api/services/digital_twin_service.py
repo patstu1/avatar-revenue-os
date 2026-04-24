@@ -1,18 +1,28 @@
 """Digital Twin Service — run simulations, persist scenarios, recommend."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.account_state_intel import AccountStateReport
 from packages.db.models.campaigns import Campaign
+from packages.db.models.digital_twin import (
+    SimulationAssumption,
+    SimulationOutcome,
+    SimulationRecommendation,
+    SimulationRun,
+    SimulationScenario,
+)
 from packages.db.models.offer_lab import OfferLabOffer
 from packages.db.models.promote_winner import PWExperimentWinner
-from packages.db.models.digital_twin import (
-    SimulationRun, SimulationScenario, SimulationAssumption,
-    SimulationOutcome, SimulationRecommendation,
+from packages.scoring.digital_twin_engine import (
+    build_recommendation,
+    compare_options,
+    generate_scenarios,
 )
-from packages.scoring.digital_twin_engine import generate_scenarios, compare_options, build_recommendation, estimate_outcome
 
 
 async def run_simulation(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
@@ -31,7 +41,7 @@ async def run_simulation(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any
     system_state = await _gather_state(db, brand_id)
     raw_scenarios = generate_scenarios(system_state)
 
-    run = SimulationRun(brand_id=brand_id, run_name=f"Auto simulation for brand", scenario_count=len(raw_scenarios) * 2)
+    run = SimulationRun(brand_id=brand_id, run_name="Auto simulation for brand", scenario_count=len(raw_scenarios) * 2)
     db.add(run); await db.flush()
 
     best_id = None

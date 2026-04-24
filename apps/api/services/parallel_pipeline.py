@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -27,7 +26,7 @@ MAX_CONCURRENT = 10  # Max parallel generation tasks
 
 async def generate_batch(
     db: AsyncSession, brand_id: uuid.UUID,
-    *, brief_ids: Optional[list[uuid.UUID]] = None,
+    *, brief_ids: list[uuid.UUID] | None = None,
     max_concurrent: int = MAX_CONCURRENT,
 ) -> dict:
     """Generate scripts for multiple briefs in parallel.
@@ -115,7 +114,6 @@ async def publish_batch(
     max_concurrent: int = MAX_CONCURRENT,
 ) -> dict:
     """Publish multiple content items in parallel."""
-    from apps.api.services.content_lifecycle import publish_with_events
 
     results = []
     for i in range(0, len(content_ids), max_concurrent):

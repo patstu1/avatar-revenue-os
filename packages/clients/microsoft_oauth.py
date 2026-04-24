@@ -30,7 +30,6 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Optional
 from urllib.parse import urlencode
 
 import aiosmtplib
@@ -131,7 +130,7 @@ async def _load_app_credentials(db, org_id: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-async def build_auth_url(db, org_id: str, email_hint: Optional[str] = None) -> dict:
+async def build_auth_url(db, org_id: str, email_hint: str | None = None) -> dict:
     """Return the URL to redirect the user to for consent.
 
     Returns:
@@ -461,9 +460,9 @@ async def send_via_graph_sendmail(
     subject: str,
     body_text: str = "",
     body_html: str = "",
-    reply_to: Optional[str] = None,
-    in_reply_to: Optional[str] = None,
-    references: Optional[str] = None,
+    reply_to: str | None = None,
+    in_reply_to: str | None = None,
+    references: str | None = None,
     save_to_sent_items: bool = True,
 ) -> dict:
     """Send mail via Microsoft Graph POST /me/sendMail.
@@ -573,9 +572,9 @@ async def send_via_xoauth2_smtp(
     subject: str,
     body_text: str = "",
     body_html: str = "",
-    reply_to: Optional[str] = None,
-    in_reply_to: Optional[str] = None,
-    references: Optional[str] = None,
+    reply_to: str | None = None,
+    in_reply_to: str | None = None,
+    references: str | None = None,
 ) -> dict:
     """Send an email via smtp.office365.com using XOAUTH2 with the mailbox's
     OAuth access token.

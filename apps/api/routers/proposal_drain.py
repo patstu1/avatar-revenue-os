@@ -17,19 +17,23 @@ removed — operator/admin accounts are the system-owned primary path.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Query
 from sqlalchemy import func, select
 
 from apps.api.deps import DBSession, OperatorUser
-from apps.api.services.event_bus import emit_event
 from apps.api.services.package_recommender import recommend_package
 from apps.api.services.proposals_service import (
     LineItemInput,
+)
+from apps.api.services.proposals_service import (
     create_proposal as svc_create_proposal,
+)
+from apps.api.services.proposals_service import (
     mark_proposal_sent as svc_mark_sent,
+)
+from apps.api.services.proposals_service import (
     record_payment_link as svc_record_payment_link,
 )
 from apps.api.services.stripe_billing_service import create_payment_link
@@ -155,7 +159,7 @@ async def _drain_one(action: OperatorAction, db, smtp: SmtpEmailClient) -> dict:
         from_email=sender_email,
     )
 
-    offer: Optional[Offer] = None
+    offer: Offer | None = None
     if action.brand_id:
         offer = (
             await db.execute(

@@ -1,15 +1,14 @@
 """Unit tests for Creator Revenue Avenues Phase C engines."""
 from __future__ import annotations
 
-import pytest
 from packages.scoring.creator_revenue_engine import (
-    MERCH_TYPES,
-    LIVE_EVENT_TYPES,
     AFFILIATE_PROGRAM_TYPES,
-    score_merch_opportunities,
-    score_live_event_opportunities,
-    score_owned_affiliate_opportunities,
+    LIVE_EVENT_TYPES,
+    MERCH_TYPES,
     detect_phase_c_blockers,
+    score_live_event_opportunities,
+    score_merch_opportunities,
+    score_owned_affiliate_opportunities,
 )
 
 

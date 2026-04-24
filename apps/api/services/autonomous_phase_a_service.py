@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from sqlalchemy import select, update
@@ -38,7 +38,6 @@ from packages.scoring.signal_scanning_engine import (
     build_auto_queue_items,
     score_signal_batch,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helper serializers
@@ -226,7 +225,7 @@ def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _age_hours(dt: Optional[Any]) -> float:
+def _age_hours(dt: Any | None) -> float:
     """Compute hours since a timestamp; defaults to 0 when unavailable."""
     if dt is None:
         return 0.0
@@ -338,7 +337,7 @@ def _policy_to_engine_dict(p: PlatformWarmupPolicy) -> dict[str, Any]:
 
 def _account_to_engine_dict(
     acct: CreatorAccount,
-    maturity_report: Optional[AccountMaturityReport] = None,
+    maturity_report: AccountMaturityReport | None = None,
 ) -> dict[str, Any]:
     platform_str = acct.platform.value if hasattr(acct.platform, "value") else str(acct.platform)
     age_days = 30

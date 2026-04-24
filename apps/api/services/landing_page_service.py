@@ -1,13 +1,16 @@
 """Landing Page Service — generate, score, persist, list."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.landing_pages import LandingPage, LandingPageVariant, LandingPageBlock, LandingPageQualityReport
-from packages.db.models.offers import Offer
+
+from packages.db.models.landing_pages import LandingPage, LandingPageBlock, LandingPageQualityReport, LandingPageVariant
 from packages.db.models.objection_mining import ObjectionCluster
-from packages.scoring.landing_page_engine import generate_page, generate_variant, score_page_quality, PAGE_TYPES
+from packages.db.models.offers import Offer
+from packages.scoring.landing_page_engine import generate_page, generate_variant, score_page_quality
 
 
 async def recompute_landing_pages(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:

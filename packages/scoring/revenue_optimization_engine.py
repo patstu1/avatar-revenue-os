@@ -4,6 +4,7 @@ Scores content ideas by expected revenue rather than just engagement.
 Expected revenue = offer_payout * historical_CVR * estimated_impressions * monetization_density.
 """
 from __future__ import annotations
+
 from typing import Any
 
 

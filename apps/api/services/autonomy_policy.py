@@ -10,15 +10,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import and_, delete, func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.autonomy_grants import BrandAutonomyGrant
-from packages.db.models.system_events import OperatorAction
 from packages.db.models.core import Brand
+from packages.db.models.system_events import OperatorAction
 
 logger = structlog.get_logger()
 
@@ -40,7 +39,7 @@ HISTORY_DAYS = 30
 
 async def check_autonomy_grant(
     db: AsyncSession, brand_id: uuid.UUID, action_type: str,
-) -> Optional[BrandAutonomyGrant]:
+) -> BrandAutonomyGrant | None:
     """Check if a brand has an active grant for this action type.
 
     If the grant exists and the daily cap is not exhausted, increments

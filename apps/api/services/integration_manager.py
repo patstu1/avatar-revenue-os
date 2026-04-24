@@ -12,17 +12,15 @@ import base64
 import hashlib
 import os
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from cryptography.fernet import Fernet, InvalidToken
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
-from sqlalchemy import and_, select, update
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.integration_registry import IntegrationProvider, CreatorPlatformAccount
+from packages.db.models.integration_registry import IntegrationProvider
 
 logger = structlog.get_logger()
 
@@ -232,8 +230,8 @@ async def _auto_migrate_env_credentials(db: AsyncSession, org_id: uuid.UUID) -> 
 
 async def set_credential(
     db: AsyncSession, org_id: uuid.UUID, provider_key: str,
-    *, api_key: Optional[str] = None, api_secret: Optional[str] = None,
-    oauth_token: Optional[str] = None, extra_config: Optional[dict] = None,
+    *, api_key: str | None = None, api_secret: str | None = None,
+    oauth_token: str | None = None, extra_config: dict | None = None,
 ) -> dict:
     """Set or update credentials for a provider. Encrypts before storage."""
     provider = (await db.execute(
@@ -262,7 +260,7 @@ async def set_credential(
     return {"provider": provider_key, "status": "configured", "encrypted": True}
 
 
-async def get_credential(db: AsyncSession, org_id: uuid.UUID, provider_key: str) -> Optional[str]:
+async def get_credential(db: AsyncSession, org_id: uuid.UUID, provider_key: str) -> str | None:
     """Get decrypted API key for a provider.
 
     Primary: encrypted DB credential.
@@ -320,7 +318,7 @@ async def get_credential_full(
     return result
 
 
-async def list_providers(db: AsyncSession, org_id: uuid.UUID, category: Optional[str] = None) -> list[dict]:
+async def list_providers(db: AsyncSession, org_id: uuid.UUID, category: str | None = None) -> list[dict]:
     """List all providers with status (credentials masked)."""
     query = select(IntegrationProvider).where(IntegrationProvider.organization_id == org_id)
     if category:
@@ -353,7 +351,7 @@ async def list_providers(db: AsyncSession, org_id: uuid.UUID, category: Optional
 async def get_provider_for_task(
     db: AsyncSession, org_id: uuid.UUID,
     category: str, quality_tier: str = "standard",
-) -> Optional[dict]:
+) -> dict | None:
     """Get the best available provider for a task category + quality tier.
 
     Routing logic:

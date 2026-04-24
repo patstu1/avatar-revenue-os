@@ -5,10 +5,11 @@ Revises: g7b2c3d4e5f6
 Create Date: 2026-03-29
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "h8c3d4e5f6g7"

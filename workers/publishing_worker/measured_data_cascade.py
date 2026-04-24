@@ -17,8 +17,8 @@ import logging
 from celery import shared_task
 from sqlalchemy import select
 
-from packages.db.session import get_async_session_factory
 from packages.db.models.core import Brand
+from packages.db.session import get_async_session_factory
 
 logger = logging.getLogger(__name__)
 

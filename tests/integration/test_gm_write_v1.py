@@ -11,7 +11,7 @@ All tests run against real Postgres via the api_client fixture.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import select
@@ -23,8 +23,8 @@ from packages.db.models.email_pipeline import (
     EmailThread,
     InboxConnection,
 )
-from packages.db.models.gm_control import GMApproval, GMEscalation, StageState
-from packages.db.models.proposals import Payment, PaymentLink, Proposal
+from packages.db.models.gm_control import GMApproval, GMEscalation
+from packages.db.models.proposals import Proposal
 from packages.db.models.system_events import OperatorAction, SystemEvent
 
 

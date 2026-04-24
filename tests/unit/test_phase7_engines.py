@@ -1,13 +1,13 @@
 """Unit tests for Phase 7 engines: sponsor, comment-cash, knowledge graph, roadmap, capital."""
 
 from packages.scoring.phase7_engines import (
+    build_knowledge_graph_entries,
+    classify_comment_intent,
+    compute_capital_allocation,
+    extract_comment_cash_signals,
+    generate_roadmap,
     is_sponsor_safe,
     recommend_sponsor_packages,
-    classify_comment_intent,
-    extract_comment_cash_signals,
-    build_knowledge_graph_entries,
-    generate_roadmap,
-    compute_capital_allocation,
 )
 
 

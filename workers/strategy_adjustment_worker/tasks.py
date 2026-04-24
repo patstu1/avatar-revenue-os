@@ -9,29 +9,26 @@ Everything is proportional to measured reality.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
-import math
 import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
 
 from celery import shared_task
-from sqlalchemy import select, func, update, and_, or_
+from sqlalchemy import func, select
 
-from workers.base_task import TrackedTask
-from packages.db.session import get_async_session_factory, run_async
+from packages.db.enums import ContentType
+from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentBrief
 from packages.db.models.core import Brand
-from packages.db.models.accounts import CreatorAccount
 from packages.db.models.offers import Offer
 from packages.db.models.pattern_memory import (
-    WinningPatternMemory,
     LosingPatternMemory,
     PatternReuseRecommendation,
+    WinningPatternMemory,
 )
 from packages.db.models.publishing import PerformanceMetric
-from packages.db.enums import ContentType, Platform
+from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +55,7 @@ def _run(coro):
     name="workers.strategy_adjustment_worker.tasks.adjust_content_strategy",
     base=TrackedTask,
 )
-def adjust_content_strategy(brand_id: str, org_id: Optional[str] = None):
+def adjust_content_strategy(brand_id: str, org_id: str | None = None):
     """Run full strategy adjustment cycle for a single brand.
 
     Called after each analytics ingestion cycle. Reads ALL patterns (no caps),
@@ -117,11 +114,12 @@ async def _do_adjust_all():
 # CORE LOGIC
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def _do_adjust_strategy(brand_id: uuid.UUID, org_id: Optional[uuid.UUID]) -> dict:
+async def _do_adjust_strategy(brand_id: uuid.UUID, org_id: uuid.UUID | None) -> dict:
     """Full strategy adjustment for one brand."""
+    from sqlalchemy.orm import Session as SyncSession
+
     from apps.api.services.event_bus import emit_event_sync
     from packages.db.session import get_sync_engine
-    from sqlalchemy.orm import Session as SyncSession
 
     summary = {
         "brand_id": str(brand_id),
@@ -383,7 +381,6 @@ async def _deprioritize_loser_briefs(
     loser_signatures = set()
     loser_types = set()
     loser_platforms = set()
-    loser_monetizations = set()
 
     for lp in losing_patterns:
         loser_signatures.add(lp.pattern_signature.lower())

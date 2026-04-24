@@ -76,11 +76,11 @@ async def test_protected_route_without_token(api_client):
 @pytest.mark.asyncio
 async def test_rbac_viewer_cannot_create_brand(api_client, sample_org_data, db_session):
     """Viewers should be able to read but not write resources that require operator role."""
-    from packages.db.models.core import Organization, User
-    from packages.db.enums import UserRole
-    from apps.api.services.auth_service import hash_password
-    from apps.api.deps import create_access_token
     from apps.api.config import get_settings
+    from apps.api.deps import create_access_token
+    from apps.api.services.auth_service import hash_password
+    from packages.db.enums import UserRole
+    from packages.db.models.core import Organization, User
 
     org = Organization(name="RBAC Test Org", slug="rbac-test")
     db_session.add(org)
@@ -109,11 +109,11 @@ async def test_rbac_viewer_cannot_create_brand(api_client, sample_org_data, db_s
 @pytest.mark.asyncio
 async def test_rbac_viewer_cannot_create_avatar(api_client, db_session):
     """Avatars require OperatorUser role. Viewer should get 403."""
-    from packages.db.models.core import Organization, User, Brand
-    from packages.db.enums import UserRole
-    from apps.api.services.auth_service import hash_password
-    from apps.api.deps import create_access_token
     from apps.api.config import get_settings
+    from apps.api.deps import create_access_token
+    from apps.api.services.auth_service import hash_password
+    from packages.db.enums import UserRole
+    from packages.db.models.core import Brand, Organization, User
 
     org = Organization(name="RBAC Avatar Org", slug="rbac-avatar")
     db_session.add(org)

@@ -9,12 +9,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from sqlalchemy import desc, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_action
 from packages.db.models.content import ContentItem
-from packages.db.models.core import Brand
 from packages.db.models.publishing import PerformanceMetric
 
 logger = structlog.get_logger()

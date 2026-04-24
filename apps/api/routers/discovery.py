@@ -1,22 +1,30 @@
 """Discovery, scoring, and recommendation endpoints — Phase 2 core."""
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.discovery import (
-    ForecastResponse, NicheClusterResponse, OfferFitResponse,
-    OpportunityScoreResponse, ProfitForecastResponse, RecommendationResponse,
-    SaturationReportResponse, SignalIngestRequest, TopicCandidateResponse,
+    ForecastResponse,
+    NicheClusterResponse,
+    OpportunityScoreResponse,
+    ProfitForecastResponse,
+    RecommendationResponse,
+    SaturationReportResponse,
+    SignalIngestRequest,
+    TopicCandidateResponse,
     TrendSignalResponse,
 )
-from apps.api.services.audit_service import log_action
 from apps.api.services import discovery_service as ds
-from packages.db.models.discovery import NicheCluster, TopicCandidate, TrendSignal
+from apps.api.services.audit_service import log_action
+from packages.db.models.discovery import NicheCluster, TrendSignal
 from packages.db.models.scoring import (
-    OpportunityScore, ProfitForecast, RecommendationQueue, SaturationReport,
+    OpportunityScore,
+    ProfitForecast,
+    RecommendationQueue,
+    SaturationReport,
 )
 
 router = APIRouter()

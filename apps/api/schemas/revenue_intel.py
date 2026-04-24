@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 class MonetizationRecRow(BaseModel):
     id: str
-    content_item_id: Optional[str] = None
+    content_item_id: str | None = None
     recommendation_type: str
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     expected_revenue_uplift: float = 0.0
     expected_cost: float = 0.0
     confidence: float = 0.0
-    evidence: Optional[dict[str, Any]] = None
+    evidence: dict[str, Any] | None = None
     is_actioned: bool = False
 
 

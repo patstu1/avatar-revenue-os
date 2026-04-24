@@ -3,11 +3,11 @@ import base64
 import hashlib
 import os
 import uuid
-from typing import Optional
 from datetime import datetime, timezone
+from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.config import get_settings

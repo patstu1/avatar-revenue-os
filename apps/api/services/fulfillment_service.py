@@ -10,12 +10,10 @@ Called from:
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_event
@@ -320,8 +318,8 @@ async def launch_production_for_brief(
     *,
     brief: ProjectBrief,
     job_type: str = "content_pack",
-    title: Optional[str] = None,
-    metadata: Optional[dict] = None,
+    title: str | None = None,
+    metadata: dict | None = None,
 ) -> ProductionJob:
     """Create a ProductionJob for an approved brief.
 

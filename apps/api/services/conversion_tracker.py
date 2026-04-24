@@ -8,15 +8,11 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.services.event_bus import emit_event
-from packages.db.models.content import ContentItem
-from packages.db.models.offers import Offer
 from packages.db.models.publishing import AttributionEvent
 
 logger = structlog.get_logger()
@@ -42,8 +38,8 @@ def generate_tracking_params(
 
 async def record_click(
     db: AsyncSession, brand_id: uuid.UUID,
-    *, tracking_id: str, content_item_id: Optional[uuid.UUID] = None,
-    offer_id: Optional[uuid.UUID] = None, platform: Optional[str] = None,
+    *, tracking_id: str, content_item_id: uuid.UUID | None = None,
+    offer_id: uuid.UUID | None = None, platform: str | None = None,
 ) -> AttributionEvent:
     """Record a click event in the attribution chain."""
     event = AttributionEvent(
@@ -65,8 +61,8 @@ async def record_click(
 async def record_conversion(
     db: AsyncSession, brand_id: uuid.UUID,
     *, tracking_id: str, revenue: float,
-    content_item_id: Optional[uuid.UUID] = None,
-    offer_id: Optional[uuid.UUID] = None,
+    content_item_id: uuid.UUID | None = None,
+    offer_id: uuid.UUID | None = None,
 ) -> dict:
     """Record a conversion event and link it back to the click chain."""
     # Find the click event that started this chain

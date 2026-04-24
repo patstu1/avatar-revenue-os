@@ -1,16 +1,26 @@
 """Enterprise Affiliate Service — governance, risk, owned program."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.affiliate_intel import AffiliateOffer, AffiliateMerchant, AffiliateNetworkAccount
+
 from packages.db.models.affiliate_enterprise import (
-    AffiliateGovernanceRule, AffiliateBannedEntity, AffiliateApproval,
-    AffiliateAuditEvent, AffiliateRiskFlag, OwnedAffiliatePartner, OwnedPartnerConversion,
+    AffiliateApproval,
+    AffiliateAuditEvent,
+    AffiliateBannedEntity,
+    AffiliateGovernanceRule,
+    AffiliateRiskFlag,
+    OwnedAffiliatePartner,
+    OwnedPartnerConversion,
 )
+from packages.db.models.affiliate_intel import AffiliateOffer
 from packages.scoring.affiliate_enterprise_engine import (
-    evaluate_governance, flag_risk, rank_merchants, rank_networks, score_partner, detect_partner_fraud,
+    detect_partner_fraud,
+    flag_risk,
+    score_partner,
 )
 
 
@@ -21,8 +31,8 @@ async def recompute_governance(db: AsyncSession, org_id: uuid.UUID) -> dict[str,
     rules = list((await db.execute(select(AffiliateGovernanceRule).where(AffiliateGovernanceRule.organization_id == org_id, AffiliateGovernanceRule.is_active.is_(True)))).scalars().all())
     banned = list((await db.execute(select(AffiliateBannedEntity).where(AffiliateBannedEntity.organization_id == org_id, AffiliateBannedEntity.is_active.is_(True)))).scalars().all())
 
-    rule_dicts = [{"rule_type": r.rule_type, "rule_key": r.rule_key, "rule_value": r.rule_value, "severity": r.severity} for r in rules]
-    ban_dicts = [{"entity_type": b.entity_type, "entity_name": b.entity_name, "reason": b.reason} for b in banned]
+    [{"rule_type": r.rule_type, "rule_key": r.rule_key, "rule_value": r.rule_value, "severity": r.severity} for r in rules]
+    [{"entity_type": b.entity_type, "entity_name": b.entity_name, "reason": b.reason} for b in banned]
 
     total_flags = 0
     for o in offers:

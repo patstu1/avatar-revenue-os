@@ -1,6 +1,5 @@
 """Authentication endpoints — register, login, me, password reset."""
 import secrets
-import uuid
 from datetime import datetime, timedelta, timezone
 
 import structlog
@@ -11,11 +10,16 @@ from apps.api.config import get_settings
 from apps.api.deps import CurrentUser, DBSession, create_access_token
 from apps.api.rate_limit import auth_rate_limit
 from apps.api.schemas.auth import (
-    LoginRequest, PasswordChangeRequest, PasswordResetConfirm,
-    PasswordResetRequest, RegisterRequest, TokenResponse, UserResponse,
+    LoginRequest,
+    PasswordChangeRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
 )
-from apps.api.services.auth_service import authenticate_user, hash_password, register_user, verify_password
 from apps.api.services.audit_service import log_action
+from apps.api.services.auth_service import authenticate_user, hash_password, register_user, verify_password
 from packages.db.models.core import User
 
 router = APIRouter()
@@ -142,10 +146,12 @@ async def forgot_password(
 
         # Send reset email via the SMTP integration
         try:
-            from apps.api.services.integration_manager import get_credential_full
-            import aiosmtplib
             from email.mime.multipart import MIMEMultipart
             from email.mime.text import MIMEText
+
+            import aiosmtplib
+
+            from apps.api.services.integration_manager import get_credential_full
 
             creds = await get_credential_full(db, user.organization_id, "smtp")
             extra = creds.get("extra_config") or {}

@@ -1,5 +1,6 @@
 """Digital Twin / Simulation Engine — scenario gen, outcome/risk/confidence estimation. Pure functions."""
 from __future__ import annotations
+
 from typing import Any
 
 SCENARIO_TYPES = [

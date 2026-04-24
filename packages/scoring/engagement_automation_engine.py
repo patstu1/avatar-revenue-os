@@ -4,6 +4,7 @@ During seed/trickle phases, accounts need to engage with niche content to build 
 and trigger algorithmic recognition before posting their own content.
 """
 from __future__ import annotations
+
 import random
 from typing import Any
 

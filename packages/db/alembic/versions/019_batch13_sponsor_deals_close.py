@@ -27,8 +27,8 @@ metrics_json, exclusivity_clauses_json, attendees).
 
 All tables additive and idempotent; safe on populated prod DB.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision = "019_batch13"

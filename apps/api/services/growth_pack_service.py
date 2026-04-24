@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.services.growth_gatekeeper_pipeline import apply_gatekeeper_pipeline, load_gatekeeper_dict_only
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.core import Brand
 from packages.db.models.growth_pack import (
@@ -20,7 +21,6 @@ from packages.db.models.growth_pack import (
     PortfolioLaunchPlan,
     PortfolioOutputReport,
 )
-from apps.api.services.growth_gatekeeper_pipeline import apply_gatekeeper_pipeline, load_gatekeeper_dict_only
 from packages.db.models.offers import Offer
 from packages.db.models.portfolio import (
     GeoLanguageExpansionRecommendation,
@@ -30,12 +30,14 @@ from packages.db.models.portfolio import (
 )
 from packages.db.models.scale_alerts import LaunchCandidate, LaunchReadinessReport, ScaleBlockerReport
 from packages.scoring.growth_commander import (
-    assess_portfolio_balance, find_whitespace, generate_growth_commands,
+    assess_portfolio_balance,
+    find_whitespace,
+    generate_growth_commands,
 )
 from packages.scoring.growth_pack.gatekeeper import gatekeeper_blocker_rows, pick_primary_gate
 from packages.scoring.growth_pack.orchestrator import (
-    build_capital_plan,
     build_cannibalization_pairs,
+    build_capital_plan,
     build_growth_blockers,
     build_launch_blueprints_from_commands,
     build_niche_rows,
@@ -347,7 +349,7 @@ async def list_account_blueprints(db: AsyncSession, brand_id: uuid.UUID) -> list
     return [_bp_ser(b) for b in rows]
 
 
-async def get_account_blueprint(db: AsyncSession, blueprint_id: uuid.UUID) -> Optional[dict]:
+async def get_account_blueprint(db: AsyncSession, blueprint_id: uuid.UUID) -> dict | None:
     b = (await db.execute(select(AccountLaunchBlueprint).where(AccountLaunchBlueprint.id == blueprint_id))).scalar_one_or_none()
     return _bp_ser(b) if b else None
 

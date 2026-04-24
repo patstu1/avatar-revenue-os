@@ -4,9 +4,10 @@ Ayrshare supports: YouTube, TikTok, Instagram, X, LinkedIn, Reddit, Pinterest, F
 API docs: https://docs.ayrshare.com
 """
 from __future__ import annotations
-import os
+
 import logging
-from typing import Any, Optional
+import os
+from typing import Any
 
 import httpx
 
@@ -27,7 +28,7 @@ class AyrshareClient:
 
     BASE_URL = "https://app.ayrshare.com/api"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.environ.get("AYRSHARE_API_KEY", "")
 
     def _is_configured(self) -> bool:
@@ -57,9 +58,9 @@ class AyrshareClient:
         platforms: list[str],
         text: str,
         *,
-        media_urls: Optional[list[str]] = None,
-        link_url: Optional[str] = None,
-        scheduled_date: Optional[str] = None,
+        media_urls: list[str] | None = None,
+        link_url: str | None = None,
+        scheduled_date: str | None = None,
         shorten_links: bool = True,
     ) -> dict[str, Any]:
         """Post to one or more platforms simultaneously.

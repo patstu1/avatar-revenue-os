@@ -132,8 +132,8 @@ class SponsorOutreachExecutor:
         # Outreach requires SMTP
         if action == "generate_outreach_sequence" and not self.smtp_configured:
             return True, (
-                f"Outreach sequence prepared but SMTP not configured (SMTP_HOST not set). "
-                f"Sequence is persisted and ready to send when SMTP is connected."
+                "Outreach sequence prepared but SMTP not configured (SMTP_HOST not set). "
+                "Sequence is persisted and ready to send when SMTP is connected."
             )
 
         if action == "generate_outreach_sequence":

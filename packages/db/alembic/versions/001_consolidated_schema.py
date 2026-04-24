@@ -8,7 +8,6 @@ Revises: None
 Create Date: 2026-04-02
 """
 from alembic import op
-import sqlalchemy as sa
 
 revision = "001_consolidated"
 down_revision = None
@@ -22,8 +21,8 @@ def upgrade() -> None:
     Idempotent: create_all with checkfirst=True (the default) skips
     tables that already exist.
     """
-    from packages.db.base import Base
     import packages.db.models  # noqa: F401 — registers all models
+    from packages.db.base import Base
 
     bind = op.get_bind()
     Base.metadata.create_all(bind=bind, checkfirst=True)
@@ -43,8 +42,8 @@ def downgrade() -> None:
             "This would DROP ALL TABLES. Set ALLOW_DESTRUCTIVE_DOWNGRADE=1 "
             "if you really mean it."
         )
-    from packages.db.base import Base
     import packages.db.models  # noqa: F401
+    from packages.db.base import Base
 
     bind = op.get_bind()
     Base.metadata.drop_all(bind=bind)

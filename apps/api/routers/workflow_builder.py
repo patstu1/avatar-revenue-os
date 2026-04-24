@@ -1,9 +1,11 @@
 """Workflow Builder API."""
 import uuid
+
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
-from apps.api.schemas.workflow_builder import WFDefinitionOut, WFInstanceOut, RecomputeSummaryOut
+from apps.api.schemas.workflow_builder import WFDefinitionOut, WFInstanceOut
 from apps.api.services import workflow_service as svc
 from packages.db.models.core import Organization
 

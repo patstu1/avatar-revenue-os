@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Optional
 
 from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -52,8 +51,8 @@ class BrandAutonomyGrant(Base):
     last_reset_date: Mapped[date] = mapped_column(Date, default=date.today)
 
     # --- Revocation ---
-    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    revoke_reason: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoke_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     __table_args__ = (
         UniqueConstraint("brand_id", "action_type", name="uq_brand_autonomy_grant_brand_action"),

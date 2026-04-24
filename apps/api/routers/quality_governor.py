@@ -1,11 +1,15 @@
 """Quality Governor API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.quality_governor import (
-    QGReportOut, QGBlockOut, RecomputeSummaryOut,
+    QGBlockOut,
+    QGReportOut,
+    RecomputeSummaryOut,
 )
 from apps.api.services import quality_governor_service as svc
 from packages.db.models.core import Brand

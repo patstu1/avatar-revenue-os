@@ -15,8 +15,8 @@ Adds:
 
 Additive only; idempotent. Safe on populated prod DB.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision = "017_batch11"

@@ -1,7 +1,7 @@
 """Provider Registry — API endpoints for provider inventory, readiness, dependencies, blockers."""
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
 from apps.api.deps import CurrentUser, DBSession, OperatorUser

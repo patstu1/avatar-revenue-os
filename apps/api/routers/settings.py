@@ -1,14 +1,14 @@
 """Settings, integrations, and secrets management endpoints."""
 import uuid
-
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
 from typing import Optional
 
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
 from apps.api.deps import AdminUser, DBSession
+from apps.api.services import secrets_service
 from apps.api.services.audit_service import log_action
 from apps.api.services.crud_service import CRUDService
-from apps.api.services import secrets_service
 from packages.db.models.core import Organization
 
 router = APIRouter()
@@ -172,8 +172,9 @@ async def get_integrations(current_user: AdminUser, db: DBSession):
     integration_providers since that's where workers check connectivity.
     """
     from sqlalchemy import select
-    from packages.db.models.integration_registry import IntegrationProvider
+
     from apps.api.services.integration_manager import _decrypt
+    from packages.db.models.integration_registry import IntegrationProvider
 
     # Load from all three sources
     db_secrets = await secrets_service.get_all_keys(db, current_user.organization_id)

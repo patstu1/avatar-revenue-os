@@ -15,8 +15,7 @@ import hashlib
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -63,7 +62,7 @@ async def _load_rules(db: AsyncSession, brand_id: uuid.UUID) -> list[PublishPoli
 @dataclass
 class PublishPolicyResult:
     tier: str                       # auto_publish | sample_review | manual_approval | block
-    rule_id: Optional[uuid.UUID]    # Which rule matched
+    rule_id: uuid.UUID | None    # Which rule matched
     rule_name: str                  # Human-readable name
     sample_flagged: bool            # If sample_review, was this item selected?
     explanation: str                # Why this tier was chosen
@@ -88,11 +87,11 @@ def _deterministic_sample(content_id: uuid.UUID, sample_rate: float) -> bool:
 
 def build_policy_context(
     content_item: Any,
-    qa_score: Optional[float] = None,
-    confidence: Optional[str] = None,
-    account_health: Optional[str] = None,
-    account_age_days: Optional[int] = None,
-    governance_level: Optional[str] = None,
+    qa_score: float | None = None,
+    confidence: str | None = None,
+    account_health: str | None = None,
+    account_age_days: int | None = None,
+    governance_level: str | None = None,
 ) -> dict:
     """Assemble the factor dict from content item and related data."""
     tags = []
@@ -184,11 +183,11 @@ def _rule_matches(rule: PublishPolicyRule, ctx: dict) -> bool:
 async def evaluate_publish_policy(
     db: AsyncSession,
     content_item: Any,
-    qa_score: Optional[float] = None,
-    confidence: Optional[str] = None,
-    account_health: Optional[str] = None,
-    account_age_days: Optional[int] = None,
-    governance_level: Optional[str] = None,
+    qa_score: float | None = None,
+    confidence: str | None = None,
+    account_health: str | None = None,
+    account_age_days: int | None = None,
+    governance_level: str | None = None,
 ) -> PublishPolicyResult:
     """Evaluate content against publish policy rules. Returns the tier decision.
 

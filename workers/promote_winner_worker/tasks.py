@@ -1,22 +1,20 @@
 """Promote-Winner workers — evaluate experiments, decay check, observation ingest."""
-import asyncio
 import logging
 
 from celery import shared_task
 from sqlalchemy import select
 
+from packages.db.models.promote_winner import ActiveExperiment
 from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
-from packages.db.models.promote_winner import ActiveExperiment
 
 logger = logging.getLogger(__name__)
 
 
 async def _ingest_experiment_observations():
     """Auto-populate experiment observations from real performance metrics."""
-    from packages.db.models.promote_winner import PWExperimentVariant, PWExperimentObservation
     from packages.db.models.portfolio import PerformanceMetric
-    from packages.db.models.content import ContentItem
+    from packages.db.models.promote_winner import PWExperimentObservation, PWExperimentVariant
 
     async with get_async_session_factory()() as db:
         experiments = list((await db.execute(

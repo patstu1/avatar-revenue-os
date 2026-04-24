@@ -1,8 +1,11 @@
 """Unit tests for revenue leak engine."""
-import pytest
 from packages.scoring.revenue_leak_engine import (
-    LEAK_TYPES, detect_leaks, cluster_leaks, estimate_total_loss,
-    generate_corrections, prioritize_leaks,
+    LEAK_TYPES,
+    cluster_leaks,
+    detect_leaks,
+    estimate_total_loss,
+    generate_corrections,
+    prioritize_leaks,
 )
 
 

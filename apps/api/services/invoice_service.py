@@ -20,17 +20,17 @@ Every mutation writes a canonical SystemEvent in domain='monetization'.
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_event
 from packages.db.models.invoices import (
-    Invoice, InvoiceLineItem, InvoiceMilestone,
+    Invoice,
+    InvoiceLineItem,
+    InvoiceMilestone,
 )
 from packages.db.models.proposals import Payment, Proposal
 
@@ -49,11 +49,11 @@ async def create_invoice_from_proposal(
     db: AsyncSession,
     *,
     proposal: Proposal,
-    milestones: Optional[list[dict]] = None,
-    due_date: Optional[datetime] = None,
-    notes: Optional[str] = None,
+    milestones: list[dict] | None = None,
+    due_date: datetime | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> Invoice:
     """Create an Invoice from an existing Proposal. Copies line items,
     sets recipient from the proposal. Optionally seeds milestones
@@ -185,7 +185,7 @@ async def send_invoice(
     *,
     invoice: Invoice,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Mark invoice as sent. Attempts email delivery via SMTP (fails
     gracefully — the status flips to 'sent' regardless, same pattern
@@ -261,10 +261,10 @@ async def mark_paid(
     amount_cents: int,
     payment_method: str,
     payment_reference: str,
-    milestone_position: Optional[int] = None,
-    paid_at: Optional[datetime] = None,
+    milestone_position: int | None = None,
+    paid_at: datetime | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Record payment against an invoice. Creates a Payment row with
     provider='invoice' and fires activate_client_from_payment, so
@@ -317,7 +317,7 @@ async def mark_paid(
         }
 
     # Resolve the milestone if specified
-    target_ms: Optional[InvoiceMilestone] = None
+    target_ms: InvoiceMilestone | None = None
     if milestone_position is not None:
         target_ms = (
             await db.execute(
@@ -488,7 +488,7 @@ async def void_invoice(
     invoice: Invoice,
     reason: str,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     if invoice.status == "paid":
         raise ValueError("Cannot void a paid invoice")

@@ -1,13 +1,28 @@
 """DB-backed integration tests for Affiliate Intelligence."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from apps.api.services.affiliate_intel_service import (
+    get_best_offer_for_content,
+    list_blockers,
+    list_leaks,
+    list_links,
+    list_offers,
+    recompute_ranking,
+)
+from packages.db.models.affiliate_intel import (
+    AffiliateBlocker,
+    AffiliateLeak,
+    AffiliateLink,
+    AffiliateOffer,
+)
 from packages.db.models.core import Brand, Organization
-from packages.db.models.affiliate_intel import AffiliateOffer, AffiliateLink, AffiliateLeak, AffiliateBlocker, AffiliateClickEvent, AffiliateConversionEvent
-from apps.api.services.affiliate_intel_service import recompute_ranking, list_offers, list_links, list_leaks, list_blockers, get_best_offer_for_content
 
 
 @pytest_asyncio.fixture
@@ -111,6 +126,6 @@ async def test_idempotent(db_session, brand_with_affiliate):
 
 
 def test_affiliate_worker_registered():
-    from workers.celery_app import app
     import workers.affiliate_intel_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.affiliate_intel_worker.tasks.recompute_affiliate_intel" in app.tasks

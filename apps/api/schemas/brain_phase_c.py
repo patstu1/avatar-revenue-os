@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -13,15 +13,15 @@ class AgentRegistryOut(BaseModel):
     brand_id: UUID
     agent_slug: str
     agent_label: str
-    description: Optional[str] = None
-    input_schema_json: Optional[Any] = None
-    output_schema_json: Optional[Any] = None
-    memory_scopes_json: Optional[Any] = None
-    upstream_agents_json: Optional[Any] = None
-    downstream_agents_json: Optional[Any] = None
+    description: str | None = None
+    input_schema_json: Any | None = None
+    output_schema_json: Any | None = None
+    memory_scopes_json: Any | None = None
+    upstream_agents_json: Any | None = None
+    downstream_agents_json: Any | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -32,16 +32,16 @@ class AgentRunV2Out(BaseModel):
     agent_slug: str
     run_status: str
     trigger: str
-    inputs_json: Optional[Any] = None
-    outputs_json: Optional[Any] = None
-    memory_refs_json: Optional[Any] = None
+    inputs_json: Any | None = None
+    outputs_json: Any | None = None
+    memory_refs_json: Any | None = None
     confidence: float
     duration_ms: int
-    error_detail: Optional[str] = None
-    explanation: Optional[str] = None
+    error_detail: str | None = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -50,16 +50,16 @@ class WorkflowCoordinationRunOut(BaseModel):
     id: UUID
     brand_id: UUID
     workflow_type: str
-    sequence_json: Optional[Any] = None
+    sequence_json: Any | None = None
     status: str
-    handoff_events_json: Optional[Any] = None
-    failure_points_json: Optional[Any] = None
-    inputs_json: Optional[Any] = None
-    outputs_json: Optional[Any] = None
-    explanation: Optional[str] = None
+    handoff_events_json: Any | None = None
+    failure_points_json: Any | None = None
+    inputs_json: Any | None = None
+    outputs_json: Any | None = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -69,14 +69,14 @@ class SharedContextEventOut(BaseModel):
     brand_id: UUID
     event_type: str
     source_module: str
-    target_modules_json: Optional[Any] = None
-    payload_json: Optional[Any] = None
+    target_modules_json: Any | None = None
+    payload_json: Any | None = None
     priority: int
     consumed: bool
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -84,4 +84,4 @@ class SharedContextEventOut(BaseModel):
 class RecomputeSummaryOut(BaseModel):
     status: str
     detail: str
-    counts: Optional[Any] = None
+    counts: Any | None = None

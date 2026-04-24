@@ -12,7 +12,6 @@ from apps.api.schemas.buffer_distribution import (
     BufferProfileOut,
     BufferProfileUpdate,
     BufferPublishJobOut,
-    BufferStatusSyncOut,
     RecomputeSummaryOut,
 )
 from apps.api.services import buffer_distribution_service as svc
@@ -40,7 +39,7 @@ async def list_buffer_profiles(
         return await svc.list_buffer_profiles(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -54,7 +53,7 @@ async def create_buffer_profile(
         return await svc.create_buffer_profile(db, brand_id, body.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -69,7 +68,7 @@ async def update_buffer_profile(
         result = await svc.update_buffer_profile(db, profile_id, body.model_dump(exclude_unset=True))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
     if not result:
         raise HTTPException(status_code=404, detail="Buffer profile not found")
@@ -88,7 +87,7 @@ async def list_publish_jobs(
         return await svc.list_publish_jobs(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -157,5 +156,5 @@ async def list_buffer_blockers(
         return await svc.list_buffer_blockers(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")

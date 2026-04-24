@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
-import uuid
 
 from pydantic import BaseModel
 
@@ -18,7 +16,7 @@ class ReferralProgramRecommendationOut(BaseModel):
     estimated_conversion_rate: float
     estimated_revenue_impact: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -27,10 +25,10 @@ class ReferralProgramRecommendationOut(BaseModel):
 class CompetitiveGapReportOut(BaseModel):
     id: str
     brand_id: str
-    offer_id: Optional[str] = None
+    offer_id: str | None = None
     competitor_name: str
     gap_type: str
-    gap_description: Optional[str] = None
+    gap_description: str | None = None
     severity: str
     estimated_impact: float
     confidence: float
@@ -43,12 +41,12 @@ class SponsorTargetOut(BaseModel):
     id: str
     brand_id: str
     target_company_name: str
-    industry: Optional[str] = None
-    contact_info: Optional[dict] = None
+    industry: str | None = None
+    contact_info: dict | None = None
     estimated_deal_value: float
     fit_score: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -62,7 +60,7 @@ class SponsorOutreachSequenceOut(BaseModel):
     estimated_response_rate: float
     expected_value: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -75,7 +73,7 @@ class ProfitGuardrailReportOut(BaseModel):
     current_value: float
     threshold_value: float
     status: str
-    action_recommended: Optional[str] = None
+    action_recommended: str | None = None
     estimated_impact: float
     confidence: float
     is_active: bool

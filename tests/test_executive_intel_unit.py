@@ -1,8 +1,11 @@
 """Unit tests for executive intelligence engine."""
-import pytest
 from packages.scoring.executive_intel_engine import (
-    rollup_kpis, forecast_metric, compute_usage_cost, compute_uptime,
-    evaluate_oversight, generate_executive_alerts,
+    compute_uptime,
+    compute_usage_cost,
+    evaluate_oversight,
+    forecast_metric,
+    generate_executive_alerts,
+    rollup_kpis,
 )
 
 

@@ -73,6 +73,5 @@ async def test_promoted_routes_to_hero(api_client, sample_org_data):
 
 
 def test_celery_task_registered():
-    import workers.content_routing_worker.tasks
     from workers.celery_app import app
     assert "workers.content_routing_worker.tasks.daily_cost_rollup" in app.tasks

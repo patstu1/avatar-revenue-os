@@ -21,7 +21,6 @@ Usage:
 import argparse
 import json
 import sys
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -259,8 +258,9 @@ def _delete_brand(conn, brand_id: str) -> bool:
 
 
 def main(apply: bool, delete_safe: bool):
-    from sqlalchemy import create_engine, text
     import os
+
+    from sqlalchemy import create_engine, text
 
     engine = create_engine(os.environ.get("DATABASE_URL_SYNC", ""), pool_size=2)
 

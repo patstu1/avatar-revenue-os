@@ -11,8 +11,8 @@ from __future__ import annotations
 import hashlib
 import random
 import uuid
-from typing import Any, Optional
-from urllib.parse import urlencode, urlparse, urlunparse, parse_qs
+from typing import Any
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import structlog
 from sqlalchemy import select
@@ -32,7 +32,7 @@ def build_tracking_url(
     content_id: str = "",
     account_id: str = "",
     offer_id: str = "",
-    extra_params: Optional[dict] = None,
+    extra_params: dict | None = None,
 ) -> str:
     """Build a UTM-tagged tracking URL from an offer URL.
 
@@ -71,9 +71,9 @@ def build_tracking_url(
 
 def build_caption_with_cta(
     base_caption: str,
-    offer: Optional[Any] = None,
+    offer: Any | None = None,
     tracking_url: str = "",
-    hashtags: Optional[list[str]] = None,
+    hashtags: list[str] | None = None,
 ) -> str:
     """Build a publish-ready caption with CTA and tracking link.
 
@@ -99,8 +99,8 @@ async def select_offer_for_publish(
     db: AsyncSession,
     brand_id: uuid.UUID,
     platform: str = "",
-    account_id: Optional[uuid.UUID] = None,
-) -> Optional[Offer]:
+    account_id: uuid.UUID | None = None,
+) -> Offer | None:
     """Select an offer for publish-time monetization using weighted rotation.
 
     1. Check RevenueAssignments for specific account/platform matches

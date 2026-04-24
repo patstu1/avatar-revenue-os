@@ -1,10 +1,9 @@
 """Buffer Distribution Layer — service layer for profiles, publish jobs, sync, blockers."""
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from sqlalchemy import select, update
@@ -72,7 +71,7 @@ async def create_buffer_profile(db: AsyncSession, brand_id: uuid.UUID, data: dic
     return bp
 
 
-async def update_buffer_profile(db: AsyncSession, profile_id: uuid.UUID, data: dict[str, Any]) -> Optional[BufferProfile]:
+async def update_buffer_profile(db: AsyncSession, profile_id: uuid.UUID, data: dict[str, Any]) -> BufferProfile | None:
     q = await db.execute(select(BufferProfile).where(BufferProfile.id == profile_id))
     bp = q.scalar_one_or_none()
     if not bp:
@@ -153,7 +152,7 @@ async def recompute_publish_jobs(db: AsyncSession, brand_id: uuid.UUID) -> dict[
         asset_rows = (await db.execute(select(Asset).where(Asset.id.in_(asset_ids)))).scalars().all()
         asset_lookup = {a.id: a for a in asset_rows}
 
-    def _resolve_media_url(ci) -> Optional[str]:
+    def _resolve_media_url(ci) -> str | None:
         """Resolve a usable public media URL from ContentItem -> Asset.
 
         Prefers video, falls back to thumbnail. Only returns URLs that look
@@ -256,7 +255,7 @@ async def recompute_publish_jobs(db: AsyncSession, brand_id: uuid.UUID) -> dict[
     }
 
 
-def _match_profile(content_item: Any, profiles: list[BufferProfile]) -> Optional[BufferProfile]:
+def _match_profile(content_item: Any, profiles: list[BufferProfile]) -> BufferProfile | None:
     """Pick the best Buffer profile for a content item (platform match preferred, connected preferred)."""
     connected = [p for p in profiles if p.credential_status == "connected"]
     if connected:
@@ -321,7 +320,7 @@ async def submit_job_to_buffer(db: AsyncSession, job_id: uuid.UUID) -> dict[str,
             blocker_type="missing_buffer_credentials",
             severity="high",
             description=f"Buffer profile '{profile.display_name}' is not connected.",
-            operator_action_needed=f"Connect this Buffer profile via the Buffer dashboard.",
+            operator_action_needed="Connect this Buffer profile via the Buffer dashboard.",
         )
         db.add(blocker)
     else:
@@ -419,9 +418,10 @@ async def sync_published_posts_from_buffer(db: AsyncSession, organization_id: uu
     This is the bridge that ingests real destination URLs (x.com/..., instagram.com/...)
     into publish_jobs and content_items, turning "queued" into "verified published".
     """
-    import json as _json
+    from sqlalchemy import select
+    from sqlalchemy import update as sa_update
+
     from packages.clients.external_clients import BufferClient
-    from sqlalchemy import select, update as sa_update
     from packages.db.models.content import ContentItem
     from packages.db.models.publishing import PublishJob
 

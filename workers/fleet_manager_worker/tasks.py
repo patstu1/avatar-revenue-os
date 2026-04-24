@@ -6,8 +6,8 @@ import logging
 import uuid
 from collections import Counter
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -15,16 +15,17 @@ logger = logging.getLogger(__name__)
 @app.task(base=TrackedTask, bind=True, name="workers.fleet_manager_worker.tasks.recompute_fleet_status")
 def recompute_fleet_status(self) -> dict:
     """Count accounts by state, identify best expansion targets, persist reports, notify operator."""
+    from sqlalchemy import func, select
     from sqlalchemy.orm import Session
-    from sqlalchemy import select, func
-    from packages.db.session import get_sync_engine
-    from packages.db.models.accounts import CreatorAccount
-    from packages.db.models.core import Brand, Organization
+
     from packages.db.enums import HealthStatus
-    from packages.scoring.warmup_engine import determine_warmup_phase
-    from packages.scoring.niche_research_engine import rank_niches, NICHE_DATABASE
-    from packages.db.models.autonomous_farm import FleetStatusReport, NicheScore
+    from packages.db.models.accounts import CreatorAccount
+    from packages.db.models.autonomous_farm import FleetStatusReport
+    from packages.db.models.core import Brand, Organization
     from packages.db.models.publishing import PerformanceMetric
+    from packages.db.session import get_sync_engine
+    from packages.scoring.niche_research_engine import rank_niches
+    from packages.scoring.warmup_engine import determine_warmup_phase
 
     engine = get_sync_engine()
     fleet_summary: dict[str, int] = {"warming": 0, "scaling": 0, "plateaued": 0, "retired": 0, "suspended": 0}
@@ -70,7 +71,7 @@ def recompute_fleet_status(self) -> dict:
                     else:
                         fleet_summary["scaling"] += 1
 
-                from datetime import datetime, timezone, timedelta
+                from datetime import datetime, timedelta, timezone
                 rev_30d = session.execute(
                     select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0))
                     .where(PerformanceMetric.brand_id == brand.id, PerformanceMetric.measured_at >= datetime.now(timezone.utc) - timedelta(days=30))

@@ -1,16 +1,10 @@
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
 
+from packages.db.enums import MonetizationMethod
 from packages.db.models.core import Brand, Organization
 from packages.db.models.offers import Offer
-from packages.db.enums import MonetizationMethod
-from packages.db.models.expansion_pack2_phase_b import (
-    PricingRecommendation,
-    BundleRecommendation,
-    ReactivationCampaign,
-)
-from tests.conftest import make_operator_user, create_access_token_for_user
+from tests.conftest import create_access_token_for_user, make_operator_user
 
 
 @pytest.fixture

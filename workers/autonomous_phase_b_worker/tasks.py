@@ -8,10 +8,6 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
-from packages.db.session import get_sync_engine
-from packages.db.models.core import Brand
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.autonomous_phase_a import (
     AccountMaturityReport,
@@ -23,20 +19,21 @@ from packages.db.models.autonomous_phase_b import (
     AutonomousRun,
     AutonomousRunStep,
     DistributionPlan,
-    ExecutionFailure,
     ExecutionPolicy,
     MonetizationRoute,
     SuppressionExecution,
 )
+from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
+from packages.db.session import get_sync_engine
 from packages.scoring.execution_policy_engine import (
-    ACTION_TYPES,
     RUN_STEPS,
-    compute_policies_for_brand,
     evaluate_suppressions,
     plan_distribution,
     select_monetization_route,
 )
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = structlog.get_logger()
 

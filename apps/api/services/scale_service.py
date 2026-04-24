@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,18 +19,18 @@ from packages.db.enums import (
 )
 from packages.db.models.accounts import AccountPortfolio, CreatorAccount
 from packages.db.models.core import Brand
+from packages.db.models.decisions import AllocationDecision, ScaleDecision
 from packages.db.models.offers import Offer
 from packages.db.models.portfolio import PortfolioAllocation, ScaleRecommendation
-from packages.db.models.decisions import AllocationDecision, ScaleDecision
 from packages.db.models.publishing import PerformanceMetric
 from packages.scoring.scale import (
     EXPANSION_BEATS_EXISTING_RATIO,
     NEW_ACCOUNT_OVERHEAD_USD,
+    RK_REDUCE_WEAK,
     VOLUME_LIFT_FACTOR,
     AccountScaleSnapshot,
     compute_offer_performance_score,
     run_scale_engine,
-    RK_REDUCE_WEAK,
 )
 
 
@@ -181,7 +181,7 @@ def _weak_offer_diversity(offers: list[dict]) -> bool:
 async def recompute_scale_recommendations(
     db: AsyncSession,
     brand_id: uuid.UUID,
-    user_id: Optional[uuid.UUID] = None,
+    user_id: uuid.UUID | None = None,
     sync_metrics: bool = True,
 ) -> list[ScaleRecommendation]:
     if sync_metrics:

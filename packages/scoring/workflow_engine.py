@@ -1,6 +1,7 @@
 """Enterprise Workflow Engine — evaluate, route, gate, escalate. Pure functions."""
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 WORKFLOW_TYPES = ["content_generation", "landing_page_publish", "campaign_launch", "affiliate_rollout", "provider_change", "risk_override", "governance_exception"]
 STEP_TYPES = ["draft_review", "compliance_review", "brand_review", "legal_review", "publish_approval", "escalation", "auto_check"]
@@ -52,7 +53,7 @@ def evaluate_workflow_step(instance: dict[str, Any], steps: list[dict[str, Any]]
     return {"can_act": True, "step": current_step, "required_action": current_step.get("required_action", "approve")}
 
 
-def get_next_step(steps: list[dict[str, Any]], current_order: int) -> Optional[dict[str, Any]]:
+def get_next_step(steps: list[dict[str, Any]], current_order: int) -> dict[str, Any] | None:
     """Get the next step in the workflow."""
     for s in sorted(steps, key=lambda x: x.get("step_order", 0)):
         if s.get("step_order", 0) > current_order:
@@ -80,7 +81,7 @@ def process_override(instance: dict[str, Any]) -> dict[str, Any]:
     return {"action": "override_complete", "status": "completed"}
 
 
-def apply_template(template_key: str) -> Optional[dict[str, Any]]:
+def apply_template(template_key: str) -> dict[str, Any] | None:
     """Return a built-in template's definition."""
     return BUILT_IN_TEMPLATES.get(template_key)
 

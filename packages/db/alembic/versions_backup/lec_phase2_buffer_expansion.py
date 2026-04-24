@@ -4,8 +4,8 @@ Revision ID: lec_phase2_001
 Revises: b3c4d5e6f7g8, cra_phase_d_001 (merge)
 Create Date: 2026-03-31
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision = "lec_phase2_001"

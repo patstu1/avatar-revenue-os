@@ -1,13 +1,22 @@
 """DB-backed integration tests for Operator Permission Matrix."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from apps.api.services.operator_permission_service import (
+    check_action,
+    check_override,
+    get_autonomy_summary,
+    list_matrix,
+    seed_matrix,
+)
 from packages.db.models.core import Organization
 from packages.db.models.operator_permission_matrix import OperatorPermissionMatrix
-from apps.api.services.operator_permission_service import seed_matrix, check_action, check_override, list_matrix, get_autonomy_summary
 
 
 @pytest_asyncio.fixture

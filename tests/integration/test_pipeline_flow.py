@@ -1,6 +1,5 @@
 """Integration tests for Phase 3 content pipeline: brief -> script -> QA -> approve -> publish."""
 import pytest
-from packages.db.enums import ContentType
 
 
 async def _setup_pipeline(api_client, sample_org_data):
@@ -16,7 +15,7 @@ async def _setup_pipeline(api_client, sample_org_data):
     }, headers=headers)
     bid = brand.json()["id"]
 
-    offer = await api_client.post("/api/v1/offers/", json={
+    await api_client.post("/api/v1/offers/", json={
         "brand_id": bid, "name": "Pipe Offer", "monetization_method": "affiliate",
         "payout_amount": 25.0, "epc": 1.5, "conversion_rate": 0.03,
     }, headers=headers)
@@ -90,8 +89,8 @@ async def test_qa_scoring_persistence(api_client, sample_org_data, db_session):
     """QA report must persist all decomposed score components."""
     headers, bid, brief_id, acct_id = await _setup_pipeline(api_client, sample_org_data)
 
-    from packages.db.models.content import ContentItem
     from packages.db.enums import ContentType as CT
+    from packages.db.models.content import ContentItem
     item = ContentItem(
         brand_id=bid, brief_id=brief_id, title="QA Test Item",
         content_type=CT.SHORT_VIDEO, status="draft", tags=["test"],
@@ -115,8 +114,8 @@ async def test_qa_scoring_persistence(api_client, sample_org_data, db_session):
 async def test_approval_flow(api_client, sample_org_data, db_session):
     headers, bid, brief_id, acct_id = await _setup_pipeline(api_client, sample_org_data)
 
-    from packages.db.models.content import ContentItem
     from packages.db.enums import ContentType as CT
+    from packages.db.models.content import ContentItem
     item = ContentItem(
         brand_id=bid, title="Approval Test", content_type=CT.SHORT_VIDEO, status="draft",
     )
@@ -135,8 +134,8 @@ async def test_approval_flow(api_client, sample_org_data, db_session):
 async def test_reject_flow(api_client, sample_org_data, db_session):
     headers, bid, brief_id, acct_id = await _setup_pipeline(api_client, sample_org_data)
 
-    from packages.db.models.content import ContentItem
     from packages.db.enums import ContentType as CT
+    from packages.db.models.content import ContentItem
     item = ContentItem(
         brand_id=bid, title="Reject Test", content_type=CT.SHORT_VIDEO, status="draft",
     )
@@ -155,8 +154,8 @@ async def test_reject_flow(api_client, sample_org_data, db_session):
 async def test_request_changes_flow(api_client, sample_org_data, db_session):
     headers, bid, brief_id, acct_id = await _setup_pipeline(api_client, sample_org_data)
 
-    from packages.db.models.content import ContentItem
     from packages.db.enums import ContentType as CT
+    from packages.db.models.content import ContentItem
     item = ContentItem(
         brand_id=bid, title="Changes Test", content_type=CT.SHORT_VIDEO, status="draft",
     )
@@ -175,8 +174,8 @@ async def test_request_changes_flow(api_client, sample_org_data, db_session):
 async def test_publish_requires_approved(api_client, sample_org_data, db_session):
     headers, bid, brief_id, acct_id = await _setup_pipeline(api_client, sample_org_data)
 
-    from packages.db.models.content import ContentItem
     from packages.db.enums import ContentType as CT
+    from packages.db.models.content import ContentItem
     item = ContentItem(
         brand_id=bid, title="Unapproved", content_type=CT.SHORT_VIDEO, status="draft",
     )
@@ -195,8 +194,8 @@ async def test_publish_requires_approved(api_client, sample_org_data, db_session
 async def test_publish_job_creation(api_client, sample_org_data, db_session):
     headers, bid, brief_id, acct_id = await _setup_pipeline(api_client, sample_org_data)
 
-    from packages.db.models.content import ContentItem
     from packages.db.enums import ContentType as CT
+    from packages.db.models.content import ContentItem
     item = ContentItem(
         brand_id=bid, title="Publishable", content_type=CT.SHORT_VIDEO, status="approved",
     )
@@ -218,8 +217,8 @@ async def test_publish_job_creation(api_client, sample_org_data, db_session):
 async def test_approval_action_audited(api_client, sample_org_data, db_session):
     headers, bid, brief_id, _ = await _setup_pipeline(api_client, sample_org_data)
 
-    from packages.db.models.content import ContentItem
     from packages.db.enums import ContentType as CT
+    from packages.db.models.content import ContentItem
     item = ContentItem(
         brand_id=bid, title="Audit Me", content_type=CT.SHORT_VIDEO, status="draft",
     )

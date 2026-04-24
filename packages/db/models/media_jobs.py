@@ -8,9 +8,8 @@ result regardless of provider.
 NOTE: This model MUST stay in sync with migration 005_expand_media_jobs_table.
 """
 import uuid
-from typing import Optional
-
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID

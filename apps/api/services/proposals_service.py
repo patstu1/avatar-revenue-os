@@ -20,7 +20,6 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -42,8 +41,8 @@ class LineItemInput:
     description: str
     unit_amount_cents: int
     quantity: int = 1
-    offer_id: Optional[uuid.UUID] = None
-    package_slug: Optional[str] = None
+    offer_id: uuid.UUID | None = None
+    package_slug: str | None = None
     currency: str = "usd"
     position: int = 0
 
@@ -60,21 +59,21 @@ async def create_proposal(
     recipient_email: str,
     title: str,
     line_items: list[LineItemInput],
-    brand_id: Optional[uuid.UUID] = None,
-    thread_id: Optional[uuid.UUID] = None,
-    message_id: Optional[uuid.UUID] = None,
-    draft_id: Optional[uuid.UUID] = None,
-    operator_action_id: Optional[uuid.UUID] = None,
+    brand_id: uuid.UUID | None = None,
+    thread_id: uuid.UUID | None = None,
+    message_id: uuid.UUID | None = None,
+    draft_id: uuid.UUID | None = None,
+    operator_action_id: uuid.UUID | None = None,
     recipient_name: str = "",
     recipient_company: str = "",
     summary: str = "",
-    package_slug: Optional[str] = None,
-    avenue_slug: Optional[str] = None,
+    package_slug: str | None = None,
+    avenue_slug: str | None = None,
     currency: str = "usd",
     created_by_actor_type: str = "system",
-    created_by_actor_id: Optional[str] = None,
-    notes: Optional[str] = None,
-    extra_json: Optional[dict] = None,
+    created_by_actor_id: str | None = None,
+    notes: str | None = None,
+    extra_json: dict | None = None,
 ) -> Proposal:
     """Create a Proposal + its ProposalLineItems in one transaction.
 
@@ -168,8 +167,8 @@ async def mark_proposal_sent(
     *,
     proposal_id: uuid.UUID,
     actor_type: str = "system",
-    actor_id: Optional[str] = None,
-    delivery_details: Optional[dict] = None,
+    actor_id: str | None = None,
+    delivery_details: dict | None = None,
 ) -> Proposal:
     """Transition a proposal from draft → sent. Idempotent: already-sent
     proposals are returned as-is without re-emitting the event."""
@@ -239,15 +238,15 @@ async def record_payment_link(
     org_id: uuid.UUID,
     url: str,
     amount_cents: int,
-    proposal_id: Optional[uuid.UUID] = None,
-    brand_id: Optional[uuid.UUID] = None,
+    proposal_id: uuid.UUID | None = None,
+    brand_id: uuid.UUID | None = None,
     provider: str = "stripe",
-    provider_link_id: Optional[str] = None,
-    provider_price_id: Optional[str] = None,
-    provider_product_id: Optional[str] = None,
+    provider_link_id: str | None = None,
+    provider_price_id: str | None = None,
+    provider_product_id: str | None = None,
     currency: str = "usd",
     source: str = "proposal",
-    metadata: Optional[dict] = None,
+    metadata: dict | None = None,
 ) -> PaymentLink:
     """Persist a PaymentLink row already created on the provider side.
 
@@ -318,15 +317,15 @@ async def record_payment_from_stripe(
     amount_cents: int,
     stripe_object: dict,
     event_type: str,
-    brand_id: Optional[uuid.UUID] = None,
+    brand_id: uuid.UUID | None = None,
     currency: str = "usd",
-    payment_intent_id: Optional[str] = None,
-    checkout_session_id: Optional[str] = None,
-    charge_id: Optional[str] = None,
+    payment_intent_id: str | None = None,
+    checkout_session_id: str | None = None,
+    charge_id: str | None = None,
     customer_email: str = "",
     customer_name: str = "",
-    metadata: Optional[dict] = None,
-) -> Optional[Payment]:
+    metadata: dict | None = None,
+) -> Payment | None:
     """Idempotent insert of a succeeded Payment from a Stripe webhook.
 
     Resolves the owning Proposal + PaymentLink via Stripe metadata
@@ -505,7 +504,7 @@ async def _require_proposal(db: AsyncSession, proposal_id: uuid.UUID) -> Proposa
     return proposal
 
 
-def _safe_uuid(val) -> Optional[uuid.UUID]:
+def _safe_uuid(val) -> uuid.UUID | None:
     if not val:
         return None
     try:

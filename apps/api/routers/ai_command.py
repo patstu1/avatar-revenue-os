@@ -58,9 +58,10 @@ async def ai_command_providers(
     if not await _assert_brand(db, brand_id, current_user):
         return []
 
+    import os
+
     from apps.api.services import provider_registry_service as prs
     from apps.api.services import secrets_service
-    import os
 
     readiness = await prs.list_readiness(db, brand_id)
     blockers = await prs.list_blockers(db, brand_id)
@@ -206,7 +207,8 @@ async def ai_command_experiments(
     ).fetchall()
 
     results: list[dict[str, Any]] = []
-    from datetime import datetime, timezone as tz
+    from datetime import datetime
+    from datetime import timezone as tz
     for r in rows:
         started = r[7] or r[8]
         days_running = 0
@@ -360,7 +362,7 @@ async def ai_command_system_health(
 
     workers: list[dict[str, Any]] = []
     for r in queue_rows:
-        total = int(r[3] or 0)
+        int(r[3] or 0)
         completed = int(r[1] or 0)
         failed = int(r[2] or 0)
         avg_s = float(r[4] or 0)

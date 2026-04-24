@@ -1,15 +1,14 @@
-import uuid
 
 import pytest
 from sqlalchemy import select
 
 from packages.db.models.core import Brand, Organization
-from packages.db.models.offers import Offer
 from packages.db.models.expansion_pack2_phase_b import (
-    PricingRecommendation,
     BundleRecommendation,
+    PricingRecommendation,
     ReactivationCampaign,
 )
+from packages.db.models.offers import Offer
 
 pytestmark = pytest.mark.skipif(
     True,
@@ -17,8 +16,8 @@ pytestmark = pytest.mark.skipif(
 )
 
 from workers.revenue_ceiling_worker.tasks import (
-    recompute_all_pricing_recommendations,
     recompute_all_bundle_recommendations,
+    recompute_all_pricing_recommendations,
     recompute_all_reactivation_campaigns,
 )
 

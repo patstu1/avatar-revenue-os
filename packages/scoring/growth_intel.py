@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from packages.scoring.winner import ContentPerformance, detect_winners
 
@@ -15,9 +15,9 @@ class ContentPerfRollup:
     content_id: str
     title: str
     brand_id: str
-    creator_account_id: Optional[str]
+    creator_account_id: str | None
     platform: str
-    offer_id: Optional[str]
+    offer_id: str | None
     impressions: int = 0
     clicks: int = 0
     views: int = 0
@@ -77,7 +77,7 @@ def cluster_segments_rules(
                     follower_sum += int(x.get("follower_count") or 0)
                     break
         est_size = follower_sum or n_ac * 1000
-        impressions = max(1, c["impressions"])
+        max(1, c["impressions"])
         revenue = c["revenue"]
         cvr = round(min(1.0, revenue / max(1.0, est_size * 0.01)), 4) if est_size > 0 else 0.02
         avg_ltv = round(revenue / n_ac, 2) if n_ac > 0 and revenue > 0 else 0.0
@@ -310,7 +310,7 @@ def plan_cross_platform_derivatives(
 
 def geo_language_expansion_rules(
     accounts: list[dict],
-    brand_niche: Optional[str],
+    brand_niche: str | None,
 ) -> list[dict]:
     """Geo/language expansion rows for persistence."""
     geos = {((a.get("geography") or "US") or "").upper() for a in accounts}

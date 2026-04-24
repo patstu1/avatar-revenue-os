@@ -9,17 +9,15 @@ approval requirement, execution state, audit trail.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.services.event_bus import emit_action, emit_event
-from apps.api.services import revenue_maximizer as rev_max
 from apps.api.services import revenue_engines_extended as rev_ext
+from apps.api.services import revenue_maximizer as rev_max
 from apps.api.services.action_confidence import compute_action_confidence
 from apps.api.services.autonomy_policy import check_autonomy_grant
+from apps.api.services.event_bus import emit_action, emit_event
 
 logger = structlog.get_logger()
 
@@ -56,7 +54,7 @@ ACTION_REGISTRY = {
 
 async def execute_revenue_actions(
     db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID,
-    *, autonomy_override: Optional[str] = None,
+    *, autonomy_override: str | None = None,
 ) -> dict:
     """Master execution function: run all engines, produce actions with governance.
 
@@ -172,7 +170,7 @@ async def _create_governed_action(
     db: AsyncSession, *, org_id: uuid.UUID, brand_id: uuid.UUID,
     action_type: str, title: str, expected_value: float, confidence: float,
     level: str, source_engine: str,
-    entity_type: Optional[str] = None, entity_id: Optional[str] = None,
+    entity_type: str | None = None, entity_id: str | None = None,
 ) -> dict:
     """Create a governed action with the appropriate autonomy tier."""
     reg = ACTION_REGISTRY.get(action_type, {"default_level": SURFACE_ONLY, "min_confidence": 0.5})

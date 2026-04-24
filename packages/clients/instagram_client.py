@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -112,8 +112,8 @@ class InstagramClient:
         video_url: str,
         caption: str = "",
         share_to_feed: bool = True,
-        cover_url: Optional[str] = None,
-        thumb_offset: Optional[int] = None,
+        cover_url: str | None = None,
+        thumb_offset: int | None = None,
     ) -> str:
         """Create a Reel media container. The video must be accessible via public URL.
 

@@ -1,17 +1,20 @@
 """Campaign Constructor Service — build, persist, detect blockers."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.accounts import CreatorAccount
-from packages.db.models.campaigns import Campaign, CampaignVariant, CampaignAsset, CampaignDestination, CampaignBlocker
+from packages.db.models.campaigns import Campaign, CampaignAsset, CampaignBlocker, CampaignDestination, CampaignVariant
 from packages.db.models.core import Brand
 from packages.db.models.failure_family import SuppressionRule
 from packages.db.models.landing_pages import LandingPage
 from packages.db.models.offers import Offer
 from packages.db.models.provider_registry import ProviderBlocker
-from packages.scoring.campaign_engine import construct_campaign, construct_variant, detect_blockers, CAMPAIGN_TYPES
+from packages.scoring.campaign_engine import construct_campaign, construct_variant, detect_blockers
 
 
 async def recompute_campaigns(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:

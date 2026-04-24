@@ -1,18 +1,17 @@
 """Unit tests for Revenue Ceiling Phase A scoring engines."""
 
-import pytest
 
 from packages.scoring.revenue_ceiling_phase_a_engines import (
     SEQUENCE_TYPES,
     build_offer_ladder_for_opportunity,
     build_sequence,
+    compute_funnel_stage_metrics,
     detect_funnel_leaks,
     generate_all_message_sequences,
     generate_offer_ladders,
     generate_owned_audience_assets,
     owned_audience_objective_for_family,
     synthesize_owned_audience_events,
-    compute_funnel_stage_metrics,
 )
 
 

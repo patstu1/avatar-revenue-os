@@ -1,7 +1,8 @@
 """Integrations + Listening Engine — cluster, extract, route, recommend. Pure functions."""
 from __future__ import annotations
-from typing import Any
+
 from collections import defaultdict
+from typing import Any
 
 SIGNAL_TYPES = ["brand_mention", "competitor_mention", "objection_cluster", "demand_signal", "trend_signal", "sales_signal", "support_pain"]
 CONNECTOR_TYPES = ["crm", "erp", "internal_db", "social_listening", "analytics", "support_desk", "email_marketing", "custom_api"]
@@ -10,7 +11,7 @@ RESPONSE_TARGETS = ["content_generation", "objection_mining", "offer_lab", "camp
 
 def evaluate_connector_sync(connector: dict[str, Any], last_sync: dict[str, Any] = None) -> dict[str, Any]:
     """Evaluate a connector's health and sync readiness."""
-    status = connector.get("status", "configured")
+    connector.get("status", "configured")
     has_creds = bool(connector.get("credential_env_key"))
     has_endpoint = bool(connector.get("endpoint_url"))
 

@@ -4,10 +4,11 @@ monetization mix, paid promotion gate.
 Revision ID: r9g1h2i3j4k5
 Revises: q8f0a1b2c3d4
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "r9g1h2i3j4k5"

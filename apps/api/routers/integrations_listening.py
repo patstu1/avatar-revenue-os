@@ -1,10 +1,19 @@
 """Integrations + Listening API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.integrations_listening import ILConnectorOut, ILListeningOut, ILCompetitorOut, ILClusterOut, ILBlockerOut, RecomputeSummaryOut
+from apps.api.schemas.integrations_listening import (
+    ILBlockerOut,
+    ILClusterOut,
+    ILCompetitorOut,
+    ILConnectorOut,
+    ILListeningOut,
+    RecomputeSummaryOut,
+)
 from apps.api.services import integrations_listening_service as svc
 from packages.db.models.core import Organization
 

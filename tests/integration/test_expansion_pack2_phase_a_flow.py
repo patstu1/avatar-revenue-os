@@ -20,7 +20,6 @@ from sqlalchemy import select
 from packages.db.models.expansion_pack2_phase_a import LeadOpportunity, OwnedOfferRecommendation
 from packages.db.models.learning import CommentCluster
 
-
 # ---------------------------------------------------------------------------
 # Shared brand/offer bootstrap helper
 # ---------------------------------------------------------------------------
@@ -320,7 +319,6 @@ def test_worker_tasks_registered():
     """Both EP2A Celery tasks must be registered on the app when the tasks
     module is imported — validates that the task decorators executed correctly."""
     import workers.revenue_ceiling_worker.tasks  # noqa: F401 — side-effect: registers tasks
-
     from workers.celery_app import app
 
     expected = [

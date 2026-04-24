@@ -1,16 +1,33 @@
 """DB-backed integration tests for Brand Governance OS."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.core import Brand, Organization
+
+from apps.api.services.brand_governance_service import (
+    evaluate_content,
+    get_governance_for_content,
+    list_profiles,
+    list_violations,
+    list_voice_rules,
+    recompute_governance,
+)
+from packages.db.enums import ContentType, Platform
 from packages.db.models.accounts import CreatorAccount
+from packages.db.models.brand_governance import (
+    BrandAssetLibrary,
+    BrandAudienceProfile,
+    BrandGovernanceProfile,
+    BrandGovernanceViolation,
+    BrandKnowledgeBase,
+    BrandVoiceRule,
+)
 from packages.db.models.content import ContentItem
-from packages.db.models.brand_governance import BrandGovernanceProfile, BrandVoiceRule, BrandGovernanceViolation, BrandKnowledgeBase, BrandAudienceProfile, BrandAssetLibrary
-from packages.db.enums import Platform, ContentType
-from apps.api.services.brand_governance_service import evaluate_content, recompute_governance, list_profiles, list_voice_rules, list_violations, get_governance_for_content
+from packages.db.models.core import Brand, Organization
 
 
 @pytest_asyncio.fixture
@@ -97,6 +114,6 @@ async def test_idempotent(db_session, brand_with_governance):
     assert r1["rows_processed"] == r2["rows_processed"]
 
 def test_brand_governance_worker_registered():
-    from workers.celery_app import app
     import workers.brand_governance_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.brand_governance_worker.tasks.recompute_brand_governance" in app.tasks

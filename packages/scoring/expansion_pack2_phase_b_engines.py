@@ -6,7 +6,6 @@ scored outputs plus an ``EP2B: True`` marker.
 from __future__ import annotations
 
 import hashlib
-import math
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -15,7 +14,8 @@ EP2B = "expansion_pack2_phase_b"
 
 # ─── helpers ────────────────────────────────────────────────────────────────
 
-_clamp = lambda v, lo=0.0, hi=1.0: max(lo, min(hi, v))
+def _clamp(v, lo=0.0, hi=1.0):
+    return max(lo, min(hi, v))
 
 
 def _det_var(seed: str) -> float:

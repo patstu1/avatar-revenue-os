@@ -26,7 +26,6 @@ from packages.scoring.brain_phase_c_engine import (
     run_workflow,
 )
 
-
 # ── List helpers ──────────────────────────────────────────────────────
 
 async def list_agent_registry(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:

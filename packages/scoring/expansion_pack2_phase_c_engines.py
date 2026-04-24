@@ -50,7 +50,7 @@ def recommend_referral_program(
         segment_name = segment.get("segment_name", "unknown")
         loyalty_score = segment.get("loyalty_score", 0.0)
         avg_purchase_value = segment.get("avg_purchase_value", 0.0)
-        estimated_size = segment.get("estimated_size", 0)
+        segment.get("estimated_size", 0)
 
         # Simple ambassador potential scoring: higher loyalty and purchase value means higher potential
         current_potential = (loyalty_score * 0.6) + (avg_purchase_value * 0.001) # Adjust weights as needed
@@ -292,7 +292,6 @@ def identify_sponsor_targets(
     explanation = "No suitable sponsor targets identified."
     recommended_package_type = "N/A"
 
-    best_fit_sponsor = None
     highest_fit_score = -1.0
 
     brand_total_audience_size = sum(s.get("estimated_size", 0) for s in brand_audience_data)
@@ -317,12 +316,12 @@ def identify_sponsor_targets(
         ):
             current_fit_score += 0.3
             current_explanation.append(f"Industry match with brand audience ({sponsor_industry}).")
-        
+
         # Platform overlap (simple check)
         brand_platforms = set()
         for segment in brand_audience_data:
             brand_platforms.update(segment.get("platforms", []))
-        
+
         if brand_platforms.intersection(sponsor_preferred_platforms):
             current_fit_score += 0.2
             current_explanation.append("Platform overlap with sponsor preferences.")
@@ -345,15 +344,14 @@ def identify_sponsor_targets(
 
         if current_fit_score > highest_fit_score:
             highest_fit_score = current_fit_score
-            best_fit_sponsor = sponsor
             target_company_name = sponsor_name
             industry = sponsor_industry
             contact_info = {"email": sponsor.get("contact_email", "N/A")}
             fit_score = highest_fit_score
-            
+
             # Estimate deal value
             estimated_deal_value = min(sponsor_budget_max, brand_total_audience_size * brand_avg_ltv * highest_fit_score * 0.01)
-            
+
             # Determine recommended package type
             if highest_fit_score > 0.7 and estimated_deal_value > sponsor_budget_max * 0.5:
                 recommended_package_type = "premium_custom"
@@ -361,7 +359,7 @@ def identify_sponsor_targets(
                 recommended_package_type = "standard_tailored"
             else:
                 recommended_package_type = "basic_starter"
-            
+
             confidence = min(1.0, highest_fit_score * 1.2) # Scale confidence
             explanation = ". ".join(current_explanation) + f" Recommended package type: {recommended_package_type}."
 
@@ -426,7 +424,7 @@ def generate_sponsor_outreach_sequence(
 
     # 1. Determine outreach_sequence_type and sequence_steps
     for template in outreach_templates:
-        template_name = template.get("name", "").lower()
+        template.get("name", "").lower()
         template_effectiveness = template.get("effectiveness", 0.0)
         template_target_industry = template.get("target_industry", "").lower()
         template_target_size = template.get("target_company_size_category", "").lower()
@@ -470,7 +468,7 @@ def generate_sponsor_outreach_sequence(
         if hist_sequence_name == sequence_name.lower() and \
            (not hist_industry or hist_industry in target_company_industry.lower()) and \
            (not hist_company_size or ("enterprise" if estimated_deal_value > sponsor_budget_max * 0.5 else "smb") in hist_company_size):
-            
+
             historical_response_rate = hist_perf.get("response_rate", 0.0)
             estimated_response_rate = (estimated_response_rate + historical_response_rate) / 2 # Blend
             confidence = min(1.0, confidence * 0.7 + 0.3 * (historical_response_rate / 0.1)) # Boost confidence

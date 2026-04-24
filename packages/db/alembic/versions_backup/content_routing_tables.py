@@ -3,9 +3,11 @@
 Revision ID: content_routing_001
 Revises: content_form_001
 """
-from typing import Sequence, Union
-from alembic import op
+from collections.abc import Sequence
+from typing import Union
+
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "content_routing_001"

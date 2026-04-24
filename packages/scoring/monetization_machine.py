@@ -18,8 +18,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional, Any
-
+from typing import Any
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 1: METERED ECONOMICS
@@ -71,7 +70,7 @@ class CreditBalance:
     total_credits: int
     used_credits: int
     remaining_credits: int
-    expiry_date: Optional[str]
+    expiry_date: str | None
     replenishment_rate: int
     overage_enabled: bool
     overage_rate: float
@@ -101,7 +100,7 @@ def compute_usage_economics(
     """Compute the unit economics of current usage."""
     total_cogs = 0.0
     total_usage_units = 0
-    most_expensive_meter: Optional[str] = None
+    most_expensive_meter: str | None = None
     most_expensive_cost = 0.0
     meters_near_limit: list[dict] = []
     overage_revenue = 0.0
@@ -135,7 +134,7 @@ def compute_usage_economics(
     for m in meters:
         if m.limit > 0 and m.used > 0:
             daily_rate = m.used / 30.0
-            remaining_days = 30 - min(30, int(m.used / max(daily_rate, 0.001)))
+            30 - min(30, int(m.used / max(daily_rate, 0.001)))
             projected_overage = max(0, int(daily_rate * 30) - m.limit)
             overage_potential += projected_overage * m.overage_rate
 
@@ -324,7 +323,7 @@ class PricingPlan:
     features: list[str]
     max_seats: int
     support_level: str
-    sla_uptime_pct: Optional[float]
+    sla_uptime_pct: float | None
     can_purchase_credit_packs: bool
     can_purchase_premium_packs: bool
     api_access: bool
@@ -773,7 +772,7 @@ def design_pricing_ladder() -> dict:
     }
 
 
-_PRICING_LADDER: Optional[dict] = None
+_PRICING_LADDER: dict | None = None
 
 
 def _get_pricing_ladder() -> dict:
@@ -792,7 +791,7 @@ _PLAN_TIER_ORDER = [
 ]
 
 
-def _next_tier(current: PlanTier) -> Optional[PlanTier]:
+def _next_tier(current: PlanTier) -> PlanTier | None:
     try:
         idx = _PLAN_TIER_ORDER.index(current)
         if idx < len(_PLAN_TIER_ORDER) - 1:
@@ -811,7 +810,7 @@ def compute_plan_recommendation(
     """Recommend the optimal plan based on actual usage patterns."""
     ladder = _get_pricing_ladder()
     plans: dict[str, PricingPlan] = ladder["plans"]
-    credit_packs: dict[str, CreditPack] = ladder["credit_packs"]
+    ladder["credit_packs"]
 
     current_plan_obj = plans.get(current_plan.value)
     if current_plan_obj is None:
@@ -960,7 +959,7 @@ class AscensionProfile:
     next_tier: PlanTier
     upgrade_triggers: list[dict]
     expansion_potential: float
-    time_to_next_upgrade: Optional[int]
+    time_to_next_upgrade: int | None
     recommended_nudges: list[dict]
 
 
@@ -1553,7 +1552,7 @@ def compute_monetization_health(
 
     paying_users = [u for u in users if u.get("monthly_spend", 0) > 0]
     paying_count = len(paying_users)
-    free_count = total_users - paying_count
+    total_users - paying_count
     free_to_paid_rate = (paying_count / total_users) * 100 if total_users > 0 else 0.0
 
     total_revenue = sum(r.get("amount", 0) for r in revenue_data)
@@ -1735,7 +1734,7 @@ def compute_monetization_health(
     )
 
 
-def _parse_date(date_val: Any) -> Optional[datetime]:
+def _parse_date(date_val: Any) -> datetime | None:
     if date_val is None:
         return None
     if isinstance(date_val, datetime):
@@ -1771,7 +1770,7 @@ def compute_feature_revenue_correlation(
     if n < 3:
         return []
 
-    global_mean = statistics.mean(spends)
+    statistics.mean(spends)
     global_std = statistics.stdev(spends) if n > 1 else 1.0
     if global_std == 0:
         global_std = 1.0
@@ -2030,7 +2029,7 @@ class OutcomePack:
     monthly_equivalent: float
     savings_vs_ala_carte: float
     conversion_triggers: list[str]
-    upsell_to: Optional[str]
+    upsell_to: str | None
 
 
 def design_outcome_packs(
@@ -2200,7 +2199,7 @@ def design_outcome_packs(
     ]
 
     if product_capabilities:
-        capability_set = set(product_capabilities)
+        set(product_capabilities)
         for pack in packs:
             relevant_outputs = []
             for output in pack.included_outputs:
@@ -2471,7 +2470,7 @@ def generate_machine_report(
         plan = ud.get("plan", "free")
         meters = ud.get("meters", {})
         ladder = _get_pricing_ladder()
-        plan_obj: Optional[PricingPlan] = ladder["plans"].get(plan)
+        plan_obj: PricingPlan | None = ladder["plans"].get(plan)
         if plan_obj:
             utils = []
             for meter_str, used in meters.items():

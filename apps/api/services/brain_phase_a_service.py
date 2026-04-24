@@ -5,12 +5,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.accounts import CreatorAccount
-from packages.db.models.autonomous_phase_a import AccountOutputReport
-from packages.db.models.autonomous_phase_b import AutonomousRun, MonetizationRoute, SuppressionExecution
+from packages.db.models.autonomous_phase_b import AutonomousRun, SuppressionExecution
 from packages.db.models.brain_architecture import (
     AccountStateSnapshot,
     AudienceStateSnapshotV2,
@@ -20,10 +19,7 @@ from packages.db.models.brain_architecture import (
     OpportunityStateSnapshot,
     StateTransitionEvent,
 )
-from packages.db.models.content import ContentItem
-from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
-from packages.db.models.publishing import PerformanceMetric
 from packages.db.models.recovery import RecoveryIncident
 from packages.db.models.scoring import OpportunityScore
 from packages.scoring.brain_phase_a_engine import (
@@ -145,7 +141,6 @@ async def recompute_brain_memory(db: AsyncSession, brand_id: uuid.UUID) -> dict[
     accts = accts_q.scalars().all()
     account_ctx = []
     for a in accts:
-        health_val = a.account_health.value if a.account_health else "healthy"
         account_ctx.append({
             "id": str(a.id),
             "platform": a.platform.value if a.platform else "unknown",

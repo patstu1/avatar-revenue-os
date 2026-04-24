@@ -1,7 +1,7 @@
 """SaaS metrics, subscriptions, pipeline, and pricing models."""
 import uuid
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID

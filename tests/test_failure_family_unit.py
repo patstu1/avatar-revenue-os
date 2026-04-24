@@ -1,10 +1,14 @@
 """Unit tests for failure-family suppression engine — pure functions, no DB."""
-import pytest
 from datetime import datetime, timedelta, timezone
+
 from packages.scoring.failure_family_engine import (
-    FAMILY_TYPES, SUPPRESSION_THRESHOLD, PERSISTENT_THRESHOLD,
-    cluster_failures, detect_repeat_failures, build_suppression_rules,
-    check_suppression_decay, is_suppressed, get_active_suppressions,
+    FAMILY_TYPES,
+    build_suppression_rules,
+    check_suppression_decay,
+    cluster_failures,
+    detect_repeat_failures,
+    get_active_suppressions,
+    is_suppressed,
 )
 
 

@@ -1,8 +1,15 @@
 """Unit tests for Tiered Routing Engine."""
 from packages.scoring.tiered_routing_engine import (
-    ROUTING_TABLE, COST_PER_UNIT, QUALITY_TIERS, CONTENT_TYPES,
-    classify_task_tier, route_to_provider, estimate_cost,
-    check_budget_remaining, compute_monthly_projection, route_content_task,
+    CONTENT_TYPES,
+    COST_PER_UNIT,
+    QUALITY_TIERS,
+    ROUTING_TABLE,
+    check_budget_remaining,
+    classify_task_tier,
+    compute_monthly_projection,
+    estimate_cost,
+    route_content_task,
+    route_to_provider,
 )
 
 

@@ -7,17 +7,17 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Any, Optional
+from typing import Any
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.content import ContentItem
-from packages.db.models.publishing import PerformanceMetric
-from packages.db.models.landing_pages import LandingPage
 from packages.db.models.core import Brand
-from packages.media.pdf_generator import PDFGenerator
+from packages.db.models.landing_pages import LandingPage
+from packages.db.models.publishing import PerformanceMetric
 from packages.media.landing_page_builder import LandingPageBuilder
+from packages.media.pdf_generator import PDFGenerator
 from packages.media.storage import get_storage
 
 logger = logging.getLogger(__name__)
@@ -325,7 +325,7 @@ Make it genuinely valuable — this is what convinces people to join the email l
 
     magnet_content = result["data"]["text"]
 
-    brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
+    (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
 
     page = LandingPage(
         brand_id=brand_id,

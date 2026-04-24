@@ -20,18 +20,14 @@ from __future__ import annotations
 import os
 import re
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import and_, desc, select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_action, emit_event
-from packages.db.models.core import Brand
 from packages.db.models.offers import SponsorOpportunity, SponsorProfile
 from packages.db.models.saas_metrics import HighTicketDeal
-from packages.db.models.system_events import OperatorAction
 
 logger = structlog.get_logger()
 
@@ -88,8 +84,8 @@ def classify_reply(subject: str, body: str) -> dict:
 async def ingest_reply(
     db: AsyncSession, org_id: uuid.UUID,
     *, sender_email: str, subject: str, body: str,
-    brand_id: Optional[uuid.UUID] = None,
-    in_reply_to: Optional[str] = None,
+    brand_id: uuid.UUID | None = None,
+    in_reply_to: str | None = None,
 ) -> dict:
     """Ingest an email reply: classify it, match to outreach, advance deal stage.
 
@@ -192,7 +188,8 @@ async def ingest_reply(
             )).scalar_one_or_none()
             if existing is None:
                 from apps.api.services.proposals_service import (
-                    LineItemInput, create_proposal,
+                    LineItemInput,
+                    create_proposal,
                 )
                 company = target_company or "your business"
                 name = (target_ci or {}).get("name", "") or ""
@@ -270,7 +267,7 @@ async def ingest_reply(
             db, org_id=org_id,
             action_type="reschedule_follow_up",
             title=f"OOO: {sender_email[:40]} — reschedule",
-            description=f"Auto-reply detected. Reschedule follow-up.",
+            description="Auto-reply detected. Reschedule follow-up.",
             category="monetization", priority="low",
             brand_id=brand_id, source_module="reply_ingestion",
         )
@@ -347,8 +344,8 @@ async def ingest_reply(
 
 async def poll_imap_inbox(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """Poll IMAP inbox for unread replies. Requires IMAP credentials."""
-    import imaplib
     import email as email_lib
+    import imaplib
 
     host = os.getenv("IMAP_HOST", "")
     user = os.getenv("IMAP_USER", "")

@@ -3,9 +3,11 @@
 Revision ID: promote_win_001
 Revises: pattern_meta_001
 """
-from typing import Sequence, Union
-from alembic import op
+from collections.abc import Sequence
+from typing import Union
+
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "promote_win_001"

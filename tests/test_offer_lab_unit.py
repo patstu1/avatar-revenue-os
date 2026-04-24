@@ -1,9 +1,16 @@
 """Unit tests for offer lab engine."""
-import pytest
 from packages.scoring.offer_lab_engine import (
-    OFFER_TYPES, VARIANT_TYPES, generate_offer, generate_variants,
-    generate_pricing_test, generate_positioning_test, generate_bundles,
-    generate_upsells, score_offer, detect_offer_issues, recommend_revision,
+    OFFER_TYPES,
+    VARIANT_TYPES,
+    detect_offer_issues,
+    generate_bundles,
+    generate_offer,
+    generate_positioning_test,
+    generate_pricing_test,
+    generate_upsells,
+    generate_variants,
+    recommend_revision,
+    score_offer,
 )
 
 

@@ -1,17 +1,15 @@
 """Unit tests for Creator Revenue Avenues Phase B engines."""
 from __future__ import annotations
 
-import pytest
 from packages.scoring.creator_revenue_engine import (
+    DATA_PRODUCT_TYPES,
     LICENSING_TYPES,
     SYNDICATION_TYPES,
-    DATA_PRODUCT_TYPES,
+    detect_phase_b_blockers,
+    score_data_product_opportunities,
     score_licensing_opportunities,
     score_syndication_opportunities,
-    score_data_product_opportunities,
-    detect_phase_b_blockers,
 )
-
 
 # ── Licensing ──────────────────────────────────────────────────────────
 

@@ -18,19 +18,16 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
-from packages.db.models.failure_family import FailureFamilyReport
-from packages.db.models.offers import Offer, SponsorOpportunity, SponsorProfile
-from packages.db.models.pattern_memory import LosingPatternMemory, WinningPatternMemory
-from packages.db.models.publishing import PerformanceMetric
+from packages.db.models.offers import Offer, SponsorOpportunity
+from packages.db.models.pattern_memory import WinningPatternMemory
 from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
 logger = structlog.get_logger()
@@ -43,10 +40,10 @@ logger = structlog.get_logger()
 async def simulate_revenue_scenario(
     db: AsyncSession, brand_id: uuid.UUID, *,
     scenario_type: str = "mix_shift",
-    target_source: Optional[str] = None,
-    target_pct: Optional[float] = None,
+    target_source: str | None = None,
+    target_pct: float | None = None,
     output_multiplier: float = 1.0,
-    suppress_sources: Optional[list] = None,
+    suppress_sources: list | None = None,
 ) -> dict:
     """Simulate a revenue scenario before committing effort.
 
@@ -260,7 +257,8 @@ async def classify_creator_archetypes(
         # Portfolio-relative scoring: normalize revenue by max in portfolio, not fixed amounts
         max_source_rev = max((sum(d.values()) for d in acct_revenue.values()), default=1) or 1
         max_foll = max((getattr(a, 'follower_count', 0) or 0) for a in accounts) or 1
-        has_rev = lambda src: min(1.0, rev_data.get(src, 0) / max(max_source_rev, 1))
+        def has_rev(src):
+            return min(1.0, rev_data.get(src, 0) / max(max_source_rev, 1))
         foll_ratio = followers / max_foll
 
         scores["affiliate_closer"] = min(1.0, 0.3 + has_rev("affiliate_commission") * 0.5 + (0.2 if engagement > 0 else 0))

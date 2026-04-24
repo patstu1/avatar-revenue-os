@@ -1,17 +1,30 @@
 """DB-backed integration tests for Causal Attribution."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.core import Brand, Organization
+
+from apps.api.services.causal_attribution_service import (
+    get_attribution_summary,
+    list_hypotheses,
+    list_reports,
+    recompute_attribution,
+)
+from packages.db.enums import ContentType, Platform
 from packages.db.models.accounts import CreatorAccount
+from packages.db.models.causal_attribution import (
+    CausalAttributionReport,
+    CausalConfidenceReport,
+    CausalCreditAllocation,
+    CausalHypothesis,
+)
 from packages.db.models.content import ContentItem
+from packages.db.models.core import Brand, Organization
 from packages.db.models.publishing import PerformanceMetric
-from packages.db.models.causal_attribution import CausalAttributionReport, CausalHypothesis, CausalCreditAllocation, CausalConfidenceReport
-from packages.db.enums import Platform, ContentType
-from apps.api.services.causal_attribution_service import recompute_attribution, list_reports, list_hypotheses, list_credits, get_attribution_summary
 
 
 @pytest_asyncio.fixture
@@ -123,6 +136,6 @@ async def test_idempotent(db_session, brand_with_perf_series):
 
 
 def test_causal_worker_registered():
-    from workers.celery_app import app
     import workers.causal_attribution_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.causal_attribution_worker.tasks.recompute_causal_attribution" in app.tasks

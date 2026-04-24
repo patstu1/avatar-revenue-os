@@ -202,7 +202,7 @@ def score_ugc_opportunity(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]:
 def score_consulting_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     niche = brand_ctx.get("niche", "general")
-    audience_size = brand_ctx.get("audience_size", 0)
+    brand_ctx.get("audience_size", 0)
     content_count = brand_ctx.get("content_count", 0)
     offer_count = brand_ctx.get("offer_count", 0)
 
@@ -230,7 +230,6 @@ def score_consulting_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, 
 
     for stype, tier, buyer, value, conf_mult, steps in service_configs:
         conf = round(min(0.9, base_confidence * conf_mult), 3)
-        margin_pct = 0.85 if tier == "premium" else 0.75
         if niche in ("tech", "saas", "finance", "business"):
             conf = min(0.9, conf + 0.05)
             value = int(value * 1.2)
@@ -253,7 +252,7 @@ def score_consulting_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, 
 def score_premium_access_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     audience_size = brand_ctx.get("audience_size", 0)
-    niche = brand_ctx.get("niche", "general")
+    brand_ctx.get("niche", "general")
     offer_count = brand_ctx.get("offer_count", 0)
     has_community = brand_ctx.get("has_community", False)
 
@@ -422,8 +421,8 @@ def score_licensing_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, A
     content_count = brand_ctx.get("content_count", 0)
     has_avatar = brand_ctx.get("has_avatar", False)
     niche = brand_ctx.get("niche", "general")
-    offer_count = brand_ctx.get("offer_count", 0)
-    audience_size = brand_ctx.get("audience_size", 0)
+    brand_ctx.get("offer_count", 0)
+    brand_ctx.get("audience_size", 0)
     avg_payout = brand_ctx.get("avg_payout", 1000)
 
     base_confidence = min(0.75, 0.2 + (content_count / 40) * 0.2 + (0.1 if has_avatar else 0))
@@ -478,7 +477,7 @@ def score_licensing_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, A
 def score_syndication_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     content_count = brand_ctx.get("content_count", 0)
-    audience_size = brand_ctx.get("audience_size", 0)
+    brand_ctx.get("audience_size", 0)
     niche = brand_ctx.get("niche", "general")
     account_count = brand_ctx.get("account_count", 0)
     avg_payout = brand_ctx.get("avg_payout", 1000)
@@ -533,7 +532,7 @@ def score_data_product_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str
     content_count = brand_ctx.get("content_count", 0)
     niche = brand_ctx.get("niche", "general")
     audience_size = brand_ctx.get("audience_size", 0)
-    offer_count = brand_ctx.get("offer_count", 0)
+    brand_ctx.get("offer_count", 0)
     avg_payout = brand_ctx.get("avg_payout", 1000)
 
     base_confidence = min(0.7, 0.15 + (content_count / 50) * 0.15 + (audience_size / 20000) * 0.15)
@@ -631,7 +630,7 @@ def score_merch_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]
     niche = brand_ctx.get("niche", "general")
     content_count = brand_ctx.get("content_count", 0)
     has_avatar = brand_ctx.get("has_avatar", False)
-    offer_count = brand_ctx.get("offer_count", 0)
+    brand_ctx.get("offer_count", 0)
 
     base_confidence = min(0.7, 0.1 + (audience_size / 20000) * 0.2 + (content_count / 30) * 0.15)
 
@@ -690,8 +689,8 @@ def score_live_event_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, 
     audience_size = brand_ctx.get("audience_size", 0)
     niche = brand_ctx.get("niche", "general")
     content_count = brand_ctx.get("content_count", 0)
-    has_avatar = brand_ctx.get("has_avatar", False)
-    offer_count = brand_ctx.get("offer_count", 0)
+    brand_ctx.get("has_avatar", False)
+    brand_ctx.get("offer_count", 0)
 
     base_confidence = min(0.75, 0.15 + (content_count / 30) * 0.2 + (audience_size / 15000) * 0.15)
 
@@ -755,7 +754,7 @@ def score_owned_affiliate_opportunities(brand_ctx: dict[str, Any]) -> list[dict[
     audience_size = brand_ctx.get("audience_size", 0)
     niche = brand_ctx.get("niche", "general")
     offer_count = brand_ctx.get("offer_count", 0)
-    content_count = brand_ctx.get("content_count", 0)
+    brand_ctx.get("content_count", 0)
 
     base_confidence = min(0.7, 0.1 + (offer_count / 5) * 0.25 + (audience_size / 20000) * 0.15)
 

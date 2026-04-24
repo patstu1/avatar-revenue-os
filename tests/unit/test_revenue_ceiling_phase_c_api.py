@@ -17,7 +17,6 @@ from packages.scoring.revenue_ceiling_phase_c_engines import (
     score_trust_conversion,
 )
 
-
 # ---------------------------------------------------------------------------
 # Sponsor package pricing logic
 # ---------------------------------------------------------------------------

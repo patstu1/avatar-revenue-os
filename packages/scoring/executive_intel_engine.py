@@ -1,5 +1,6 @@
 """Executive Intelligence Engine — KPIs, forecasts, costs, uptime, oversight. Pure functions."""
 from __future__ import annotations
+
 from typing import Any
 
 FORECAST_TYPES = ["revenue", "profit", "content_volume", "conversion_rate", "cost"]

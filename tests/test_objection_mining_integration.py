@@ -1,23 +1,30 @@
 """DB-backed integration tests for Objection Mining."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.core import Brand, Organization
+from apps.api.services.objection_mining_service import (
+    get_objections_for_brief,
+    get_priority_report,
+    list_clusters,
+    list_responses,
+    list_signals,
+    recompute_objections,
+)
+from packages.db.enums import ContentType, Platform
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
+from packages.db.models.core import Brand, Organization
 from packages.db.models.learning import CommentIngestion
 from packages.db.models.objection_mining import (
-    ObjectionSignal, ObjectionCluster, ObjectionResponse, ObjectionPriorityReport,
-)
-from packages.db.enums import Platform, ContentType
-from apps.api.services.objection_mining_service import (
-    recompute_objections, list_signals, list_clusters, list_responses,
-    get_priority_report, get_objections_for_brief,
+    ObjectionCluster,
+    ObjectionResponse,
+    ObjectionSignal,
 )
 
 
@@ -164,6 +171,6 @@ async def test_idempotent(db_session, brand_with_comments):
 
 
 def test_objection_mining_worker_registered():
-    from workers.celery_app import app
     import workers.objection_mining_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.objection_mining_worker.tasks.recompute_objection_mining" in app.tasks

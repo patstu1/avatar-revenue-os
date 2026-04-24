@@ -1,13 +1,12 @@
 """Unit tests for capital allocator engine — pure functions, no DB."""
 import pytest
+
 from packages.scoring.capital_allocator_engine import (
-    score_expected_return,
-    determine_provider_tier,
-    solve_allocation,
-    rebalance,
-    STARVATION_THRESHOLD,
-    HERO_THRESHOLD,
     EXPERIMENT_RESERVE_PCT,
+    determine_provider_tier,
+    rebalance,
+    score_expected_return,
+    solve_allocation,
 )
 
 

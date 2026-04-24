@@ -1,9 +1,12 @@
 """Framework-level permission enforcement — wraps autonomous actions."""
 from __future__ import annotations
-import uuid
+
 import logging
+import uuid
 from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from apps.api.services.operator_permission_service import check_action
 
 logger = logging.getLogger(__name__)

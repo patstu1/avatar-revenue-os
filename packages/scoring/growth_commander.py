@@ -4,7 +4,6 @@ Composes from existing persisted data (scale recs, launch candidates, blockers,
 readiness). Produces commands, not advice. Pure functions — no DB access.
 """
 from __future__ import annotations
-from typing import Any, Optional
 
 from packages.scoring.scale import RK_ADD_NICHE_SPINOFF, RK_ADD_PLATFORM_SPECIFIC, niche_jaccard
 
@@ -19,7 +18,7 @@ COMMAND_TYPES = [
 ALL_PLATFORMS = {"youtube", "tiktok", "instagram", "twitter", "reddit", "linkedin", "facebook"}
 
 
-def map_content_role(candidate_type: str, content_style: Optional[str]) -> str:
+def map_content_role(candidate_type: str, content_style: str | None) -> str:
     ct = (candidate_type or "").lower()
     if "experimental" in ct:
         return "experimental_satellite"
@@ -58,7 +57,7 @@ def _required_resources(expected_cost: float, urgency: float, command_type: str)
     }
 
 
-def _build_execution_spec(command_type: str, cmd: dict, accounts: list[dict], brand_niche: Optional[str]) -> dict:
+def _build_execution_spec(command_type: str, cmd: dict, accounts: list[dict], brand_niche: str | None) -> dict:
     ev = cmd.get("evidence") or {}
     nf = cmd.get("niche_fit") or {}
     pf = cmd.get("platform_fit") or {}
@@ -116,7 +115,7 @@ def _build_execution_spec(command_type: str, cmd: dict, accounts: list[dict], br
     return {"content_role": "portfolio_action", "command_type": command_type}
 
 
-def _finalize_command_metadata(commands: list[dict], accounts: list[dict], brand_niche: Optional[str]) -> None:
+def _finalize_command_metadata(commands: list[dict], accounts: list[dict], brand_niche: str | None) -> None:
     for c in commands:
         ct = c["command_type"]
         c.setdefault("required_resources", _required_resources(
@@ -223,7 +222,7 @@ def _failure_threshold(command_type: str) -> dict:
     return {"metric": "no_metric", "floor_value": 0, "timeframe_days": 30, "action_on_failure": "re-evaluate"}
 
 
-def _find_merge_account_pair(accounts: list[dict]) -> Optional[tuple[dict, dict]]:
+def _find_merge_account_pair(accounts: list[dict]) -> tuple[dict, dict] | None:
     """Same platform + high niche overlap → merge consideration."""
     for i, ai in enumerate(accounts):
         for j in range(i + 1, len(accounts)):
@@ -239,15 +238,14 @@ def _find_merge_account_pair(accounts: list[dict]) -> Optional[tuple[dict, dict]
 def _first_week_plan(candidate: dict) -> list[dict]:
     platform = candidate.get("primary_platform", "youtube")
     niche = candidate.get("niche", "general")
-    cap = 2
     return [
         {"day": "Day 1", "action": f"Create {platform} account with niche-aligned branding for '{niche}'."},
-        {"day": "Day 2", "action": f"Set up avatar/persona. Configure bio, links, and monetization integrations."},
-        {"day": "Day 3", "action": f"Publish first content piece — adapt top-performing hook from flagship."},
-        {"day": "Day 4", "action": f"Publish second piece. Monitor initial engagement signals."},
-        {"day": "Day 5", "action": f"Review Day 3-4 metrics. Adjust hook/CTA if CTR < 2%."},
-        {"day": "Day 6", "action": f"Publish third piece with offer integration. Track attribution."},
-        {"day": "Day 7", "action": f"Week 1 review: impressions, CTR, first conversions. Decide ramp or pivot."},
+        {"day": "Day 2", "action": "Set up avatar/persona. Configure bio, links, and monetization integrations."},
+        {"day": "Day 3", "action": "Publish first content piece — adapt top-performing hook from flagship."},
+        {"day": "Day 4", "action": "Publish second piece. Monitor initial engagement signals."},
+        {"day": "Day 5", "action": "Review Day 3-4 metrics. Adjust hook/CTA if CTR < 2%."},
+        {"day": "Day 6", "action": "Publish third piece with offer integration. Track attribution."},
+        {"day": "Day 7", "action": "Week 1 review: impressions, CTR, first conversions. Decide ramp or pivot."},
     ]
 
 
@@ -285,7 +283,7 @@ def assess_portfolio_balance(accounts: list[dict]) -> dict:
 
 def find_whitespace(
     accounts: list[dict],
-    brand_niche: Optional[str],
+    brand_niche: str | None,
     geo_recs: list[dict],
 ) -> list[dict]:
     """Find untapped platform/niche/geo combinations."""
@@ -320,10 +318,10 @@ def generate_growth_commands(
     scale_rec: dict,
     candidates: list[dict],
     blockers: list[dict],
-    readiness: Optional[dict],
+    readiness: dict | None,
     accounts: list[dict],
     offers: list[dict],
-    brand_niche: Optional[str],
+    brand_niche: str | None,
     trust_avg: float,
     leak_count: int,
     geo_recs: list[dict],

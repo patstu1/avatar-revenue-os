@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -14,53 +14,53 @@ class SignalScanRunOut(BaseModel):
     status: str
     signals_detected: int
     signals_actionable: int
-    scan_duration_ms: Optional[int] = None
-    scan_metadata_json: Optional[Any] = None
+    scan_duration_ms: int | None = None
+    scan_metadata_json: Any | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class NormalizedSignalEventOut(BaseModel):
     id: str
     brand_id: str
-    scan_run_id: Optional[str] = None
+    scan_run_id: str | None = None
     signal_type: str
     signal_source: str
     normalized_title: str
-    normalized_description: Optional[str] = None
+    normalized_description: str | None = None
     freshness_score: float
     monetization_relevance: float
     urgency_score: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_actionable: bool
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class AutoQueueItemOut(BaseModel):
     id: str
     brand_id: str
-    signal_event_id: Optional[str] = None
+    signal_event_id: str | None = None
     queue_item_type: str
-    target_account_id: Optional[str] = None
-    target_account_role: Optional[str] = None
+    target_account_id: str | None = None
+    target_account_role: str | None = None
     platform: str
     niche: str
-    sub_niche: Optional[str] = None
-    content_family: Optional[str] = None
-    monetization_path: Optional[str] = None
+    sub_niche: str | None = None
+    content_family: str | None = None
+    monetization_path: str | None = None
     priority_score: float
     urgency_score: float
     queue_status: str
-    suppression_flags_json: Optional[Any] = None
-    hold_reason: Optional[str] = None
-    explanation: Optional[str] = None
+    suppression_flags_json: Any | None = None
+    hold_reason: str | None = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class AccountWarmupPlanOut(BaseModel):
@@ -71,19 +71,19 @@ class AccountWarmupPlanOut(BaseModel):
     warmup_phase: str
     initial_posts_per_week: int
     current_posts_per_week: int
-    target_posts_per_week: Optional[int] = None
-    warmup_start_date: Optional[datetime] = None
-    warmup_end_date: Optional[datetime] = None
+    target_posts_per_week: int | None = None
+    warmup_start_date: datetime | None = None
+    warmup_end_date: datetime | None = None
     engagement_target: float
     trust_target: float
-    content_mix_json: Optional[Any] = None
-    failure_signals_json: Optional[Any] = None
-    ramp_conditions_json: Optional[Any] = None
+    content_mix_json: Any | None = None
+    failure_signals_json: Any | None = None
+    ramp_conditions_json: Any | None = None
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class AccountOutputReportOut(BaseModel):
@@ -95,17 +95,17 @@ class AccountOutputReportOut(BaseModel):
     recommended_output_per_week: float
     max_safe_output_per_week: float
     max_profitable_output_per_week: float
-    throttle_reason: Optional[str] = None
-    next_increase_date: Optional[datetime] = None
+    throttle_reason: str | None = None
+    next_increase_date: datetime | None = None
     quality_score: float
     monetization_response_score: float
     account_health_score: float
     saturation_score: float
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class AccountMaturityReportOut(BaseModel):
@@ -114,19 +114,19 @@ class AccountMaturityReportOut(BaseModel):
     account_id: str
     platform: str
     maturity_state: str
-    previous_state: Optional[str] = None
+    previous_state: str | None = None
     days_in_current_state: int
     posts_published: int
     avg_engagement_rate: float
     follower_velocity: float
     health_score: float
-    transition_reason: Optional[str] = None
-    next_expected_transition: Optional[str] = None
+    transition_reason: str | None = None
+    next_expected_transition: str | None = None
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class PlatformWarmupPolicyOut(BaseModel):
@@ -139,15 +139,15 @@ class PlatformWarmupPolicyOut(BaseModel):
     steady_state_posts_per_week_min: int
     steady_state_posts_per_week_max: int
     max_safe_posts_per_day: int
-    ramp_conditions_json: Optional[Any] = None
-    account_health_signals_json: Optional[Any] = None
-    spam_risk_signals_json: Optional[Any] = None
-    trust_risk_signals_json: Optional[Any] = None
-    scale_ready_conditions_json: Optional[Any] = None
-    ramp_behavior: Optional[str] = None
+    ramp_conditions_json: Any | None = None
+    account_health_signals_json: Any | None = None
+    spam_risk_signals_json: Any | None = None
+    trust_risk_signals_json: Any | None = None
+    scale_ready_conditions_json: Any | None = None
+    ramp_behavior: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class OutputRampEventOut(BaseModel):
@@ -158,14 +158,14 @@ class OutputRampEventOut(BaseModel):
     event_type: str
     from_output_per_week: float
     to_output_per_week: float
-    trigger_reason: Optional[str] = None
+    trigger_reason: str | None = None
     confidence: float
-    explanation: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    explanation: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class RecomputeSummaryOut(BaseModel):
     status: str
-    detail: Optional[str] = None
-    counts: Optional[Any] = None
+    detail: str | None = None
+    counts: Any | None = None

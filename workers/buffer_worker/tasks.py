@@ -1,7 +1,6 @@
 """Buffer Distribution Layer — Celery tasks for publish submission and status sync."""
 from __future__ import annotations
 
-import asyncio
 import uuid
 
 import structlog
@@ -15,6 +14,7 @@ logger = structlog.get_logger()
 
 async def _all_brand_ids(db) -> list[uuid.UUID]:
     from sqlalchemy import select
+
     from packages.db.models.core import Brand
     rows = (await db.execute(select(Brand.id).where(Brand.is_active.is_(True)))).all()
     return [r[0] for r in rows]
@@ -23,6 +23,7 @@ async def _all_brand_ids(db) -> list[uuid.UUID]:
 async def _submit_pending_jobs():
     """Submit all pending Buffer publish jobs to Buffer."""
     from sqlalchemy import select
+
     from apps.api.services import buffer_distribution_service as svc
     from packages.db.models.buffer_distribution import BufferPublishJob
 
@@ -65,8 +66,9 @@ async def _sync_buffer_statuses():
          into publish_jobs and content_items
     """
     from sqlalchemy import select
+
     from apps.api.services import buffer_distribution_service as svc
-    from packages.db.models.core import Brand, Organization
+    from packages.db.models.core import Organization
 
     async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)

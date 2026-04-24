@@ -8,7 +8,6 @@ with HTTP 403.
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException
@@ -18,8 +17,14 @@ from sqlalchemy import desc, select
 from apps.api.deps import DBSession, OperatorUser
 from apps.api.services.proposals_service import (
     LineItemInput,
+)
+from apps.api.services.proposals_service import (
     create_proposal as svc_create_proposal,
+)
+from apps.api.services.proposals_service import (
     mark_proposal_sent as svc_mark_sent,
+)
+from apps.api.services.proposals_service import (
     record_payment_link as svc_record_payment_link,
 )
 from packages.db.models.proposals import (
@@ -42,8 +47,8 @@ class LineItemBody(BaseModel):
     description: str = Field(..., max_length=500)
     unit_amount_cents: int = Field(..., ge=0)
     quantity: int = Field(1, ge=1)
-    offer_id: Optional[uuid.UUID] = None
-    package_slug: Optional[str] = Field(None, max_length=100)
+    offer_id: uuid.UUID | None = None
+    package_slug: str | None = Field(None, max_length=100)
     currency: str = Field("usd", max_length=10)
     position: int = 0
 
@@ -52,17 +57,17 @@ class CreateProposalBody(BaseModel):
     recipient_email: str = Field(..., max_length=255)
     title: str = Field(..., max_length=500)
     line_items: list[LineItemBody] = Field(..., min_length=1)
-    brand_id: Optional[uuid.UUID] = None
-    thread_id: Optional[uuid.UUID] = None
-    message_id: Optional[uuid.UUID] = None
-    draft_id: Optional[uuid.UUID] = None
-    operator_action_id: Optional[uuid.UUID] = None
+    brand_id: uuid.UUID | None = None
+    thread_id: uuid.UUID | None = None
+    message_id: uuid.UUID | None = None
+    draft_id: uuid.UUID | None = None
+    operator_action_id: uuid.UUID | None = None
     recipient_name: str = ""
     recipient_company: str = ""
     summary: str = ""
-    package_slug: Optional[str] = None
+    package_slug: str | None = None
     currency: str = "usd"
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class CreatePaymentLinkBody(BaseModel):
@@ -71,9 +76,9 @@ class CreatePaymentLinkBody(BaseModel):
     ``amount_cents`` defaults to the proposal's ``total_amount_cents``
     when omitted, so the typical flow is POST with an empty body.
     """
-    amount_cents: Optional[int] = Field(None, ge=0)
-    currency: Optional[str] = Field(None, max_length=10)
-    product_name: Optional[str] = Field(None, max_length=500)
+    amount_cents: int | None = Field(None, ge=0)
+    currency: str | None = Field(None, max_length=10)
+    product_name: str | None = Field(None, max_length=500)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -126,7 +131,7 @@ async def create_proposal(
 async def list_proposals(
     current_user: OperatorUser,
     db: DBSession,
-    status: Optional[str] = None,
+    status: str | None = None,
     limit: int = 50,
 ):
     q = select(Proposal).where(

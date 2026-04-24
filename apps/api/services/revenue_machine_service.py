@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """Revenue Machine Service — The capstone operating model bridge.
 
 Gathers real DB data (credits, plans, telemetry, transactions, content,
@@ -12,28 +13,30 @@ from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.core import Brand, User
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
-from packages.db.models.offers import Offer
+from packages.db.models.core import Brand, User
 from packages.db.models.monetization import (
     CreditLedger,
     CreditTransaction,
-    UsageMeterSnapshot,
-    PlanSubscription,
-    PackPurchase,
-    MultiplicationEvent as MultiplicationEventModel,
     MonetizationTelemetryEvent,
+    PackPurchase,
+    PlanSubscription,
+    UsageMeterSnapshot,
 )
+from packages.db.models.monetization import (
+    MultiplicationEvent as MultiplicationEventModel,
+)
+from packages.db.models.offers import Offer
 from packages.scoring.monetization_machine import (
-    generate_machine_report,
     TelemetryEvent,
     UserSegment,
-    design_outcome_packs,
     _get_pricing_ladder,
+    design_outcome_packs,
+    generate_machine_report,
 )
 
 logger = structlog.get_logger()

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,10 +19,10 @@ async def apply_gatekeeper_pipeline(
     commands: list[dict],
     acc_dicts: list[dict],
     scale_dict: dict,
-    readiness_dict: Optional[dict],
+    readiness_dict: dict | None,
     trust_avg: float,
     leak_count: int,
-    brand_niche: Optional[str],
+    brand_niche: str | None,
 ) -> list[dict]:
     offer_count = (await db.execute(
         select(func.count()).select_from(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
@@ -69,7 +69,7 @@ async def load_gatekeeper_dict_only(
     *,
     acc_dicts: list[dict],
     scale_dict: dict,
-    readiness_dict: Optional[dict],
+    readiness_dict: dict | None,
     trust_avg: float,
     leak_count: int,
 ) -> dict[str, Any]:

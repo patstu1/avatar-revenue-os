@@ -1,11 +1,15 @@
 """Analytics, attribution, revenue dashboards, and intelligence endpoints — Phase 4."""
 import uuid
-from fastapi import APIRouter, Depends, Query
+
+from fastapi import APIRouter, Depends
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser, require_brand_access
 from apps.api.rate_limit import webhook_rate_limit
 from apps.api.schemas.analytics import (
-    ClickTrackRequest, ConversionTrackRequest,
-    PerformanceIngestRequest, AttributionEventResponse,
+    AttributionEventResponse,
+    ClickTrackRequest,
+    ConversionTrackRequest,
+    PerformanceIngestRequest,
 )
 from apps.api.services import analytics_service as ans
 from apps.api.services.audit_service import log_action

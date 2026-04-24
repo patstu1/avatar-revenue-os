@@ -1,13 +1,19 @@
 """Unit tests for AI Gatekeeper engine."""
 from packages.scoring.gatekeeper_engine import (
-    evaluate_completion, evaluate_truth, evaluate_execution_closure,
-    evaluate_test_sufficiency, evaluate_dependency_readiness,
-    detect_contradictions, evaluate_operator_command_quality,
-    evaluate_expansion_permission, generate_gatekeeper_alerts,
-    build_audit_entry, SYSTEM_MODULES, REQUIRED_LAYERS,
-    SEVERITY_CRITICAL, SEVERITY_HIGH,
+    REQUIRED_LAYERS,
+    SEVERITY_CRITICAL,
+    SEVERITY_HIGH,
+    build_audit_entry,
+    detect_contradictions,
+    evaluate_completion,
+    evaluate_dependency_readiness,
+    evaluate_execution_closure,
+    evaluate_expansion_permission,
+    evaluate_operator_command_quality,
+    evaluate_test_sufficiency,
+    evaluate_truth,
+    generate_gatekeeper_alerts,
 )
-
 
 # ── Completion Gate ────────────────────────────────────────────────────
 

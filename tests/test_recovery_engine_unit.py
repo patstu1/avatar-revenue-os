@@ -1,8 +1,11 @@
 """Unit tests for recovery engine."""
-import pytest
 from packages.scoring.recovery_rollback_engine import (
-    INCIDENT_TYPES, PLAYBOOKS, detect_incidents, select_playbook,
-    decide_recovery, should_escalate,
+    INCIDENT_TYPES,
+    PLAYBOOKS,
+    decide_recovery,
+    detect_incidents,
+    select_playbook,
+    should_escalate,
 )
 
 

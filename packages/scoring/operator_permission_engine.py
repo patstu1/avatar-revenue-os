@@ -1,6 +1,7 @@
 """Operator Permission Matrix Engine — autonomy modes, policy eval, overrides. Pure functions."""
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 ACTION_CLASSES = [
     "content_generation", "content_publish", "campaign_launch", "campaign_suppress",

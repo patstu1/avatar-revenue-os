@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 @app.task(base=TrackedTask, bind=True, name="workers.competitor_worker.tasks.scan_competitors")
 def scan_competitors(self) -> dict:
     """Scan competitor accounts and generate daily intelligence reports."""
-    from packages.db.session import get_sync_engine
     from packages.db.models.autonomous_farm import CompetitorAccount, DailyIntelligenceReport
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     scanned = 0

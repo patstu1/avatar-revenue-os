@@ -4,10 +4,11 @@ Determines the best time to publish content per platform and prevents multiple
 accounts from posting at the same minute.
 """
 from __future__ import annotations
+
 import hashlib
 import random
-from datetime import datetime, timezone, timedelta
-from typing import Any, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 OPTIMAL_POSTING_WINDOWS: dict[str, list[tuple[int, int]]] = {
     "youtube": [(8, 10), (12, 14), (17, 19)],
@@ -29,7 +30,7 @@ def get_optimal_publish_time(
     platform: str,
     account_id: str,
     target_timezone: str = "US_EAST",
-    now: Optional[datetime] = None,
+    now: datetime | None = None,
 ) -> datetime:
     """Calculate the next optimal publish time for an account on a platform.
 

@@ -2,13 +2,11 @@
 
 
 def test_auto_publish_task_registered():
-    from workers.publishing_worker.auto_publish import auto_publish_approved_content
     from workers.celery_app import app
     assert "workers.publishing_worker.tasks.auto_publish_approved_content" in app.tasks
 
 
 def test_measured_data_cascade_task_registered():
-    from workers.publishing_worker.measured_data_cascade import run_measured_data_cascade
     from workers.celery_app import app
     assert "workers.publishing_worker.tasks.run_measured_data_cascade" in app.tasks
 

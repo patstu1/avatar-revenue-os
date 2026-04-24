@@ -6,9 +6,10 @@ Credentials are passed in by the calling worker via credential_loader.
 No os.environ fallback — dashboard/provider config is the source of truth.
 """
 from __future__ import annotations
+
 import logging
-from typing import Any
 from datetime import datetime, timezone
+from typing import Any
 
 import httpx
 
@@ -92,7 +93,7 @@ class GoogleTrendsClient:
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
                 r = await client.get(
-                    f"https://trends.google.com/trends/api/dailytrends",
+                    "https://trends.google.com/trends/api/dailytrends",
                     params={"hl": "en-US", "tz": "-300", "geo": geo, "ns": "15"},
                 )
                 text = r.text

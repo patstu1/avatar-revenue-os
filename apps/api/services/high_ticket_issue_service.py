@@ -23,8 +23,6 @@ Two functions:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -32,7 +30,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_event
 from packages.db.models.clients import (
-    Client, ClientOnboardingEvent, ClientRetentionEvent,
+    Client,
+    ClientOnboardingEvent,
+    ClientRetentionEvent,
 )
 from packages.db.models.email_pipeline import EmailReplyDraft
 from packages.db.models.gm_control import GMEscalation
@@ -61,9 +61,9 @@ async def classify_high_ticket_issue(
     draft: EmailReplyDraft,
     subtype: str,
     affected_cents: int = 0,
-    notes: Optional[str] = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Classify an inbound-reply draft as a high-ticket issue, opening
     a scoped GMEscalation. Severity scales with affected_cents.
@@ -124,7 +124,7 @@ async def classify_high_ticket_issue(
     db.add(esc)
     await db.flush()
 
-    onboarding_event_id: Optional[uuid.UUID] = None
+    onboarding_event_id: uuid.UUID | None = None
     if client is not None:
         ce = ClientOnboardingEvent(
             client_id=client.id,
@@ -186,10 +186,10 @@ async def issue_credit(
     client: Client,
     amount_cents: int,
     reason: str,
-    reference_project_id: Optional[uuid.UUID] = None,
-    notes: Optional[str] = None,
+    reference_project_id: uuid.UUID | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Record a credit/adjustment against a high-ticket client.
 

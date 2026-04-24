@@ -15,7 +15,6 @@ from __future__ import annotations
 import secrets
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -54,7 +53,7 @@ async def activate_client_from_payment(
     db: AsyncSession,
     *,
     payment: Payment,
-) -> tuple[Client, bool, Optional[IntakeRequest]]:
+) -> tuple[Client, bool, IntakeRequest | None]:
     """Create (or reuse) the Client for this payment and auto-start onboarding.
 
     Returns ``(client, is_new_client, intake_request)``.
@@ -186,11 +185,11 @@ async def start_onboarding(
     db: AsyncSession,
     *,
     client: Client,
-    proposal_id: Optional[uuid.UUID] = None,
-    payment_id: Optional[uuid.UUID] = None,
-    schema: Optional[dict] = None,
-    title: Optional[str] = None,
-    instructions: Optional[str] = None,
+    proposal_id: uuid.UUID | None = None,
+    payment_id: uuid.UUID | None = None,
+    schema: dict | None = None,
+    title: str | None = None,
+    instructions: str | None = None,
 ) -> IntakeRequest:
     """Create the first IntakeRequest for a client and mark it sent.
 
@@ -225,7 +224,8 @@ async def start_onboarding(
     # Other avenues get the 7-field generic default.
     if schema is None and client.avenue_slug == "high_ticket":
         from apps.api.services.high_ticket_onboarding import (
-            HIGH_TICKET_INTAKE_SCHEMA, ensure_profile,
+            HIGH_TICKET_INTAKE_SCHEMA,
+            ensure_profile,
         )
         schema_to_use = HIGH_TICKET_INTAKE_SCHEMA
         instructions_to_use = (
@@ -239,7 +239,8 @@ async def start_onboarding(
         await ensure_profile(db, client=client)
     elif schema is None and client.avenue_slug == "sponsor_deals":
         from apps.api.services.sponsor_onboarding_service import (
-            SPONSOR_INTAKE_SCHEMA, ensure_campaign,
+            SPONSOR_INTAKE_SCHEMA,
+            ensure_campaign,
         )
         schema_to_use = SPONSOR_INTAKE_SCHEMA
         instructions_to_use = (
@@ -414,9 +415,9 @@ async def send_intake_invite(
     Emits ``intake.email_sent`` on success or
     ``intake.email_send_failed`` on failure.
     """
+    from apps.api.services.event_bus import emit_event
     from packages.clients.email_templates import build_intake_invite
     from packages.clients.external_clients import SmtpEmailClient
-    from apps.api.services.event_bus import emit_event
 
     smtp = await SmtpEmailClient.from_db(db, client.org_id)
     if smtp is None:
@@ -540,7 +541,7 @@ async def submit_intake(
     intake_request: IntakeRequest,
     responses: dict,
     submitter_email: str = "",
-    submitter_ip: Optional[str] = None,
+    submitter_ip: str | None = None,
     submitted_via: str = "form",
 ) -> IntakeSubmission:
     """Persist an IntakeSubmission, compute completeness, emit intake.completed
@@ -659,7 +660,7 @@ async def submit_intake(
 
 
 async def _recover_email_from_proposal(
-    db: AsyncSession, proposal_id: Optional[uuid.UUID]
+    db: AsyncSession, proposal_id: uuid.UUID | None
 ) -> str:
     if proposal_id is None:
         return ""

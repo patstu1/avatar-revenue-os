@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from packages.db.enums import MonetizationMethod
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
 from packages.db.models.content_form import (
@@ -16,7 +17,6 @@ from packages.db.models.content_form import (
     ContentFormRecommendation,
 )
 from packages.db.models.core import Brand
-from packages.db.enums import MonetizationMethod
 from packages.db.models.offers import Offer
 from packages.db.models.pattern_memory import WinningPatternMemory
 from packages.scoring.content_form_engine import (

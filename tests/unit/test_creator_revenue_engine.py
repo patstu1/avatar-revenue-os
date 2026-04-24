@@ -1,8 +1,6 @@
 """Unit tests for Creator Revenue Avenues Phase A engine."""
-import pytest
 
 from packages.scoring.creator_revenue_engine import (
-    AVENUE_TYPES,
     CONSULTING_SERVICE_TYPES,
     PREMIUM_ACCESS_TYPES,
     UGC_SERVICE_TYPES,
@@ -12,7 +10,6 @@ from packages.scoring.creator_revenue_engine import (
     score_premium_access_opportunities,
     score_ugc_opportunity,
 )
-
 
 # ── UGC Opportunity Scoring ────────────────────────────────────────────
 

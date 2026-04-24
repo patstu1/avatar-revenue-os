@@ -17,8 +17,8 @@ Tables affected:
   - email_messages                 (each inbound/outbound message)
   - email_reply_drafts             (machine-drafted replies awaiting GM)
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "016_batch10"
 down_revision = "015_batch9"

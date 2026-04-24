@@ -1,7 +1,7 @@
 """Elite Affiliate Intelligence — full affiliate revenue operating layer."""
 import uuid
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID

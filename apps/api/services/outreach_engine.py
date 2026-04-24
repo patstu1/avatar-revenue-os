@@ -10,11 +10,10 @@ Can be set to autonomous for known-good templates + high-confidence targets.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import datetime, timezone
 
 import structlog
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_action, emit_event
@@ -58,7 +57,6 @@ async def draft_sponsor_outreach(
 
     brand_name = brand.name if brand else "Our Brand"
     niche = brand.niche if brand else "content creation"
-    contact = sponsor.contact_email or "the sponsor"
     industry = sponsor.industry or "your industry"
 
     # Draft the email

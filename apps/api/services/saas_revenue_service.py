@@ -1,19 +1,20 @@
 """SaaS & High-Ticket Revenue Service — bridges scoring engines to database."""
-import math
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from sqlalchemy import select, func, and_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.saas_metrics import (
-    Subscription, SubscriptionEvent, SaaSMetricSnapshot,
-    HighTicketDeal, ProductLaunch,
-)
-from packages.db.models.creator_revenue import CreatorRevenueEvent, CreatorRevenueOpportunity
+from packages.db.models.creator_revenue import CreatorRevenueOpportunity
 from packages.db.models.publishing import PerformanceMetric
+from packages.db.models.saas_metrics import (
+    HighTicketDeal,
+    ProductLaunch,
+    Subscription,
+    SubscriptionEvent,
+)
 
 logger = structlog.get_logger()
 

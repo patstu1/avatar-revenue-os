@@ -11,14 +11,9 @@ API docs:
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import hmac
 import logging
-import math
-import os
 import re
-import time
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -125,8 +120,8 @@ class XClient:
         self,
         access_token: str,
         text: str,
-        reply_to_id: Optional[str] = None,
-        quote_tweet_id: Optional[str] = None,
+        reply_to_id: str | None = None,
+        quote_tweet_id: str | None = None,
     ) -> dict[str, Any]:
         """Create a single tweet/post.
 
@@ -231,7 +226,7 @@ class XClient:
         Returns: list of tweet_ids in order.
         """
         tweet_ids: list[str] = []
-        reply_to_id: Optional[str] = None
+        reply_to_id: str | None = None
 
         for i, text in enumerate(tweets_list):
             result = await self.create_post(

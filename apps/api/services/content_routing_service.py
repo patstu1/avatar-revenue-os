@@ -1,20 +1,20 @@
 """Content Routing service — classify tasks, route to providers, track costs."""
 from __future__ import annotations
+
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 import structlog
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 
-from packages.db.models.content_routing import ContentRoutingDecision, ContentRoutingCostReport
+from packages.db.models.content_routing import ContentRoutingCostReport, ContentRoutingDecision
 from packages.scoring.tiered_routing_engine import (
-    route_content_task,
     compute_monthly_projection,
-    check_budget_remaining,
+    route_content_task,
 )
 
 

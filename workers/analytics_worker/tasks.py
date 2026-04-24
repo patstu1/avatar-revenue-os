@@ -1,9 +1,9 @@
 """Analytics worker tasks — trend scanning, performance ingestion, saturation checks."""
 import logging
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
 from packages.db.session import run_async
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -11,13 +11,15 @@ logger = logging.getLogger(__name__)
 @app.task(base=TrackedTask, bind=True, name="workers.analytics_worker.tasks.scan_trends")
 def scan_trends(self) -> dict:
     """Scan all configured trend sources and ingest new signals across all brands."""
-    from sqlalchemy.orm import Session
-    from sqlalchemy import select
-    from packages.db.session import get_sync_engine
-    from packages.db.models.publishing import SignalIngestionRun
-    from packages.db.models.core import Brand
-    from packages.db.enums import JobStatus
     from datetime import datetime, timezone
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
+
+    from packages.db.enums import JobStatus
+    from packages.db.models.core import Brand
+    from packages.db.models.publishing import SignalIngestionRun
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     total_processed = 0
@@ -33,13 +35,14 @@ def scan_trends(self) -> dict:
             session.add(run)
             session.flush()
 
-            import asyncio
             from packages.clients.trend_data_clients import (
-                YouTubeTrendingClient, GoogleTrendsClient,
-                RedditTrendingClient, TikTokTrendClient,
+                GoogleTrendsClient,
+                RedditTrendingClient,
+                TikTokTrendClient,
+                YouTubeTrendingClient,
             )
-            from packages.db.models.discovery import TrendSignal
             from packages.db.enums import SignalStrength
+            from packages.db.models.discovery import TrendSignal
 
             fetched_signals: list[dict] = []
             clients = [
@@ -114,12 +117,14 @@ def ingest_performance(self) -> dict:
     each, and persists PerformanceMetric rows. This is the critical bridge
     that feeds the entire intelligence layer.
     """
+    from datetime import datetime, timezone
+
+    from sqlalchemy import func, select
     from sqlalchemy.orm import Session
-    from sqlalchemy import select, func
-    from packages.db.session import get_sync_engine
+
     from packages.db.models.accounts import CreatorAccount
     from packages.db.models.publishing import PerformanceMetric
-    from datetime import datetime, timezone
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     accounts_processed = 0
@@ -133,8 +138,8 @@ def ingest_performance(self) -> dict:
         for account in accounts:
             accounts_processed += 1
             try:
-                import asyncio
                 import os
+
                 from packages.clients.external_clients import BufferClient
 
                 if os.environ.get("BUFFER_API_KEY") and hasattr(account.platform, 'value'):
@@ -164,7 +169,6 @@ def ingest_performance(self) -> dict:
                                     metrics_created += 1
 
                 from packages.db.models.content import ContentItem
-                from packages.db.models.buffer_distribution import BufferPublishJob
                 published_items = session.execute(
                     select(ContentItem).where(
                         ContentItem.creator_account_id == account.id,
@@ -264,10 +268,12 @@ def ingest_performance(self) -> dict:
 def sync_youtube_analytics(self) -> dict:
     """Sync YouTube analytics for all accounts with stored credentials."""
     import asyncio
-    from sqlalchemy.orm import Session
+
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
     from packages.db.models.accounts import CreatorAccount
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     accounts_synced = 0
@@ -329,11 +335,11 @@ def sync_youtube_analytics(self) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.analytics_worker.tasks.recompute_revenue_forecast")
 def recompute_revenue_forecast(self) -> dict:
     """Generate revenue forecasts for all active brands using the scoring engine."""
-    import asyncio
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
     from packages.db.models.core import Brand
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     brands_processed = 0
@@ -343,10 +349,10 @@ def recompute_revenue_forecast(self) -> dict:
         brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
         for brand in brands:
             try:
-                from packages.scoring.revenue_intelligence import forecast_revenue
+                from datetime import datetime, timedelta, timezone
+
                 from packages.db.models.publishing import PerformanceMetric
-                from sqlalchemy import func
-                from datetime import datetime, timezone, timedelta
+                from packages.scoring.revenue_intelligence import forecast_revenue
 
                 cutoff = datetime.now(timezone.utc) - timedelta(days=90)
                 metrics = session.execute(
@@ -371,12 +377,14 @@ def recompute_revenue_forecast(self) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.analytics_worker.tasks.check_revenue_anomalies")
 def check_revenue_anomalies(self) -> dict:
     """Detect revenue anomalies across all active brands."""
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import func, select
     from sqlalchemy.orm import Session
-    from sqlalchemy import select, func
-    from packages.db.session import get_sync_engine
+
     from packages.db.models.core import Brand
     from packages.db.models.publishing import PerformanceMetric
-    from datetime import datetime, timezone, timedelta
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     brands_checked = 0
@@ -418,11 +426,12 @@ def check_saturation(self) -> dict:
     Reads recent PerformanceMetric data and identifies accounts showing
     declining engagement (saturation signal).
     """
+    from sqlalchemy import func, select
     from sqlalchemy.orm import Session
-    from sqlalchemy import select, func
-    from packages.db.session import get_sync_engine
+
     from packages.db.models.accounts import CreatorAccount
     from packages.db.models.publishing import PerformanceMetric
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     accounts_analyzed = 0
@@ -444,9 +453,10 @@ def check_saturation(self) -> dict:
             if metric_count == 0:
                 continue
 
-            from packages.scoring.saturation import SaturationInput, compute_saturation
+            from datetime import datetime, timedelta, timezone
+
             from packages.db.models.content import ContentItem
-            from datetime import datetime, timezone, timedelta
+            from packages.scoring.saturation import SaturationInput, compute_saturation
 
             now = datetime.now(timezone.utc)
             cutoff_7d = now - timedelta(days=7)

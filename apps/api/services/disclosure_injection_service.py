@@ -1,8 +1,10 @@
 """Disclosure Auto-Injection Service — inject FTC/platform disclosure at generation + publish."""
 from __future__ import annotations
-import uuid
+
 import logging
-from typing import Any, Optional
+import uuid
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

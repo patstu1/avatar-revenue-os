@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Optional
+from typing import Any
 
 RC_PHASE_B = "revenue_ceiling_phase_b"
 
@@ -22,9 +22,9 @@ def build_high_ticket_opportunity(
     aov: float,
     payout: float,
     conversion_rate: float,
-    content_title: Optional[str] = None,
-    offer_id: Optional[str] = None,
-    content_item_id: Optional[str] = None,
+    content_title: str | None = None,
+    offer_id: str | None = None,
+    content_item_id: str | None = None,
 ) -> dict[str, Any]:
     """Score high-ticket fit from offers + economics."""
     name_l = (offer_name or "").lower()
@@ -139,7 +139,7 @@ def build_product_opportunity(
     }
 
 
-def generate_product_opportunities(niche: str, target_audience: Optional[str], brand_voice: str = "") -> list[dict[str, Any]]:
+def generate_product_opportunities(niche: str, target_audience: str | None, brand_voice: str = "") -> list[dict[str, Any]]:
     aud = target_audience or f"{niche} operators"
     return [build_product_opportunity(f"prod|{niche}|{i}", niche, aud, i) for i in range(6)]
 

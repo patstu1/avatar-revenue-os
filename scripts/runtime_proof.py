@@ -11,11 +11,9 @@ real database writes happen, real events are emitted, real actions are
 created, and real state transitions occur.
 """
 import asyncio
-import json
 import os
 import sys
 import uuid
-from datetime import datetime, timedelta, timezone
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,11 +22,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 os.environ.setdefault("DATABASE_URL_SYNC", "postgresql://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 
-from sqlalchemy import select, func, text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from packages.db.base import Base
 import packages.db.models  # noqa — triggers table registration
+from packages.db.base import Base
 
 RESULTS = []
 PASS_COUNT = 0
@@ -72,10 +70,7 @@ async def run_all_proofs():
 
     async with session_factory() as db:
         # Create test org + user + brand
-        from packages.db.models.core import Organization, User, Brand
-        from packages.db.models.accounts import CreatorAccount
-        from packages.db.models.offers import Offer
-        from packages.db.enums import ContentType, Platform
+        from packages.db.models.core import Brand, Organization, User
 
         org = Organization(name=f"proof_org_{uuid.uuid4().hex[:8]}", slug=f"proof-{uuid.uuid4().hex[:8]}")
         db.add(org)
@@ -104,7 +99,7 @@ async def run_all_proofs():
         # ═══════════════════════════════════════════════════════════════
         print("─── 1. EVENT BUS TRUTH ───")
 
-        from apps.api.services.event_bus import emit_event, emit_action, complete_action, dismiss_action
+        from apps.api.services.event_bus import complete_action, dismiss_action, emit_action, emit_event
 
         # 1a. Create event across content domain
         correlation = uuid.uuid4()
@@ -270,7 +265,7 @@ async def run_all_proofs():
         )
 
         # 3d. Governance → memory recording
-        from apps.api.services.governance_bridge import record_generation_outcome, get_memory_context
+        from apps.api.services.governance_bridge import get_memory_context, record_generation_outcome
         mem = await record_generation_outcome(
             db, brand.id, uuid.uuid4(),
             generation_params={"model": "proof_test", "platform": "youtube"},
@@ -307,7 +302,10 @@ async def run_all_proofs():
         print("─── 4. CONTROL LAYER TRUTH ───")
 
         from apps.api.services.control_layer_service import (
-            get_system_health, get_pending_actions, get_recent_events, get_control_layer_dashboard,
+            get_control_layer_dashboard,
+            get_pending_actions,
+            get_recent_events,
+            get_system_health,
         )
 
         # 4a. System health
@@ -346,8 +344,10 @@ async def run_all_proofs():
         print("─── 5. STATE MACHINE PROOF ───")
 
         from packages.db.enums import (
-            ContentLifecycle, AccountLifecycle, OfferLifecycleStatus,
-            BrandLifecycle, JobStatus, ApprovalStatus, EventDomain, ActionStatus,
+            ActionStatus,
+            ContentLifecycle,
+            EventDomain,
+            JobStatus,
         )
 
         # 5a. Content lifecycle states match frontend vocabulary
@@ -401,7 +401,7 @@ async def run_all_proofs():
         # ═══════════════════════════════════════════════════════════════
         print("─── 6. GOVERNANCE TRUTH ───")
 
-        from apps.api.services.governance_bridge import check_permission, audit_state_transition
+        from apps.api.services.governance_bridge import audit_state_transition, check_permission
 
         # 6a. Permission check
         perm = await check_permission(
@@ -518,7 +518,7 @@ async def run_all_proofs():
             record("Memory has source tracking", "source_type" in mem_entries[0])
 
         # 8c. Second memory entry to prove accumulation
-        mem2 = await record_generation_outcome(
+        await record_generation_outcome(
             db, brand.id, uuid.uuid4(),
             generation_params={"model": "claude", "platform": "tiktok"},
             quality_score=0.45, approval_status="rejected",

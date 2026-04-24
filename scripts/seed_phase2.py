@@ -1,15 +1,18 @@
 """Phase 2 seed: populates discovery, scoring, and recommendation data.
 Run: docker exec aro-api python scripts/seed_phase2.py
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from packages.db.session import get_sync_engine
-from packages.db.models.core import Brand
-from packages.db.models.discovery import TopicSource, TopicCandidate, NicheCluster, TrendSignal
+
 from packages.db.enums import SignalStrength
+from packages.db.models.core import Brand
+from packages.db.models.discovery import NicheCluster, TopicCandidate, TopicSource, TrendSignal
+from packages.db.session import get_sync_engine
 
 engine = get_sync_engine()
 

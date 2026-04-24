@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 logger = structlog.get_logger()
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,12 +18,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 from packages.db.enums import (
-    ActorType, ApprovalStatus, ConfidenceLevel, ContentType, DecisionMode,
-    DecisionType, JobStatus, Platform, QAStatus, RecommendedAction,
+    ActorType,
+    ApprovalStatus,
+    ConfidenceLevel,
+    ContentType,
+    DecisionMode,
+    DecisionType,
+    JobStatus,
+    Platform,
+    QAStatus,
+    RecommendedAction,
 )
 from packages.db.models.accounts import CreatorAccount
-from packages.db.models.content import Asset, ContentBrief, ContentItem, MediaJob, Script, ScriptVariant
-from packages.db.models.core import Avatar, AvatarProviderProfile, Brand, VoiceProviderProfile
+from packages.db.models.content import Asset, ContentBrief, ContentItem, MediaJob, Script
+from packages.db.models.core import Avatar, AvatarProviderProfile, Brand
 from packages.db.models.decisions import PublishDecision
 from packages.db.models.offers import Offer
 from packages.db.models.publishing import PublishJob
@@ -31,7 +39,6 @@ from packages.db.models.quality import Approval, QAReport, SimilarityReport
 from packages.scoring.publish import PublishScoreInput, compute_publish_score
 from packages.scoring.qa import QAInput, compute_qa_score
 from packages.scoring.similarity import SimilarityInput, compute_similarity
-
 
 # ── Schema Validation ────────────────────────────────────────────────────────
 
@@ -167,8 +174,11 @@ async def _try_ai_generation(db: AsyncSession, brief: ContentBrief, brand) -> Op
     """Attempt AI-powered script generation. Returns None if no AI provider is available."""
     try:
         from apps.api.services.content_generation_service import (
-            _get_ai_client, _enrich_brief_metadata, _build_generation_prompt,
-            SCRIPT_SYSTEM_PROMPT, CAPTION_SYSTEM_PROMPT,
+            CAPTION_SYSTEM_PROMPT,
+            SCRIPT_SYSTEM_PROMPT,
+            _build_generation_prompt,
+            _enrich_brief_metadata,
+            _get_ai_client,
         )
         from packages.scoring.tiered_routing_engine import classify_task_tier, route_to_provider
 

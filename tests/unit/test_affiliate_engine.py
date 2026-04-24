@@ -1,6 +1,5 @@
 """Unit tests — affiliate link engine, placement engine, product selection."""
 from __future__ import annotations
-import pytest
 
 
 def test_generate_tracking_id():

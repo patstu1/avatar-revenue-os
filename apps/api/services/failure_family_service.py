@@ -1,8 +1,8 @@
 """Failure-Family Suppression Service — detect, suppress, persist, decay."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
-from datetime import datetime, timezone
 
 import structlog
 from sqlalchemy import delete, select
@@ -11,11 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = structlog.get_logger()
 
 from packages.db.models.content import ContentItem
+from packages.db.models.failure_family import (
+    FailureFamilyMember,
+    FailureFamilyReport,
+    SuppressionEvent,
+    SuppressionRule,
+)
 from packages.db.models.pattern_memory import LosingPatternMemory
 from packages.db.models.quality_governor import QualityGovernorReport
-from packages.db.models.failure_family import (
-    FailureFamilyMember, FailureFamilyReport, SuppressionEvent, SuppressionRule,
-)
 from packages.scoring.failure_family_engine import (
     build_suppression_rules,
     check_suppression_decay,

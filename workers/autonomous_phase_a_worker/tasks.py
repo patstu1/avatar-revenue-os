@@ -8,31 +8,31 @@ import structlog
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
-from packages.db.session import get_sync_engine
-from packages.db.models.core import Brand
 from packages.db.models.accounts import CreatorAccount
-from packages.db.models.discovery import TrendSignal, TopicSignal, TopicCandidate
-from packages.db.models.market_timing import MacroSignalEvent
 from packages.db.models.autonomous_phase_a import (
-    SignalScanRun,
-    NormalizedSignalEvent,
-    AutoQueueItem,
-    AccountWarmupPlan,
-    AccountOutputReport,
     AccountMaturityReport,
-    PlatformWarmupPolicy,
+    AccountOutputReport,
+    AccountWarmupPlan,
+    AutoQueueItem,
+    NormalizedSignalEvent,
     OutputRampEvent,
+    PlatformWarmupPolicy,
+    SignalScanRun,
 )
-from packages.scoring.signal_scanning_engine import score_signal_batch, build_auto_queue_items
+from packages.db.models.core import Brand
+from packages.db.models.discovery import TopicCandidate, TopicSignal, TrendSignal
+from packages.db.models.market_timing import MacroSignalEvent
+from packages.db.session import get_sync_engine
 from packages.scoring.account_warmup_engine import (
-    compute_warmup_plan,
     compute_account_output,
     compute_maturity_state,
     compute_output_ramp_event,
+    compute_warmup_plan,
     seed_platform_warmup_policies,
 )
+from packages.scoring.signal_scanning_engine import build_auto_queue_items, score_signal_batch
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = structlog.get_logger()
 

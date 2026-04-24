@@ -1,10 +1,19 @@
 """Executive Intelligence API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.executive_intel import EIKPIOut, EIForecastOut, EIUptimeOut, EIOversightOut, EIAlertOut, RecomputeSummaryOut
+from apps.api.schemas.executive_intel import (
+    EIAlertOut,
+    EIForecastOut,
+    EIKPIOut,
+    EIOversightOut,
+    EIUptimeOut,
+    RecomputeSummaryOut,
+)
 from apps.api.services import executive_intel_service as svc
 from packages.db.models.core import Organization
 

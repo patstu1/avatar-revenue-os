@@ -11,6 +11,7 @@ async def _get_redis():
     global _redis_client
     if _redis_client is None:
         from redis.asyncio import Redis
+
         from apps.api.config import get_settings
         settings = get_settings()
         _redis_client = Redis.from_url(settings.redis_url, decode_responses=True)

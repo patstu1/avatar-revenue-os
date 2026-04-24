@@ -1,9 +1,15 @@
 """Unit tests for workflow engine."""
-import pytest
 from packages.scoring.workflow_engine import (
-    WORKFLOW_TYPES, STEP_TYPES, BUILT_IN_TEMPLATES,
-    evaluate_workflow_step, get_next_step, process_approval,
-    process_rejection, process_override, apply_template, get_pending_actions,
+    BUILT_IN_TEMPLATES,
+    STEP_TYPES,
+    WORKFLOW_TYPES,
+    apply_template,
+    evaluate_workflow_step,
+    get_next_step,
+    get_pending_actions,
+    process_approval,
+    process_override,
+    process_rejection,
 )
 
 

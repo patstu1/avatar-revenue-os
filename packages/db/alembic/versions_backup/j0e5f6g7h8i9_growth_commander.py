@@ -4,9 +4,11 @@ Revision ID: j0e5f6g7h8i9
 Revises: i9d4e5f6g7h8
 Create Date: 2026-03-29
 """
-from typing import Sequence, Union
-from alembic import op
+from collections.abc import Sequence
+from typing import Union
+
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "j0e5f6g7h8i9"

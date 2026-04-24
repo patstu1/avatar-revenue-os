@@ -1,13 +1,12 @@
 """Monster Ops workers — expansion advisor, gatekeeper, scale engine recompute."""
-import asyncio
 import logging
 
 from celery import shared_task
 from sqlalchemy import select
 
+from packages.db.models.core import Brand
 from packages.db.session import get_async_session_factory, run_async
 from workers.base_task import TrackedTask
-from packages.db.models.core import Brand
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +30,13 @@ async def _recompute_expansion(bid):
 
 async def _recompute_gatekeeper(bid):
     from apps.api.services.gatekeeper_service import (
-        recompute_completion, recompute_truth, recompute_execution_closure,
-        recompute_tests, recompute_dependencies, recompute_contradictions,
         recompute_alerts,
+        recompute_completion,
+        recompute_contradictions,
+        recompute_dependencies,
+        recompute_execution_closure,
+        recompute_tests,
+        recompute_truth,
     )
     async with get_async_session_factory()() as db:
         await recompute_completion(db, bid)
@@ -86,10 +89,11 @@ def run_offer_learning_task():
 
 async def _detect_weak_lanes(bid):
     """Flag weak accounts AND push winners. Full kill/scale decisiveness."""
-    from packages.db.models.accounts import CreatorAccount
-    from packages.db.models.scale_alerts import OperatorAlert
-    from packages.db.models.kill_ledger import KillLedgerEntry
     from datetime import datetime, timezone
+
+    from packages.db.models.accounts import CreatorAccount
+    from packages.db.models.kill_ledger import KillLedgerEntry
+    from packages.db.models.scale_alerts import OperatorAlert
 
     async with get_async_session_factory()() as db:
         accounts = list((await db.execute(
@@ -179,9 +183,10 @@ async def _detect_weak_lanes(bid):
 
 async def _trigger_expansion_from_saturation(bid):
     """When avg saturation > 70%, auto-run expansion advisor with launch-window awareness."""
+    from datetime import datetime, timezone
+
     from packages.db.models.accounts import CreatorAccount
     from packages.db.models.scale_alerts import OperatorAlert
-    from datetime import datetime, timezone
 
     async with get_async_session_factory()() as db:
         accounts = list((await db.execute(

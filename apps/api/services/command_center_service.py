@@ -1,20 +1,18 @@
 """System Command Center — aggregates all real data for the control room."""
 from __future__ import annotations
+
 import uuid
-from typing import Any
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import structlog
-from sqlalchemy import func, select, case, literal_column
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 
-from packages.db.models.accounts import CreatorAccount
 from packages.db.models.account_state_intel import AccountStateReport
-from packages.db.models.capital_allocator import CapitalAllocationReport
-from packages.db.models.content import ContentItem
-from packages.db.models.core import Brand
+from packages.db.models.accounts import CreatorAccount
 from packages.db.models.creator_revenue import CreatorRevenueEvent
 from packages.db.models.failure_family import SuppressionRule
 from packages.db.models.offers import Offer

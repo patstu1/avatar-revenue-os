@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -14,14 +14,14 @@ class CreatorRevenueOpportunityOut(BaseModel):
     avenue_type: str
     subtype: str
     target_segment: str
-    recommended_package: Optional[str] = None
+    recommended_package: str | None = None
     expected_value: float
     expected_margin: float
     priority_score: float
     confidence: float
     status: str
-    explanation: Optional[str] = None
-    details_json: Optional[Any] = None
+    explanation: str | None = None
+    details_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -30,18 +30,18 @@ class CreatorRevenueOpportunityOut(BaseModel):
 class UgcServiceActionOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    opportunity_id: Optional[uuid.UUID] = None
+    opportunity_id: uuid.UUID | None = None
     service_type: str
     target_segment: str
     recommended_package: str
     price_band: str
     expected_value: float
     expected_margin: float
-    execution_steps_json: Optional[Any] = None
+    execution_steps_json: Any | None = None
     status: str
     confidence: float
-    explanation: Optional[str] = None
-    blockers_json: Optional[Any] = None
+    explanation: str | None = None
+    blockers_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -50,17 +50,17 @@ class UgcServiceActionOut(BaseModel):
 class ServiceConsultingActionOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    opportunity_id: Optional[uuid.UUID] = None
+    opportunity_id: uuid.UUID | None = None
     service_type: str
     service_tier: str
     target_buyer: str
     price_band: str
     expected_deal_value: float
-    execution_plan_json: Optional[Any] = None
+    execution_plan_json: Any | None = None
     status: str
     confidence: float
-    explanation: Optional[str] = None
-    blockers_json: Optional[Any] = None
+    explanation: str | None = None
+    blockers_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -69,17 +69,17 @@ class ServiceConsultingActionOut(BaseModel):
 class PremiumAccessActionOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    opportunity_id: Optional[uuid.UUID] = None
+    opportunity_id: uuid.UUID | None = None
     offer_type: str
     target_segment: str
-    entry_criteria: Optional[str] = None
+    entry_criteria: str | None = None
     revenue_model: str
     expected_value: float
-    execution_plan_json: Optional[Any] = None
+    execution_plan_json: Any | None = None
     status: str
     confidence: float
-    explanation: Optional[str] = None
-    blockers_json: Optional[Any] = None
+    explanation: str | None = None
+    blockers_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -102,14 +102,14 @@ class CreatorRevenueBlockerOut(BaseModel):
 class CreatorRevenueEventOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    opportunity_id: Optional[uuid.UUID] = None
+    opportunity_id: uuid.UUID | None = None
     avenue_type: str
     event_type: str
     revenue: float
     cost: float
     profit: float
-    client_name: Optional[str] = None
-    description: Optional[str] = None
+    client_name: str | None = None
+    description: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -118,18 +118,18 @@ class CreatorRevenueEventOut(BaseModel):
 class LicensingActionOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    opportunity_id: Optional[uuid.UUID] = None
+    opportunity_id: uuid.UUID | None = None
     asset_type: str
     licensing_tier: str
     target_buyer_type: str
     usage_scope: str
     price_band: str
     expected_deal_value: float
-    execution_plan_json: Optional[Any] = None
+    execution_plan_json: Any | None = None
     status: str
     confidence: float
-    explanation: Optional[str] = None
-    blockers_json: Optional[Any] = None
+    explanation: str | None = None
+    blockers_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -138,17 +138,17 @@ class LicensingActionOut(BaseModel):
 class SyndicationActionOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    opportunity_id: Optional[uuid.UUID] = None
+    opportunity_id: uuid.UUID | None = None
     syndication_format: str
     target_partner: str
     revenue_model: str
     price_band: str
     expected_value: float
-    execution_plan_json: Optional[Any] = None
+    execution_plan_json: Any | None = None
     status: str
     confidence: float
-    explanation: Optional[str] = None
-    blockers_json: Optional[Any] = None
+    explanation: str | None = None
+    blockers_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -157,17 +157,17 @@ class SyndicationActionOut(BaseModel):
 class DataProductActionOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    opportunity_id: Optional[uuid.UUID] = None
+    opportunity_id: uuid.UUID | None = None
     product_type: str
     target_segment: str
     revenue_model: str
     price_band: str
     expected_value: float
-    execution_plan_json: Optional[Any] = None
+    execution_plan_json: Any | None = None
     status: str
     confidence: float
-    explanation: Optional[str] = None
-    blockers_json: Optional[Any] = None
+    explanation: str | None = None
+    blockers_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -176,17 +176,17 @@ class DataProductActionOut(BaseModel):
 class MerchActionOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    opportunity_id: Optional[uuid.UUID] = None
+    opportunity_id: uuid.UUID | None = None
     product_class: str
     target_segment: str
     price_band: str
     expected_value: float
-    execution_plan_json: Optional[Any] = None
+    execution_plan_json: Any | None = None
     truth_label: str
     status: str
     confidence: float
-    explanation: Optional[str] = None
-    blockers_json: Optional[Any] = None
+    explanation: str | None = None
+    blockers_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -195,18 +195,18 @@ class MerchActionOut(BaseModel):
 class LiveEventActionOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    opportunity_id: Optional[uuid.UUID] = None
+    opportunity_id: uuid.UUID | None = None
     event_type: str
     audience_segment: str
     ticket_model: str
     price_band: str
     expected_value: float
-    execution_plan_json: Optional[Any] = None
+    execution_plan_json: Any | None = None
     truth_label: str
     status: str
     confidence: float
-    explanation: Optional[str] = None
-    blockers_json: Optional[Any] = None
+    explanation: str | None = None
+    blockers_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -215,18 +215,18 @@ class LiveEventActionOut(BaseModel):
 class OwnedAffiliateProgramActionOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
-    opportunity_id: Optional[uuid.UUID] = None
+    opportunity_id: uuid.UUID | None = None
     program_type: str
     target_partner_type: str
     incentive_model: str
     partner_tier: str
     expected_value: float
-    execution_plan_json: Optional[Any] = None
+    execution_plan_json: Any | None = None
     truth_label: str
     status: str
     confidence: float
-    explanation: Optional[str] = None
-    blockers_json: Optional[Any] = None
+    explanation: str | None = None
+    blockers_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -244,9 +244,9 @@ class AvenueExecutionTruthOut(BaseModel):
     avg_confidence: float
     blocker_count: int
     revenue_to_date: float
-    operator_next_action: Optional[str] = None
-    missing_integrations: Optional[Any] = None
-    details_json: Optional[Any] = None
+    operator_next_action: str | None = None
+    missing_integrations: Any | None = None
+    details_json: Any | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -264,7 +264,7 @@ class HubEntryOut(BaseModel):
     blocker_count: int
     revenue_to_date: float
     hub_score: float
-    operator_next_action: Optional[str] = None
+    operator_next_action: str | None = None
     missing_integrations: list[str] = []
     top_blockers: list[str] = []
 
@@ -279,10 +279,10 @@ class HubSummaryOut(BaseModel):
     avenues_executing: int
     avenues_queued: int
     avenues_recommended: int
-    event_rollup: Optional[Any] = None
+    event_rollup: Any | None = None
 
 
 class RecomputeSummaryOut(BaseModel):
     created: int = 0
     updated: int = 0
-    details: Optional[str] = None
+    details: str | None = None

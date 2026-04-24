@@ -24,7 +24,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.db.base import Base
 
-
 QA_RESULTS = ["passed", "failed", "needs_review"]
 DELIVERY_STATUSES = ["pending", "sent", "failed", "acknowledged"]
 

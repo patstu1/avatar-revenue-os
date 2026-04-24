@@ -16,10 +16,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter
-from sqlalchemy import func, select, text
+from sqlalchemy import text
 
-from apps.api.deps import DBSession
 from apps.api.config import get_settings
+from apps.api.deps import DBSession
 
 router = APIRouter(prefix="/ops", tags=["operations"])
 

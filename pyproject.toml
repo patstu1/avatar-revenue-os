@@ -53,4 +53,15 @@ target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
-ignore = ["E501"]
+ignore = [
+    "E501",   # line too long — handled by formatter
+    "E402",   # module level import not at top — needed for conditional imports
+    "E701",   # multiple statements on one line (colon) — stub router pattern
+    "E702",   # multiple statements on one line (semicolon) — stub router pattern
+    "E741",   # ambiguous variable name
+    "N806",   # variable in function should be lowercase
+    "N814",   # camelcase imported as constant
+    "N817",   # camelcase imported as acronym
+    "N818",   # exception should be named with Error suffix
+    "N802",   # function name should be lowercase
+]

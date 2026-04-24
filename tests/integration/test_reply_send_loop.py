@@ -139,7 +139,7 @@ async def _org_id_from_auth(api_client, headers, db_session) -> uuid.UUID:
     if me.status_code == 200 and me.json().get("organization_id"):
         return uuid.UUID(me.json()["organization_id"])
     # Fall back to DB lookup by email
-    email = headers.get("Authorization", "")
+    headers.get("Authorization", "")
     # Can't pull email from token — use a direct query for the most recent user
     user = (
         await db_session.execute(select(User).order_by(User.created_at.desc()).limit(1))

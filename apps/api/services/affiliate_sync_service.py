@@ -1,14 +1,19 @@
 """Affiliate Network Sync Service — import conversions/commissions from network APIs."""
 from __future__ import annotations
+
 import uuid
-from typing import Any
 from datetime import datetime, timedelta, timezone
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from packages.clients.affiliate_network_clients import CJClient, ImpactClient, ShareASaleClient
 from packages.db.models.affiliate_intel import (
-    AffiliateNetworkAccount, AffiliateConversionEvent, AffiliateCommissionEvent, AffiliateLink,
+    AffiliateConversionEvent,
+    AffiliateLink,
+    AffiliateNetworkAccount,
 )
-from packages.clients.affiliate_network_clients import ImpactClient, ShareASaleClient, CJClient
 
 
 async def sync_network_data(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:

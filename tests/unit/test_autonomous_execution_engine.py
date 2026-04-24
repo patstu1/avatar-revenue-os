@@ -1,8 +1,6 @@
 """Unit tests: autonomous execution gate engine."""
 from __future__ import annotations
 
-import pytest
-
 from packages.scoring.autonomous_execution_engine import evaluate_execution_gate
 
 

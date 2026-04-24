@@ -30,29 +30,19 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from apps.api.services.avatar_followup import (
+    _FORBIDDEN_SCRIPT_PATTERNS,
     AvatarAssetState,
-    AvatarDeliveryEmail,
-    AvatarEligibility,
     AvatarFollowupRecord,
-    AvatarProviderAdapter,
-    AvatarQualitySpec,
-    AvatarScript,
-    AvatarSendDecision,
     AvatarTrigger,
     FakeAvatarProvider,
-    build_avatar_delivery_email,
     build_avatar_script,
-    can_transition,
     decide_avatar_eligibility,
     decide_avatar_send_mode,
     default_premium_spec,
     generate_avatar_followup,
     score_avatar_quality_spec,
-    _FORBIDDEN_SCRIPT_PATTERNS,
 )
-from apps.api.services.package_recommender import recommend_package
 from apps.api.services.reply_policy import ReplyPolicySettings
-
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 

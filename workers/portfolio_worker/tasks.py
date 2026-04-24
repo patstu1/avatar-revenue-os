@@ -1,18 +1,20 @@
 """Portfolio worker tasks — rebalancing, scale decisions, capital allocation."""
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.portfolio_worker.tasks.rebalance_portfolios")
 def rebalance_portfolios(self) -> dict:
     """Rebalance portfolio allocations using pattern memory cluster weights."""
     import logging
-    from sqlalchemy.orm import Session
+
     from sqlalchemy import func, select
-    from packages.db.session import get_sync_engine
-    from packages.db.models.portfolio import PortfolioAllocation
-    from packages.db.models.pattern_memory import WinningPatternCluster
+    from sqlalchemy.orm import Session
+
     from packages.db.models.core import Brand
+    from packages.db.models.pattern_memory import WinningPatternCluster
+    from packages.db.models.portfolio import PortfolioAllocation
+    from packages.db.session import get_sync_engine
     from packages.scoring.pattern_memory_engine import compute_pattern_allocation_weights
 
     logger = logging.getLogger(__name__)
@@ -41,18 +43,21 @@ def rebalance_portfolios(self) -> dict:
 def evaluate_scale(self, brand_id: str) -> dict:
     """Evaluate scale decisions: new account launch vs pushing existing winners."""
     import uuid as _uuid
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import select
     from sqlalchemy.orm import Session
-    from sqlalchemy import select, func
-    from packages.db.session import get_sync_engine
+
     from packages.db.models.accounts import CreatorAccount
-    from packages.db.models.publishing import PerformanceMetric
-    from packages.db.models.offers import Offer
     from packages.db.models.core import Brand
-    from packages.scoring.scale import (
-        AccountScaleSnapshot, run_scale_engine, compute_offer_performance_score,
-    )
+    from packages.db.models.offers import Offer
+    from packages.db.models.publishing import PerformanceMetric
+    from packages.db.session import get_sync_engine
     from packages.scoring.saturation import SaturationInput, compute_saturation
-    from datetime import datetime, timezone, timedelta
+    from packages.scoring.scale import (
+        AccountScaleSnapshot,
+        run_scale_engine,
+    )
 
     engine = get_sync_engine()
     bid = _uuid.UUID(brand_id)
@@ -87,7 +92,7 @@ def evaluate_scale(self, brand_id: str) -> dict:
             ).scalars().all()
 
             impressions = sum(m.impressions or 0 for m in metrics)
-            views = sum(m.views or 0 for m in metrics)
+            sum(m.views or 0 for m in metrics)
             clicks = sum(m.clicks or 0 for m in metrics)
             revenue = sum(m.revenue or 0.0 for m in metrics)
             avg_eng = sum(m.engagement_rate or 0.0 for m in metrics) / max(len(metrics), 1)

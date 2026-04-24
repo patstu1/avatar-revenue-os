@@ -1,7 +1,9 @@
 """System Command Center API."""
 import uuid
+
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession
 from apps.api.services.command_center_service import get_command_center_data
 from packages.db.models.core import Brand
@@ -18,5 +20,5 @@ async def command_center(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
         return await get_command_center_data(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")

@@ -28,7 +28,7 @@ from packages.db.models.clients import (
     IntakeRequest,
     IntakeSubmission,
 )
-from packages.db.models.proposals import Payment, Proposal
+from packages.db.models.proposals import Payment
 from packages.db.models.system_events import SystemEvent
 
 

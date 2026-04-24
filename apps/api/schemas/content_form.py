@@ -1,7 +1,7 @@
 """Content Form Selection schemas."""
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -13,7 +13,7 @@ class ContentFormRecommendationOut(BaseModel):
     id: UUID
     platform: str
     recommended_content_form: str
-    secondary_content_form: Optional[str] = None
+    secondary_content_form: str | None = None
     format_family: str
     short_or_long: str
     avatar_mode: str
@@ -25,7 +25,7 @@ class ContentFormRecommendationOut(BaseModel):
     urgency: float
     explanation: str
     truth_label: str
-    blockers: Optional[list[Any]] = None
+    blockers: list[Any] | None = None
 
 
 class ContentFormMixReportOut(BaseModel):
@@ -37,7 +37,7 @@ class ContentFormMixReportOut(BaseModel):
     mix_allocation: dict[str, Any]
     total_expected_upside: float
     avg_confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class ContentFormBlockerOut(BaseModel):

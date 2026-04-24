@@ -3,7 +3,8 @@
 Pure functions. No I/O.
 """
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 ACCOUNT_STATES = [
     "newborn", "warming", "early_signal", "scaling", "monetizing",
@@ -119,7 +120,7 @@ def detect_transition(
     previous_state: str,
     current_state: str,
     inputs: dict[str, Any],
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Detect if a meaningful state transition occurred."""
     if previous_state == current_state:
         return None

@@ -1,10 +1,19 @@
 """Trend / Viral Opportunity API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.trend_viral import TVSignalOut, TVVelocityOut, TVOpportunityOut, TVBlockerOut, TVSourceHealthOut, RecomputeSummaryOut
+from apps.api.schemas.trend_viral import (
+    RecomputeSummaryOut,
+    TVBlockerOut,
+    TVOpportunityOut,
+    TVSignalOut,
+    TVSourceHealthOut,
+    TVVelocityOut,
+)
 from apps.api.services import trend_viral_service as svc
 from packages.db.models.core import Brand
 
@@ -29,7 +38,7 @@ async def opportunities(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSe
 @router.post("/{brand_id}/viral-opportunities/recompute", response_model=RecomputeSummaryOut)
 async def recompute(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
     await _rb(brand_id, current_user, db)
-    r1 = await svc.light_scan(db, brand_id)
+    await svc.light_scan(db, brand_id)
     r2 = await svc.deep_analysis(db, brand_id)
     await db.commit()
     return RecomputeSummaryOut(rows_processed=r2.get("opportunities_created", 0), status="completed")

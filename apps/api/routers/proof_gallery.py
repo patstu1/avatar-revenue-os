@@ -3,18 +3,16 @@
 Returns proof videos, offer packages, and cluster capabilities.
 No auth required — this is what you send to prospects.
 """
-import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
-from sqlalchemy import select, desc
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter
+from pydantic import BaseModel
+from sqlalchemy import desc, select
 
 from apps.api.deps import DBSession
 from packages.db.models.content import Asset, ContentItem
-from packages.db.models.offers import Offer
 from packages.db.models.core import Brand
+from packages.db.models.offers import Offer
 
 router = APIRouter(tags=["proof-gallery"])
 

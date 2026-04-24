@@ -16,13 +16,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
-    Boolean, DateTime, ForeignKey, Integer, String, Text,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.db.base import Base
@@ -45,19 +49,19 @@ class Invoice(Base):
         UUID(as_uuid=True), ForeignKey("organizations.id"),
         nullable=False, index=True,
     )
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    brand_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True,
     )
-    proposal_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    proposal_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("proposals.id"),
         nullable=True, index=True,
     )
-    client_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    client_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("clients.id"),
         nullable=True, index=True,
     )
 
-    avenue_slug: Mapped[Optional[str]] = mapped_column(
+    avenue_slug: Mapped[str | None] = mapped_column(
         String(60), nullable=True, index=True,
     )
     invoice_number: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -71,34 +75,34 @@ class Invoice(Base):
         String(30), default="draft", nullable=False, index=True,
     )
 
-    due_date: Mapped[Optional[datetime]] = mapped_column(
+    due_date: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True,
     )
-    sent_at: Mapped[Optional[datetime]] = mapped_column(
+    sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
-    paid_at: Mapped[Optional[datetime]] = mapped_column(
+    paid_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
 
-    payment_method: Mapped[Optional[str]] = mapped_column(
+    payment_method: Mapped[str | None] = mapped_column(
         String(30), nullable=True,
     )
-    payment_reference: Mapped[Optional[str]] = mapped_column(
+    payment_reference: Mapped[str | None] = mapped_column(
         String(255), nullable=True,
     )
 
-    recipient_email: Mapped[Optional[str]] = mapped_column(
+    recipient_email: Mapped[str | None] = mapped_column(
         String(255), nullable=True,
     )
-    recipient_name: Mapped[Optional[str]] = mapped_column(
+    recipient_name: Mapped[str | None] = mapped_column(
         String(255), nullable=True,
     )
-    recipient_company: Mapped[Optional[str]] = mapped_column(
+    recipient_company: Mapped[str | None] = mapped_column(
         String(255), nullable=True,
     )
 
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False,
@@ -144,17 +148,17 @@ class InvoiceMilestone(Base):
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
-    due_date: Mapped[Optional[datetime]] = mapped_column(
+    due_date: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
     # status: pending / paid / void
     status: Mapped[str] = mapped_column(
         String(30), default="pending", nullable=False, index=True,
     )
-    paid_at: Mapped[Optional[datetime]] = mapped_column(
+    paid_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
-    payment_reference: Mapped[Optional[str]] = mapped_column(
+    payment_reference: Mapped[str | None] = mapped_column(
         String(255), nullable=True,
     )
 

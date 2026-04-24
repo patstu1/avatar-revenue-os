@@ -1,6 +1,7 @@
 """Offer Lab Engine — generate, score, rank, test, learn, revise. Pure functions."""
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 OFFER_TYPES = ["affiliate", "lead_gen", "product", "service", "subscription", "premium_access", "consulting", "course", "download", "event"]
 VARIANT_TYPES = ["budget", "premium", "convenience", "authority", "comparison", "problem_relief", "identity", "recurring_value"]

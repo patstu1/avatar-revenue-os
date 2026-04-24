@@ -14,16 +14,19 @@ Run: python scripts/monetization_proof.py
 Requires: PostgreSQL (docker compose up -d postgres)
 """
 from __future__ import annotations
-import asyncio, os, sys, uuid
-from datetime import datetime, timezone
+
+import asyncio
+import os
+import sys
+import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 os.environ.setdefault("DATABASE_URL_SYNC", "postgresql://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 
-from sqlalchemy import select, func, text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from packages.db.base import Base
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 import packages.db.models  # noqa
 
 P = F = 0
@@ -48,20 +51,26 @@ async def main():
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with factory() as db:
-        from packages.db.models.core import Organization, User, Brand
-        from packages.db.models.content import ContentItem
-        from packages.db.models.offers import Offer, SponsorProfile, SponsorOpportunity
-        from packages.db.models.affiliate_intel import AffiliateOffer, AffiliateLink, AffiliateClickEvent, AffiliateConversionEvent, AffiliateCommissionEvent
-        from packages.db.models.revenue_ledger import RevenueLedgerEntry
-        from packages.db.enums import ContentType, MonetizationMethod
         from apps.api.services import monetization_bridge as mon
+        from packages.db.enums import ContentType, MonetizationMethod
+        from packages.db.models.affiliate_intel import (
+            AffiliateClickEvent,
+            AffiliateCommissionEvent,
+            AffiliateConversionEvent,
+            AffiliateLink,
+            AffiliateOffer,
+        )
+        from packages.db.models.content import ContentItem
+        from packages.db.models.core import Brand, Organization, User
+        from packages.db.models.offers import Offer, SponsorOpportunity, SponsorProfile
+        from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
         # Setup
         org = Organization(name=f"monp_{uuid.uuid4().hex[:6]}", slug=f"monp-{uuid.uuid4().hex[:6]}")
         db.add(org); await db.flush()
         user = User(organization_id=org.id, email=f"mp_{uuid.uuid4().hex[:4]}@t.co", hashed_password="x", full_name="MP", role="admin")
         db.add(user); await db.flush()
-        brand = Brand(organization_id=org.id, name=f"MP Brand", slug=f"mp-{uuid.uuid4().hex[:6]}", niche="proof")
+        brand = Brand(organization_id=org.id, name="MP Brand", slug=f"mp-{uuid.uuid4().hex[:6]}", niche="proof")
         db.add(brand); await db.flush()
         print(f"  Brand: {brand.id}\n")
 
@@ -169,7 +178,7 @@ async def main():
         # Idempotency: duplicate webhook_ref should fail (unique constraint)
         idempotency_works = False
         try:
-            dup = await mon.record_service_payment_to_ledger(
+            await mon.record_service_payment_to_ledger(
                 db, brand_id=brand.id, gross_amount=1500.00,
                 webhook_ref=svc_ledger.webhook_ref,
             )
@@ -183,12 +192,12 @@ async def main():
 
     # Continue in fresh session
     async with factory() as db:
-        from packages.db.models.core import Brand
+        from apps.api.services import monetization_bridge as mon
+        from packages.db.enums import ContentType
         from packages.db.models.content import ContentItem
+        from packages.db.models.core import Brand
         from packages.db.models.offers import Offer
         from packages.db.models.revenue_ledger import RevenueLedgerEntry
-        from packages.db.enums import ContentType
-        from apps.api.services import monetization_bridge as mon
 
         # Re-create test entities for D/E/F (previous ones were rolled back)
         org2 = Organization(name=f"monp2_{uuid.uuid4().hex[:6]}", slug=f"monp2-{uuid.uuid4().hex[:6]}")
@@ -312,13 +321,13 @@ async def main():
         verdict = "MONETIZATION NEEDS WORK"
 
     print(f"\n  VERDICT: {verdict}")
-    print(f"\n  Flows proven:")
-    print(f"    A. Affiliate: offer → link → click → conversion → commission → ledger ✓")
-    print(f"    B. Sponsor: deal → milestone → payment → ledger ✓")
-    print(f"    C. Service: payment (Stripe) → ledger with fees + idempotency ✓")
-    print(f"    D. Product: sale → refund → net = $0 ✓")
-    print(f"    E. Attribution: unattributed → action → manual link ✓")
-    print(f"    F. Dashboard: ledger → revenue_by_source → control layer ✓")
+    print("\n  Flows proven:")
+    print("    A. Affiliate: offer → link → click → conversion → commission → ledger ✓")
+    print("    B. Sponsor: deal → milestone → payment → ledger ✓")
+    print("    C. Service: payment (Stripe) → ledger with fees + idempotency ✓")
+    print("    D. Product: sale → refund → net = $0 ✓")
+    print("    E. Attribution: unattributed → action → manual link ✓")
+    print("    F. Dashboard: ledger → revenue_by_source → control layer ✓")
 
     return F == 0
 

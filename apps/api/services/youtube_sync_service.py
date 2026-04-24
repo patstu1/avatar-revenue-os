@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """YouTube Analytics sync service — pulls channel stats via YouTube Data API v3."""
 import logging
 from datetime import datetime, timezone
@@ -8,9 +9,9 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from packages.db.enums import Platform
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.publishing import PerformanceMetric
-from packages.db.enums import Platform
 
 logger = logging.getLogger(__name__)
 

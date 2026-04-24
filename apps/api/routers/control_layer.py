@@ -6,7 +6,7 @@ that surfaces real system state, pending actions, and recent events.
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 
 from apps.api.deps import CurrentUser, DBSession
 from apps.api.schemas.control_layer import (
@@ -21,7 +21,7 @@ from apps.api.schemas.control_layer import (
 )
 from apps.api.services import control_layer_service as ctrl_svc
 from apps.api.services.event_bus import complete_action, dismiss_action, emit_event
-from packages.db.models.system_events import OperatorAction, SystemEvent
+from packages.db.models.system_events import OperatorAction
 
 router = APIRouter()
 

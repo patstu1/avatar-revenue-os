@@ -1,6 +1,6 @@
 """Audit Alembic migration chain — find roots, tips, duplicates, and trace chains."""
-import re
 import os
+import re
 
 VERSIONS_DIR = os.path.join(os.path.dirname(__file__), "..", "packages", "db", "alembic", "versions")
 
@@ -50,6 +50,7 @@ for t in sorted(tips):
 
 # Duplicates
 from collections import Counter
+
 rev_ids = [r for r in revs]
 dupes = [r for r, c in Counter(rev_ids).items() if c > 1]
 if dupes:

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import pytest
-import pytest_asyncio
 
 from tests.conftest import create_brand_with_offer, register_and_login
 

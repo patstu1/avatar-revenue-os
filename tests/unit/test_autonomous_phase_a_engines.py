@@ -3,25 +3,22 @@ from __future__ import annotations
 
 import pytest
 
-from packages.scoring.signal_scanning_engine import (
-    SIGNAL_TYPES,
-    SIGNAL_SOURCES,
-    normalize_signal,
-    classify_signal_type,
-    score_signal_batch,
-    build_auto_queue_items,
-)
 from packages.scoring.account_warmup_engine import (
     MATURITY_STATES,
-    WARMUP_PHASES,
     RAMP_EVENT_TYPES,
-    compute_warmup_plan,
     compute_account_output,
     compute_maturity_state,
     compute_output_ramp_event,
+    compute_warmup_plan,
     seed_platform_warmup_policies,
 )
-
+from packages.scoring.signal_scanning_engine import (
+    SIGNAL_TYPES,
+    build_auto_queue_items,
+    classify_signal_type,
+    normalize_signal,
+    score_signal_batch,
+)
 
 # ---------------------------------------------------------------------------
 # Signal Scanning Engine

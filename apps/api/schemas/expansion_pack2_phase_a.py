@@ -1,8 +1,6 @@
 """Pydantic schemas for Expansion Pack 2 Phase A."""
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 
@@ -10,7 +8,7 @@ class LeadOpportunityOut(BaseModel):
     id: str
     brand_id: str
     lead_source: str
-    message_text: Optional[str] = None
+    message_text: str | None = None
     urgency_score: float
     budget_proxy_score: float
     sophistication_score: float
@@ -23,20 +21,20 @@ class LeadOpportunityOut(BaseModel):
     likelihood_to_close: float
     channel_preference: str
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class CloserActionOut(BaseModel):
     id: str
     brand_id: str
-    lead_opportunity_id: Optional[str] = None
+    lead_opportunity_id: str | None = None
     action_type: str
     priority: int
     channel: str
     subject_or_opener: str
     timing: str
-    rationale: Optional[str] = None
-    expected_outcome: Optional[str] = None
+    rationale: str | None = None
+    expected_outcome: str | None = None
     is_completed: bool
 
 
@@ -51,9 +49,9 @@ class LeadQualificationReportOut(BaseModel):
     avg_expected_value: float
     top_channel: str
     top_recommended_action: str
-    signal_summary: Optional[dict] = None
+    signal_summary: dict | None = None
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class OwnedOfferRecommendationOut(BaseModel):
@@ -61,14 +59,14 @@ class OwnedOfferRecommendationOut(BaseModel):
     brand_id: str
     opportunity_key: str
     signal_type: str
-    detected_signal: Optional[str] = None
+    detected_signal: str | None = None
     recommended_offer_type: str
     offer_name_suggestion: str
     price_point_min: float
     price_point_max: float
     estimated_demand_score: float
     estimated_first_month_revenue: float
-    audience_fit: Optional[str] = None
+    audience_fit: str | None = None
     confidence: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
     build_priority: str

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -13,15 +12,15 @@ class CapacityReportOut(BaseModel):
     capacity_type: str
     current_capacity: float
     used_capacity: float
-    constrained_scope_json: Optional[dict] = None
+    constrained_scope_json: dict | None = None
     recommended_volume: float
-    recommended_throttle: Optional[float] = None
+    recommended_throttle: float | None = None
     expected_profit_impact: float
     confidence_score: float
-    explanation_json: Optional[dict] = None
+    explanation_json: dict | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class QueueAllocationDecisionOut(BaseModel):
@@ -31,6 +30,6 @@ class QueueAllocationDecisionOut(BaseModel):
     priority_score: float
     allocated_capacity: float
     deferred_capacity: float
-    reason_json: Optional[dict] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    reason_json: dict | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None

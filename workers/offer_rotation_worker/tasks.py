@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import logging
-import uuid
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +16,14 @@ CVR_DECLINE_PCT = 0.30
 @app.task(base=TrackedTask, bind=True, name="workers.offer_rotation_worker.tasks.rotate_offers")
 def rotate_offers(self) -> dict:
     """Detect fatigued offers and auto-swap to the best available alternative."""
+    from sqlalchemy import func, select
     from sqlalchemy.orm import Session
-    from sqlalchemy import select, func
-    from packages.db.session import get_sync_engine
+
+    from packages.db.enums import MonetizationMethod
+    from packages.db.models.content import ContentBrief
     from packages.db.models.core import Brand
     from packages.db.models.offers import Offer
-    from packages.db.models.content import ContentBrief
-    from packages.db.enums import MonetizationMethod
+    from packages.db.session import get_sync_engine
     from packages.scoring.affiliate_link_engine import get_all_products_for_niche
 
     engine = get_sync_engine()

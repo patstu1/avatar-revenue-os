@@ -50,7 +50,7 @@ def get_calibration_context(
 
     portfolio_max_followers = max(follower_counts) if follower_counts else 1
     portfolio_avg_followers = statistics.mean(follower_counts) if follower_counts else 1
-    portfolio_median_followers = statistics.median(follower_counts) if follower_counts else 1
+    statistics.median(follower_counts) if follower_counts else 1
     portfolio_total_followers = sum(follower_counts)
 
     # Dynamic follower normalization: the machine's reference is its own scale
@@ -59,7 +59,7 @@ def get_calibration_context(
     # ── Revenue calibration ──
     total_revenue = sum(revenue_by_source.values())
     max_source_revenue = max(revenue_by_source.values()) if revenue_by_source else 0
-    avg_source_revenue = total_revenue / max(len(revenue_by_source), 1)
+    total_revenue / max(len(revenue_by_source), 1)
 
     # Dynamic revenue normalization: replaces /1000, /5000, /10000
     revenue_norm = max(total_revenue, 1)

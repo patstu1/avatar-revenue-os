@@ -41,8 +41,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Optional
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Signal detection patterns
@@ -51,7 +49,8 @@ from typing import Optional
 # Each tuple: (signal_label, compiled_pattern). Matched against the
 # lowercased concatenation of subject + body + thread_context.
 
-_PAT = lambda p: re.compile(p, re.IGNORECASE)
+def _PAT(p):
+    return re.compile(p, re.IGNORECASE)
 
 # ── Strategy / audit / funnel-weakness signals ──────────────────────────────
 STRATEGY_SIGNALS: list[tuple[str, re.Pattern]] = [
@@ -170,7 +169,7 @@ def _is_professional_domain(from_email: str) -> bool:
 
 
 def _match_signals(
-    patterns: list[tuple[str, Optional[re.Pattern]]],
+    patterns: list[tuple[str, re.Pattern | None]],
     text: str,
 ) -> list[str]:
     """Return the labels of every pattern that matches."""

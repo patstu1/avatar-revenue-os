@@ -8,9 +8,8 @@ This module checks if an equivalent action already exists before creating a new 
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.models.system_events import OperatorAction
@@ -21,9 +20,9 @@ async def action_exists(
     org_id: uuid.UUID,
     action_type: str,
     *,
-    entity_type: Optional[str] = None,
-    entity_id: Optional[uuid.UUID] = None,
-    brand_id: Optional[uuid.UUID] = None,
+    entity_type: str | None = None,
+    entity_id: uuid.UUID | None = None,
+    brand_id: uuid.UUID | None = None,
 ) -> bool:
     """Check if an equivalent pending action already exists.
 

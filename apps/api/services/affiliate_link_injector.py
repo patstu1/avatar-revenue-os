@@ -30,13 +30,12 @@ Usage:
 """
 from __future__ import annotations
 
+import logging
 import re
 import uuid
-import logging
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -212,10 +211,10 @@ async def inject_affiliate_links(
     affiliate_placements: list[dict[str, Any]],
     *,
     platform: str = "",
-    brand_id: Optional[uuid.UUID] = None,
-    org_id: Optional[uuid.UUID] = None,
-    content_item_id: Optional[uuid.UUID] = None,
-    db: Optional[AsyncSession] = None,
+    brand_id: uuid.UUID | None = None,
+    org_id: uuid.UUID | None = None,
+    content_item_id: uuid.UUID | None = None,
+    db: AsyncSession | None = None,
     add_disclosure: bool = True,
     shorten_links: bool = True,
 ) -> dict[str, Any]:
@@ -381,7 +380,7 @@ async def inject_affiliate_links(
 async def pregenerate_tracking_links(
     placements: list[dict[str, Any]],
     *,
-    brand_id: Optional[uuid.UUID] = None,
+    brand_id: uuid.UUID | None = None,
 ) -> list[dict[str, Any]]:
     """Pre-generate tracked links via async API calls for placements that support it.
 

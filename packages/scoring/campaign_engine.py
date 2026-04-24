@@ -1,6 +1,7 @@
 """Campaign Constructor Engine — build, variant, detect blockers. Pure functions."""
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 CAMPAIGN_TYPES = ["affiliate", "lead_gen", "product_conversion", "creator_revenue", "sponsor", "newsletter_growth", "authority_building", "experiment"]
 
@@ -9,7 +10,7 @@ def construct_campaign(
     offer: dict[str, Any],
     brand: dict[str, Any],
     accounts: list[dict[str, Any]],
-    landing_page_id: Optional[str] = None,
+    landing_page_id: str | None = None,
     campaign_type: str = "affiliate",
 ) -> dict[str, Any]:
     name = offer.get("name", "Campaign")

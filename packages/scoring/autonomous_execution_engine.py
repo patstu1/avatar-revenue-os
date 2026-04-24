@@ -1,7 +1,7 @@
 """Deterministic gate evaluation for autonomous execution (no ML)."""
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 # Canonical 14-step loop keys (control plane references these; step workers use same names).
 AUTONOMOUS_LOOP_STEPS: tuple[str, ...] = (
@@ -32,11 +32,11 @@ def evaluate_execution_gate(
     kill_switch_engaged: bool,
     loop_step: str,
     confidence: float,
-    estimated_cost_usd: Optional[float],
+    estimated_cost_usd: float | None,
     min_confidence_auto_execute: float,
     min_confidence_publish: float,
-    max_auto_cost_usd_per_action: Optional[float],
-    require_approval_above_cost_usd: Optional[float],
+    max_auto_cost_usd_per_action: float | None,
+    require_approval_above_cost_usd: float | None,
 ) -> dict[str, Any]:
     """
     Returns a decision dict:

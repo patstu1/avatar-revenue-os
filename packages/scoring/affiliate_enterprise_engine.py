@@ -1,7 +1,8 @@
 """Enterprise Affiliate Engine — governance, merchant/network ranking, owned program. Pure functions."""
 from __future__ import annotations
-from typing import Any, Optional
+
 from collections import defaultdict
+from typing import Any
 
 GOVERNANCE_RULE_TYPES = ["required_disclosure", "banned_merchant", "banned_category", "max_commission_rate", "approval_required", "platform_disclosure"]
 

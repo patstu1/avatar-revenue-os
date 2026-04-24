@@ -9,13 +9,13 @@ import asyncio
 import logging
 
 from celery import shared_task
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
-from packages.db.session import get_async_session_factory
-from packages.db.models.core import Brand
-from packages.db.models.content import ContentItem
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.buffer_distribution import BufferProfile, BufferPublishJob
+from packages.db.models.content import ContentItem
+from packages.db.models.core import Brand
+from packages.db.session import get_async_session_factory
 from packages.scoring.buffer_engine import build_publish_payload, determine_publish_mode
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 async def _auto_publish_for_brand(brand_id):
     """Publish approved content via the multi-distributor router with failover."""
-    from packages.clients.distributor_router import any_distributor_configured, publish_with_failover, PublishRequest
+    from packages.clients.distributor_router import PublishRequest, any_distributor_configured, publish_with_failover
 
     async with get_async_session_factory()() as db:
         # Load aggregator credentials from encrypted DB
@@ -32,8 +32,8 @@ async def _auto_publish_for_brand(brand_id):
         org_id = brand.organization_id if brand else None
         if org_id:
             try:
-                from apps.api.services.integration_manager import get_credential
                 from apps.api.services import secrets_service
+                from apps.api.services.integration_manager import get_credential
                 for prov_key in ("buffer", "publer", "ayrshare"):
                     # Check integration_providers first, then provider_secrets
                     key = await get_credential(db, org_id, prov_key)
@@ -48,7 +48,7 @@ async def _auto_publish_for_brand(brand_id):
             return {"brand_id": str(brand_id), "skipped": True, "reason": "No publishing service configured - add API keys in Settings > Integrations"}
 
         try:
-            from apps.api.services.permission_enforcement import enforce_permission, PermissionDenied
+            from apps.api.services.permission_enforcement import PermissionDenied, enforce_permission
             if org_id:
                 await enforce_permission(db, org_id, "auto_publish")
         except PermissionDenied as e:
@@ -135,8 +135,9 @@ async def _auto_publish_for_brand(brand_id):
                     continue
 
                 try:
-                    from packages.scoring.warmup_engine import can_post_now
                     from datetime import datetime, timezone
+
+                    from packages.scoring.warmup_engine import can_post_now
                     created_at = acct.created_at if acct.created_at else datetime.now(timezone.utc)
                     posts_today_count = (await db.execute(
                         select(func.count(BufferPublishJob.id)).where(
@@ -174,7 +175,7 @@ async def _auto_publish_for_brand(brand_id):
 
             if not offer_link:
                 try:
-                    from packages.scoring.affiliate_link_engine import select_best_product, generate_tracking_id
+                    from packages.scoring.affiliate_link_engine import generate_tracking_id, select_best_product
                     acct = accounts.get(str(ci.creator_account_id)) if ci.creator_account_id else None
                     niche = acct.niche_focus if acct and acct.niche_focus else "general"
                     tid = generate_tracking_id(str(ci.id), str(ci.creator_account_id or ""), platform)

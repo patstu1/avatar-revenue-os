@@ -19,7 +19,6 @@ from packages.db.models.autonomous_phase_d import (
     OverridePolicy,
     RevenuePressureReport,
 )
-from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
 from packages.scoring.autonomous_phase_d_engine import (
     compute_override_policies,

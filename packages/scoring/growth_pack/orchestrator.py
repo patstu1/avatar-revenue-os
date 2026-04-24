@@ -1,10 +1,10 @@
 """Orchestrates deterministic growth pack outputs from shared context."""
 from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 from packages.scoring.growth_pack.platform_os import normalize_platform, platform_spec
-from packages.scoring.growth_commander import compute_portfolio_directive
 from packages.scoring.scale import niche_jaccard
 
 
@@ -153,7 +153,7 @@ def build_platform_allocation_rows(
     brand_niche: str,
 ) -> list[dict[str, Any]]:
     rec_n = int(scale_rec.get("recommended_account_count") or 1)
-    total = max(1, sum(accounts_by_platform.values()))
+    max(1, sum(accounts_by_platform.values()))
     rows: list[dict[str, Any]] = []
     for plat, spec in [("tiktok", None), ("instagram", None), ("youtube", None), ("twitter", None), ("reddit", None), ("linkedin", None), ("facebook", None)]:
         cur = accounts_by_platform.get(plat, 0)
@@ -222,7 +222,7 @@ def build_growth_blockers(
     leak_count: int,
     blocker_dicts: list[dict],
     funnel_weak: bool,
-    extra_rows: Optional[list[dict[str, Any]]] = None,
+    extra_rows: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     if leak_count > 3:

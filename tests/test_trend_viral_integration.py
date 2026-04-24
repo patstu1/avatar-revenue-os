@@ -1,17 +1,25 @@
 """DB-backed integration tests for Trend / Viral Opportunity Engine."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.core import Brand, Organization
+
+from apps.api.services.trend_viral_service import (
+    deep_analysis,
+    get_top_opportunities,
+    light_scan,
+    list_opportunities,
+    list_signals,
+)
+from packages.db.enums import Platform, SignalStrength
 from packages.db.models.accounts import CreatorAccount
+from packages.db.models.core import Brand, Organization
 from packages.db.models.discovery import TrendSignal as DiscoveryTrend
-from packages.db.enums import SignalStrength
-from packages.db.models.trend_viral import TrendSignalEvent, TrendVelocityReport, ViralOpportunity, TrendSourceHealth
-from packages.db.enums import Platform
-from apps.api.services.trend_viral_service import light_scan, deep_analysis, list_signals, list_opportunities, list_source_health, get_top_opportunities
+from packages.db.models.trend_viral import TrendSourceHealth, TrendVelocityReport, ViralOpportunity
 
 
 @pytest_asyncio.fixture
@@ -123,7 +131,7 @@ async def test_dedup_prevents_duplicates(db_session, brand_with_trends):
 
 
 def test_trend_workers_registered():
-    from workers.celery_app import app
     import workers.trend_viral_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.trend_viral_worker.tasks.trend_light_scan" in app.tasks
     assert "workers.trend_viral_worker.tasks.trend_deep_analysis" in app.tasks

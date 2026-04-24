@@ -8,8 +8,8 @@ from sqlalchemy import select
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.scale import PortfolioAllocationResponse, ScaleRecommendationResponse
-from apps.api.services.audit_service import log_action
 from apps.api.services import scale_service as ss
+from apps.api.services.audit_service import log_action
 from packages.db.models.core import Brand
 
 router = APIRouter()

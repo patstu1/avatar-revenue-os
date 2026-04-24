@@ -8,7 +8,6 @@ Checks:
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
@@ -18,10 +17,10 @@ from celery import shared_task
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
+from packages.db.models.integration_registry import IntegrationProvider
 from packages.db.models.media_jobs import MediaJob
 from packages.db.models.system import SystemJob
 from packages.db.models.system_events import SystemEvent
-from packages.db.models.integration_registry import IntegrationProvider
 from packages.db.session import get_sync_engine
 from workers.base_task import TrackedTask
 

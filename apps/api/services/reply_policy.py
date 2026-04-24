@@ -27,8 +27,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass, field
-from typing import Optional
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Settings
@@ -215,7 +213,7 @@ _AUTOMATION_SUBJECT_PATTERNS = [
 ]
 
 
-def _is_automation_sender(from_email: str, subject: str) -> tuple[bool, Optional[str]]:
+def _is_automation_sender(from_email: str, subject: str) -> tuple[bool, str | None]:
     """Check if sender looks like a bot/bounce/OOO — returns (is_auto, reason)."""
     if not from_email:
         return True, "empty_from_email"
@@ -262,22 +260,22 @@ class DecisionTrace:
     mode_source: str = ""              # which rule produced final_mode
 
     # Per-check results — None means "not evaluated yet" or "passed"
-    automation_loop_match: Optional[str] = None       # bot/bounce/OOO reason
-    forced_escalation_match: Optional[str] = None     # keyword rule label
-    classifier_escalation: Optional[str] = None       # intent name if classifier forced escalate
-    forced_draft_match: Optional[str] = None          # keyword rule label
+    automation_loop_match: str | None = None       # bot/bounce/OOO reason
+    forced_escalation_match: str | None = None     # keyword rule label
+    classifier_escalation: str | None = None       # intent name if classifier forced escalate
+    forced_draft_match: str | None = None          # keyword rule label
     auto_send_disabled: bool = False                  # settings gate
-    allowlist_check: Optional[str] = None             # "hit" | "miss:<intent>"
-    confidence_check: Optional[str] = None            # "pass" | "miss:0.80<0.85"
-    template_check: Optional[str] = None              # "standard" | "custom"
-    thread_cooldown: Optional[str] = None             # "pass" | "hit"
+    allowlist_check: str | None = None             # "hit" | "miss:<intent>"
+    confidence_check: str | None = None            # "pass" | "miss:0.80<0.85"
+    template_check: str | None = None              # "standard" | "custom"
+    thread_cooldown: str | None = None             # "pass" | "hit"
 
     # ── Revenue-Ops doctrine audit fields ───────────────────────────────
     # Package routing: what the signal-based recommender chose, why, and
     # what signals drove the decision. These are always populated so the
     # audit trail shows the full reasoning even when the reply is drafted
     # or escalated rather than auto-sent.
-    recommended_package: Optional[str] = None        # e.g. "performance-creative-pack"
+    recommended_package: str | None = None        # e.g. "performance-creative-pack"
     recommendation_rationale: str = ""                # one-sentence why
     lead_signals_used: list[str] = field(default_factory=list)  # ["paid_media", "recurring_need"]
     signal_confidence: float = 0.0                    # 0.0–1.0, how strong the signal set was
@@ -334,7 +332,7 @@ class DecisionTrace:
 #  Keyword-rule helpers
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _match_first(patterns: list[tuple[str, str]], text: str) -> tuple[Optional[str], Optional[str]]:
+def _match_first(patterns: list[tuple[str, str]], text: str) -> tuple[str | None, str | None]:
     """Return (label, pattern) of first matching rule, or (None, None)."""
     for pat, label in patterns:
         if re.search(pat, text):
@@ -342,12 +340,12 @@ def _match_first(patterns: list[tuple[str, str]], text: str) -> tuple[Optional[s
     return None, None
 
 
-def detect_forced_escalation(subject: str, body: str) -> tuple[Optional[str], Optional[str]]:
+def detect_forced_escalation(subject: str, body: str) -> tuple[str | None, str | None]:
     """Return (label, pattern) if text matches an escalation safety rail."""
     return _match_first(FORCED_ESCALATION_PATTERNS, f"{subject}\n{body}")
 
 
-def detect_forced_draft(subject: str, body: str) -> tuple[Optional[str], Optional[str]]:
+def detect_forced_draft(subject: str, body: str) -> tuple[str | None, str | None]:
     """Return (label, pattern) if text matches a forced-draft safety rail."""
     return _match_first(FORCED_DRAFT_PATTERNS, f"{subject}\n{body}")
 
@@ -375,7 +373,7 @@ def decide_reply_mode(
     from_email: str,
     reply_will_use_standard_template: bool,
     recent_auto_reply_in_thread: bool = False,
-    settings: Optional[ReplyPolicySettings] = None,
+    settings: ReplyPolicySettings | None = None,
 ) -> DecisionTrace:
     """Run the 10-step decision engine and return a DecisionTrace.
 

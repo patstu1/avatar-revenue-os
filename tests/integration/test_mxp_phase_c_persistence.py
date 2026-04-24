@@ -7,9 +7,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import delete, select
 
-from apps.api.services import market_timing_service
-from apps.api.services import recovery_service
-from apps.api.services import reputation_service
+from apps.api.services import market_timing_service, recovery_service, reputation_service
 from packages.db.enums import JobStatus
 from packages.db.models.core import Brand, Organization
 from packages.db.models.market_timing import MacroSignalEvent, MarketTimingReport

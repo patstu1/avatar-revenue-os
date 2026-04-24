@@ -79,5 +79,5 @@ async def test_single_account_brand_gets_expand_recommendation(api_client, sampl
     data = (await api_client.get(f"/api/v1/brands/{bid}/expansion-advisor", headers=headers)).json()
     adv = data[0]
     rec = adv["evidence"]["recommendation_key"]
-    from packages.scoring.expansion_advisor_engine import EXPAND_REC_KEYS, HOLD_REC_KEYS
+    from packages.scoring.expansion_advisor_engine import HOLD_REC_KEYS
     assert adv["should_add_account_now"] is True or rec in HOLD_REC_KEYS, f"Unexpected: should_add={adv['should_add_account_now']}, rec={rec}"

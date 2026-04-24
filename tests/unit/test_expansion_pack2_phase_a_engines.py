@@ -8,7 +8,6 @@ Covers:
 NOTE: content_engagement_signals must be a list[dict], not a plain dict.
 """
 
-import pytest
 
 from packages.scoring.expansion_pack2_phase_a_engines import (
     EP2A,
@@ -16,7 +15,6 @@ from packages.scoring.expansion_pack2_phase_a_engines import (
     generate_closer_actions,
     score_lead,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers / fixtures

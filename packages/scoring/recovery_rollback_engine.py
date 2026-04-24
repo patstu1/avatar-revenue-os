@@ -1,6 +1,7 @@
 """Recovery / Rollback Engine — detect, decide, recover. Pure functions."""
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 
 INCIDENT_TYPES = [
     "provider_failure", "publish_failure", "bad_scaling_push", "experiment_failure_cluster",
@@ -54,7 +55,7 @@ def _incident(itype: str, severity: str, scope: str, item: dict, detail: str, au
     return {"incident_type": itype, "severity": severity, "affected_scope": scope, "affected_id": item.get("id"), "detail": detail, "auto_recoverable": auto}
 
 
-def select_playbook(incident_type: str) -> Optional[dict[str, Any]]:
+def select_playbook(incident_type: str) -> dict[str, Any] | None:
     """Select the recovery playbook for an incident type."""
     return PLAYBOOKS.get(incident_type)
 

@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """Revenue Maximizer Proof — all 17 engines + execution against real DB."""
 from __future__ import annotations
-import asyncio, os, sys, uuid
+
+import asyncio
+import os
+import sys
+import uuid
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 os.environ.setdefault("DATABASE_URL_SYNC", "postgresql://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from packages.db.base import Base
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 import packages.db.models  # noqa
 
 P = F = 0
@@ -32,15 +37,15 @@ async def main():
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with factory() as db:
-        from packages.db.models.core import Organization, Brand
-        from packages.db.models.accounts import CreatorAccount
-        from packages.db.models.content import ContentItem
-        from packages.db.models.offers import Offer, SponsorProfile, SponsorOpportunity
-        from packages.db.enums import ContentType, MonetizationMethod, Platform
-        from apps.api.services import revenue_maximizer as rev
+        from apps.api.services import monetization_bridge as mon
         from apps.api.services import revenue_engines_extended as rev_ext
         from apps.api.services import revenue_execution as rev_exec
-        from apps.api.services import monetization_bridge as mon
+        from apps.api.services import revenue_maximizer as rev
+        from packages.db.enums import ContentType, MonetizationMethod, Platform
+        from packages.db.models.accounts import CreatorAccount
+        from packages.db.models.content import ContentItem
+        from packages.db.models.core import Brand, Organization
+        from packages.db.models.offers import Offer, SponsorOpportunity, SponsorProfile
 
         # Setup
         org = Organization(name=f"full_{uuid.uuid4().hex[:6]}", slug=f"full-{uuid.uuid4().hex[:6]}")
@@ -82,7 +87,7 @@ async def main():
         await db.flush()
 
         print(f"  Brand: {brand.id}")
-        print(f"  Setup: 3 accounts, 3 offers, 4 content, 1 sponsor, 5 ledger entries\n")
+        print("  Setup: 3 accounts, 3 offers, 4 content, 1 sponsor, 5 ledger entries\n")
 
         # ═════════════════════════════════════════════════════
         print("─── Engines 1-7 (Original) ───")
@@ -184,10 +189,10 @@ async def main():
     print("=" * 72)
     verdict = "ALL 17 ENGINES + EXECUTION PROVEN" if F == 0 else f"{F} FAILURES"
     print(f"\n  VERDICT: {verdict}")
-    print(f"\n  Engines: 17/17")
-    print(f"  Action types: 21")
-    print(f"  API routes: 20")
-    print(f"  Governance tiers: 3 (surface / assisted / autonomous)")
+    print("\n  Engines: 17/17")
+    print("  Action types: 21")
+    print("  API routes: 20")
+    print("  Governance tiers: 3 (surface / assisted / autonomous)")
     return F == 0
 
 if __name__ == "__main__":

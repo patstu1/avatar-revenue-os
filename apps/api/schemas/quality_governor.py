@@ -1,7 +1,9 @@
 """Pydantic schemas for Quality Governor."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -13,7 +15,7 @@ class QGReportOut(BaseModel):
     verdict: str
     publish_allowed: bool
     confidence: float
-    reasons: Optional[Any] = None
+    reasons: Any | None = None
 
 
 class QGDimensionOut(BaseModel):
@@ -22,7 +24,7 @@ class QGDimensionOut(BaseModel):
     dimension: str
     score: float
     max_score: float
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class QGBlockOut(BaseModel):

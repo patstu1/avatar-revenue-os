@@ -136,7 +136,7 @@ def assess_reputation(
 
     warnings_count = int(brand_data.get("platform_warnings", 0))
     has_policy = bool(brand_data.get("disclosure_policy", False))
-    audience_size = int(brand_data.get("audience_size", 0))
+    int(brand_data.get("audience_size", 0))
     avg_engagement = float(brand_data.get("avg_engagement_rate", 0.0))
 
     # ------------------------------------------------------------------ score each risk

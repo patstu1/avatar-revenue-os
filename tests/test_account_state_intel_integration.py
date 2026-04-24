@@ -1,24 +1,30 @@
 """DB-backed integration tests for Account-State Intelligence."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.core import Brand, Organization
+from apps.api.services.account_state_intel_service import (
+    get_state_for_account,
+    list_actions,
+    list_reports,
+    list_transitions,
+    recompute_account_states,
+)
+from packages.db.enums import ContentType, Platform
+from packages.db.models.account_state_intel import (
+    AccountStateAction,
+    AccountStateReport,
+    AccountStateTransition,
+)
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
+from packages.db.models.core import Brand, Organization
 from packages.db.models.publishing import PerformanceMetric
-from packages.db.models.account_state_intel import (
-    AccountStateReport, AccountStateTransition, AccountStateAction,
-)
-from packages.db.enums import Platform, ContentType
-from apps.api.services.account_state_intel_service import (
-    recompute_account_states, list_reports, list_transitions,
-    list_actions, get_state_for_account,
-)
 
 
 @pytest_asyncio.fixture
@@ -177,6 +183,6 @@ async def test_idempotent(db_session, brand_with_accounts):
 
 
 def test_account_state_intel_worker_registered():
-    from workers.celery_app import app
     import workers.account_state_intel_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.account_state_intel_worker.tasks.recompute_account_state_intel" in app.tasks

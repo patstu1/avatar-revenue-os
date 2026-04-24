@@ -1,18 +1,19 @@
 """QA worker tasks — quality checks, similarity scoring, compliance."""
 import uuid
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 
 @app.task(base=TrackedTask, bind=True, name="workers.qa_worker.run_qa_check")
 def run_qa_check(self, content_item_id: str) -> dict:
     """Run QA/compliance/originality checks using the real scoring engine."""
     from sqlalchemy.orm import Session
-    from packages.db.session import get_sync_engine
-    from packages.db.models.quality import QAReport
+
+    from packages.db.enums import ContentType, QAStatus
     from packages.db.models.content import ContentItem, Script
-    from packages.db.enums import QAStatus, ContentType
+    from packages.db.models.quality import QAReport
+    from packages.db.session import get_sync_engine
     from packages.scoring.qa import QAInput, compute_qa_score
 
     engine = get_sync_engine()
@@ -70,11 +71,12 @@ def run_qa_check(self, content_item_id: str) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.qa_worker.run_similarity_check")
 def run_similarity_check(self, content_item_id: str) -> dict:
     """Check content against existing library using the real similarity engine."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
-    from packages.db.models.quality import SimilarityReport
+    from sqlalchemy.orm import Session
+
     from packages.db.models.content import ContentItem
+    from packages.db.models.quality import SimilarityReport
+    from packages.db.session import get_sync_engine
     from packages.scoring.similarity import SimilarityInput, compute_similarity
 
     engine = get_sync_engine()

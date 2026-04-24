@@ -1,7 +1,10 @@
 """Unit tests for quality governor engine — pure functions, no DB."""
 import pytest
+
 from packages.scoring.quality_governor_engine import (
-    DIMENSIONS, WEIGHTS, PASS_THRESHOLD, WARN_THRESHOLD, BLOCK_FLOOR,
+    DIMENSIONS,
+    PASS_THRESHOLD,
+    WEIGHTS,
     score_content,
 )
 

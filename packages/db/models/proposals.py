@@ -37,7 +37,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.db.base import Base
 
-
 # ── Proposal status enum ─────────────────────────────────────────────────────
 
 PROPOSAL_STATUSES = [

@@ -1,9 +1,8 @@
 """Winning-Pattern Memory — reusable strategic memory layer."""
 import uuid
 from typing import Optional
-from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 

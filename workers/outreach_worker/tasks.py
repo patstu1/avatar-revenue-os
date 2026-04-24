@@ -17,14 +17,15 @@ import email as email_lib
 import imaplib
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from celery import shared_task
-from sqlalchemy import and_, desc, select, update
-
-from workers.base_task import TrackedTask
+from sqlalchemy import select
 
 from packages.db.session import get_async_session_factory, run_async
+
+async_session_factory = get_async_session_factory()
+from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
 
@@ -116,9 +117,10 @@ async def _send_smtp_email(
     body_html: str, body_text: str = "",
 ) -> dict:
     """Send an email via SMTP. Uses aiosmtplib (same as EmailAdapter)."""
-    import aiosmtplib
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
+
+    import aiosmtplib
 
     if not smtp_creds.get("configured"):
         return {"success": False, "error": "SMTP not configured — add credentials via Settings > Integrations (provider_key='smtp')"}
@@ -185,8 +187,6 @@ async def _send_outreach_email_impl(outreach_id: str, brand_id: str, org_id: str
     """Core implementation for sending an outreach email."""
     from apps.api.services.event_bus import emit_action, emit_event
     from packages.db.models.expansion_pack2_phase_c import SponsorOutreachSequence, SponsorTarget
-    from packages.db.models.offers import SponsorOpportunity, SponsorProfile
-    from packages.db.models.core import Brand
 
     org_uuid = uuid.UUID(org_id)
     brand_uuid = uuid.UUID(brand_id)
@@ -455,7 +455,6 @@ def send_follow_up(self, outreach_id: str, sequence_step: int, org_id: str) -> d
 async def _poll_inbox_impl(org_id: str) -> dict:
     """Connect to IMAP, fetch unread emails, match to outreach, classify replies."""
     from apps.api.services.reply_ingestion import ingest_reply
-    from packages.db.models.core import Brand
 
     org_uuid = uuid.UUID(org_id)
 
@@ -509,7 +508,7 @@ async def _poll_inbox_impl(org_id: str) -> dict:
                         continue
 
                     # Ingest the reply — classify it, match to deals, advance stages
-                    result = await ingest_reply(
+                    await ingest_reply(
                         db, org_uuid,
                         sender_email=sender,
                         subject=subject,
@@ -630,8 +629,9 @@ def poll_inbox_for_replies(self, org_id: str) -> dict:
 
 async def _poll_all_orgs_impl() -> dict:
     """Poll inbox for every org that has IMAP configured."""
-    from packages.db.models.core import Organization
     from sqlalchemy import select as sa_select
+
+    from packages.db.models.core import Organization
 
     async with get_async_session_factory()() as db:
         orgs = (await db.execute(sa_select(Organization.id))).scalars().all()
@@ -660,9 +660,9 @@ async def _execute_closer_actions_impl() -> dict:
     sends via SMTP (email) or Twilio (SMS), marks completed.
     """
     from sqlalchemy import select
-    from packages.db.models.expansion_pack2_phase_a import CloserAction, LeadOpportunity
-    from packages.db.models.core import Brand
+
     from packages.clients.external_clients import SmtpEmailClient, TwilioSmsClient
+    from packages.db.models.expansion_pack2_phase_a import CloserAction, LeadOpportunity
 
     sent = 0
     failed = 0

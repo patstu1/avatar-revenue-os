@@ -8,6 +8,12 @@ import pytest
 from sqlalchemy import select
 
 from apps.api.services.client_activation import start_onboarding
+from apps.api.services.high_ticket_issue_service import (
+    CRITICAL_THRESHOLD_CENTS,
+    WARNING_THRESHOLD_CENTS,
+    classify_high_ticket_issue,
+    issue_credit,
+)
 from apps.api.services.high_ticket_onboarding import (
     HIGH_TICKET_INTAKE_SCHEMA,
     ensure_profile,
@@ -16,19 +22,18 @@ from apps.api.services.high_ticket_onboarding import (
     schedule_discovery_call,
     set_kickoff_date,
 )
-from apps.api.services.high_ticket_issue_service import (
-    CRITICAL_THRESHOLD_CENTS,
-    WARNING_THRESHOLD_CENTS,
-    classify_high_ticket_issue,
-    issue_credit,
-)
 from packages.db.models.clients import (
-    Client, ClientHighTicketProfile, ClientOnboardingEvent,
-    ClientRetentionEvent, IntakeRequest,
+    Client,
+    ClientHighTicketProfile,
+    ClientOnboardingEvent,
+    ClientRetentionEvent,
 )
 from packages.db.models.core import Brand, Organization
 from packages.db.models.email_pipeline import (
-    EmailMessage, EmailReplyDraft, EmailThread, InboxConnection,
+    EmailMessage,
+    EmailReplyDraft,
+    EmailThread,
+    InboxConnection,
 )
 from packages.db.models.gm_control import GMEscalation
 

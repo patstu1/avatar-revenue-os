@@ -42,7 +42,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -52,11 +51,8 @@ from apps.api.services.event_bus import emit_event
 from packages.db.models.clients import (
     Client,
     ClientRetentionEvent,
-    IntakeRequest,
 )
-from packages.db.models.delivery import Delivery
 from packages.db.models.fulfillment import ClientProject
-from packages.db.models.proposals import Proposal
 
 logger = structlog.get_logger()
 
@@ -91,7 +87,7 @@ RECURRING_PACKAGE_PERIOD: dict[str, int] = {
 }
 
 
-def recurring_period_for_package(package_slug: Optional[str]) -> Optional[int]:
+def recurring_period_for_package(package_slug: str | None) -> int | None:
     """Return the recurring period (days) for a package_slug, or None
     if the package is one-time.
 
@@ -258,7 +254,7 @@ async def scan_retention_state(db: AsyncSession, client: Client) -> dict:
 
 
 async def scan_all_retention_states(
-    db: AsyncSession, *, org_id: Optional[uuid.UUID] = None, limit: int = 500,
+    db: AsyncSession, *, org_id: uuid.UUID | None = None, limit: int = 500,
 ) -> dict:
     """Beat-task entry — evaluate every active client (optionally
     scoped to one org) and return a summary."""
@@ -350,7 +346,7 @@ async def _recent_retention_event(
     client_id: uuid.UUID,
     event_type: str,
     within_hours: int,
-) -> Optional[ClientRetentionEvent]:
+) -> ClientRetentionEvent | None:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=within_hours)
     q = (
         select(ClientRetentionEvent)
@@ -377,10 +373,10 @@ async def trigger_renewal(
     client: Client,
     package_slug: str,
     line_items: list[dict],
-    title: Optional[str] = None,
-    notes: Optional[str] = None,
+    title: str | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
     force: bool = False,
 ) -> dict:
     """Trigger a renewal cycle for a recurring client by creating the
@@ -406,7 +402,8 @@ async def trigger_renewal(
             }
 
     from apps.api.services.proposals_service import (
-        LineItemInput, create_proposal,
+        LineItemInput,
+        create_proposal,
     )
     li_inputs = [
         LineItemInput(
@@ -509,11 +506,11 @@ async def trigger_reactivation(
     *,
     client: Client,
     template_slug: str = "reactivation_default_v1",
-    subject_override: Optional[str] = None,
-    body_override: Optional[str] = None,
-    notes: Optional[str] = None,
+    subject_override: str | None = None,
+    body_override: str | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
     force: bool = False,
 ) -> dict:
     """Send a reactivation email to a lapsed client. Debounced 14d
@@ -622,10 +619,10 @@ async def trigger_upsell(
     client: Client,
     package_slug: str,
     line_items: list[dict],
-    title: Optional[str] = None,
-    notes: Optional[str] = None,
+    title: str | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
     force: bool = False,
 ) -> dict:
     """Offer an upsell to an expansion-candidate or active client by
@@ -648,7 +645,8 @@ async def trigger_upsell(
             }
 
     from apps.api.services.proposals_service import (
-        LineItemInput, create_proposal,
+        LineItemInput,
+        create_proposal,
     )
     li_inputs = [
         LineItemInput(
@@ -751,10 +749,10 @@ async def cancel_subscription(
     *,
     client: Client,
     reason: str,
-    effective_at: Optional[datetime] = None,
-    notes: Optional[str] = None,
+    effective_at: datetime | None = None,
+    notes: str | None = None,
     actor_type: str = "operator",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Cancel a client's recurring relationship. Terminal — flips
     retention_state to 'churned' and is_recurring to False. Idempotent

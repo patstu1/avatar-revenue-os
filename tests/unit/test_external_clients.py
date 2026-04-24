@@ -1,25 +1,24 @@
 """Unit tests for real external service clients."""
+import base64
 import hashlib
 import hmac
 import json
 import time
-import base64
 
 import pytest
 
 from packages.clients.external_clients import (
-    StripeWebhookVerifier,
-    ShopifyWebhookVerifier,
-    StripePaymentClient,
-    ShopifyOrderClient,
     BufferClient,
-    MetaAdsClient,
     GoogleAdsClient,
-    TikTokAdsClient,
+    MetaAdsClient,
+    ShopifyOrderClient,
+    ShopifyWebhookVerifier,
     SmtpEmailClient,
+    StripePaymentClient,
+    StripeWebhookVerifier,
+    TikTokAdsClient,
     TwilioSmsClient,
 )
-
 
 # ── Stripe Webhook Verification ──────────────────────────────────────
 

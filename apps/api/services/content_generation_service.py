@@ -5,11 +5,11 @@ Uses the tiered routing engine to select the right AI provider.
 Zero human input required once a brief exists.
 """
 from __future__ import annotations
-import asyncio
+
 import hashlib
 import logging
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from sqlalchemy import select
@@ -17,14 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 
-from packages.db.models.content import ContentBrief, Script, ContentItem
+from packages.db.models.content import ContentBrief, ContentItem, Script
 from packages.db.models.core import Brand
-from packages.db.models.accounts import CreatorAccount
-from packages.db.models.pattern_memory import WinningPatternMemory, LosingPatternMemory
-from packages.db.models.promote_winner import PromotedWinnerRule
 from packages.db.models.failure_family import SuppressionRule
 from packages.db.models.objection_mining import ObjectionCluster
-from packages.db.enums import ContentType
+from packages.db.models.pattern_memory import LosingPatternMemory, WinningPatternMemory
 from packages.scoring.tiered_routing_engine import classify_task_tier, route_to_provider
 
 logger = logging.getLogger(__name__)
@@ -69,7 +66,7 @@ RULES:
 7. Output ONLY the caption text. No meta-commentary."""
 
 
-def _build_generation_prompt(brief: ContentBrief, brand: Optional[Brand], metadata: dict) -> str:
+def _build_generation_prompt(brief: ContentBrief, brand: Brand | None, metadata: dict) -> str:
     """Build the full prompt for the AI provider from brief + enriched metadata."""
     parts = [f"TOPIC: {brief.title}"]
 
@@ -114,7 +111,7 @@ def _build_generation_prompt(brief: ContentBrief, brand: Optional[Brand], metada
 
     if not offer_url:
         try:
-            from packages.scoring.affiliate_link_engine import select_best_product, generate_tracking_id
+            from packages.scoring.affiliate_link_engine import generate_tracking_id, select_best_product
             niche = metadata.get("niche") or (brand.niche if brand else "general")
             content_id = str(brief.id)
             acct_id = str(brief.creator_account_id) if brief.creator_account_id else ""
@@ -125,7 +122,10 @@ def _build_generation_prompt(brief: ContentBrief, brand: Optional[Brand], metada
                 parts.append(f"AFFILIATE LINK: {product['link']}")
                 parts.append(f"TRACKING ID: {tid}")
                 try:
-                    from packages.scoring.affiliate_placement_engine import select_placement, build_placement_instruction
+                    from packages.scoring.affiliate_placement_engine import (
+                        build_placement_instruction,
+                        select_placement,
+                    )
                     platform = brief.target_platform or "youtube"
                     placement = select_placement(platform)
                     instruction = build_placement_instruction(placement, product["link"], product["name"])
@@ -143,37 +143,37 @@ def _build_generation_prompt(brief: ContentBrief, brand: Optional[Brand], metada
 
     wins = metadata.get("winning_patterns", [])
     if wins:
-        parts.append(f"\nWINNING PATTERNS (use these):")
+        parts.append("\nWINNING PATTERNS (use these):")
         for w in wins[:5]:
             parts.append(f"  - {w.get('pattern_name', '')} (type: {w.get('pattern_type', '')}, score: {w.get('win_score', 0):.2f})")
 
     losses = metadata.get("losing_patterns", [])
     if losses:
-        parts.append(f"\nLOSING PATTERNS (avoid these):")
+        parts.append("\nLOSING PATTERNS (avoid these):")
         for lp in losses[:3]:
             parts.append(f"  - {lp.get('pattern_name', '')} (type: {lp.get('pattern_type', '')})")
 
     niche_wins = metadata.get("niche_winning_patterns", [])
     if niche_wins:
-        parts.append(f"\nCROSS-PLATFORM NICHE INTELLIGENCE (validated across multiple accounts):")
+        parts.append("\nCROSS-PLATFORM NICHE INTELLIGENCE (validated across multiple accounts):")
         for np in niche_wins[:3]:
             parts.append(f"  - {np.get('pattern_name', '')} (type: {np.get('pattern_type', '')}, avg score: {np.get('avg_win_score', 0):.2f}, validated by {np.get('brand_count', 1)} accounts)")
 
     niche_losses = metadata.get("niche_losing_patterns", [])
     if niche_losses:
-        parts.append(f"\nNICHE-WIDE FAILURES (avoid across all accounts):")
+        parts.append("\nNICHE-WIDE FAILURES (avoid across all accounts):")
         for nl in niche_losses[:2]:
             parts.append(f"  - {nl.get('pattern_name', '')} (type: {nl.get('pattern_type', '')})")
 
     suppressions = metadata.get("suppressed_families", [])
     if suppressions:
-        parts.append(f"\nSUPPRESSED (do NOT use):")
+        parts.append("\nSUPPRESSED (do NOT use):")
         for s in suppressions[:3]:
             parts.append(f"  - {s.get('type', '')}: {s.get('key', '')} — {s.get('reason', '')}")
 
     objections = metadata.get("top_objections", [])
     if objections:
-        parts.append(f"\nAUDIENCE OBJECTIONS (address if relevant):")
+        parts.append("\nAUDIENCE OBJECTIONS (address if relevant):")
         for o in objections[:3]:
             parts.append(f"  - {o.get('type', '')}: suggested angle: {o.get('angle', '')}")
 
@@ -194,7 +194,7 @@ def _build_generation_prompt(brief: ContentBrief, brand: Optional[Brand], metada
 
     voice = metadata.get("voice_profile", {})
     if voice:
-        parts.append(f"\nVOICE PROFILE:")
+        parts.append("\nVOICE PROFILE:")
         if voice.get("style"):
             parts.append(f"  Style: {voice['style']}")
         if voice.get("vocabulary_level"):
@@ -203,7 +203,7 @@ def _build_generation_prompt(brief: ContentBrief, brand: Optional[Brand], metada
             parts.append(f"  Signature phrases: {', '.join(voice['signature_phrases'][:3])}")
 
     try:
-        from packages.scoring.hashtag_engine import select_optimal_hashtags, build_hashtag_prompt_section
+        from packages.scoring.hashtag_engine import build_hashtag_prompt_section, select_optimal_hashtags
         platform = brief.target_platform or "youtube"
         niche = metadata.get("niche") or (brand.niche if brand else "general")
         keywords = brief.seo_keywords if isinstance(brief.seo_keywords, list) else []
@@ -224,7 +224,7 @@ async def _get_ai_client(provider_key: str, api_key: str | None = None):
     it is passed directly to the client constructor.  If omitted the client
     falls back to its own os.environ lookup (transition / dev mode).
     """
-    from packages.clients.ai_clients import ClaudeContentClient, GeminiFlashClient, DeepSeekClient
+    from packages.clients.ai_clients import ClaudeContentClient, DeepSeekClient, GeminiFlashClient
 
     if provider_key == "claude":
         return ClaudeContentClient(api_key=api_key)
@@ -392,8 +392,9 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
     await db.flush()
 
     try:
-        from packages.scoring.tiered_routing_engine import estimate_cost, check_budget_remaining
         import os
+
+        from packages.scoring.tiered_routing_engine import check_budget_remaining
         daily_budget = float(os.environ.get("DAILY_AI_BUDGET_USD", "50.0"))
         daily_spent = float(meta.get("daily_spend_usd", 0))
         budget_check = check_budget_remaining(daily_budget, daily_spent)
@@ -574,14 +575,14 @@ async def score_and_approve_content(db: AsyncSession, content_item_id: uuid.UUID
     Items that pass QA but lack required media are parked in `pending_media`
     with an honest blocker reason, so they cannot flow into publish jobs.
     """
-    from apps.api.services.quality_governor_service import score_content_item
     from apps.api.services.publish_readiness import check_publish_readiness
+    from apps.api.services.quality_governor_service import score_content_item
 
     ci = (await db.execute(select(ContentItem).where(ContentItem.id == content_item_id))).scalar_one_or_none()
     if not ci:
         return {"success": False, "error": "Content item not found"}
 
-    result = await score_content_item(db, ci.brand_id, ci.id)
+    await score_content_item(db, ci.brand_id, ci.id)
 
     await db.refresh(ci)
     if ci.status == "quality_blocked":

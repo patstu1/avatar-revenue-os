@@ -3,22 +3,20 @@
 Scans trend data, combines with pattern memory and niche intelligence,
 auto-creates content briefs ready for generation. Zero human input.
 """
-import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
 
 from celery import shared_task
-from sqlalchemy import select, func
+from sqlalchemy import select
 
-from workers.base_task import TrackedTask
-
-from packages.db.session import get_async_session_factory, run_async
+from packages.db.enums import ContentType
+from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentBrief
 from packages.db.models.core import Brand
-from packages.db.models.accounts import CreatorAccount
 from packages.db.models.pattern_memory import WinningPatternMemory
-from packages.db.enums import ContentType, Platform
+from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +34,7 @@ LONG_FORM_DURATION = 600
 
 async def _ideate_for_brand(brand_id: uuid.UUID):
     """Generate content briefs for a single brand from trend data."""
-    from packages.clients.trend_data_clients import YouTubeTrendingClient, GoogleTrendsClient, RedditTrendingClient
+    from packages.clients.trend_data_clients import GoogleTrendsClient, RedditTrendingClient, YouTubeTrendingClient
     from packages.scoring.niche_research_engine import NICHE_DATABASE
 
     async with get_async_session_factory()() as db:
@@ -86,9 +84,10 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
         yt_api_key = ""
         if brand and brand.organization_id:
             try:
+                from sqlalchemy.orm import Session as SyncSession
+
                 from packages.clients.credential_loader import load_credential
                 from packages.db.session import get_sync_engine
-                from sqlalchemy.orm import Session as SyncSession
                 _eng = get_sync_engine()
                 with SyncSession(_eng) as _ss:
                     yt_api_key = load_credential(_ss, brand.organization_id, "gemini_flash") or ""
@@ -128,9 +127,9 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
         except Exception:
             logger.warning("Reddit trend fetch failed during ideation")
 
-        from packages.scoring.revenue_optimization_engine import rank_briefs_by_revenue, should_prioritize_monetized
-        from packages.scoring.niche_research_engine import NICHE_DATABASE as _ND
         from packages.db.models.offers import Offer
+        from packages.scoring.niche_research_engine import NICHE_DATABASE as _ND
+        from packages.scoring.revenue_optimization_engine import rank_briefs_by_revenue
 
         # Select best active offer for this brand to attach to new briefs
         best_offer = (await db.execute(

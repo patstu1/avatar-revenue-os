@@ -197,7 +197,7 @@ def compute_revenue_pressure(brand_snapshot: dict[str, Any]) -> dict[str, Any]:
     active_mon = set(brand_snapshot.get("active_monetization_classes", []))
     active_plats = set(brand_snapshot.get("active_platforms", []))
     accts = int(brand_snapshot.get("accounts", 0))
-    offers_n = int(brand_snapshot.get("offers_count", 0))
+    int(brand_snapshot.get("offers_count", 0))
     winners_unexpl = int(brand_snapshot.get("queue_winners_unexploited", 0))
     leak = _clamp(float(brand_snapshot.get("funnel_leak_score", 0.3)))
     inactive_assets = brand_snapshot.get("inactive_asset_classes", [])

@@ -3,10 +3,11 @@
 Revision ID: copilot_claude_001
 Revises: copilot_001
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision: str = "copilot_claude_001"
 down_revision: Union[str, None] = "copilot_001"

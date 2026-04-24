@@ -1,8 +1,11 @@
 """Unit tests for enterprise affiliate engine."""
-import pytest
 from packages.scoring.affiliate_enterprise_engine import (
-    evaluate_governance, flag_risk, rank_merchants, rank_networks,
-    score_partner, detect_partner_fraud,
+    detect_partner_fraud,
+    evaluate_governance,
+    flag_risk,
+    rank_merchants,
+    rank_networks,
+    score_partner,
 )
 
 

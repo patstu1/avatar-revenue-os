@@ -7,11 +7,11 @@ from sqlalchemy import select
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.expansion_pack2_phase_c import (
-    ReferralProgramRecommendationOut,
     CompetitiveGapReportOut,
-    SponsorTargetOut,
-    SponsorOutreachSequenceOut,
     ProfitGuardrailReportOut,
+    ReferralProgramRecommendationOut,
+    SponsorOutreachSequenceOut,
+    SponsorTargetOut,
 )
 from apps.api.services import expansion_pack2_phase_c_service as ep2c
 from apps.api.services.audit_service import log_action

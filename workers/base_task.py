@@ -4,7 +4,6 @@ from __future__ import annotations
 import traceback
 from datetime import datetime, timezone
 from functools import lru_cache
-from typing import Optional
 
 import structlog
 from celery import Task
@@ -22,7 +21,7 @@ logger = structlog.get_logger()
 # Error classification helpers
 # ---------------------------------------------------------------------------
 
-def _extract_http_status(exc: BaseException) -> Optional[int]:
+def _extract_http_status(exc: BaseException) -> int | None:
     """Extract an HTTP status code from common exception types."""
     # Direct attribute (httpx, requests, aiohttp, etc.)
     for attr in ("status_code", "status", "code"):
@@ -295,10 +294,10 @@ class TrackedTask(Task):
         event_type: str,
         summary: str,
         severity: str = "info",
-        new_state: Optional[str] = None,
-        previous_state: Optional[str] = None,
+        new_state: str | None = None,
+        previous_state: str | None = None,
         requires_action: bool = False,
-        details: Optional[dict] = None,
+        details: dict | None = None,
     ):
         """Emit a system event from a worker — the horizontal integration glue.
 

@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException
@@ -130,7 +129,7 @@ async def control_board(
 async def list_approvals(
     current_user: OperatorUser,
     db: DBSession,
-    status: Optional[str] = None,
+    status: str | None = None,
     limit: int = 50,
 ):
     q = select(GMApproval).where(
@@ -145,7 +144,7 @@ async def list_approvals(
 
 
 class ApprovalDecisionBody(BaseModel):
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @router.post("/approvals/{approval_id}/approve")
@@ -197,7 +196,7 @@ async def reject_approval(
 async def list_escalations(
     current_user: OperatorUser,
     db: DBSession,
-    status: Optional[str] = None,
+    status: str | None = None,
     limit: int = 50,
 ):
     q = select(GMEscalation).where(
@@ -212,7 +211,7 @@ async def list_escalations(
 
 
 class EscalationDecisionBody(BaseModel):
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 @router.post("/escalations/{escalation_id}/acknowledge")
@@ -256,7 +255,7 @@ async def resolve_escalation_route(
 async def list_stage_states(
     current_user: OperatorUser,
     db: DBSession,
-    entity_type: Optional[str] = None,
+    entity_type: str | None = None,
     stuck_only: bool = False,
     limit: int = 50,
 ):

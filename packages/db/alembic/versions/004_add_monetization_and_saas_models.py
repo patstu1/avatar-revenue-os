@@ -4,12 +4,13 @@ Revision ID: 004_monetization
 Revises: b6587e9c03b5
 Create Date: 2026-04-03
 """
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from packages.db.alembic.migration_safety import (
-    safe_create_table, safe_create_index, safe_drop_table,
+    safe_create_index,
+    safe_create_table,
+    safe_drop_table,
 )
 
 revision = "004_monetization"

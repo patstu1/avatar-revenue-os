@@ -9,14 +9,19 @@ Revision ID: 005_media_jobs_v2
 Revises: 004_monetization
 Create Date: 2026-04-05
 """
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from packages.db.alembic.migration_safety import (
-    column_exists, get_columns, safe_add_column, safe_create_index,
-    safe_create_unique_constraint, safe_create_fk, safe_drop_column,
-    constraint_exists, fk_exists,
+    constraint_exists,
+    fk_exists,
+    get_columns,
+    safe_add_column,
+    safe_create_fk,
+    safe_create_index,
+    safe_create_unique_constraint,
+    safe_drop_column,
 )
 
 revision = "005_media_jobs_v2"

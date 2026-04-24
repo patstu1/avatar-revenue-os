@@ -4,9 +4,9 @@ Revision ID: 007_publish_policy
 Revises: 006_gm_alerts
 Create Date: 2026-04-07
 """
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision = "007_publish_policy"
 down_revision = ("006_gm_alerts", "005_media_jobs_v2")

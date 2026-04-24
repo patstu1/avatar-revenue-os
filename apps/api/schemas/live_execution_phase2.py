@@ -3,10 +3,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel
 
 # ── Webhook / Event Ingestion ──────────────────────────────────────────
 
@@ -14,21 +13,21 @@ class WebhookEventCreate(BaseModel):
     source: str
     source_category: str = "unknown"
     event_type: str
-    external_event_id: Optional[str] = None
-    raw_payload: Optional[dict[str, Any]] = None
-    idempotency_key: Optional[str] = None
+    external_event_id: str | None = None
+    raw_payload: dict[str, Any] | None = None
+    idempotency_key: str | None = None
 
 class WebhookEventOut(BaseModel):
     id: uuid.UUID
-    brand_id: Optional[uuid.UUID] = None
+    brand_id: uuid.UUID | None = None
     source: str
     source_category: str
     event_type: str
-    external_event_id: Optional[str] = None
+    external_event_id: str | None = None
     processed: bool
-    processing_result: Optional[str] = None
-    error_message: Optional[str] = None
-    idempotency_key: Optional[str] = None
+    processing_result: str | None = None
+    error_message: str | None = None
+    idempotency_key: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -44,7 +43,7 @@ class ExternalEventIngestionOut(BaseModel):
     events_skipped: int
     events_failed: int
     status: str
-    error_message: Optional[str] = None
+    error_message: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -58,10 +57,10 @@ class SequenceTriggerActionOut(BaseModel):
     trigger_source: str
     trigger_event_type: str
     action_type: str
-    action_target: Optional[str] = None
+    action_target: str | None = None
     status: str
-    executed_at: Optional[str] = None
-    error_message: Optional[str] = None
+    executed_at: str | None = None
+    error_message: str | None = None
     retry_count: int
     created_at: datetime
     class Config:
@@ -80,7 +79,7 @@ class PaymentConnectorSyncOut(BaseModel):
     refunds_imported: int
     status: str
     credential_status: str
-    error_message: Optional[str] = None
+    error_message: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -99,8 +98,8 @@ class PlatformAnalyticsSyncOut(BaseModel):
     attribution_refreshed: bool
     reconciliation_status: str
     credential_status: str
-    blocker_state: Optional[str] = None
-    operator_action: Optional[str] = None
+    blocker_state: str | None = None
+    operator_action: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -122,8 +121,8 @@ class AdReportingImportOut(BaseModel):
     source_classification: str
     reconciliation_status: str
     credential_status: str
-    blocker_state: Optional[str] = None
-    operator_action: Optional[str] = None
+    blocker_state: str | None = None
+    operator_action: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -135,15 +134,15 @@ class BufferExecutionTruthOut(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
     buffer_publish_job_id: uuid.UUID
-    content_item_id: Optional[uuid.UUID] = None
+    content_item_id: uuid.UUID | None = None
     truth_state: str
-    previous_truth_state: Optional[str] = None
+    previous_truth_state: str | None = None
     is_duplicate: bool
     is_stale: bool
-    stale_since: Optional[str] = None
+    stale_since: str | None = None
     conflict_detected: bool
-    conflict_description: Optional[str] = None
-    operator_action: Optional[str] = None
+    conflict_description: str | None = None
+    operator_action: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -153,8 +152,8 @@ class BufferExecutionEventOut(BaseModel):
     brand_id: uuid.UUID
     buffer_publish_job_id: uuid.UUID
     event_type: str
-    from_state: Optional[str] = None
-    to_state: Optional[str] = None
+    from_state: str | None = None
+    to_state: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -169,10 +168,10 @@ class BufferRetryRecordOut(BaseModel):
     attempt_number: int
     retry_reason: str
     backoff_seconds: int
-    next_retry_at: Optional[str] = None
+    next_retry_at: str | None = None
     outcome: str
     escalated: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -189,9 +188,9 @@ class BufferCapabilityCheckOut(BaseModel):
     missing_profile_mapping: bool
     inactive_profile: bool
     platform_supported: bool
-    unsupported_modes: Optional[list[str]] = None
-    blocker_summary: Optional[str] = None
-    operator_action: Optional[str] = None
+    unsupported_modes: list[str] | None = None
+    blocker_summary: str | None = None
+    operator_action: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True

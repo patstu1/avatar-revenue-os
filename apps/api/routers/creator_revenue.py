@@ -6,7 +6,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.deps import get_db, get_current_user
+from apps.api.deps import get_current_user, get_db
 from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.creator_revenue import (
     AvenueExecutionTruthOut,

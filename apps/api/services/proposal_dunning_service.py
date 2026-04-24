@@ -21,9 +21,7 @@ pass ``action_class`` so the audit row captures the reason.
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
 from sqlalchemy import select
@@ -33,7 +31,7 @@ from apps.api.services.event_bus import emit_event
 from packages.clients.email_templates import build_dunning_reminder
 from packages.clients.external_clients import SmtpEmailClient
 from packages.db.models.clients import Client
-from packages.db.models.proposals import Payment, PaymentLink, Proposal
+from packages.db.models.proposals import PaymentLink, Proposal
 
 logger = structlog.get_logger()
 
@@ -46,7 +44,7 @@ async def send_reminder(
     *,
     proposal: Proposal,
     actor_type: str = "system",
-    actor_id: Optional[str] = None,
+    actor_id: str | None = None,
 ) -> dict:
     """Send the next-in-sequence dunning reminder for a proposal.
 

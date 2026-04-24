@@ -1,18 +1,30 @@
 """DB-backed integration tests for Revenue Leak Detector."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.core import Brand, Organization
+
+from apps.api.services.revenue_leak_service import (
+    get_leak_summary,
+    list_reports,
+    recompute_leaks,
+)
+from packages.db.enums import ContentType, Platform
+from packages.db.models.account_state_intel import AccountStateReport
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
+from packages.db.models.core import Brand, Organization
 from packages.db.models.publishing import PerformanceMetric
-from packages.db.models.account_state_intel import AccountStateReport
-from packages.db.models.revenue_leak_detector import RevenueLeakReport, RevenueLeakEvent, LeakCluster, LeakCorrectionAction
-from packages.db.enums import Platform, ContentType
-from apps.api.services.revenue_leak_service import recompute_leaks, list_reports, list_events, list_clusters, list_corrections, get_leak_summary
+from packages.db.models.revenue_leak_detector import (
+    LeakCluster,
+    LeakCorrectionAction,
+    RevenueLeakEvent,
+    RevenueLeakReport,
+)
 
 
 @pytest_asyncio.fixture
@@ -107,6 +119,6 @@ async def test_idempotent(db_session, brand_with_perf):
 
 
 def test_revenue_leak_worker_registered():
-    from workers.celery_app import app
     import workers.revenue_leak_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.revenue_leak_worker.tasks.recompute_revenue_leaks" in app.tasks

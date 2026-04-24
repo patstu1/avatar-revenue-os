@@ -13,9 +13,9 @@ Usage:
 """
 from __future__ import annotations
 
-import os
 import logging
-from typing import Any, Optional
+import os
+from typing import Any
 
 import httpx
 
@@ -68,7 +68,7 @@ class LinkShortener:
         self,
         long_url: str,
         *,
-        domain: Optional[str] = None,
+        domain: str | None = None,
         tag: str = "",
         title: str = "",
     ) -> dict[str, Any]:
@@ -100,7 +100,7 @@ class LinkShortener:
         self,
         long_url: str,
         *,
-        domain: Optional[str] = None,
+        domain: str | None = None,
         tag: str = "",
         title: str = "",
     ) -> dict[str, Any]:
@@ -144,7 +144,7 @@ class LinkShortener:
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
                 r = await client.get(
-                    f"https://api.dub.co/analytics",
+                    "https://api.dub.co/analytics",
                     params={"linkId": link_id, "event": "clicks"},
                     headers={"Authorization": f"Bearer {self.dub_api_key}"},
                 )
@@ -162,7 +162,7 @@ class LinkShortener:
         self,
         long_url: str,
         *,
-        domain: Optional[str] = None,
+        domain: str | None = None,
         tag: str = "",
         title: str = "",
     ) -> dict[str, Any]:
@@ -222,7 +222,7 @@ class LinkShortener:
         self,
         long_url: str,
         *,
-        domain: Optional[str] = None,
+        domain: str | None = None,
         title: str = "",
     ) -> dict[str, Any]:
         """Shorten via Short.io — POST https://api.short.io/links."""

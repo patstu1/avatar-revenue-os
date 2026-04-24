@@ -5,11 +5,11 @@ import time
 from typing import Any
 
 import httpx
-from redis.asyncio import Redis as AsyncRedis
 from fastapi import APIRouter
+from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import text
 
-from apps.api.config import Settings, get_settings
+from apps.api.config import get_settings
 from apps.api.deps import DBSession
 
 router = APIRouter()

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -146,14 +146,14 @@ async def update_policy(
     db: AsyncSession,
     brand_id: uuid.UUID,
     *,
-    operating_mode: Optional[str] = None,
-    min_confidence_auto_execute: Optional[float] = None,
-    min_confidence_publish: Optional[float] = None,
-    kill_switch_engaged: Optional[bool] = None,
-    max_auto_cost_usd_per_action: Optional[float] = None,
-    require_approval_above_cost_usd: Optional[float] = None,
-    approval_gates_json: Optional[dict] = None,
-    extra_policy_json: Optional[dict] = None,
+    operating_mode: str | None = None,
+    min_confidence_auto_execute: float | None = None,
+    min_confidence_publish: float | None = None,
+    kill_switch_engaged: bool | None = None,
+    max_auto_cost_usd_per_action: float | None = None,
+    require_approval_above_cost_usd: float | None = None,
+    approval_gates_json: dict | None = None,
+    extra_policy_json: dict | None = None,
 ) -> dict[str, Any]:
     p = await ensure_default_policy(db, brand_id)
     if operating_mode is not None:
@@ -184,7 +184,7 @@ async def preview_gate(
     *,
     loop_step: str,
     confidence: float,
-    estimated_cost_usd: Optional[float],
+    estimated_cost_usd: float | None,
 ) -> dict[str, Any]:
     if loop_step not in AUTONOMOUS_LOOP_STEPS:
         raise ValueError(f"Unknown loop_step: {loop_step}")
@@ -209,7 +209,7 @@ async def create_execution_run(
     loop_step: str,
     status: str,
     confidence_score: float,
-    input_payload_json: Optional[dict],
+    input_payload_json: dict | None,
 ) -> dict[str, Any]:
     if loop_step not in AUTONOMOUS_LOOP_STEPS:
         raise ValueError(f"Unknown loop_step: {loop_step}")
@@ -232,11 +232,11 @@ async def update_run_status(
     brand_id: uuid.UUID,
     run_id: uuid.UUID,
     *,
-    status: Optional[str] = None,
-    output_payload_json: Optional[dict] = None,
-    blocked_reason: Optional[str] = None,
-    error_message: Optional[str] = None,
-    approval_status: Optional[str] = None,
+    status: str | None = None,
+    output_payload_json: dict | None = None,
+    blocked_reason: str | None = None,
+    error_message: str | None = None,
+    approval_status: str | None = None,
 ) -> dict[str, Any]:
     run = (
         await db.execute(
@@ -310,9 +310,9 @@ async def open_blocker_escalation(
     title: str,
     summary: str,
     exact_operator_steps: list[dict[str, Any]],
-    linked_run_id: Optional[uuid.UUID] = None,
-    risk_flags_json: Optional[dict] = None,
-    cost_exposure_json: Optional[dict] = None,
+    linked_run_id: uuid.UUID | None = None,
+    risk_flags_json: dict | None = None,
+    cost_exposure_json: dict | None = None,
     enqueue_notification: bool = True,
 ) -> dict[str, Any]:
     if not exact_operator_steps or not isinstance(exact_operator_steps, list):
@@ -413,7 +413,7 @@ async def resolve_blocker(
     brand_id: uuid.UUID,
     blocker_id: uuid.UUID,
     user_id: uuid.UUID,
-    resolution_notes: Optional[str],
+    resolution_notes: str | None,
 ) -> dict[str, Any]:
     b = (
         await db.execute(

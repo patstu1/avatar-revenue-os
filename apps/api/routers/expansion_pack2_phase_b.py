@@ -7,10 +7,10 @@ from sqlalchemy import select
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
 from apps.api.schemas.expansion_pack2_phase_b import (
-    PricingRecommendationOut,
     BundleRecommendationOut,
-    RetentionRecommendationOut,
+    PricingRecommendationOut,
     ReactivationCampaignOut,
+    RetentionRecommendationOut,
 )
 from apps.api.services import expansion_pack2_phase_b_service as ep2b
 from apps.api.services.audit_service import log_action

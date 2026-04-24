@@ -6,8 +6,8 @@ Create Date: 2026-04-20
 
 Batch 4. Additive; each table guarded by ``IF NOT EXISTS``.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision = "014_gm_control"

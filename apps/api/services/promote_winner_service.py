@@ -1,26 +1,31 @@
 """Promote-Winner Service — create, observe, detect, promote, suppress, decay."""
 from __future__ import annotations
+
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import delete, select, func
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from packages.db.models.pattern_memory import LosingPatternMemory, WinningPatternMemory
 from packages.db.models.promote_winner import (
-    ActiveExperiment, PWExperimentVariant, PWExperimentAssignment,
-    PWExperimentObservation, PWExperimentWinner, PWExperimentLoser,
+    ActiveExperiment,
     PromotedWinnerRule,
-)
-from packages.db.models.pattern_memory import WinningPatternMemory, LosingPatternMemory
-from packages.scoring.promote_winner_engine import (
-    create_experiment as engine_create,
-    detect_winner,
-    build_promotion_rules,
-    build_suppression_rules,
-    check_decay_retest,
+    PWExperimentLoser,
+    PWExperimentObservation,
+    PWExperimentVariant,
+    PWExperimentWinner,
 )
 from packages.scoring.pattern_memory_engine import _sig
+from packages.scoring.promote_winner_engine import (
+    build_promotion_rules,
+    check_decay_retest,
+    detect_winner,
+)
+from packages.scoring.promote_winner_engine import (
+    create_experiment as engine_create,
+)
 
 
 async def create_experiment(

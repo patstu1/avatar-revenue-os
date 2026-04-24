@@ -35,7 +35,7 @@ async def list_meta_monitoring(
         return await svc.list_meta_monitoring(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -69,7 +69,7 @@ async def list_self_corrections(
         return await svc.list_self_corrections(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -83,7 +83,7 @@ async def list_readiness_brain(
         return await svc.list_readiness_brain(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -114,5 +114,5 @@ async def list_brain_escalations(
         return await svc.list_brain_escalations(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")

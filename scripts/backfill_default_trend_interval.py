@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from sqlalchemy import text
 
-from packages.db.session import get_sync_engine
 from apps.api.services.onboarding_service import DEFAULT_BRAND_GUIDELINES
+from packages.db.session import get_sync_engine
 
 
 def main() -> None:

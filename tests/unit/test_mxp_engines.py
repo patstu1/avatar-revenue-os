@@ -1,14 +1,12 @@
 """Unit tests for all 11 MXP scoring engines."""
 from __future__ import annotations
 
-import pytest
-
 # ---------------------------------------------------------------------------
 # 1. Experiment Decision Engine
 # ---------------------------------------------------------------------------
 from packages.scoring.experiment_decision_engine import (
-    prioritize_experiment_candidates,
     evaluate_experiment_outcome,
+    prioritize_experiment_candidates,
 )
 
 
@@ -125,8 +123,8 @@ class TestEvaluateExperimentOutcome:
 # 2. Contribution Engine
 # ---------------------------------------------------------------------------
 from packages.scoring.contribution_engine import (
-    compute_contribution_reports,
     compare_attribution_models,
+    compute_contribution_reports,
 )
 
 
@@ -181,7 +179,7 @@ class TestCompareAttributionModels:
 # ---------------------------------------------------------------------------
 # 3. Capacity Engine
 # ---------------------------------------------------------------------------
-from packages.scoring.capacity_engine import compute_capacity_reports, allocate_queues
+from packages.scoring.capacity_engine import allocate_queues, compute_capacity_reports
 
 
 class TestComputeCapacityReports:

@@ -1,16 +1,25 @@
 """DB-backed integration tests for Digital Twin."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.core import Brand, Organization
-from packages.db.models.accounts import CreatorAccount
-from packages.db.models.account_state_intel import AccountStateReport
-from packages.db.models.digital_twin import SimulationRun, SimulationScenario, SimulationRecommendation
+
+from apps.api.services.digital_twin_service import (
+    get_top_recommendations,
+    list_recommendations,
+    list_runs,
+    list_scenarios,
+    run_simulation,
+)
 from packages.db.enums import Platform
-from apps.api.services.digital_twin_service import run_simulation, list_runs, list_scenarios, list_recommendations, get_top_recommendations
+from packages.db.models.account_state_intel import AccountStateReport
+from packages.db.models.accounts import CreatorAccount
+from packages.db.models.core import Brand, Organization
+from packages.db.models.digital_twin import SimulationRecommendation, SimulationRun, SimulationScenario
 
 
 @pytest_asyncio.fixture
@@ -113,6 +122,6 @@ async def test_idempotent(db_session, brand_with_state):
 
 
 def test_digital_twin_worker_registered():
-    from workers.celery_app import app
     import workers.digital_twin_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.digital_twin_worker.tasks.run_simulations" in app.tasks

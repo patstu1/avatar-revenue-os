@@ -9,37 +9,48 @@ from sqlalchemy import select
 
 from apps.api.services.client_activation import start_onboarding
 from apps.api.services.invoice_service import (
-    create_invoice_from_proposal, mark_paid, send_invoice,
-    void_invoice, scan_overdue_invoices,
+    create_invoice_from_proposal,
+    mark_paid,
+    void_invoice,
 )
 from apps.api.services.proposals_service import LineItemInput, create_proposal
 from apps.api.services.sponsor_fulfillment_service import (
-    record_placement_delivered, record_placement_missed,
+    record_placement_delivered,
+    record_placement_missed,
     schedule_placement,
 )
 from apps.api.services.sponsor_issue_service import (
-    CRITICAL_THRESHOLD_CENTS, WARNING_THRESHOLD_CENTS,
+    CRITICAL_THRESHOLD_CENTS,
+    WARNING_THRESHOLD_CENTS,
     classify_sponsor_issue,
 )
 from apps.api.services.sponsor_onboarding_service import (
-    SPONSOR_INTAKE_SCHEMA, ensure_campaign,
-    record_brief_received, record_contract_signed, set_campaign_start,
+    ensure_campaign,
+    record_brief_received,
+    record_contract_signed,
+    set_campaign_start,
 )
 from apps.api.services.sponsor_reporting_service import (
-    compile_report, send_report,
+    compile_report,
+    send_report,
 )
 from packages.db.models.clients import Client
 from packages.db.models.core import Brand, Organization
 from packages.db.models.email_pipeline import (
-    EmailMessage, EmailReplyDraft, EmailThread, InboxConnection,
+    EmailMessage,
+    EmailReplyDraft,
+    EmailThread,
+    InboxConnection,
 )
 from packages.db.models.gm_control import GMEscalation
 from packages.db.models.invoices import (
-    Invoice, InvoiceLineItem, InvoiceMilestone,
+    InvoiceLineItem,
+    InvoiceMilestone,
 )
-from packages.db.models.proposals import Payment, Proposal
+from packages.db.models.proposals import Payment
 from packages.db.models.sponsor_campaigns import (
-    SponsorCampaign, SponsorPlacement, SponsorReport,
+    SponsorCampaign,
+    SponsorPlacement,
 )
 
 

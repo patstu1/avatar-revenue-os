@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.revenue_intel import MonetizationRecRow, RevenueIntelDashboardResponse
+from apps.api.schemas.revenue_intel import MonetizationRecRow
 from apps.api.services import revenue_service as rsvc
 from apps.api.services.audit_service import log_action
 from packages.db.models.core import Brand

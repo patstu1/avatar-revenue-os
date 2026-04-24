@@ -1,11 +1,11 @@
 """Unit tests for growth pack orchestrator (deterministic)."""
 
 from packages.scoring.growth_pack.orchestrator import (
-    canonical_fields_from_command,
-    build_platform_allocation_rows,
     build_cannibalization_pairs,
     build_capital_plan,
+    build_platform_allocation_rows,
     build_portfolio_output,
+    canonical_fields_from_command,
 )
 from packages.scoring.growth_pack.platform_os import normalize_platform, platform_spec
 

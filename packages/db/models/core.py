@@ -3,14 +3,13 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from packages.db.base import Base
-
-from packages.db.models.offers import Offer, SponsorProfile, SponsorOpportunity, LtvModel, AudienceSegment  # noqa: F401
-from packages.db.enums import HealthStatus, ProviderType, UserRole
+from packages.db.enums import HealthStatus, UserRole
+from packages.db.models.offers import AudienceSegment, LtvModel, Offer, SponsorOpportunity, SponsorProfile  # noqa: F401
 
 
 class Organization(Base):

@@ -1,7 +1,6 @@
 """Brain Architecture Phase A — recurring Celery tasks."""
 from __future__ import annotations
 
-import asyncio
 import uuid
 
 import structlog
@@ -125,8 +124,8 @@ def recompute_audience_states():
 
 async def _recompute_brain_decisions():
     from apps.api.services import brain_phase_b_service as svc
-    from apps.api.services.intelligence_bridge import surface_intelligence_actions
     from apps.api.services.action_dispatcher import dispatch_autonomous_actions
+    from apps.api.services.intelligence_bridge import surface_intelligence_actions
 
     async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)

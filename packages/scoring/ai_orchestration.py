@@ -9,13 +9,11 @@ from __future__ import annotations
 import hashlib
 import math
 import re
-import string
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
-
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 1.  MODEL REGISTRY  &  COST TRACKING
@@ -1369,7 +1367,7 @@ def compute_experiment_significance(
 def _variance_estimate(v: ExperimentVariant) -> float:
     """Estimate per-impression revenue variance from available data."""
     n = max(v.impressions, 1)
-    mean_rev = v.revenue / n
+    v.revenue / n
     # Without per-event data, approximate variance using Bernoulli-like bound
     p = v.conversion_rate
     avg_rev_per_conv = v.revenue / max(v.conversions, 1)

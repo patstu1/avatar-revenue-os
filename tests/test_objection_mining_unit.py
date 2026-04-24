@@ -1,8 +1,10 @@
 """Unit tests for objection mining engine — pure functions, no DB."""
-import pytest
 from packages.scoring.objection_mining_engine import (
-    OBJECTION_TYPES, extract_objections, cluster_objections,
-    generate_responses, build_priority_report,
+    OBJECTION_TYPES,
+    build_priority_report,
+    cluster_objections,
+    extract_objections,
+    generate_responses,
 )
 
 

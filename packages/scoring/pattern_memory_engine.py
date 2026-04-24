@@ -3,8 +3,9 @@
 Pure functions. No I/O.
 """
 from __future__ import annotations
-from typing import Any, Optional
+
 import hashlib
+from typing import Any
 
 PATTERN_TYPES = ["hook", "creative_structure", "content_form", "offer_angle", "cta", "monetization", "audience_response"]
 
@@ -75,7 +76,7 @@ def extract_patterns_from_content(
     content_items: list[dict[str, Any]],
     performance: dict[str, dict[str, float]],
     niche: str = "general",
-    comment_data: Optional[dict[str, dict[str, float]]] = None,
+    comment_data: dict[str, dict[str, float]] | None = None,
 ) -> list[dict[str, Any]]:
     """Derive patterns from content + performance data.
 
@@ -134,7 +135,7 @@ def _classify_audience_response(
     perf: dict[str, float],
     ar_profile: dict[str, Any],
     comment_agg: dict[str, float],
-) -> Optional[str]:
+) -> str | None:
     """Classify audience response pattern from perf + comment data."""
     eng = float(perf.get("engagement_rate", 0) or 0)
     cvr = float(perf.get("conversion_rate", 0) or 0)
@@ -159,7 +160,7 @@ def _classify_audience_response(
     return None
 
 
-def _infer_hook(title: str, tags: Any) -> Optional[str]:
+def _infer_hook(title: str, tags: Any) -> str | None:
     t = title.lower()
     if any(w in t for w in ("don't buy", "stop buying", "before you buy")):
         return "dont_buy_until"
@@ -174,7 +175,7 @@ def _infer_hook(title: str, tags: Any) -> Optional[str]:
     return "curiosity"
 
 
-def _infer_structure(form: str, tags: Any) -> Optional[str]:
+def _infer_structure(form: str, tags: Any) -> str | None:
     f = (form or "").lower()
     if "carousel" in f:
         return "text_carousel"

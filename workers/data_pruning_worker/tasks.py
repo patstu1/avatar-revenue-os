@@ -1,15 +1,14 @@
 """Data Pruning Worker — clean up old metrics, stale records, and unbounded tables."""
 from __future__ import annotations
-import asyncio
+
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from celery import shared_task
-from sqlalchemy import delete, select
-
-from workers.base_task import TrackedTask
+from sqlalchemy import delete
 
 from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
 

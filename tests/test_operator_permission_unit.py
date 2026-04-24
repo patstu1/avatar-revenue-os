@@ -1,9 +1,13 @@
 """Unit tests for operator permission engine."""
-import pytest
 from packages.scoring.operator_permission_engine import (
-    ACTION_CLASSES, AUTONOMY_MODES, DEFAULT_POLICIES,
-    evaluate_action_policy, can_execute_autonomously,
-    evaluate_override_eligibility, detect_policy_conflicts, seed_default_matrix,
+    ACTION_CLASSES,
+    AUTONOMY_MODES,
+    DEFAULT_POLICIES,
+    can_execute_autonomously,
+    detect_policy_conflicts,
+    evaluate_action_policy,
+    evaluate_override_eligibility,
+    seed_default_matrix,
 )
 
 

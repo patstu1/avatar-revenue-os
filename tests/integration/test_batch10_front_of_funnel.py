@@ -1,12 +1,11 @@
 """Batch 10 — front-of-funnel GM control layer tests."""
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 from apps.api.services.gm_front_of_funnel_service import (
     bulk_import_leads_with_avenue,
@@ -27,7 +26,6 @@ from packages.db.models.expansion_pack2_phase_c import (
     SponsorOutreachSequence,
     SponsorTarget,
 )
-from packages.db.models.proposals import Proposal
 
 
 async def _ensure_org_with_brand(db_session, sample_org_data) -> tuple[uuid.UUID, uuid.UUID]:
@@ -152,7 +150,7 @@ async def test_outreach_launch_creates_sequences_with_avenue_slug(
     db_session, sample_org_data
 ):
     org_id, brand_id = await _ensure_org_with_brand(db_session, sample_org_data)
-    imp = await bulk_import_leads_with_avenue(
+    await bulk_import_leads_with_avenue(
         db_session, org_id=org_id, avenue_slug="sponsor_deals",
         rows=[{"company_name": "Out1", "email": "o1@x.test"},
               {"company_name": "Out2", "email": "o2@x.test"}],

@@ -1,5 +1,6 @@
 """Objection Mining Service — extract from comments, cluster, respond, persist."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
 
@@ -11,7 +12,10 @@ logger = structlog.get_logger()
 
 from packages.db.models.learning import CommentIngestion
 from packages.db.models.objection_mining import (
-    ObjectionCluster, ObjectionPriorityReport, ObjectionResponse, ObjectionSignal,
+    ObjectionCluster,
+    ObjectionPriorityReport,
+    ObjectionResponse,
+    ObjectionSignal,
 )
 from packages.scoring.objection_mining_engine import (
     build_priority_report,

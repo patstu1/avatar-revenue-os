@@ -1,8 +1,13 @@
 """Unit tests for hyper-scale execution engine."""
-import pytest
 from packages.scoring.hyperscale_engine import (
-    partition_workload, evaluate_capacity, detect_burst, plan_degradation,
-    enforce_ceiling, schedule_priority, balance_market_workload, build_scale_health,
+    balance_market_workload,
+    build_scale_health,
+    detect_burst,
+    enforce_ceiling,
+    evaluate_capacity,
+    partition_workload,
+    plan_degradation,
+    schedule_priority,
 )
 
 

@@ -1,22 +1,28 @@
 """DB-backed integration tests for Failure-Family Suppression."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.core import Brand, Organization
-from packages.db.models.pattern_memory import LosingPatternMemory
-from packages.db.models.failure_family import (
-    FailureFamilyReport, FailureFamilyMember, SuppressionRule,
-)
-from packages.scoring.pattern_memory_engine import _sig
 from apps.api.services.failure_family_service import (
-    recompute_failure_families, run_decay_check,
-    list_reports, list_suppression_rules, get_active_suppressions_for_downstream,
+    get_active_suppressions_for_downstream,
+    list_reports,
+    list_suppression_rules,
+    recompute_failure_families,
+    run_decay_check,
 )
+from packages.db.models.core import Brand, Organization
+from packages.db.models.failure_family import (
+    FailureFamilyMember,
+    FailureFamilyReport,
+    SuppressionRule,
+)
+from packages.db.models.pattern_memory import LosingPatternMemory
+from packages.scoring.pattern_memory_engine import _sig
 
 
 @pytest_asyncio.fixture
@@ -155,6 +161,6 @@ async def test_idempotent(db_session, brand_with_losers):
 
 
 def test_failure_family_worker_registered():
-    from workers.celery_app import app
     import workers.failure_family_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.failure_family_worker.tasks.recompute_failure_families" in app.tasks

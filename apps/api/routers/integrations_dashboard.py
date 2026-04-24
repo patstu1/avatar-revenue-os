@@ -6,9 +6,8 @@ consolidated endpoints (used by the frontend integrations page).
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
@@ -23,11 +22,11 @@ router = APIRouter()
 
 class ConfigureRequest(BaseModel):
     provider_id: str
-    api_key: Optional[str] = None
-    api_secret: Optional[str] = None
-    oauth_token: Optional[str] = None
-    enabled: Optional[bool] = None
-    priority: Optional[int] = None
+    api_key: str | None = None
+    api_secret: str | None = None
+    oauth_token: str | None = None
+    enabled: bool | None = None
+    priority: int | None = None
 
 
 class TestRequest(BaseModel):
@@ -92,7 +91,8 @@ async def configure_provider(body: ConfigureRequest, current_user: OperatorUser,
     Handles API key save, enable/disable toggle, and priority changes
     in a single call.
     """
-    from sqlalchemy import select, update
+    from sqlalchemy import select
+
     from packages.db.models.integration_registry import IntegrationProvider
 
     # Resolve provider by ID
@@ -149,6 +149,7 @@ async def test_connection(body: TestRequest, current_user: OperatorUser, db: DBS
     Makes a lightweight health-check call (same endpoints as health_monitor).
     """
     from sqlalchemy import select
+
     from packages.db.models.integration_registry import IntegrationProvider
 
     provider = (await db.execute(
@@ -230,6 +231,7 @@ async def get_provider_for_task(current_user: CurrentUser, db: DBSession,
 async def enable_provider(provider_key: str, current_user: OperatorUser, db: DBSession):
     """Enable a provider."""
     from sqlalchemy import update
+
     from packages.db.models.integration_registry import IntegrationProvider
     await db.execute(update(IntegrationProvider).where(
         IntegrationProvider.organization_id == current_user.organization_id,
@@ -243,6 +245,7 @@ async def enable_provider(provider_key: str, current_user: OperatorUser, db: DBS
 async def disable_provider(provider_key: str, current_user: OperatorUser, db: DBSession):
     """Disable a provider."""
     from sqlalchemy import update
+
     from packages.db.models.integration_registry import IntegrationProvider
     await db.execute(update(IntegrationProvider).where(
         IntegrationProvider.organization_id == current_user.organization_id,

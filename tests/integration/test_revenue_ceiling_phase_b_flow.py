@@ -93,7 +93,6 @@ async def test_phase_b_recompute_and_get(api_client, sample_org_data):
 
 def test_phase_b_celery_tasks_registered():
     import workers.revenue_ceiling_worker.tasks  # noqa: F401
-
     from workers.celery_app import app
 
     for name in (

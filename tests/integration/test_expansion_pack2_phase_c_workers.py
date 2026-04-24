@@ -1,17 +1,16 @@
-import uuid
 
 import pytest
 from sqlalchemy import select
 
 from packages.db.models.core import Brand, Organization
-from packages.db.models.offers import AudienceSegment, Offer, SponsorProfile
 from packages.db.models.expansion_pack2_phase_c import (
-    ReferralProgramRecommendation,
     CompetitiveGapReport,
-    SponsorTarget,
-    SponsorOutreachSequence,
     ProfitGuardrailReport,
+    ReferralProgramRecommendation,
+    SponsorOutreachSequence,
+    SponsorTarget,
 )
+from packages.db.models.offers import AudienceSegment, Offer, SponsorProfile
 
 pytestmark = pytest.mark.skipif(
     True,
@@ -19,11 +18,11 @@ pytestmark = pytest.mark.skipif(
 )
 
 from workers.revenue_ceiling_worker.tasks import (
-    recompute_all_referral_program_recommendations,
     recompute_all_competitive_gap_reports,
-    recompute_all_sponsor_targets,
-    recompute_all_sponsor_outreach_sequences,
     recompute_all_profit_guardrail_reports,
+    recompute_all_referral_program_recommendations,
+    recompute_all_sponsor_outreach_sequences,
+    recompute_all_sponsor_targets,
 )
 
 

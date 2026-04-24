@@ -14,14 +14,11 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
-import uuid
-from pathlib import Path
-from typing import List, Optional
 
 import httpx
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -105,11 +102,12 @@ def _fmt_srt_time(seconds: float) -> str:
 @app.task(base=TrackedTask, bind=True, name="workers.repurposing_worker.tasks.repurpose_content")
 def repurpose_content(self) -> dict:
     """Find approved LONG_VIDEO ContentItems and create SHORT_VIDEO briefs on other platforms."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
-    from packages.db.models.content import ContentItem, ContentBrief
+    from sqlalchemy.orm import Session
+
     from packages.db.enums import ContentType
+    from packages.db.models.content import ContentBrief, ContentItem
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     items_found = 0
@@ -196,7 +194,7 @@ def repurpose_content(self) -> dict:
 def repurpose_to_shorts(
     self,
     content_item_id: str,
-    clip_specs: List[dict],
+    clip_specs: list[dict],
     convert_vertical: bool = True,
     target_platform: str = "tiktok",
 ) -> dict:
@@ -215,11 +213,12 @@ def repurpose_to_shorts(
     Returns:
         Dict with status and list of created asset/content IDs.
     """
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
-    from packages.db.models.content import ContentItem, Asset
+    from sqlalchemy.orm import Session
+
     from packages.db.enums import ContentType
+    from packages.db.models.content import Asset, ContentItem
+    from packages.db.session import get_sync_engine
     from packages.media.storage import get_storage
     from packages.media.video_processor import VideoProcessor
 

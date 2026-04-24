@@ -1,18 +1,27 @@
 """Causal Attribution Service — detect changes, attribute causes, persist."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
-from sqlalchemy import delete, func, select
+
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from packages.db.models.publishing import PerformanceMetric
-from packages.db.models.promote_winner import PWExperimentWinner
+
 from packages.db.models.causal_attribution import (
-    CausalAttributionReport, CausalSignal, CausalHypothesis,
-    CausalConfidenceReport, CausalCreditAllocation,
+    CausalAttributionReport,
+    CausalConfidenceReport,
+    CausalCreditAllocation,
+    CausalHypothesis,
+    CausalSignal,
 )
+from packages.db.models.promote_winner import PWExperimentWinner
+from packages.db.models.publishing import PerformanceMetric
 from packages.scoring.causal_attribution_engine import (
-    detect_change_points, extract_candidate_causes, score_causal_confidence,
-    allocate_credit, build_confidence_summary,
+    allocate_credit,
+    build_confidence_summary,
+    detect_change_points,
+    extract_candidate_causes,
+    score_causal_confidence,
 )
 
 

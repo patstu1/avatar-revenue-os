@@ -257,7 +257,8 @@ async def approve_draft(
     Attribution, events, and operator-action audit are handled by the
     shared ``reply_draft_actions.approve_draft`` service.
     """
-    from apps.api.services.reply_draft_actions import DraftActionError, approve_draft as approve_svc
+    from apps.api.services.reply_draft_actions import DraftActionError
+    from apps.api.services.reply_draft_actions import approve_draft as approve_svc
 
     try:
         draft = await approve_svc(
@@ -292,7 +293,8 @@ async def reject_draft(
     body: RejectDraftBody | None = None,
 ):
     """Reject a pending or approved draft so the send worker skips it."""
-    from apps.api.services.reply_draft_actions import DraftActionError, reject_draft as reject_svc
+    from apps.api.services.reply_draft_actions import DraftActionError
+    from apps.api.services.reply_draft_actions import reject_draft as reject_svc
 
     reason = body.reason if body else None
     try:

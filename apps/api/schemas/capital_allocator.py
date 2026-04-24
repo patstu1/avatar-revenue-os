@@ -1,7 +1,8 @@
 """Pydantic schemas for Portfolio Capital Allocator."""
 from __future__ import annotations
+
 import uuid
-from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -39,7 +40,7 @@ class AllocationDecisionOut(BaseModel):
     provider_tier: str
     allocation_pct: float
     starved: bool
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class AllocationRebalanceOut(BaseModel):

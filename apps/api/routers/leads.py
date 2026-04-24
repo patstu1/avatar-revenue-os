@@ -1,12 +1,9 @@
 """Public lead capture API — no auth required. Used by offer landing pages."""
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
-
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, EmailStr
-from sqlalchemy import select, text
+from pydantic import BaseModel
+from sqlalchemy import select
 
 from apps.api.deps import DBSession
 from packages.db.models.core import Brand

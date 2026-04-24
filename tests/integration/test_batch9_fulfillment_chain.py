@@ -21,7 +21,6 @@ from sqlalchemy import select
 
 from apps.api.services.client_activation import (
     activate_client_from_payment,
-    send_intake_invite,
     start_onboarding,
 )
 from apps.api.services.proposal_dunning_service import send_reminder
@@ -30,11 +29,10 @@ from apps.api.services.proposals_service import (
     create_proposal,
     record_payment_from_stripe,
 )
-from packages.db.models.clients import Client, IntakeRequest
+from packages.db.models.clients import Client
 from packages.db.models.core import Organization
-from packages.db.models.delivery import Delivery
 from packages.db.models.fulfillment import ClientProject, ProductionJob, ProjectBrief
-from packages.db.models.proposals import Payment, Proposal
+from packages.db.models.proposals import Proposal
 
 
 async def _ensure_org(db_session, sample_org_data) -> uuid.UUID:
@@ -254,8 +252,6 @@ async def test_fulfillment_worker_drain_logic_directly(db_session, sample_org_da
     state machine that the Celery-scheduled task runs — queued → picked
     up → in_progress with worker_id + picked_up_at + attempt_count++.
     """
-    from apps.api.services.event_bus import emit_event
-    from apps.api.services.stage_controller import mark_stage
     from workers.fulfillment_worker.tasks import _WORKER_ID
 
     org_id = await _ensure_org(db_session, sample_org_data)

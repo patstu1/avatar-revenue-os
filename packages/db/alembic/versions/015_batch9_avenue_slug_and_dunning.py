@@ -17,8 +17,8 @@ Adds:
 
 All additions are additive and nullable — safe to run on populated DB.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "015_batch9"
 down_revision = "014_gm_control"

@@ -1,12 +1,12 @@
 """Unit tests for revenue ceiling engines."""
 
 from packages.scoring.revenue_engines import (
+    REVENUE_INTEL_SOURCE,
     estimate_owned_audience_value,
     optimize_offer_stack,
     recommend_productization,
     score_funnel_paths,
     score_monetization_density,
-    REVENUE_INTEL_SOURCE,
 )
 
 

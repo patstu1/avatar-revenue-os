@@ -1,16 +1,19 @@
 """Email Campaign Worker — send nurture sequences, weekly digests, and monetization emails."""
 from __future__ import annotations
+
 import asyncio
 import logging
+import uuid
 from datetime import datetime, timezone
 
 from celery import shared_task
-from sqlalchemy import select, update
+from sqlalchemy import select
 
-from workers.base_task import TrackedTask
-
-from packages.db.session import get_async_session_factory, run_async
 from packages.db.models.core import Brand
+from packages.db.session import get_async_session_factory, run_async
+
+async_session_factory = get_async_session_factory()
+from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +76,10 @@ async def _send_pending_emails():
     for bid in brands:
         try:
             async with get_async_session_factory()() as db:
-                from apps.api.services.lead_magnet_service import identify_lead_magnet_opportunities, generate_lead_magnet
+                from apps.api.services.lead_magnet_service import (
+                    generate_lead_magnet,
+                    identify_lead_magnet_opportunities,
+                )
                 opportunities = await identify_lead_magnet_opportunities(db, bid)
                 for opp in opportunities[:1]:
                     result = await generate_lead_magnet(db, bid, opp["topic"], opp["magnet_type"])
@@ -109,20 +115,12 @@ async def _sync_inbox_impl(connection_id: str | None = None) -> dict:
     9. Send approved auto-replies
     """
     import os
-    import hashlib
-    import email as email_lib
-    import imaplib
-    from email.utils import parseaddr, parsedate_to_datetime
 
+    from apps.api.services.reply_engine import send_approved_drafts
+    from packages.db.models.core import Organization
     from packages.db.models.email_pipeline import (
-        InboxConnection, EmailThread, EmailMessage, EmailClassification,
-        SalesStageTransition,
+        InboxConnection,
     )
-    from packages.db.models.live_execution import CrmContact
-    from packages.db.models.expansion_pack2_phase_a import LeadOpportunity
-    from packages.db.models.core import Organization, Brand
-    from apps.api.services.email_classifier import classify_email, compute_stage_transition
-    from apps.api.services.reply_engine import create_reply_draft, send_approved_drafts
 
     total_ingested = 0
     total_classified = 0
@@ -211,20 +209,23 @@ async def _sync_inbox_impl(connection_id: str | None = None) -> dict:
 
 async def _sync_one_inbox(db, conn) -> dict:
     """Sync one IMAP inbox: fetch, dedup, thread, classify, advance, draft."""
-    import os
-    import hashlib
     import email as email_lib
+    import hashlib
     import imaplib
+    import os
     from email.utils import parseaddr, parsedate_to_datetime
 
-    from packages.db.models.email_pipeline import (
-        EmailThread, EmailMessage, EmailClassification, SalesStageTransition,
-    )
-    from packages.db.models.live_execution import CrmContact
-    from packages.db.models.expansion_pack2_phase_a import LeadOpportunity
-    from packages.db.models.core import Brand
     from apps.api.services.email_classifier import classify_email, compute_stage_transition
     from apps.api.services.reply_engine import create_reply_draft
+    from packages.db.models.core import Brand
+    from packages.db.models.email_pipeline import (
+        EmailClassification,
+        EmailMessage,
+        EmailThread,
+        SalesStageTransition,
+    )
+    from packages.db.models.expansion_pack2_phase_a import LeadOpportunity
+    from packages.db.models.live_execution import CrmContact
 
     host = conn.host or os.environ.get("IMAP_HOST", "")
     port = conn.port or int(os.environ.get("IMAP_PORT", "993"))

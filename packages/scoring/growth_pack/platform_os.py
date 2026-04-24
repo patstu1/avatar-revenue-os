@@ -3,6 +3,7 @@
 Supported platforms: tiktok, instagram, youtube, twitter (X), reddit, linkedin, facebook.
 """
 from __future__ import annotations
+
 from typing import Any
 
 PLATFORM_SPECS: dict[str, dict[str, Any]] = {

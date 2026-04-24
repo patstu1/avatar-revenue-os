@@ -3,9 +3,9 @@
 Pure functions. No I/O.
 """
 from __future__ import annotations
-from typing import Any, Optional
+
 import math
-import random
+from typing import Any
 
 EXPERIMENT_TYPES = [
     "hook", "content_form", "cta_type", "offer_angle",
@@ -26,8 +26,8 @@ def create_experiment(
     primary_metric: str = "engagement_rate",
     min_sample_size: int = MIN_DEFAULT_SAMPLE,
     confidence_threshold: float = DEFAULT_CONFIDENCE,
-    platform: Optional[str] = None,
-    niche: Optional[str] = None,
+    platform: str | None = None,
+    niche: str | None = None,
 ) -> dict[str, Any]:
     if tested_variable not in EXPERIMENT_TYPES:
         tested_variable = "custom"
@@ -159,7 +159,7 @@ def build_promotion_rules(
     if tested_var == "monetization_path":
         rules.append({
             "rule_type": "monetization_default",
-            "rule_key": f"preferred_monetization",
+            "rule_key": "preferred_monetization",
             "rule_value": {"value": wname, "config": wconfig},
             "target_platform": platform,
             "weight_boost": boost,

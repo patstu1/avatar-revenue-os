@@ -11,11 +11,8 @@ from __future__ import annotations
 import math
 import statistics
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import Optional
-
 
 # ---------------------------------------------------------------------------
 # 1. Intelligent Budget Allocator with Real-time ROI Rebalancing
@@ -273,7 +270,6 @@ def compute_channel_saturation(
     max_spend = max(spend) if spend else 1.0
 
     best_sse = float("inf")
-    best_L = max_rev
     best_k = 1.0
     best_x0 = max_spend * 0.5
 
@@ -292,7 +288,6 @@ def compute_channel_saturation(
                     sse += (predicted - r) ** 2
                 if sse < best_sse:
                     best_sse = sse
-                    best_L = L
                     best_k = k
                     best_x0 = x0
 
@@ -912,10 +907,10 @@ class WorkflowHealth:
     success_rate_24h: float
     avg_latency_ms: float
     error_count_24h: int
-    last_error: Optional[str]
+    last_error: str | None
     auto_recovery_attempts: int
     dependencies: list[str]
-    bottleneck_step: Optional[str]
+    bottleneck_step: str | None
 
 
 @dataclass
@@ -994,7 +989,7 @@ def diagnose_workflow_health(
     errors = [e for e in recent if str(e.get("status", "")).lower() in ("error", "failed", "failure")]
     error_count = len(errors)
 
-    last_error_msg: Optional[str] = None
+    last_error_msg: str | None = None
     if errors:
         last_error_msg = str(errors[-1].get("error", "Unknown error"))
 
@@ -1008,7 +1003,7 @@ def diagnose_workflow_health(
         if lat is not None:
             step_latencies[step].append(float(lat))
 
-    bottleneck: Optional[str] = None
+    bottleneck: str | None = None
     if step_errors:
         bottleneck = max(step_errors, key=step_errors.get)  # type: ignore[arg-type]
     elif step_latencies:

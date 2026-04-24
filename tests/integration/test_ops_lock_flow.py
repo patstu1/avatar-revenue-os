@@ -11,8 +11,6 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import select
 
-from packages.db.models.gm_control import GMEscalation, StageState
-
 
 @pytest.mark.asyncio
 async def test_ops_version_returns_canonical_fields(api_client):

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,12 +18,12 @@ class CopilotSessionOut(BaseModel):
     title: str
     status: str
     message_count: int
-    last_message_at: Optional[str] = None
+    last_message_at: str | None = None
 
 
 class CopilotMessageCreate(BaseModel):
     content: str
-    quick_prompt_key: Optional[str] = None
+    quick_prompt_key: str | None = None
 
 
 class CopilotMessageOut(BaseModel):
@@ -32,14 +32,14 @@ class CopilotMessageOut(BaseModel):
     id: uuid.UUID
     role: str
     content: str
-    grounding_sources: Optional[list[Any]] = None
-    truth_boundaries: Optional[dict[str, Any]] = None
-    quick_prompt_key: Optional[str] = None
-    confidence: Optional[float] = None
-    generation_mode: Optional[str] = None
-    generation_model: Optional[str] = None
-    context_hash: Optional[str] = None
-    failure_reason: Optional[str] = None
+    grounding_sources: list[Any] | None = None
+    truth_boundaries: dict[str, Any] | None = None
+    quick_prompt_key: str | None = None
+    confidence: float | None = None
+    generation_mode: str | None = None
+    generation_model: str | None = None
+    context_hash: str | None = None
+    failure_reason: str | None = None
 
 
 class CopilotPostMessagesResponse(BaseModel):

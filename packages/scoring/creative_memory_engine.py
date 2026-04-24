@@ -79,10 +79,10 @@ def _reuse_recommendations(
         recs.append(f"Embed in {funnel_stage} email sequence")
     elif atom_type == "trust_block":
         recs.append(f"Use as social proof on landing pages ({niche})")
-        recs.append(f"Repurpose for sponsor pitch deck")
+        recs.append("Repurpose for sponsor pitch deck")
     elif atom_type == "objection_response":
         recs.append(f"Insert in FAQ section for {niche} offers")
-        recs.append(f"Use in objection-handling email sequence")
+        recs.append("Use in objection-handling email sequence")
     else:
         recs.append(f"Reuse in {niche} content on {platform}")
         recs.append(f"Adapt for {funnel_stage} funnel stage")

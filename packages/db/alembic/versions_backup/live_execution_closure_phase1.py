@@ -4,9 +4,9 @@ Revision ID: lec_phase1_001
 Revises: buffer_dist_001
 Create Date: 2025-01-01 00:00:00.000000
 """
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision = "lec_phase1_001"
 down_revision = "buffer_dist_001"

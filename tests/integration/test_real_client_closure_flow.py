@@ -1,9 +1,9 @@
 """DB-backed integration tests for Live Execution Phase 2 — Real Client Closure."""
+import base64
 import hashlib
 import hmac
 import json
 import time
-import base64
 
 import pytest
 

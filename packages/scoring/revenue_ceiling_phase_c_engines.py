@@ -3,7 +3,7 @@ monetization mix, paid promotion gate (pure functions, no I/O, no SQLAlchemy).""
 from __future__ import annotations
 
 import math
-from typing import Any, Optional
+from typing import Any
 
 RC_PHASE_C = "revenue_ceiling_phase_c"
 
@@ -285,7 +285,7 @@ def _build_deliverables(niche: str, inventory: list[dict]) -> list[str]:
     type_labels: dict[str, str] = {
         "long_form": f"1x long-form {niche} video with integrated sponsor segment",
         "short_form": f"2x short-form {niche} clips with sponsor mention",
-        "podcast": f"1x podcast episode with host-read sponsor spot",
+        "podcast": "1x podcast episode with host-read sponsor spot",
         "article": f"1x sponsored {niche} article with editorial mention",
     }
     for item in inventory[:5]:

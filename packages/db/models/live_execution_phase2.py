@@ -8,7 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.db.base import Base
 
-
 # ── A. Webhook / Event Ingestion ──────────────────────────────────────
 
 class WebhookEvent(Base):

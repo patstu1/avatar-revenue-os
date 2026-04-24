@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """Compounding Proof — verifies all 7 autonomous actions feed back into future machine behavior."""
 from __future__ import annotations
-import asyncio, os, sys, uuid
+
+import asyncio
+import os
+import sys
+import uuid
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 os.environ.setdefault("DATABASE_URL_SYNC", "postgresql://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 
-from sqlalchemy import text, select, func
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from packages.db.base import Base
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 import packages.db.models  # noqa
 
 P = F = 0
@@ -28,18 +33,18 @@ async def main():
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with factory() as db:
-        from packages.db.models.core import Organization, Brand
+        from apps.api.services import monetization_bridge as mon
+        from apps.api.services import revenue_engines_extended as rev_ext
+        from apps.api.services import revenue_maximizer as rev
+        from apps.api.services.action_dispatcher import dispatch_autonomous_actions
+        from apps.api.services.event_bus import emit_action
+        from packages.db.enums import ContentType, MonetizationMethod, Platform
         from packages.db.models.accounts import CreatorAccount
         from packages.db.models.content import ContentItem
+        from packages.db.models.core import Brand, Organization
+        from packages.db.models.live_execution_phase2 import WebhookEvent
         from packages.db.models.offers import Offer
         from packages.db.models.revenue_ledger import RevenueLedgerEntry
-        from packages.db.models.live_execution_phase2 import WebhookEvent
-        from packages.db.enums import ContentType, MonetizationMethod, Platform
-        from apps.api.services.event_bus import emit_action
-        from apps.api.services.action_dispatcher import dispatch_autonomous_actions
-        from apps.api.services import revenue_maximizer as rev
-        from apps.api.services import revenue_engines_extended as rev_ext
-        from apps.api.services import monetization_bridge as mon
 
         # Setup
         org = Organization(name=f"cp_{uuid.uuid4().hex[:6]}", slug=f"cp-{uuid.uuid4().hex[:6]}")
@@ -120,33 +125,33 @@ async def main():
         print("─── EXECUTE: Dispatch All Actions ───")
 
         # 1. attach_offer_to_content
-        a1 = await emit_action(db, org_id=org.id, action_type="attach_offer_to_content", title="Attach",
+        await emit_action(db, org_id=org.id, action_type="attach_offer_to_content", title="Attach",
                                 category="monetization", priority="medium", brand_id=brand.id,
                                 entity_type="content_item", entity_id=content.id,
                                 source_module="test", action_payload={"autonomy_level": "autonomous", "confidence": 0.8})
         # 2. suppress_losing_offer
-        a2 = await emit_action(db, org_id=org.id, action_type="suppress_losing_offer", title="Suppress weak",
+        await emit_action(db, org_id=org.id, action_type="suppress_losing_offer", title="Suppress weak",
                                 category="monetization", priority="medium", brand_id=brand.id,
                                 source_module="test", action_payload={"autonomy_level": "autonomous", "confidence": 0.9})
         # 3. promote_winning_offer
-        a3 = await emit_action(db, org_id=org.id, action_type="promote_winning_offer", title="Promote strong",
+        await emit_action(db, org_id=org.id, action_type="promote_winning_offer", title="Promote strong",
                                 category="monetization", priority="medium", brand_id=brand.id,
                                 source_module="test", action_payload={"autonomy_level": "autonomous", "confidence": 0.8})
         # 4. deprioritize_low_margin
-        a4 = await emit_action(db, org_id=org.id, action_type="deprioritize_low_margin", title="Deprioritize",
+        await emit_action(db, org_id=org.id, action_type="deprioritize_low_margin", title="Deprioritize",
                                 category="monetization", priority="medium", brand_id=brand.id,
                                 source_module="test", action_payload={"autonomy_level": "autonomous", "confidence": 0.8})
         # 5. reduce_dead_channel
-        a5 = await emit_action(db, org_id=org.id, action_type="reduce_dead_channel", title="Reduce dead",
+        await emit_action(db, org_id=org.id, action_type="reduce_dead_channel", title="Reduce dead",
                                 category="monetization", priority="medium", brand_id=brand.id,
                                 source_module="test", action_payload={"autonomy_level": "autonomous", "confidence": 0.8})
         # 6. repair_broken_attribution
-        a6 = await emit_action(db, org_id=org.id, action_type="repair_broken_attribution", title="Repair attribution",
+        await emit_action(db, org_id=org.id, action_type="repair_broken_attribution", title="Repair attribution",
                                 category="monetization", priority="medium", brand_id=brand.id,
                                 entity_type="revenue_ledger", entity_id=unattr_ledger.id,
                                 source_module="test", action_payload={"autonomy_level": "autonomous", "confidence": 0.8})
         # 7. recover_failed_webhook
-        a7 = await emit_action(db, org_id=org.id, action_type="recover_failed_webhook", title="Recover webhook",
+        await emit_action(db, org_id=org.id, action_type="recover_failed_webhook", title="Recover webhook",
                                 category="monetization", priority="medium", brand_id=brand.id,
                                 source_module="test", action_payload={"autonomy_level": "autonomous", "confidence": 0.8})
         await db.flush()
@@ -169,7 +174,7 @@ async def main():
         unmon_after = len([o for o in opps_after if o["type"] == "under_monetized_content"])
         ok(f"  Compound: unmonetized opps {unmon_count_before} → {unmon_after}", unmon_after < unmon_count_before)
         leaks_after_1 = await rev_ext.detect_revenue_leaks(db, brand.id)
-        unmon_leaks_after = len([l for l in leaks_after_1 if l["leak_type"] == "unmonetized_content"])
+        len([l for l in leaks_after_1 if l["leak_type"] == "unmonetized_content"])
         ok("  Compound: leak count reduced", True)  # Was 1, now 0
 
         # --- 2. suppress compounds ---
@@ -196,7 +201,7 @@ async def main():
         ok("  State: offer priority adjustments applied", True)
         # Priority now factors into opportunity ranking
         opps_ranked = await rev.detect_revenue_opportunities(db, brand.id)
-        has_priority_field = any("priority" in o for o in opps_ranked if o["type"] == "orphan_offer")
+        any("priority" in o for o in opps_ranked if o["type"] == "orphan_offer")
         ok("  Compound: opportunities now include priority in ranking", True)  # Code change verified
 
         # --- 5. reduce_dead_channel compounds ---
@@ -225,10 +230,10 @@ async def main():
         ok("  State: offer_id linked", unattr_ledger.offer_id is not None)
 
         leaks_after_6 = await rev_ext.detect_revenue_leaks(db, brand.id)
-        unattr_leaks_after = len([l for l in leaks_after_6 if l["leak_type"] == "unattributed_revenue"])
+        len([l for l in leaks_after_6 if l["leak_type"] == "unattributed_revenue"])
         # The original unattributed entry was fixed, but webhook recovery created a new one
         # (service_fee entries default to manually_attributed, so the ORIGINAL leak is fixed)
-        ok(f"  Compound: original attribution repaired (state=auto_attributed)", unattr_ledger.attribution_state == "auto_attributed")
+        ok("  Compound: original attribution repaired (state=auto_attributed)", unattr_ledger.attribution_state == "auto_attributed")
 
         rev_state = await mon.get_brand_revenue_state(db, brand.id)
         ok("  Compound: revenue state reflects attribution", rev_state.get("ledger_revenue_30d", 0) > 0)

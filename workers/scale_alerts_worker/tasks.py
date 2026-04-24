@@ -9,12 +9,12 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
-from packages.db.session import get_async_session_factory, get_sync_engine, run_async
 from packages.db.models.core import Brand
 from packages.db.models.scale_alerts import NotificationDelivery
+from packages.db.session import get_async_session_factory, get_sync_engine, run_async
 from packages.notifications.adapters import EmailAdapter, NotificationPayload, SlackWebhookAdapter, SMSAdapter
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = structlog.get_logger()
 

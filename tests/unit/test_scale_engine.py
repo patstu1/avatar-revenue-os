@@ -2,10 +2,12 @@
 import pytest
 
 from packages.scoring.scale import (
-    AccountScaleSnapshot,
     EXPANSION_BEATS_EXISTING_RATIO,
     NEW_ACCOUNT_OVERHEAD_USD,
+    RK_ADD_EXPERIMENTAL,
+    RK_ADD_OFFER_FIRST,
     VOLUME_LIFT_FACTOR,
+    AccountScaleSnapshot,
     compute_audience_segment_separation,
     compute_cannibalization_risk,
     compute_incremental_profit_more_volume,
@@ -14,9 +16,6 @@ from packages.scoring.scale import (
     compute_scale_readiness_score,
     niche_jaccard,
     run_scale_engine,
-    RK_ADD_OFFER_FIRST,
-    RK_ADD_EXPERIMENTAL,
-    RK_SCALE_WINNERS_HARDER,
 )
 
 

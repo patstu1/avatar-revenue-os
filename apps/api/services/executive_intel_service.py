@@ -1,24 +1,33 @@
 """Executive Intelligence Service — KPI rollup, forecast, cost, uptime, oversight, alerts."""
 from __future__ import annotations
+
 import uuid
-from typing import Any
 from datetime import datetime, timezone
+from typing import Any
+
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.campaigns import Campaign
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
 from packages.db.models.creator_revenue import CreatorRevenueEvent
 from packages.db.models.executive_intel import (
-    ExecutiveKPIReport, ExecutiveForecast, UsageCostReport,
-    ProviderUptimeReport, OversightModeReport, ServiceHealthReport, ExecutiveAlert,
+    ExecutiveAlert,
+    ExecutiveForecast,
+    ExecutiveKPIReport,
+    OversightModeReport,
+    ProviderUptimeReport,
+    UsageCostReport,
 )
 from packages.db.models.publishing import PerformanceMetric
 from packages.db.models.workflow_builder import WorkflowApproval, WorkflowOverride
 from packages.scoring.executive_intel_engine import (
-    rollup_kpis, forecast_metric, compute_uptime, evaluate_oversight,
+    evaluate_oversight,
+    forecast_metric,
     generate_executive_alerts,
+    rollup_kpis,
 )
 
 

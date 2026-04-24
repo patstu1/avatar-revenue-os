@@ -2,7 +2,6 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-
 from sqlalchemy import select
 
 from apps.api.deps import CurrentUser, DBSession, OperatorUser

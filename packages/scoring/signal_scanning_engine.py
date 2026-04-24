@@ -489,7 +489,7 @@ def _match_account(
     raw = signal.get("raw_signal", {})
     for kw in raw.get("keywords", []):
         sig_keywords.add(kw.lower().strip())
-    sig_type = signal.get("signal_type", "")
+    signal.get("signal_type", "")
 
     best: dict[str, Any] | None = None
     best_score = -1.0

@@ -1,6 +1,5 @@
 """Content pipeline endpoints — briefs, scripts, content items."""
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel

@@ -9,11 +9,9 @@ Usage:
   docker exec aro-api python scripts/activate_live.py --channel age_fix_daily --image-url https://...
   docker exec aro-api python scripts/activate_live.py --channel agefixdaily
 """
-import asyncio
 import argparse
-import json
+import asyncio
 import sys
-import uuid
 from datetime import datetime, timezone
 
 sys.path.insert(0, "/app")
@@ -81,15 +79,16 @@ SAMPLE_POSTS = [
 
 
 async def run_one(channel_name: str, post_data: dict, image_url: str | None, run_number: int):
-    from packages.db.session import get_async_session_factory
-    from packages.clients.external_clients import BufferClient
-    from packages.db.models.content import ContentBrief, Script, ContentItem, Asset, MediaJob
-    from packages.db.models.quality import QAReport, Approval
-    from packages.db.models.publishing import PublishJob
-    from packages.db.models.buffer_distribution import BufferPublishJob
-    from packages.db.enums import JobStatus, QAStatus, ApprovalStatus, ContentType, Platform
-    from apps.api.services import secrets_service
     from sqlalchemy import select
+
+    from apps.api.services import secrets_service
+    from packages.clients.external_clients import BufferClient
+    from packages.db.enums import ApprovalStatus, ContentType, JobStatus, Platform, QAStatus
+    from packages.db.models.buffer_distribution import BufferPublishJob
+    from packages.db.models.content import Asset, ContentBrief, ContentItem, MediaJob, Script
+    from packages.db.models.publishing import PublishJob
+    from packages.db.models.quality import Approval, QAReport
+    from packages.db.session import get_async_session_factory
 
     channel = CHANNEL_MAP[channel_name]
     channel_id = channel["id"]
@@ -314,7 +313,7 @@ async def run_one(channel_name: str, post_data: dict, image_url: str | None, run
             db.add(buffer_job)
             await db.flush()
 
-            print(f"  [8] BUFFER: SUCCESS")
+            print("  [8] BUFFER: SUCCESS")
             print(f"      Buffer Post ID: {buffer_post_id}")
             print(f"      Buffer Status: {buffer_status}")
             print(f"      Buffer Job: {buffer_job.id}")
@@ -364,7 +363,7 @@ async def main(channels: list[str], count: int, image_url: str | None):
 
     # ── Final Report ─────────────────────────────────────────
     print(f"\n{'='*60}")
-    print(f"  ACTIVATION REPORT")
+    print("  ACTIVATION REPORT")
     print(f"{'='*60}")
     passed = sum(1 for r in results if r["success"])
     failed = sum(1 for r in results if not r["success"])

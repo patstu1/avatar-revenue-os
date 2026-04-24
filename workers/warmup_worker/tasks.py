@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import logging
-import uuid
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +12,14 @@ logger = logging.getLogger(__name__)
 @app.task(base=TrackedTask, bind=True, name="workers.warmup_worker.tasks.enforce_warmup_cadence")
 def enforce_warmup_cadence(self) -> dict:
     """Check warmup phase and shadow-ban signals for every active CreatorAccount."""
-    from sqlalchemy.orm import Session
     from sqlalchemy import select
-    from packages.db.session import get_sync_engine
+    from sqlalchemy.orm import Session
+
+    from packages.db.enums import HealthStatus
     from packages.db.models.accounts import CreatorAccount
     from packages.db.models.publishing import PerformanceMetric
-    from packages.db.enums import HealthStatus
-    from packages.scoring.warmup_engine import determine_warmup_phase, detect_shadow_ban
+    from packages.db.session import get_sync_engine
+    from packages.scoring.warmup_engine import detect_shadow_ban, determine_warmup_phase
 
     engine = get_sync_engine()
     accounts_checked = 0

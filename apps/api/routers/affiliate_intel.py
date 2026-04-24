@@ -1,10 +1,18 @@
 """Affiliate Intelligence API."""
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.rate_limit import recompute_rate_limit
-from apps.api.schemas.affiliate_intel import AffiliateOfferOut, AffiliateLinkOut, AffiliateLeakOut, AffiliateBlockerOut, RecomputeSummaryOut
+from apps.api.schemas.affiliate_intel import (
+    AffiliateBlockerOut,
+    AffiliateLeakOut,
+    AffiliateLinkOut,
+    AffiliateOfferOut,
+    RecomputeSummaryOut,
+)
 from apps.api.services import affiliate_intel_service as svc
 from packages.db.models.core import Brand
 

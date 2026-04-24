@@ -1,24 +1,25 @@
 """Maximum-strength pack recurring recomputes (11 modules)."""
-import asyncio
 import logging
 
 from sqlalchemy import select
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
-from packages.db.session import get_async_session_factory, run_async
+from apps.api.services import (
+    audience_state_service,
+    capacity_service,
+    contribution_service,
+    creative_memory_service,
+    deal_desk_service,
+    experiment_decision_service,
+    kill_ledger_service,
+    market_timing_service,
+    offer_lifecycle_service,
+    recovery_service,
+    reputation_service,
+)
 from packages.db.models.core import Brand
-from apps.api.services import experiment_decision_service
-from apps.api.services import contribution_service
-from apps.api.services import capacity_service
-from apps.api.services import offer_lifecycle_service
-from apps.api.services import creative_memory_service
-from apps.api.services import recovery_service
-from apps.api.services import deal_desk_service
-from apps.api.services import audience_state_service
-from apps.api.services import reputation_service
-from apps.api.services import market_timing_service
-from apps.api.services import kill_ledger_service
+from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 

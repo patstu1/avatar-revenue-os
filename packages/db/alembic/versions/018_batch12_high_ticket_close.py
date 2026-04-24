@@ -20,8 +20,8 @@ Additive, idempotent. Two changes:
      carries a dollar value; NULL for non-financial events
      (state_evaluated, reactivation_sent).
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision = "018_batch12"

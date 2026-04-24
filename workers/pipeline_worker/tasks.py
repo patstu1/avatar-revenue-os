@@ -16,10 +16,10 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from workers.celery_app import app
-from workers.base_task import TrackedTask
 from packages.db.session import get_sync_engine
 from packages.media.storage import get_storage
+from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = structlog.get_logger()
 
@@ -90,10 +90,10 @@ def continue_pipeline(
     Returns:
         Dict with step result, persistent URL, and next action taken.
     """
-    from packages.db.models.media_jobs import MediaJob
-    from packages.db.models.content import ContentItem, Asset
-    from packages.db.models.core import Brand
     from apps.api.services.event_bus import emit_event_sync
+    from packages.db.models.content import Asset, ContentItem
+    from packages.db.models.core import Brand
+    from packages.db.models.media_jobs import MediaJob
 
     storage = get_storage()
 
@@ -388,10 +388,10 @@ def assemble_and_finalize(self, content_item_id: str) -> dict:
     Returns:
         Dict with manifest, content status, and publishing dispatch result.
     """
-    from packages.db.models.media_jobs import MediaJob
-    from packages.db.models.content import ContentItem, Asset
-    from packages.db.models.core import Brand
     from apps.api.services.event_bus import emit_event_sync
+    from packages.db.models.content import Asset, ContentItem
+    from packages.db.models.core import Brand
+    from packages.db.models.media_jobs import MediaJob
 
     with _get_session() as session:
         # ── 1. Load content item ─────────────────────────────────────

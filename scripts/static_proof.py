@@ -12,10 +12,8 @@ This proves at import time that:
 
 Run with: python scripts/static_proof.py (no DB required)
 """
-import ast
 import inspect
 import os
-import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -179,9 +177,13 @@ def main():
     print("─── 4. STATE MACHINES COMPLETE ───")
 
     from packages.db.enums import (
-        ContentLifecycle, AccountLifecycle, OfferLifecycleStatus,
-        BrandLifecycle, EventDomain, EventSeverity, ActionPriority,
-        ActionCategory, ActionStatus, JobStatus,
+        AccountLifecycle,
+        ActionStatus,
+        BrandLifecycle,
+        ContentLifecycle,
+        EventDomain,
+        JobStatus,
+        OfferLifecycleStatus,
     )
 
     check("ContentLifecycle has 13 states", len(ContentLifecycle) == 13)
@@ -262,7 +264,6 @@ def main():
     print("─── 7. NEW TABLES IN METADATA ───")
 
     from packages.db.base import Base
-    import packages.db.models
     tables = set(Base.metadata.tables.keys())
     check("system_events table", "system_events" in tables)
     check("operator_actions table", "operator_actions" in tables)

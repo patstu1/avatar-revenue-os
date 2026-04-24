@@ -5,8 +5,6 @@ All functions are pure/deterministic — no DB access. Service layer handles per
 
 from __future__ import annotations
 
-from typing import Any, Optional
-
 PHASE7_SOURCE = "phase7_engine"
 
 SPONSOR_SAFE_CATEGORIES = {
@@ -26,7 +24,7 @@ SPONSOR_UNSAFE_KEYWORDS = {
 # 1. Sponsor Sales Engine
 # ---------------------------------------------------------------------------
 
-def is_sponsor_safe(niche: Optional[str], content_tags: Optional[list] = None) -> tuple[bool, str]:
+def is_sponsor_safe(niche: str | None, content_tags: list | None = None) -> tuple[bool, str]:
     """Check if brand niche is sponsor-safe."""
     n = (niche or "").lower().strip()
     if not n:
@@ -40,7 +38,7 @@ def is_sponsor_safe(niche: Optional[str], content_tags: Optional[list] = None) -
 
 
 def recommend_sponsor_packages(
-    brand_niche: Optional[str],
+    brand_niche: str | None,
     accounts: list[dict],
     total_revenue: float,
     total_impressions: int,
@@ -185,7 +183,7 @@ def extract_comment_cash_signals(
 # ---------------------------------------------------------------------------
 
 def build_knowledge_graph_entries(
-    brand_niche: Optional[str],
+    brand_niche: str | None,
     accounts: list[dict],
     offers: list[dict],
     winners: list[dict],
@@ -197,7 +195,7 @@ def build_knowledge_graph_entries(
     edges: list[dict] = []
     node_ids: dict[str, int] = {}
 
-    def _add_node(ntype: str, label: str, props: Optional[dict] = None) -> int:
+    def _add_node(ntype: str, label: str, props: dict | None = None) -> int:
         key = f"{ntype}:{label}"
         if key in node_ids:
             return node_ids[key]
@@ -206,7 +204,7 @@ def build_knowledge_graph_entries(
         nodes.append({"node_type": ntype, "label": label, "properties": props or {}, PHASE7_SOURCE: True})
         return idx
 
-    def _add_edge(src: int, tgt: int, etype: str, weight: float = 1.0, props: Optional[dict] = None):
+    def _add_edge(src: int, tgt: int, etype: str, weight: float = 1.0, props: dict | None = None):
         edges.append({"source_idx": src, "target_idx": tgt, "edge_type": etype, "weight": weight, "properties": props or {}, PHASE7_SOURCE: True})
 
     niche_label = (brand_niche or "general")[:120]
@@ -244,14 +242,14 @@ def build_knowledge_graph_entries(
 # ---------------------------------------------------------------------------
 
 def generate_roadmap(
-    brand_niche: Optional[str],
+    brand_niche: str | None,
     accounts: list[dict],
     offers: list[dict],
     winners: list[dict],
     leaks: list[dict],
     segments: list[dict],
     geo_recs: list[dict],
-    scale_rec_key: Optional[str],
+    scale_rec_key: str | None,
     trust_avg: float,
 ) -> list[dict]:
     """Generate prioritized roadmap recommendations across 6 categories."""
@@ -351,7 +349,7 @@ def compute_capital_allocation(
     paid_candidate_count: int,
     geo_rec_count: int,
     trust_avg: float,
-    scale_rec_key: Optional[str],
+    scale_rec_key: str | None,
     productization_rec_count: int = 0,
     owned_audience_size: int = 0,
 ) -> list[dict]:
@@ -431,7 +429,7 @@ def compute_capital_allocation(
     return sorted(allocations, key=lambda a: -a["recommended_allocation_pct"])
 
 
-def _alloc_rationale(target: str, pct: float, leaks: int, paid: int, geo: int, scale_key: Optional[str]) -> str:
+def _alloc_rationale(target: str, pct: float, leaks: int, paid: int, geo: int, scale_key: str | None) -> str:
     base = {
         "content_volume": "Primary revenue driver — winner cloning and volume scaling.",
         "new_accounts": "Portfolio expansion per scale engine recommendation.",

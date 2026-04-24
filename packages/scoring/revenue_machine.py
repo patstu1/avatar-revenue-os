@@ -11,11 +11,10 @@ from __future__ import annotations
 
 import math
 import statistics
-from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Optional, Any
+from typing import Any
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
@@ -175,7 +174,7 @@ def calculate_transaction_fee(
     transaction_amount: float,
     plan_tier: str = "starter",
     cumulative_monthly_revenue: float = 0.0,
-    custom_schedule: Optional[TransactionFeeSchedule] = None,
+    custom_schedule: TransactionFeeSchedule | None = None,
 ) -> dict:
     """Calculate the platform fee for a single revenue-generating transaction.
 
@@ -615,7 +614,7 @@ def _score_conversion(m: dict) -> EngineHealth:
     actions: list[dict] = []
 
     free_to_paid = m.get("free_to_paid_rate", 0.0)
-    trial_conversion = m.get("trial_to_paid_rate", 0.0)
+    m.get("trial_to_paid_rate", 0.0)
     first_purchase_time_hrs = m.get("median_time_to_first_purchase_hours", 168)
     upgrade_cta_click_rate = m.get("upgrade_cta_click_rate", 0.0)
     paywall_encounter_rate = m.get("paywall_encounter_rate", 0.0)
@@ -721,7 +720,7 @@ def _score_retention(m: dict) -> EngineHealth:
     stored_assets_per_user = m.get("avg_stored_assets_per_user", 0.0)
     recurring_usage_rate = m.get("recurring_weekly_usage_rate", 0.0)
     setup_investment_hours = m.get("avg_setup_investment_hours", 0.0)
-    churn_rate_30d = m.get("churn_rate_30d", 0.0)
+    m.get("churn_rate_30d", 0.0)
 
     retention_score = min(30, monthly_retention * 30)
     signals.append({"metric": "monthly_retention_rate", "value": round(monthly_retention, 4), "score": round(retention_score, 1)})
@@ -1284,14 +1283,14 @@ _TRIGGER_DEFINITIONS: list[SpendTrigger] = [
 ]
 
 
-def _check_credit_exhaustion(ctx: dict) -> Optional[dict]:
+def _check_credit_exhaustion(ctx: dict) -> dict | None:
     remaining_pct = _safe_div(ctx.get("credits_remaining", 100), ctx.get("credits_total", 100)) * 100
     if remaining_pct < 10:
         return {"credits_remaining_pct": round(remaining_pct, 1)}
     return None
 
 
-def _check_generation_limit(ctx: dict) -> Optional[dict]:
+def _check_generation_limit(ctx: dict) -> dict | None:
     used = ctx.get("generations_used", 0)
     limit = ctx.get("generations_limit", 0)
     if limit <= 0:
@@ -1302,7 +1301,7 @@ def _check_generation_limit(ctx: dict) -> Optional[dict]:
     return None
 
 
-def _check_team_invite_blocked(ctx: dict) -> Optional[dict]:
+def _check_team_invite_blocked(ctx: dict) -> dict | None:
     seats_used = ctx.get("seats_used", 0)
     seats_limit = ctx.get("seats_limit", 0)
     if seats_limit > 0 and seats_used >= seats_limit and ctx.get("pending_invite", False):
@@ -1310,41 +1309,41 @@ def _check_team_invite_blocked(ctx: dict) -> Optional[dict]:
     return None
 
 
-def _check_premium_output_attempted(ctx: dict) -> Optional[dict]:
+def _check_premium_output_attempted(ctx: dict) -> dict | None:
     attempted = ctx.get("premium_output_attempted")
     if attempted:
         return {"feature_name": attempted}
     return None
 
 
-def _check_high_usage_streak(ctx: dict) -> Optional[dict]:
+def _check_high_usage_streak(ctx: dict) -> dict | None:
     streak = ctx.get("consecutive_heavy_use_days", 0)
     if streak >= 5:
         return {"streak_days": streak}
     return None
 
 
-def _check_milestone_hit(ctx: dict) -> Optional[dict]:
+def _check_milestone_hit(ctx: dict) -> dict | None:
     milestone = ctx.get("milestone_reached")
     if milestone:
         return {"milestone": milestone}
     return None
 
 
-def _check_competitor_feature_gap(ctx: dict) -> Optional[dict]:
+def _check_competitor_feature_gap(ctx: dict) -> dict | None:
     gap = ctx.get("competitor_feature_gap")
     if gap:
         return {"feature_name": gap.get("feature"), "higher_tier": gap.get("available_on", "professional")}
     return None
 
 
-def _check_export_blocked(ctx: dict) -> Optional[dict]:
+def _check_export_blocked(ctx: dict) -> dict | None:
     if ctx.get("export_blocked", False):
         return {"blocked_format": ctx.get("blocked_export_format", "unknown")}
     return None
 
 
-def _check_automation_limit(ctx: dict) -> Optional[dict]:
+def _check_automation_limit(ctx: dict) -> dict | None:
     active = ctx.get("active_automations", 0)
     limit = ctx.get("automation_limit", 0)
     if limit > 0 and active >= limit:
@@ -1352,7 +1351,7 @@ def _check_automation_limit(ctx: dict) -> Optional[dict]:
     return None
 
 
-def _check_storage_cap(ctx: dict) -> Optional[dict]:
+def _check_storage_cap(ctx: dict) -> dict | None:
     used = ctx.get("storage_used_gb", 0)
     cap = ctx.get("storage_cap_gb", 0)
     if cap > 0:
@@ -1362,19 +1361,19 @@ def _check_storage_cap(ctx: dict) -> Optional[dict]:
     return None
 
 
-def _check_api_rate_limited(ctx: dict) -> Optional[dict]:
+def _check_api_rate_limited(ctx: dict) -> dict | None:
     if ctx.get("api_rate_limited", False):
         return {"current_tier_limit": ctx.get("api_rate_limit", 0)}
     return None
 
 
-def _check_priority_queue(ctx: dict) -> Optional[dict]:
+def _check_priority_queue(ctx: dict) -> dict | None:
     if ctx.get("queue_wait_seconds", 0) > 30 and not ctx.get("has_priority_processing", False):
         return {"queue_wait": ctx.get("queue_wait_seconds", 0)}
     return None
 
 
-def _check_annual_billing(ctx: dict) -> Optional[dict]:
+def _check_annual_billing(ctx: dict) -> dict | None:
     if ctx.get("billing_cycle") == "monthly" and ctx.get("months_subscribed", 0) >= 3:
         monthly_price = ctx.get("current_monthly_price", 0)
         annual_monthly_price = monthly_price * 0.8
@@ -1383,14 +1382,14 @@ def _check_annual_billing(ctx: dict) -> Optional[dict]:
     return None
 
 
-def _check_new_feature_gated(ctx: dict) -> Optional[dict]:
+def _check_new_feature_gated(ctx: dict) -> dict | None:
     gated = ctx.get("new_gated_feature")
     if gated:
         return {"feature_name": gated.get("name", ""), "required_tier": gated.get("required_tier", "professional")}
     return None
 
 
-def _check_success_moment(ctx: dict) -> Optional[dict]:
+def _check_success_moment(ctx: dict) -> dict | None:
     achievement = ctx.get("recent_achievement")
     if achievement:
         return {"achievement": achievement}
@@ -1472,8 +1471,8 @@ class RevenueMachineReport:
 
 def generate_revenue_machine_report(
     metrics: dict,
-    user_context: Optional[dict] = None,
-    transactions: Optional[list[dict]] = None,
+    user_context: dict | None = None,
+    transactions: list[dict] | None = None,
     plan_tier: str = "starter",
 ) -> dict:
     """Generate the comprehensive Revenue Machine report combining all subsystems."""

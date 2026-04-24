@@ -1,11 +1,17 @@
 """Content Routing API — tiered routing decisions and cost tracking."""
 import uuid
+
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.schemas.content_routing import (
-    CostReportOut, MonthlyProjectionOut, RecomputeSummaryOut,
-    RouteTaskRequest, RouteTaskResponse, RoutingDecisionOut,
+    CostReportOut,
+    MonthlyProjectionOut,
+    RecomputeSummaryOut,
+    RouteTaskRequest,
+    RouteTaskResponse,
+    RoutingDecisionOut,
 )
 from apps.api.services import content_routing_service as crs
 from packages.db.models.core import Brand

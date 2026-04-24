@@ -8,13 +8,17 @@ All get_* functions are READ-ONLY.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.db.enums import (
-    ActorType, ConfidenceLevel, DecisionMode, DecisionType, RecommendedAction,
+    ActorType,
+    ConfidenceLevel,
+    DecisionMode,
+    DecisionType,
+    RecommendedAction,
 )
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
@@ -25,7 +29,6 @@ from packages.db.models.offers import AudienceSegment, Offer
 from packages.db.models.portfolio import MonetizationRecommendation
 from packages.db.models.publishing import AttributionEvent, PerformanceMetric
 from packages.scoring.revenue_engines import (
-    REVENUE_INTEL_SOURCE,
     estimate_owned_audience_value,
     optimize_offer_stack,
     recommend_productization,
@@ -34,7 +37,6 @@ from packages.scoring.revenue_engines import (
 )
 from packages.scoring.winner import ContentPerformance, detect_winners
 
-
 # ---------------------------------------------------------------------------
 # WRITE PATH
 # ---------------------------------------------------------------------------
@@ -42,7 +44,7 @@ from packages.scoring.winner import ContentPerformance, detect_winners
 async def recompute_revenue_intel(
     db: AsyncSession,
     brand_id: uuid.UUID,
-    user_id: Optional[uuid.UUID] = None,
+    user_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """Recompute and persist all revenue ceiling artifacts. Idempotent."""
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()

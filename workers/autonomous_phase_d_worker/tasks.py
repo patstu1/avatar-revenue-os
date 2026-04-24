@@ -1,16 +1,13 @@
 """Celery tasks for Autonomous Execution Phase D — agents, revenue pressure, blockers, escalations."""
 from __future__ import annotations
 
-import asyncio
-
 import structlog
 from celery import shared_task
 from sqlalchemy import select
 
-from workers.base_task import TrackedTask
-
 from packages.db.models.core import Brand
 from packages.db.session import get_async_session_factory, run_async
+from workers.base_task import TrackedTask
 
 logger = structlog.get_logger()
 

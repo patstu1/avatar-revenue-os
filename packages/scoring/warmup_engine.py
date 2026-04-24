@@ -4,7 +4,8 @@ Phases: seed → trickle → build → accelerate → scale
 Each phase has strict posting limits and engagement requirements.
 """
 from __future__ import annotations
-from datetime import datetime, timezone, timedelta
+
+from datetime import datetime, timezone
 from typing import Any
 
 WARMUP_PHASES = {

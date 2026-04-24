@@ -1,5 +1,6 @@
 """Opportunity-Cost Ranking Service — gather state, rank, persist."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
 
@@ -9,17 +10,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 
-from packages.db.models.accounts import CreatorAccount
 from packages.db.models.account_state_intel import AccountStateReport
 from packages.db.models.content import ContentItem
+from packages.db.models.opportunity_cost import (
+    CostOfDelayModel,
+    OpportunityCostReport,
+    RankedAction,
+)
 from packages.db.models.promote_winner import ActiveExperiment, PWExperimentWinner
 from packages.db.models.quality_governor import QualityBlock
-from packages.db.models.opportunity_cost import (
-    CostOfDelayModel, OpportunityCostReport, RankedAction,
-)
 from packages.scoring.opportunity_cost_engine import (
-    build_report, generate_candidates, rank_actions,
-    score_cost_of_delay,
+    build_report,
+    generate_candidates,
+    rank_actions,
 )
 
 

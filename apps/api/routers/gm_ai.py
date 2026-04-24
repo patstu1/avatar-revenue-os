@@ -5,13 +5,13 @@ the entire revenue machine. Includes conversational operator endpoint
 with full tool-use execution authority.
 """
 from __future__ import annotations
+
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 
 from apps.api.deps import CurrentUser, DBSession
 from apps.api.services import gm_ai as gm
@@ -26,7 +26,7 @@ router = APIRouter()
 class GMChatRequest(BaseModel):
     brand_id: uuid.UUID
     message: str
-    conversation_id: Optional[uuid.UUID] = None
+    conversation_id: uuid.UUID | None = None
 
 
 class GMChatResponse(BaseModel):
@@ -94,7 +94,6 @@ async def gm_chat(
     # Load or create conversation
     conversation = None
     conversation_history: list[dict] = []
-    is_new_conversation = False
 
     if body.conversation_id:
         result = await db.execute(
@@ -109,7 +108,6 @@ async def gm_chat(
     if conversation and conversation.messages:
         conversation_history = list(conversation.messages)
     elif not conversation:
-        is_new_conversation = True
         conversation = GMConversation(
             organization_id=org_id,
             brand_id=brand_id,

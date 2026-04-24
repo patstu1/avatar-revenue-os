@@ -1,16 +1,21 @@
 """Operator Permission Matrix Service — seed, evaluate, enforce, persist."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
-from sqlalchemy import delete, select
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.operator_permission_matrix import (
-    OperatorPermissionMatrix, AutonomyActionPolicy, ActionApprovalRequirement,
-    ActionOverrideRule, ActionExecutionMode,
+    ActionExecutionMode,
+    AutonomyActionPolicy,
+    OperatorPermissionMatrix,
 )
 from packages.scoring.operator_permission_engine import (
-    ACTION_CLASSES, DEFAULT_POLICIES, evaluate_action_policy, can_execute_autonomously,
-    evaluate_override_eligibility, detect_policy_conflicts, seed_default_matrix,
+    can_execute_autonomously,
+    evaluate_override_eligibility,
+    seed_default_matrix,
 )
 
 

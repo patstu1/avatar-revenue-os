@@ -32,7 +32,7 @@ async def list_agent_registry(brand_id: uuid.UUID, current_user: CurrentUser, db
         return await svc.list_agent_registry(db, brand_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -46,7 +46,7 @@ async def list_agent_runs_v2(
         return await svc.list_agent_runs_v2(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -82,7 +82,7 @@ async def list_workflow_coordination(
         return await svc.list_workflow_coordination(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")
 
 
@@ -96,5 +96,5 @@ async def list_shared_context_events(
         return await svc.list_shared_context_events(db, brand_id, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error processing request")

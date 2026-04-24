@@ -5,11 +5,10 @@ from packages.scoring.brain_phase_c_engine import (
     AGENT_CATALOG,
     WORKFLOW_TEMPLATES,
     build_agent_registry,
+    derive_context_events,
     run_agent,
     run_workflow,
-    derive_context_events,
 )
-
 
 # ── Agent Registry ────────────────────────────────────────────────────
 

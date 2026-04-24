@@ -6,7 +6,6 @@ the public intake form endpoints (authenticated by unguessable token).
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request
@@ -37,7 +36,7 @@ clients_router = APIRouter(prefix="/clients", tags=["Clients"])
 async def list_clients(
     current_user: OperatorUser,
     db: DBSession,
-    status: Optional[str] = None,
+    status: str | None = None,
     limit: int = 50,
 ):
     q = select(Client).where(
@@ -126,9 +125,9 @@ async def get_client(
 
 
 class StartOnboardingBody(BaseModel):
-    title: Optional[str] = None
-    instructions: Optional[str] = None
-    schema_json: Optional[dict] = None
+    title: str | None = None
+    instructions: str | None = None
+    schema_json: dict | None = None
 
 
 @clients_router.post("/{client_id}/start-onboarding", status_code=201)
@@ -160,7 +159,7 @@ intake_router = APIRouter(tags=["Intake"])
 async def list_intake_requests(
     current_user: OperatorUser,
     db: DBSession,
-    status: Optional[str] = None,
+    status: str | None = None,
     limit: int = 50,
 ):
     q = select(IntakeRequest).where(
@@ -207,7 +206,7 @@ async def public_view_intake(token: str, db: DBSession):
 
 class IntakeSubmitBody(BaseModel):
     responses: dict
-    submitter_email: Optional[str] = None
+    submitter_email: str | None = None
 
 
 @intake_router.post("/intake/{token}/submit", status_code=201)

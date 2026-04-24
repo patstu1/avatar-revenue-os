@@ -12,7 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.config import get_settings
 from packages.db.models.monetization import (
-    CreditLedger, CreditTransaction, PlanSubscription, PackPurchase,
+    CreditLedger,
+    CreditTransaction,
+    PackPurchase,
+    PlanSubscription,
 )
 
 logger = structlog.get_logger()

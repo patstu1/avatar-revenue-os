@@ -1,7 +1,7 @@
 """Pydantic schemas for Revenue Ceiling Phase A APIs."""
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -9,42 +9,42 @@ from pydantic import BaseModel, Field
 class OfferLadderOut(BaseModel):
     id: str
     opportunity_key: str
-    content_item_id: Optional[str] = None
-    offer_id: Optional[str] = None
+    content_item_id: str | None = None
+    offer_id: str | None = None
     top_of_funnel_asset: str = ""
     first_monetization_step: str = ""
     second_monetization_step: str = ""
-    upsell_path: Optional[dict[str, Any]] = None
-    retention_path: Optional[dict[str, Any]] = None
-    fallback_path: Optional[dict[str, Any]] = None
-    ladder_recommendation: Optional[str] = None
+    upsell_path: dict[str, Any] | None = None
+    retention_path: dict[str, Any] | None = None
+    fallback_path: dict[str, Any] | None = None
+    ladder_recommendation: str | None = None
     expected_first_conversion_value: float = 0.0
     expected_downstream_value: float = 0.0
     expected_ltv_contribution: float = 0.0
     friction_level: str = "medium"
     confidence: float = 0.0
-    explanation: Optional[str] = None
+    explanation: str | None = None
 
 
 class OwnedAudienceAssetOut(BaseModel):
     id: str
     asset_type: str
     channel_name: str = ""
-    content_family: Optional[str] = None
-    objective_per_family: Optional[dict[str, Any]] = None
-    cta_variants: Optional[list] = None
+    content_family: str | None = None
+    objective_per_family: dict[str, Any] | None = None
+    cta_variants: list | None = None
     estimated_channel_value: float = 0.0
     direct_vs_capture_score: float = 0.5
 
 
 class OwnedAudienceEventOut(BaseModel):
     id: str
-    content_item_id: Optional[str] = None
-    asset_id: Optional[str] = None
+    content_item_id: str | None = None
+    asset_id: str | None = None
     event_type: str
     value_contribution: float = 0.0
-    source_metadata: Optional[dict[str, Any]] = None
-    created_at: Optional[str] = None
+    source_metadata: dict[str, Any] | None = None
+    created_at: str | None = None
 
 
 class OwnedAudienceBundleResponse(BaseModel):
@@ -56,8 +56,8 @@ class MessageSequenceStepOut(BaseModel):
     id: str
     step_order: int
     channel: str
-    subject_or_title: Optional[str] = None
-    body_template: Optional[str] = None
+    subject_or_title: str | None = None
+    body_template: str | None = None
     delay_hours_after_previous: int = 0
 
 
@@ -76,8 +76,8 @@ class FunnelStageMetricOut(BaseModel):
     stage: str
     metric_value: float
     sample_size: int
-    period_start: Optional[str] = None
-    period_end: Optional[str] = None
+    period_start: str | None = None
+    period_end: str | None = None
 
 
 class FunnelLeakOut(BaseModel):
@@ -85,9 +85,9 @@ class FunnelLeakOut(BaseModel):
     leak_type: str
     severity: str = "medium"
     affected_funnel_stage: str = ""
-    affected_content_family: Optional[str] = None
-    suspected_cause: Optional[str] = None
-    recommended_fix: Optional[str] = None
+    affected_content_family: str | None = None
+    suspected_cause: str | None = None
+    recommended_fix: str | None = None
     expected_upside: float = 0.0
     confidence: float = 0.0
     urgency: float = 0.0

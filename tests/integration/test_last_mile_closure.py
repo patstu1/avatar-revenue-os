@@ -1,16 +1,22 @@
 """Integration tests — last-mile closure: affiliate sync, landing page publish,
 recovery auto-execution, permission enforcement, disclosure injection."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
-from packages.db.models.core import Organization, User, Brand
-from packages.db.models.affiliate_intel import AffiliateNetworkAccount, AffiliateOffer, AffiliateLink
-from packages.db.models.landing_pages import LandingPage, LandingPageQualityReport, LandingPagePublishRecord
-from packages.db.models.recovery_engine import RecoveryIncidentV2, RollbackAction, RerouteAction, ThrottlingAction, RecoveryOutcome
-from packages.db.models.operator_permission_matrix import OperatorPermissionMatrix
+
+from packages.db.enums import ContentType, Platform
+from packages.db.models.affiliate_intel import AffiliateNetworkAccount
 from packages.db.models.content import ContentItem
-from packages.db.enums import Platform, ContentType
+from packages.db.models.core import Brand, Organization
+from packages.db.models.landing_pages import LandingPage, LandingPagePublishRecord, LandingPageQualityReport
+from packages.db.models.operator_permission_matrix import OperatorPermissionMatrix
+from packages.db.models.recovery_engine import (
+    RecoveryIncidentV2,
+    RollbackAction,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -91,8 +97,9 @@ async def test_landing_page_publish_blocked_by_quality(db_session, setup_org):
 
 
 async def test_landing_page_publish_record_created(db_session, setup_org):
-    from apps.api.services.landing_page_service import publish_page
     from sqlalchemy import select
+
+    from apps.api.services.landing_page_service import publish_page
     _, brand = setup_org
     page = LandingPage(brand_id=brand.id, page_type="offer_page", headline="Record Test", status="draft", publish_status="unpublished", truth_label="recommendation_only")
     db_session.add(page)
@@ -146,7 +153,7 @@ async def test_permission_enforcement_allows_autonomous(db_session, setup_org):
 
 
 async def test_permission_enforcement_blocks_manual_only(db_session, setup_org):
-    from apps.api.services.permission_enforcement import enforce_permission, PermissionDenied
+    from apps.api.services.permission_enforcement import PermissionDenied, enforce_permission
     org, _ = setup_org
     with pytest.raises(PermissionDenied) as exc_info:
         await enforce_permission(db_session, org.id, "governance_override")
@@ -154,14 +161,14 @@ async def test_permission_enforcement_blocks_manual_only(db_session, setup_org):
 
 
 async def test_permission_enforcement_blocks_guarded(db_session, setup_org):
-    from apps.api.services.permission_enforcement import enforce_permission, PermissionDenied
+    from apps.api.services.permission_enforcement import PermissionDenied, enforce_permission
     org, _ = setup_org
     with pytest.raises(PermissionDenied):
         await enforce_permission(db_session, org.id, "launch_campaign")
 
 
 async def test_permission_matrix_overrides_default(db_session, setup_org):
-    from apps.api.services.permission_enforcement import enforce_permission, PermissionDenied
+    from apps.api.services.permission_enforcement import PermissionDenied, enforce_permission
     org, _ = setup_org
     db_session.add(OperatorPermissionMatrix(
         organization_id=org.id, action_class="campaign_launch",
@@ -201,8 +208,9 @@ async def test_disclosure_injection_not_found(db_session, setup_org):
 # ── 6. Buffer Credential Naming ──
 
 async def test_buffer_env_var_readiness():
-    from packages.scoring.autonomous_readiness_engine import evaluate_autonomous_readiness
     import os
+
+    from packages.scoring.autonomous_readiness_engine import evaluate_autonomous_readiness
     old = os.environ.get("BUFFER_API_KEY")
     os.environ["BUFFER_API_KEY"] = ""
     r = evaluate_autonomous_readiness()

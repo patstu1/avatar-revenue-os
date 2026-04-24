@@ -9,7 +9,7 @@ import hashlib
 import json
 import os
 import time
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
@@ -122,7 +122,7 @@ def _build_context_block(
 class ClaudeCopilotClient:
     """Real Anthropic Claude client for grounded copilot responses."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_MODEL):
+    def __init__(self, api_key: str | None = None, model: str = DEFAULT_MODEL):
         self.api_key = api_key or os.environ.get(ANTHROPIC_API_KEY_ENV, "")
         self.model = model
 

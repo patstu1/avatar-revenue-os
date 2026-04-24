@@ -2,8 +2,8 @@
 import logging
 import uuid
 
-from workers.celery_app import app
 from workers.base_task import TrackedTask
+from workers.celery_app import app
 
 logger = logging.getLogger(__name__)
 
@@ -12,10 +12,11 @@ logger = logging.getLogger(__name__)
 def generate_script(self, brief_id: str, brand_id: str) -> dict:
     """Generate a script from a content brief using the real pipeline service logic."""
     from sqlalchemy.orm import Session
-    from packages.db.session import get_sync_engine
+
     from packages.db.models.content import ContentBrief, Script
     from packages.db.models.core import Brand
     from packages.db.models.pattern_memory import LosingPatternMemory, WinningPatternMemory
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     with Session(engine) as session:
@@ -65,7 +66,7 @@ def generate_script(self, brief_id: str, brand_id: str) -> dict:
             for r in promo_rules
         ]
 
-        from packages.db.models.capital_allocator import CAAllocationDecision, AllocationTarget
+        from packages.db.models.capital_allocator import AllocationTarget, CAAllocationDecision
         alloc_target = session.query(AllocationTarget).filter(
             AllocationTarget.brand_id == brief.brand_id,
             AllocationTarget.target_type == "platform",
@@ -113,7 +114,8 @@ def generate_script(self, brief_id: str, brand_id: str) -> dict:
                 if lp:
                     meta_pm["landing_page"] = {"id": str(lp.id), "type": lp.page_type, "headline": lp.headline, "url": lp.destination_url, "truth_label": lp.truth_label}
 
-        from packages.db.models.brand_governance import BrandVoiceRule as BVR, BrandGovernanceProfile as BGP
+        from packages.db.models.brand_governance import BrandGovernanceProfile as BGP
+        from packages.db.models.brand_governance import BrandVoiceRule as BVR
         bg_profile = session.query(BGP).filter(BGP.brand_id == brief.brand_id, BGP.is_active.is_(True)).first()
         bg_rules = session.query(BVR).filter(BVR.brand_id == brief.brand_id, BVR.is_active.is_(True)).all()
         if bg_profile or bg_rules:
@@ -127,7 +129,7 @@ def generate_script(self, brief_id: str, brand_id: str) -> dict:
         brief.brief_metadata = meta_pm
 
         from packages.db.models.content_form import ContentFormRecommendation
-        from packages.scoring.tiered_routing_engine import route_to_provider, classify_task_tier
+        from packages.scoring.tiered_routing_engine import classify_task_tier, route_to_provider
         content_form_rec = session.query(ContentFormRecommendation).filter(
             ContentFormRecommendation.brand_id == brief.brand_id,
             ContentFormRecommendation.platform == (brief.target_platform or "youtube"),
@@ -193,10 +195,11 @@ def generate_script(self, brief_id: str, brand_id: str) -> dict:
 def generate_media(self, script_id: str, avatar_id: str) -> dict:
     """Generate media from a script. Routes to provider, submits job, polls for completion."""
     from sqlalchemy.orm import Session
-    from packages.db.session import get_sync_engine
-    from packages.db.models.content import MediaJob, Script, ContentBrief, ContentItem, Asset
+
+    from packages.db.enums import ContentType, JobStatus
+    from packages.db.models.content import Asset, ContentBrief, ContentItem, MediaJob, Script
     from packages.db.models.core import Avatar, AvatarProviderProfile
-    from packages.db.enums import JobStatus, ContentType
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     with Session(engine) as session:
@@ -341,8 +344,12 @@ async def _call_media_provider(provider: str, script, avatar, cred_keys: dict | 
     loaded by the caller from the encrypted DB via credential_loader.
     """
     from packages.clients.ai_clients import (
-        HeyGenClient, DIDClient, RunwayClient, KlingClient,
-        ElevenLabsClient, FishAudioClient,
+        DIDClient,
+        ElevenLabsClient,
+        FishAudioClient,
+        HeyGenClient,
+        KlingClient,
+        RunwayClient,
     )
 
     cred_keys = cred_keys or {}
@@ -445,8 +452,9 @@ def _call_media_provider_sync(provider: str, script, avatar) -> dict:
     cred_keys: dict[str, str] = {}
     try:
         from sqlalchemy.orm import Session as SyncSession
-        from packages.db.session import get_sync_engine
+
         from packages.clients.credential_loader import load_credential
+        from packages.db.session import get_sync_engine
 
         engine = get_sync_engine()
         with SyncSession(engine) as cred_session:
@@ -482,10 +490,19 @@ def _build_provider_client_map() -> dict[str, tuple[type, str]]:
     if _PROVIDER_CLIENT_MAP:
         return _PROVIDER_CLIENT_MAP
     from packages.clients.ai_clients import (
-        HeyGenClient, DIDClient, RunwayClient, KlingClient, SynthesiaClient,
-        ElevenLabsClient, FishAudioClient, VoxtralClient,
-        FluxClient, GPTImageClient, Imagen4Client,
-        HiggsFieldClient, WanClient,
+        DIDClient,
+        ElevenLabsClient,
+        FishAudioClient,
+        FluxClient,
+        GPTImageClient,
+        HeyGenClient,
+        HiggsFieldClient,
+        Imagen4Client,
+        KlingClient,
+        RunwayClient,
+        SynthesiaClient,
+        VoxtralClient,
+        WanClient,
     )
     mapping = {
         "heygen": (HeyGenClient, "avatar"),
@@ -572,11 +589,13 @@ def generate_media_async(
     """
     import asyncio
     from datetime import datetime, timezone
+
     from sqlalchemy.orm import Session
-    from packages.db.session import get_sync_engine
-    from packages.db.models.media_jobs import MediaJob as AsyncMediaJob
+
     from packages.db.models.content import Script
     from packages.db.models.core import Brand
+    from packages.db.models.media_jobs import MediaJob as AsyncMediaJob
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     with Session(engine) as session:
@@ -736,9 +755,11 @@ def poll_media_job(self, media_job_id: str, backoff_seconds: float = 5) -> dict:
     """
     import asyncio
     from datetime import datetime, timezone
+
     from sqlalchemy.orm import Session
-    from packages.db.session import get_sync_engine
+
     from packages.db.models.media_jobs import MediaJob as AsyncMediaJob
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     with Session(engine) as session:
@@ -877,10 +898,11 @@ def check_stale_jobs(self) -> dict:
     """
     import asyncio
     from datetime import datetime, timedelta, timezone
-    from sqlalchemy import and_
+
     from sqlalchemy.orm import Session
-    from packages.db.session import get_sync_engine
+
     from packages.db.models.media_jobs import MediaJob as AsyncMediaJob
+    from packages.db.session import get_sync_engine
 
     engine = get_sync_engine()
     stale_threshold = datetime.now(timezone.utc) - timedelta(minutes=30)

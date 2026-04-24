@@ -14,21 +14,18 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import structlog
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_action
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
-from packages.db.models.discovery import NicheCluster, TopicCandidate, TrendSignal
-from packages.db.models.offers import Offer
+from packages.db.models.discovery import NicheCluster, TrendSignal
 from packages.db.models.publishing import PerformanceMetric
 from packages.db.models.revenue_ledger import RevenueLedgerEntry
-from packages.db.models.scoring import OpportunityScore, RecommendationQueue
 
 logger = structlog.get_logger()
 

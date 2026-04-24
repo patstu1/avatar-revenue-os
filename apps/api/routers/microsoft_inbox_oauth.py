@@ -11,16 +11,13 @@ the OAuth flow in a browser. State token in the URL binds the session.
 """
 from __future__ import annotations
 
-import json
-import secrets
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 from apps.api.deps import DBSession
 from apps.api.services.integration_manager import _encrypt
@@ -40,7 +37,7 @@ _inbox_oauth_state: dict[str, dict] = {}
 async def microsoft_connect(
     db: DBSession,
     org_id: uuid.UUID = Query(..., description="Organization ID that will own the inbox"),
-    email_hint: Optional[str] = Query(None, description="Pre-fill the login email"),
+    email_hint: str | None = Query(None, description="Pre-fill the login email"),
 ):
     """Generate a state token and redirect to Microsoft consent screen."""
     try:
@@ -61,10 +58,10 @@ async def microsoft_connect(
 @router.get("/oauth/callback/microsoft")
 async def microsoft_callback(
     db: DBSession,
-    code: Optional[str] = Query(None),
-    state: Optional[str] = Query(None),
-    error: Optional[str] = Query(None),
-    error_description: Optional[str] = Query(None),
+    code: str | None = Query(None),
+    state: str | None = Query(None),
+    error: str | None = Query(None),
+    error_description: str | None = Query(None),
 ):
     """Handle Microsoft's redirect after user consent — exchange code, store tokens."""
     if error:

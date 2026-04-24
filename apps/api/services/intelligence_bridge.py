@@ -13,23 +13,18 @@ This is the missing horizontal connection that makes intelligence
 influence action rather than just exist as reports.
 """
 import uuid
-from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import structlog
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_action, emit_event
 from packages.db.models.brain_architecture import (
     AccountStateSnapshot,
-    BrainMemoryEntry,
-    OpportunityStateSnapshot,
 )
 from packages.db.models.brain_phase_b import (
-    ArbitrationReport,
     BrainDecision,
-    ConfidenceReport,
 )
 from packages.db.models.core import Brand
 from packages.db.models.failure_family import FailureFamilyReport, SuppressionRule
@@ -37,15 +32,14 @@ from packages.db.models.kill_ledger import KillLedgerEntry
 from packages.db.models.pattern_memory import (
     LosingPatternMemory,
     PatternDecayReport,
-    WinningPatternCluster,
     WinningPatternMemory,
 )
 from packages.db.models.promote_winner import (
     ActiveExperiment,
-    PWExperimentWinner,
     PromotedWinnerRule,
+    PWExperimentWinner,
 )
-from packages.db.models.scoring import OpportunityScore, RecommendationQueue
+from packages.db.models.scoring import RecommendationQueue
 
 logger = structlog.get_logger()
 

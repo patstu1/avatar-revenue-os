@@ -3,15 +3,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 
 from apps.api.deps import CurrentUser, DBSession
 from apps.api.services import gm_startup
-from packages.db.models.gm import GMSession, GMMessage, GMBlueprint
+from packages.db.models.gm import GMBlueprint, GMMessage, GMSession
 
 router = APIRouter()
 
@@ -32,7 +31,7 @@ class GMSessionOut(BaseModel):
     id: str
     title: str
     status: str
-    machine_phase: Optional[str] = None
+    machine_phase: str | None = None
     message_count: int
     created_at: str
 
@@ -44,7 +43,7 @@ class GMMessageOut(BaseModel):
     role: str
     content: str
     message_type: str
-    blueprint_data: Optional[dict] = None
+    blueprint_data: dict | None = None
     created_at: str
 
     model_config = {"from_attributes": True}

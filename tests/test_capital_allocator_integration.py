@@ -1,24 +1,30 @@
 """DB-backed integration tests for Portfolio Capital Allocator."""
 from __future__ import annotations
+
 import uuid
+
 import pytest
 import pytest_asyncio
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from packages.db.models.core import Brand, Organization
+from apps.api.services.capital_allocator_service import (
+    get_allocation_for_target,
+    list_decisions,
+    list_reports,
+    recompute_allocation,
+)
+from packages.db.enums import ContentType, Platform
 from packages.db.models.accounts import CreatorAccount
+from packages.db.models.capital_allocator import (
+    AllocationTarget,
+    CAAllocationDecision,
+    CapitalAllocationReport,
+)
+from packages.db.models.content import ContentItem
+from packages.db.models.core import Brand, Organization
 from packages.db.models.offers import Offer
 from packages.db.models.publishing import PerformanceMetric
-from packages.db.models.content import ContentItem
-from packages.db.models.capital_allocator import (
-    CapitalAllocationReport, AllocationTarget, CAAllocationDecision,
-)
-from packages.db.enums import Platform, ContentType
-from apps.api.services.capital_allocator_service import (
-    recompute_allocation, list_reports, list_decisions, get_allocation_for_target,
-)
 
 
 @pytest_asyncio.fixture
@@ -156,6 +162,6 @@ async def test_recompute_idempotent(db_session, brand_with_data):
 
 
 def test_capital_allocator_worker_registered():
-    from workers.celery_app import app
     import workers.capital_allocator_worker.tasks  # noqa: F401
+    from workers.celery_app import app
     assert "workers.capital_allocator_worker.tasks.recompute_capital_allocation" in app.tasks

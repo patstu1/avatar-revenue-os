@@ -6,9 +6,17 @@ from sqlalchemy import select
 
 from apps.api.deps import CurrentUser, DBSession, OperatorUser
 from apps.api.schemas.gatekeeper import (
-    AlertOut, AuditLedgerOut, CompletionReportOut, ContradictionReportOut,
-    DependencyReportOut, ExecutionClosureReportOut, ExpansionPermissionOut,
-    OperatorCommandReportOut, RecomputeSummaryOut, TestReportOut, TruthReportOut,
+    AlertOut,
+    AuditLedgerOut,
+    CompletionReportOut,
+    ContradictionReportOut,
+    DependencyReportOut,
+    ExecutionClosureReportOut,
+    ExpansionPermissionOut,
+    OperatorCommandReportOut,
+    RecomputeSummaryOut,
+    TestReportOut,
+    TruthReportOut,
 )
 from apps.api.services import gatekeeper_service as gk
 from packages.db.models.core import Brand

@@ -19,10 +19,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
-    Boolean, DateTime, ForeignKey, Integer, String, Text,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -45,10 +49,10 @@ class SponsorCampaign(Base):
         UUID(as_uuid=True), ForeignKey("organizations.id"),
         nullable=False, index=True,
     )
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    brand_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True,
     )
-    sponsor_opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    sponsor_opportunity_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True,
     )
     avenue_slug: Mapped[str] = mapped_column(
@@ -61,32 +65,32 @@ class SponsorCampaign(Base):
         String(30), default="pre_contract", nullable=False, index=True,
     )
 
-    contract_url: Mapped[Optional[str]] = mapped_column(
+    contract_url: Mapped[str | None] = mapped_column(
         String(2048), nullable=True,
     )
-    contract_signed_at: Mapped[Optional[datetime]] = mapped_column(
+    contract_signed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
-    counterparty_name: Mapped[Optional[str]] = mapped_column(
+    counterparty_name: Mapped[str | None] = mapped_column(
         String(255), nullable=True,
     )
 
-    brief_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    brief_received_at: Mapped[Optional[datetime]] = mapped_column(
+    brief_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    brief_received_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
 
-    campaign_start_at: Mapped[Optional[datetime]] = mapped_column(
+    campaign_start_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True,
     )
-    campaign_end_at: Mapped[Optional[datetime]] = mapped_column(
+    campaign_end_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
 
-    exclusivity_clauses_json: Mapped[Optional[dict]] = mapped_column(
+    exclusivity_clauses_json: Mapped[dict | None] = mapped_column(
         JSONB, nullable=True,
     )
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False,
@@ -115,22 +119,22 @@ class SponsorPlacement(Base):
         String(30), default="scheduled", nullable=False, index=True,
     )
 
-    scheduled_at: Mapped[Optional[datetime]] = mapped_column(
+    scheduled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True,
     )
-    delivered_at: Mapped[Optional[datetime]] = mapped_column(
+    delivered_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
 
     # Self-referential FK — when a placement is missed, a new Placement
     # row can be created with make_good_of_placement_id pointing at the
     # missed one, preserving the link for reports + dispute tracking.
-    make_good_of_placement_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    make_good_of_placement_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True,
     )
 
-    metrics_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    metrics_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False,
@@ -164,18 +168,18 @@ class SponsorReport(Base):
         String(30), default="draft", nullable=False,
     )
 
-    compiled_at: Mapped[Optional[datetime]] = mapped_column(
+    compiled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
-    sent_at: Mapped[Optional[datetime]] = mapped_column(
+    sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
-    recipient_email: Mapped[Optional[str]] = mapped_column(
+    recipient_email: Mapped[str | None] = mapped_column(
         String(255), nullable=True,
     )
 
-    metrics_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    metrics_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False,

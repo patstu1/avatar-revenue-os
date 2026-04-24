@@ -5,28 +5,37 @@ Architecture: recompute is WRITE (POST only). All get_* are READ-ONLY.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import desc, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.services.audit_service import log_action as audit_log_action
+from apps.api.services.growth_gatekeeper_pipeline import apply_gatekeeper_pipeline
 from packages.db.models.accounts import CreatorAccount
 from packages.db.models.core import Brand
 from packages.db.models.offers import Offer
 from packages.db.models.portfolio import (
-    GeoLanguageExpansionRecommendation, RevenueLeakReport,
-    ScaleRecommendation, TrustSignalReport,
+    GeoLanguageExpansionRecommendation,
+    RevenueLeakReport,
+    ScaleRecommendation,
+    TrustSignalReport,
 )
 from packages.db.models.scale_alerts import (
-    GrowthCommand, GrowthCommandRun, LaunchCandidate, LaunchReadinessReport,
-    OperatorAlert, ScaleBlockerReport,
+    GrowthCommand,
+    GrowthCommandRun,
+    LaunchCandidate,
+    LaunchReadinessReport,
+    OperatorAlert,
+    ScaleBlockerReport,
 )
 from packages.scoring.growth_commander import (
-    assess_portfolio_balance, compute_portfolio_directive, find_whitespace, generate_growth_commands,
+    assess_portfolio_balance,
+    compute_portfolio_directive,
+    find_whitespace,
+    generate_growth_commands,
 )
 from packages.scoring.growth_pack.orchestrator import canonical_fields_from_command
-from apps.api.services.audit_service import log_action as audit_log_action
-from apps.api.services.growth_gatekeeper_pipeline import apply_gatekeeper_pipeline
 
 
 def _acct_dicts(accounts: list) -> list[dict]:
@@ -47,7 +56,7 @@ def _acct_dicts(accounts: list) -> list[dict]:
 async def recompute_growth_commands(
     db: AsyncSession,
     brand_id: uuid.UUID,
-    user_id: Optional[uuid.UUID] = None,
+    user_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
@@ -251,7 +260,7 @@ async def _sync_growth_operator_alerts(
     db: AsyncSession,
     brand_id: uuid.UUID,
     commands: list[dict],
-    scale_recommendation_id: Optional[uuid.UUID],
+    scale_recommendation_id: uuid.UUID | None,
 ) -> None:
     await db.execute(
         update(OperatorAlert)

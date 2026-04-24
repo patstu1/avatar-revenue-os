@@ -17,25 +17,21 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import structlog
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.audit_service import log_action
 from apps.api.services.event_bus import emit_action, emit_event
-from packages.db.models.content import ContentItem
 from packages.db.models.core import Brand
-from packages.db.models.creative_memory import CreativeMemoryAtom, CreativeMemoryLink
+from packages.db.models.creative_memory import CreativeMemoryAtom
 from packages.db.models.gatekeeper import (
     GatekeeperAlert,
-    GatekeeperCompletionReport,
     GatekeeperContradictionReport,
-    GatekeeperTruthReport,
 )
 from packages.db.models.learning import MemoryEntry
 from packages.db.models.operator_permission_matrix import OperatorPermissionMatrix
 from packages.db.models.quality import Approval
-from packages.db.models.system_events import OperatorAction, SystemEvent
-from packages.db.models.workflow_builder import WorkflowApproval, WorkflowInstance
+from packages.db.models.workflow_builder import WorkflowInstance
 
 logger = structlog.get_logger()
 
@@ -418,8 +414,8 @@ async def surface_governance_actions(
         action = await emit_action(
             db, org_id=org_id,
             action_type="review_stale_approval",
-            title=f"Stale approval: content awaiting review > 24h",
-            description=f"Content item has been waiting for approval for over 24 hours.",
+            title="Stale approval: content awaiting review > 24h",
+            description="Content item has been waiting for approval for over 24 hours.",
             category="approval",
             priority="medium",
             brand_id=a.brand_id,
@@ -481,7 +477,7 @@ async def surface_governance_actions(
     for c in contradictions.scalars().all():
         await emit_event(
             db, domain="governance", event_type="contradiction.detected",
-            summary=f"Logic contradiction detected in brand operations",
+            summary="Logic contradiction detected in brand operations",
             org_id=org_id, brand_id=c.brand_id,
             entity_type="contradiction_report", entity_id=c.id,
             severity="warning",

@@ -1,16 +1,22 @@
 """Recovery Engine Service — detect, decide, persist, recover."""
 from __future__ import annotations
+
 import uuid
 from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from packages.db.models.hyperscale import DegradationEvent
 from packages.db.models.provider_registry import ProviderBlocker
 from packages.db.models.recovery_engine import (
-    RecoveryIncidentV2, RollbackAction, RerouteAction,
-    ThrottlingAction, RecoveryOutcome, RecoveryPlaybook,
+    RecoveryIncidentV2,
+    RecoveryOutcome,
+    RerouteAction,
+    RollbackAction,
+    ThrottlingAction,
 )
-from packages.scoring.recovery_rollback_engine import detect_incidents, decide_recovery, should_escalate
+from packages.scoring.recovery_rollback_engine import decide_recovery, detect_incidents, should_escalate
 
 
 async def recompute_recovery(db: AsyncSession, org_id: uuid.UUID) -> dict[str, Any]:

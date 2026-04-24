@@ -5,6 +5,7 @@ Each personality has a name, backstory, visual identity, voice, catchphrases,
 and memory of past content — driving parasocial relationships and higher conversion.
 """
 from __future__ import annotations
+
 import hashlib
 import random
 from typing import Any

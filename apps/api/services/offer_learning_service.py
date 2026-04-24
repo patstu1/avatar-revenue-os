@@ -7,9 +7,9 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from packages.db.models.live_execution import ConversionEvent
 from packages.db.models.offers import Offer
 from packages.db.models.publishing import AttributionEvent, PerformanceMetric
-from packages.db.models.live_execution import ConversionEvent
 from packages.scoring.offer_learning_engine import compute_learned_offer_params
 
 

@@ -4,8 +4,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from packages.db.base import Base
 import packages.db.models  # noqa: F401 — registers all models with Base.metadata
+from packages.db.base import Base
 
 config = context.config
 
