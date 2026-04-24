@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import logging
+import structlog
 import os
 import socket
 import uuid
@@ -44,7 +45,7 @@ def _fresh_session_factory():
     engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=2, max_overflow=2)
     return async_sessionmaker(engine, expire_on_commit=False), engine
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def _run_async(coro):

@@ -168,6 +168,64 @@ async def ingest_reply(
             matched_service_deal.stage = "closed_lost"
             stage_changes.append(f"Service deal '{matched_service_deal.customer_name}': {old} → closed_lost")
 
+    # ── AUTO-CREATE floor-tier proposal when a cold sponsor_target
+    # replies with warm intent (interested | meeting_request).
+    # Matches by lower(contact_info->>'email').  Idempotent: skipped
+    # if any active proposal already carries this sponsor_target_id
+    # in extra_json.
+    proposal_created_id = None
+    if reply_type in ("interested", "meeting_request") and sender_email:
+        from sqlalchemy import text as _text
+        target_row = (await db.execute(_text(
+            "SELECT id, brand_id, target_company_name, contact_info "
+            "FROM sponsor_targets WHERE is_active=true "
+            "AND lower(contact_info->>'email') = lower(:e) LIMIT 1"
+        ), {"e": sender_email})).first()
+        if target_row:
+            target_id, target_brand_id, target_company, target_ci = target_row
+            from packages.db.models.proposals import Proposal
+            existing = (await db.execute(
+                select(Proposal).where(
+                    Proposal.is_active.is_(True),
+                    Proposal.extra_json["sponsor_target_id"].astext == str(target_id),
+                ).limit(1)
+            )).scalar_one_or_none()
+            if existing is None:
+                from apps.api.services.proposals_service import (
+                    LineItemInput, create_proposal,
+                )
+                company = target_company or "your business"
+                name = (target_ci or {}).get("name", "") or ""
+                prop = await create_proposal(
+                    db, org_id=org_id,
+                    brand_id=brand_id or target_brand_id,
+                    recipient_email=sender_email,
+                    recipient_name=name[:255],
+                    recipient_company=company[:255],
+                    title=f"ProofHook \u2014 Signal Entry for {company}"[:500],
+                    summary=(
+                        f"Signal Entry package auto-created from {reply_type} "
+                        f"reply to cold outreach. Operator to review + send."
+                    ),
+                    avenue_slug="b2b_services",
+                    package_slug="signal_entry",
+                    line_items=[LineItemInput(
+                        description="Signal Entry \u2014 landing page + ad hook + proof layer",
+                        unit_amount_cents=150000,
+                        quantity=1,
+                        currency="usd",
+                        position=0,
+                    )],
+                    created_by_actor_type="system",
+                    created_by_actor_id="reply_ingestion.warm_auto",
+                    extra_json={
+                        "sponsor_target_id": str(target_id),
+                        "reply_type": reply_type,
+                        "auto_created_from_reply": True,
+                    },
+                )
+                proposal_created_id = str(prop.id)
+
     # ── Create next action based on classification ──
     action_created = None
 
@@ -246,10 +304,39 @@ async def ingest_reply(
 
     await db.flush()
 
+    # Phase 3: emit analytics event for reply received.
+    try:
+        from packages.clients.analytics_emitter import emit_analytics_event
+        _brand_id = brand_id
+        if _brand_id is None and sender_email:
+            from sqlalchemy import text as _atxt
+            _brow = (await db.execute(_atxt(
+                "SELECT brand_id FROM sponsor_targets WHERE is_active=true "
+                "AND lower(contact_info->>'email') = lower(:e) LIMIT 1"
+            ), {"e": sender_email})).first()
+            if _brow: _brand_id = _brow[0]
+        if _brand_id is not None:
+            await emit_analytics_event(
+                db, brand_id=_brand_id,
+                source="reply_ingestion",
+                event_type=f"reply.{reply_type}",
+                metric_value=1.0,
+                truth_level="verified",
+                raw_json={
+                    "sender": sender_email, "confidence": confidence,
+                    "proposal_created_id": proposal_created_id,
+                },
+            )
+            await db.flush()
+    except Exception as _aexc:
+        import structlog as _sl
+        _sl.get_logger().warning("analytics_emit_failed", error=str(_aexc)[:200])
+
     return {
         "classification": reply_type,
         "confidence": confidence,
         "sender": sender_email,
+        "proposal_created_id": proposal_created_id,
         "matched_sponsor": matched_sponsor.sponsor_name if matched_sponsor else None,
         "matched_deal": matched_deal.title if matched_deal else None,
         "matched_service_deal": matched_service_deal.customer_name if matched_service_deal else None,

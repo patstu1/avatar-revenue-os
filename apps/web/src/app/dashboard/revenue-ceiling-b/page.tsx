@@ -1,102 +1,24 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import {
-  BarChart3,
-  Gem,
-  Package,
-  TrendingUp,
-} from 'lucide-react';
-import { useBrandId } from '@/hooks/useBrandId';
-import { revenueCeilingPhaseBApi } from '@/lib/revenue-ceiling-phase-b-api';
-
-const PAGES = [
-  {
-    href: '/dashboard/revenue-ceiling-b/high-ticket',
-    label: 'High-Ticket Conversion Dashboard',
-    description: 'Eligibility scoring, recommended offer paths, CTAs, close-rate proxies, deal values, and profit estimates.',
-    icon: Gem,
-  },
-  {
-    href: '/dashboard/revenue-ceiling-b/productization',
-    label: 'Productization Opportunities Dashboard',
-    description: 'Product recommendations by type, price range, launch value, recurring potential, build complexity.',
-    icon: Package,
-  },
-  {
-    href: '/dashboard/revenue-ceiling-b/revenue-density',
-    label: 'Revenue Density Dashboard',
-    description: 'Per-content-item density: rev per 1k impressions, profit per audience member, ceiling score, recommendations.',
-    icon: BarChart3,
-  },
-  {
-    href: '/dashboard/revenue-ceiling-b/upsell',
-    label: 'Upsell / Cross-Sell Dashboard',
-    description: 'Pairwise upsell recommendations: best next offer, timing, channel, take rate, incremental value, sequencing.',
-    icon: TrendingUp,
-  },
-];
-
-export default function RevenueCeilingPhaseBHub() {
-  const brandId = useBrandId();
-  const [stats, setStats] = useState({ highTicket: 0, products: 0, upsells: 0 });
-
-  useEffect(() => {
-    if (!brandId) return;
-    Promise.all([
-      revenueCeilingPhaseBApi.highTicketOpportunities(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
-      revenueCeilingPhaseBApi.productOpportunities(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
-      revenueCeilingPhaseBApi.upsellRecommendations(brandId).then(r => (r.data ?? r) as unknown[]).catch(() => []),
-    ]).then(([ht, prod, ups]) => {
-      setStats({ highTicket: ht.length, products: prod.length, upsells: ups.length });
-    });
-  }, [brandId]);
-
+// Phase 0 containment: page hidden during production-trust restoration.
+// Surfaced zero/synthetic data or was not operational.
+// Restored after Phase 1 data purge + real data flow.
+export default function Hidden() {
   return (
-    <div className="space-y-6 pb-16">
-      <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <Gem className="text-violet-400" size={28} />
-          Revenue Ceiling — Phase B
-        </h1>
-        <p className="text-gray-400 mt-1 max-w-2xl">
-          High-ticket conversion, productization, revenue density, and upsell — persisted and recomputed from your
-          catalog, content, and performance signals.
-        </p>
-      </div>
-
-      {brandId && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-white">{stats.highTicket}</p>
-            <p className="text-xs text-gray-500">High-Ticket Opps</p>
-          </div>
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-white">{stats.products}</p>
-            <p className="text-xs text-gray-500">Product Opps</p>
-          </div>
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-white">{stats.upsells}</p>
-            <p className="text-xs text-gray-500">Upsell Recommendations</p>
-          </div>
+    <div className="min-h-[70vh] flex items-center justify-center px-6">
+      <div className="max-w-xl text-center">
+        <div className="font-mono text-[10px] tracking-[0.25em] uppercase text-yellow-400 mb-4">
+          Phase 0 · Temporarily Hidden
         </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {PAGES.map(({ href, label, description, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className="card border border-gray-800 hover:border-violet-800/60 transition-colors group"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <Icon size={20} className="text-violet-400 group-hover:text-violet-300 transition-colors" />
-              <h2 className="text-white font-semibold group-hover:text-violet-200 transition-colors">{label}</h2>
-            </div>
-            <p className="text-sm text-gray-400">{description}</p>
-          </Link>
-        ))}
+        <h1 className="text-2xl font-display mb-4 text-white">
+          This surface is hidden during production-trust restoration.
+        </h1>
+        <p className="text-sm text-white/60 leading-relaxed">
+          During an audit it was found to render zero / synthetic data or
+          surface disconnected endpoints. It will return after Phase&nbsp;1
+          data-purge and real data flow is established.
+        </p>
+        <p className="mt-6 text-[10px] font-mono text-white/30 tracking-widest">
+          audit: 2026-04-22 · restoration in progress
+        </p>
       </div>
     </div>
   );

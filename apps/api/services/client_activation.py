@@ -370,6 +370,27 @@ async def start_onboarding(
             error=str(email_exc)[:200],
         )
 
+
+    # Phase 3: analytics_events emission.
+    try:
+        _b_id = getattr(client, "brand_id", None)
+        if _b_id is not None:
+            from packages.clients.analytics_emitter import emit_analytics_event
+            await emit_analytics_event(
+                db, brand_id=_b_id,
+                source="client_activation",
+                event_type="onboarding.started",
+                metric_value=1.0, truth_level="verified",
+                raw_json={"client_id": str(client.id),
+                          "client_email": getattr(client, "primary_email", None),
+                          "intake_request_id": str(intake.id) if intake else None},
+            )
+            await db.flush()
+    except Exception as _aexc:
+        import structlog as _sl
+        _sl.get_logger().warning("analytics_emit_failed",
+                                  source="client_activation",
+                                  error=str(_aexc)[:200])
     return intake
 
 

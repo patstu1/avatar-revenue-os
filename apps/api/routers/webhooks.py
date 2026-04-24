@@ -1075,6 +1075,39 @@ async def sendgrid_inbound_parse(
             spf=spf_result,
         )
 
+        # Forward a copy to hello@proofhook.com so the operator sees
+        # replies live in Outlook alongside the structured pipeline.
+        try:
+            from packages.clients.external_clients import SmtpEmailClient as _Smtp
+            _smtp = await _Smtp.resolve(db, org_uuid)
+            _tag = '[reply]'
+            if result.get('matched_sponsor'):
+                _tag = f"[reply lead {str(result['matched_sponsor'])[:8]}]"
+            elif result.get('classification'):
+                _tag = f"[reply {result['classification']}]"
+            _cls = result.get('classification')
+            _ms = result.get('matched_sponsor')
+            _md = result.get('matched_deal')
+            _NL = chr(10)
+            _fwd_body = (
+                'Inbound reply to ProofHook outreach.' + _NL + _NL
+                + 'From:            ' + str(sender_full) + _NL
+                + 'Subject:         ' + str(subject) + _NL
+                + 'Classification:  ' + str(_cls) + _NL
+                + 'Matched sponsor: ' + str(_ms) + _NL
+                + 'Matched deal:    ' + str(_md) + _NL
+                + _NL + '--- message ---' + _NL + _NL
+                + str(body) + _NL
+            )
+            await _smtp.send_email(
+                to_email='hello@proofhook.com',
+                subject=(str(_tag) + ' ' + str(subject))[:500],
+                body_text=_fwd_body,
+            )
+            logger.info('inbound_email.forwarded_to_operator', sender=sender_email)
+        except Exception as _fwd_exc:
+            logger.warning('inbound_email.forward_failed', error=str(_fwd_exc)[:200])
+
         return {
             "status": "accepted",
             "detail": "ingested",

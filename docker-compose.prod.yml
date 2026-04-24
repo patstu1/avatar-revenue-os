@@ -174,7 +174,7 @@ services:
     command: >
       uvicorn apps.api.main:app
       --host 0.0.0.0 --port 8000
-      --workers 4 --log-level ${LOG_LEVEL:-warning}
+      --workers 2 --log-level ${LOG_LEVEL:-warning}
     environment:
       <<: *worker-env
       API_ENV: production
@@ -198,7 +198,7 @@ services:
       resources:
         limits:
           cpus: "2.0"
-          memory: 1G
+          memory: 2G
         reservations:
           cpus: "0.5"
           memory: 256M

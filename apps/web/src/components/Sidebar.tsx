@@ -87,6 +87,7 @@ import {
   Clapperboard,
   ChevronDown,
   ChevronRight,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 
@@ -131,6 +132,9 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/brain-ops", label: "Brain Operations", icon: Brain },
       { href: "/dashboard/cockpit", label: "Operator Cockpit", icon: Target },
+      { href: "/dashboard/replies", label: "Reply Drafts", icon: MessageSquare },
+      { href: "/dashboard/retention", label: "Retention", icon: ShieldCheck },
+      { href: "/dashboard/intakes", label: "Client Intakes", icon: ClipboardList },
     ],
   },
   {

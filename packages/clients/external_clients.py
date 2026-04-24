@@ -920,7 +920,11 @@ class SmtpEmailClient:
         msg["From"] = f"{self.from_name} <{self.from_email}>"
         msg["To"] = to_email
         msg["Subject"] = subject
-        msg["Reply-To"] = self.reply_to
+        # Phase 3.5 bug fix: route replies through SendGrid Inbound Parse
+        # so ingest_reply pipeline fires. Falls back to self.reply_to if set,
+        # else the canonical reply@reply.proofhook.com inbox.
+        _reply_to = getattr(self, "reply_to", None) or "reply@reply.proofhook.com"
+        msg["Reply-To"] = _reply_to
         msg["List-Unsubscribe"] = f"<mailto:{self.from_email}?subject=unsubscribe>"
         msg["X-Mailer"] = "ProofHook"
 

@@ -42,6 +42,7 @@ from apps.api.routers import (
     live_execution_phase2,
     creator_revenue,
     webhooks,
+    cold_outreach_tracking,
     provider_registry,
     copilot,
     gatekeeper,
@@ -255,6 +256,7 @@ app.include_router(buffer_distribution.router_root, prefix="/api/v1", tags=["Buf
 app.include_router(live_execution.router, prefix="/api/v1/brands", tags=["Live Execution: Analytics, Conversions, Experiments, CRM, Email, SMS"])
 app.include_router(live_execution_phase2.router, prefix="/api/v1/brands", tags=["Live Execution Phase 2: Webhooks, Triggers, Connectors, Buffer Expansion"])
 app.include_router(webhooks.router, prefix="/api/v1", tags=["Webhooks: Stripe, Shopify, Media Providers"])
+app.include_router(cold_outreach_tracking.router, tags=["Cold Outreach Tracking"])
 app.include_router(leads.router, prefix="/api/v1", tags=["Lead Capture: Public offer page submissions"])
 app.include_router(email_pipeline.router, prefix="/api/v1", tags=["Email Pipeline: Threads, Classification, Reply Drafts"])
 # microsoft_inbox_oauth moved above oauth.router to prevent /oauth/callback/{platform} from swallowing /oauth/callback/microsoft

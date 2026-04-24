@@ -466,6 +466,28 @@ async def record_payment_from_stripe(
         amount_cents=amount_cents,
         provider_event_id=event_id,
     )
+
+    # Phase 3: analytics_events emission (verified, real revenue).
+    try:
+        if brand_id is not None and amount_cents > 0:
+            from packages.clients.analytics_emitter import emit_analytics_event
+            await emit_analytics_event(
+                db, brand_id=brand_id,
+                source="stripe_webhook",
+                event_type="payment.succeeded",
+                metric_value=float(amount_cents) / 100.0,
+                truth_level="verified",
+                platform="stripe",
+                external_post_id=event_id,
+                raw_json={"proposal_id": str(proposal_id) if proposal_id else None,
+                          "currency": currency, "event_type": event_type},
+            )
+            await db.flush()
+    except Exception as _aexc:
+        import structlog as _sl
+        _sl.get_logger().warning("analytics_emit_failed",
+                                  source="stripe_webhook",
+                                  error=str(_aexc)[:200])
     return payment
 
 

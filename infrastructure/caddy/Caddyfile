@@ -35,6 +35,10 @@
 	}
 
 	# ── Media files → served by FastAPI static mount ──
+	handle /r/* {
+		reverse_proxy api:8000
+	}
+
 	handle /media/* {
 		reverse_proxy api:8000
 	}

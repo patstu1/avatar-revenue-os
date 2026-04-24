@@ -87,6 +87,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-x-hidden">
         <TopBar />
+        <div className="bg-yellow-600/15 border-b border-yellow-500/40 px-6 py-2.5 flex items-center gap-3">
+          <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-yellow-400">Test data present</span>
+          <span className="text-xs text-yellow-200/80">Pre-launch test rows (B11/B12/B13 personas, fake payments, synthetic inboxes) remain in many tables. Revenue, clients, and inbox figures include these until the Phase 1 purge completes.</span>
+        </div>
         <main className="flex-1">
           <div className="p-8">
             {children}
