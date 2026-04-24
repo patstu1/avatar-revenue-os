@@ -1,4 +1,5 @@
 """Revenue Ceiling Phase B — high-ticket, productization, revenue density, upsell (pure functions)."""
+
 from __future__ import annotations
 
 import hashlib
@@ -31,7 +32,13 @@ def build_high_ticket_opportunity(
     ticket_signal = sum(1 for k in HIGH_TICKET_KEYWORDS if k in name_l) / max(1, len(HIGH_TICKET_KEYWORDS))
     value_signal = 0.75 if (aov + payout) > 0 else 0.2  # Any value = positive signal
     conv_signal = min(1.0, conversion_rate * 25) if conversion_rate else 0.15
-    eligibility = round(min(0.98, 0.25 + ticket_signal * 0.35 + value_signal * 0.25 + conv_signal * 0.15 + (_h(opportunity_key) % 50) / 500), 3)
+    eligibility = round(
+        min(
+            0.98,
+            0.25 + ticket_signal * 0.35 + value_signal * 0.25 + conv_signal * 0.15 + (_h(opportunity_key) % 50) / 500,
+        ),
+        3,
+    )
 
     deal_value = round(max(aov, payout * 3, 500) * (1.0 + ticket_signal), 2)
     close_proxy = round(min(0.35, 0.02 + eligibility * 0.25 + conversion_rate * 0.5), 4)
@@ -81,25 +88,33 @@ def generate_high_ticket_rows(
     for i, o in enumerate(offers[:10]):
         if not content_items:
             key = f"ht|offer:{o.get('id', i)}"
-            out.append(build_high_ticket_opportunity(
-                key, o.get("name", "Offer"), niche,
-                float(o.get("average_order_value", 0) or 0),
-                float(o.get("payout_amount", 0) or 0),
-                float(o.get("conversion_rate", 0) or 0),
-                offer_id=str(o.get("id")),
-            ))
+            out.append(
+                build_high_ticket_opportunity(
+                    key,
+                    o.get("name", "Offer"),
+                    niche,
+                    float(o.get("average_order_value", 0) or 0),
+                    float(o.get("payout_amount", 0) or 0),
+                    float(o.get("conversion_rate", 0) or 0),
+                    offer_id=str(o.get("id")),
+                )
+            )
             continue
         for j, ci in enumerate(content_items[:15]):
             key = f"ht|offer:{o.get('id', i)}|content:{ci.get('id', j)}"
-            out.append(build_high_ticket_opportunity(
-                key, o.get("name", "Offer"), niche,
-                float(o.get("average_order_value", 0) or 0),
-                float(o.get("payout_amount", 0) or 0),
-                float(o.get("conversion_rate", 0) or 0),
-                content_title=ci.get("title", ""),
-                offer_id=str(o.get("id")),
-                content_item_id=str(ci.get("id")),
-            ))
+            out.append(
+                build_high_ticket_opportunity(
+                    key,
+                    o.get("name", "Offer"),
+                    niche,
+                    float(o.get("average_order_value", 0) or 0),
+                    float(o.get("payout_amount", 0) or 0),
+                    float(o.get("conversion_rate", 0) or 0),
+                    content_title=ci.get("title", ""),
+                    offer_id=str(o.get("id")),
+                    content_item_id=str(ci.get("id")),
+                )
+            )
     return out
 
 
@@ -139,7 +154,9 @@ def build_product_opportunity(
     }
 
 
-def generate_product_opportunities(niche: str, target_audience: str | None, brand_voice: str = "") -> list[dict[str, Any]]:
+def generate_product_opportunities(
+    niche: str, target_audience: str | None, brand_voice: str = ""
+) -> list[dict[str, Any]]:
     aud = target_audience or f"{niche} operators"
     return [build_product_opportunity(f"prod|{niche}|{i}", niche, aud, i) for i in range(6)]
 
@@ -166,7 +183,11 @@ def compute_revenue_density_row(
     repeat = round(min(1.0, 0.2 + (total_revenue / max(1.0, total_cost + 1)) * 0.1 + depth * 0.25), 3)
     ceiling = round(min(1.0, 0.25 + depth * 0.35 + repeat * 0.25 + min(0.3, rpm / 100)), 3)
 
-    rec = "Scale winners: duplicate format + add order bump" if rpm > 15 else "Improve CTA-to-offer match + add retargeting capture"
+    rec = (
+        "Scale winners: duplicate format + add order bump"
+        if rpm > 15
+        else "Improve CTA-to-offer match + add retargeting capture"
+    )
     if ceiling > 0.72:
         rec = "Near ceiling on this asset — test new channel or premium offer"
 

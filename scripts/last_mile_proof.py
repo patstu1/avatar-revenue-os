@@ -8,6 +8,7 @@ Gap 3: Scheduled revenue cycle (Celery task exists + callable)
 Run: python scripts/last_mile_proof.py
 Requires: PostgreSQL running
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -16,7 +17,9 @@ import sys
 import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os"
+)
 os.environ.setdefault("DATABASE_URL_SYNC", "postgresql://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 
 from sqlalchemy import func, select, text
@@ -25,10 +28,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 import packages.db.models  # noqa
 
 P = F = 0
+
+
 def ok(name, passed, detail=""):
     global P, F
-    P += 1 if passed else 0; F += 0 if passed else 1
+    P += 1 if passed else 0
+    F += 0 if passed else 1
     print(f"  {'✓' if passed else '✗'} {name}" + (f" — {detail}" if detail and not passed else ""))
+
 
 async def main():
     print("\n" + "=" * 72)
@@ -37,10 +44,12 @@ async def main():
 
     engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
     try:
-        async with engine.begin() as c: await c.execute(text("SELECT 1"))
+        async with engine.begin() as c:
+            await c.execute(text("SELECT 1"))
         print("\n  DB: connected\n")
     except Exception as e:
-        print(f"\n  ✗ DB: {e}"); return
+        print(f"\n  ✗ DB: {e}")
+        return
 
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -56,20 +65,38 @@ async def main():
 
         # Setup
         org = Organization(name=f"lm_{uuid.uuid4().hex[:6]}", slug=f"lm-{uuid.uuid4().hex[:6]}")
-        db.add(org); await db.flush()
-        brand = Brand(organization_id=org.id, name="Last Mile Brand", slug=f"lm-{uuid.uuid4().hex[:6]}", niche="business")
-        db.add(brand); await db.flush()
+        db.add(org)
+        await db.flush()
+        brand = Brand(
+            organization_id=org.id, name="Last Mile Brand", slug=f"lm-{uuid.uuid4().hex[:6]}", niche="business"
+        )
+        db.add(brand)
+        await db.flush()
 
-        offer = Offer(brand_id=brand.id, name="Top Affiliate Offer", monetization_method=MonetizationMethod.AFFILIATE,
-                       payout_amount=50, epc=3.0, conversion_rate=0.04, is_active=True)
-        db.add(offer); await db.flush()
+        offer = Offer(
+            brand_id=brand.id,
+            name="Top Affiliate Offer",
+            monetization_method=MonetizationMethod.AFFILIATE,
+            payout_amount=50,
+            epc=3.0,
+            conversion_rate=0.04,
+            is_active=True,
+        )
+        db.add(offer)
+        await db.flush()
 
-        content = ContentItem(brand_id=brand.id, title="Unmonetized Published Content",
-                               content_type=ContentType.SHORT_VIDEO, status="published")
-        db.add(content); await db.flush()
+        content = ContentItem(
+            brand_id=brand.id,
+            title="Unmonetized Published Content",
+            content_type=ContentType.SHORT_VIDEO,
+            status="published",
+        )
+        db.add(content)
+        await db.flush()
 
         acct = CreatorAccount(brand_id=brand.id, platform=Platform.YOUTUBE, platform_username="@test", is_active=True)
-        db.add(acct); await db.flush()
+        db.add(acct)
+        await db.flush()
 
         print(f"  Brand: {brand.id}\n")
 
@@ -78,12 +105,15 @@ async def main():
 
         # 1a. Create an autonomous attach_offer action
         action1 = await emit_action(
-            db, org_id=org.id,
+            db,
+            org_id=org.id,
             action_type="attach_offer_to_content",
             title=f"Auto-attach: {content.title[:40]}",
-            category="monetization", priority="medium",
+            category="monetization",
+            priority="medium",
             brand_id=brand.id,
-            entity_type="content_item", entity_id=content.id,
+            entity_type="content_item",
+            entity_id=content.id,
             source_module="revenue_execution",
             action_payload={"autonomy_level": "autonomous", "confidence": 0.8},
         )
@@ -91,16 +121,26 @@ async def main():
 
         # 1b. Create a low-EPC offer to be suppressed
         from packages.db.models.offers import Offer as OfferModel
-        weak_offer = OfferModel(brand_id=brand.id, name="Weak Offer To Suppress",
-                                 monetization_method=MonetizationMethod.AFFILIATE,
-                                 payout_amount=5, epc=0.1, conversion_rate=0.001, is_active=True)
-        db.add(weak_offer); await db.flush()
+
+        weak_offer = OfferModel(
+            brand_id=brand.id,
+            name="Weak Offer To Suppress",
+            monetization_method=MonetizationMethod.AFFILIATE,
+            payout_amount=5,
+            epc=0.1,
+            conversion_rate=0.001,
+            is_active=True,
+        )
+        db.add(weak_offer)
+        await db.flush()
 
         action2 = await emit_action(
-            db, org_id=org.id,
+            db,
+            org_id=org.id,
             action_type="suppress_losing_offer",
             title="Auto-suppress losing offer",
-            category="monetization", priority="medium",
+            category="monetization",
+            priority="medium",
             brand_id=brand.id,
             source_module="revenue_execution",
             action_payload={"autonomy_level": "autonomous", "confidence": 0.9},
@@ -109,10 +149,12 @@ async def main():
 
         # 1c. Create a low-confidence action (should be skipped by dispatcher)
         action3 = await emit_action(
-            db, org_id=org.id,
+            db,
+            org_id=org.id,
             action_type="attach_offer_to_content",
             title="Low confidence — should skip",
-            category="monetization", priority="low",
+            category="monetization",
+            priority="low",
             brand_id=brand.id,
             source_module="revenue_execution",
             action_payload={"autonomy_level": "autonomous", "confidence": 0.3},
@@ -121,10 +163,12 @@ async def main():
 
         # 1d. Create an assisted action (should NOT be dispatched)
         action4 = await emit_action(
-            db, org_id=org.id,
+            db,
+            org_id=org.id,
             action_type="launch_packaging_test",
             title="Assisted — needs approval",
-            category="monetization", priority="medium",
+            category="monetization",
+            priority="medium",
             brand_id=brand.id,
             source_module="revenue_execution",
             action_payload={"autonomy_level": "assisted", "confidence": 0.7},
@@ -155,12 +199,16 @@ async def main():
         ok("Result has handler info", "handler" in (action1.result or {}))
 
         # 1h. Verify system events emitted for dispatch
-        dispatch_events = (await db.execute(
-            select(func.count()).select_from(SystemEvent).where(
-                SystemEvent.organization_id == org.id,
-                SystemEvent.event_type.like("autonomous.%"),
+        dispatch_events = (
+            await db.execute(
+                select(func.count())
+                .select_from(SystemEvent)
+                .where(
+                    SystemEvent.organization_id == org.id,
+                    SystemEvent.event_type.like("autonomous.%"),
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
         ok("Dispatch events emitted", dispatch_events >= 2)
 
         # 1i. Verify suppress action completed AND changed state
@@ -180,9 +228,14 @@ async def main():
         # 1k. Test promote_winning_offer changes offer priority
         old_priority = offer.priority or 0
         action_promote = await emit_action(
-            db, org_id=org.id, action_type="promote_winning_offer",
-            title="Auto-promote top offer", category="monetization", priority="medium",
-            brand_id=brand.id, source_module="revenue_execution",
+            db,
+            org_id=org.id,
+            action_type="promote_winning_offer",
+            title="Auto-promote top offer",
+            category="monetization",
+            priority="medium",
+            brand_id=brand.id,
+            source_module="revenue_execution",
             action_payload={"autonomy_level": "autonomous", "confidence": 0.8},
         )
         await db.flush()
@@ -195,9 +248,14 @@ async def main():
 
         # 1l. Test deprioritize_low_margin reduces offer priority
         await emit_action(
-            db, org_id=org.id, action_type="deprioritize_low_margin",
-            title="Auto-deprioritize low margin", category="monetization", priority="medium",
-            brand_id=brand.id, source_module="revenue_execution",
+            db,
+            org_id=org.id,
+            action_type="deprioritize_low_margin",
+            title="Auto-deprioritize low margin",
+            category="monetization",
+            priority="medium",
+            brand_id=brand.id,
+            source_module="revenue_execution",
             action_payload={"autonomy_level": "autonomous", "confidence": 0.8},
         )
         await db.flush()
@@ -211,13 +269,24 @@ async def main():
         ok("DEPRIORITIZE EXECUTED: weak offer priority reduced", (weak_offer.priority or 0) < old_weak_priority)
 
         # 1m. Test reduce_dead_channel changes account scale_role
-        zero_rev_acct = CreatorAccount(brand_id=brand.id, platform=Platform.PINTEREST,
-                                        platform_username="@zero_rev", is_active=True, scale_role="active")
-        db.add(zero_rev_acct); await db.flush()
+        zero_rev_acct = CreatorAccount(
+            brand_id=brand.id,
+            platform=Platform.PINTEREST,
+            platform_username="@zero_rev",
+            is_active=True,
+            scale_role="active",
+        )
+        db.add(zero_rev_acct)
+        await db.flush()
         await emit_action(
-            db, org_id=org.id, action_type="reduce_dead_channel",
-            title="Auto-reduce dead channel", category="monetization", priority="medium",
-            brand_id=brand.id, source_module="revenue_execution",
+            db,
+            org_id=org.id,
+            action_type="reduce_dead_channel",
+            title="Auto-reduce dead channel",
+            category="monetization",
+            priority="medium",
+            brand_id=brand.id,
+            source_module="revenue_execution",
             action_payload={"autonomy_level": "autonomous", "confidence": 0.8},
         )
         await db.flush()
@@ -236,20 +305,15 @@ async def main():
         import inspect
 
         from apps.api.routers import webhooks
+
         src = inspect.getsource(webhooks)
 
-        ok("Stripe webhook calls record_service_payment_to_ledger",
-           "record_service_payment_to_ledger" in src)
-        ok("Shopify webhook calls record_product_sale_to_ledger",
-           "record_product_sale_to_ledger" in src)
-        ok("Shopify refund calls record_refund_to_ledger",
-           "record_refund_to_ledger" in src)
-        ok("Stripe uses webhook_ref for idempotency",
-           'webhook_ref=f"stripe:{event_id}"' in src)
-        ok("Shopify uses webhook_ref for idempotency",
-           "webhook_ref=idem_key" in src)
-        ok("Ledger errors caught (not crash)",
-           "ledger_write_failed" in src)
+        ok("Stripe webhook calls record_service_payment_to_ledger", "record_service_payment_to_ledger" in src)
+        ok("Shopify webhook calls record_product_sale_to_ledger", "record_product_sale_to_ledger" in src)
+        ok("Shopify refund calls record_refund_to_ledger", "record_refund_to_ledger" in src)
+        ok("Stripe uses webhook_ref for idempotency", 'webhook_ref=f"stripe:{event_id}"' in src)
+        ok("Shopify uses webhook_ref for idempotency", "webhook_ref=idem_key" in src)
+        ok("Ledger errors caught (not crash)", "ledger_write_failed" in src)
         print()
 
         # ═══════════════════════════════════════════════════════════
@@ -257,23 +321,26 @@ async def main():
 
         # 3a. Celery task exists and is importable
         from workers.monetization_worker.tasks import run_revenue_cycle
+
         ok("run_revenue_cycle task importable", callable(run_revenue_cycle))
 
         # 3b. Beat schedule has the entry
         from workers.celery_app import app as celery_app
+
         schedule = celery_app.conf.beat_schedule
-        ok("Beat schedule has revenue-maximizer-cycle",
-           "revenue-maximizer-cycle-every-4h" in schedule)
+        ok("Beat schedule has revenue-maximizer-cycle", "revenue-maximizer-cycle-every-4h" in schedule)
 
         entry = schedule.get("revenue-maximizer-cycle-every-4h", {})
-        ok("Task name correct",
-           entry.get("task") == "workers.monetization_worker.tasks.run_revenue_cycle")
+        ok("Task name correct", entry.get("task") == "workers.monetization_worker.tasks.run_revenue_cycle")
         ok("Runs every 4 hours", "*/4" in str(entry.get("schedule", "")))
 
         # 3c. Task calls both surface + dispatch
-        inspect.getsource(run_revenue_cycle.__wrapped__ if hasattr(run_revenue_cycle, '__wrapped__') else run_revenue_cycle)
+        inspect.getsource(
+            run_revenue_cycle.__wrapped__ if hasattr(run_revenue_cycle, "__wrapped__") else run_revenue_cycle
+        )
         # Check the async implementation
         from workers.monetization_worker.tasks import _do_run_revenue_cycle
+
         cycle_src = inspect.getsource(_do_run_revenue_cycle)
         ok("Cycle calls auto_surface_revenue_actions", "auto_surface_revenue_actions" in cycle_src)
         ok("Cycle calls dispatch_autonomous_actions", "dispatch_autonomous_actions" in cycle_src)
@@ -290,7 +357,7 @@ async def main():
 
     # ═══════════════════════════════════════════════════════════
     print("=" * 72)
-    print(f"  LAST-MILE PROOF: {P} PASS / {F} FAIL / {P+F} TOTAL")
+    print(f"  LAST-MILE PROOF: {P} PASS / {F} FAIL / {P + F} TOTAL")
     print("=" * 72)
 
     if F == 0:
@@ -302,6 +369,7 @@ async def main():
         print(f"\n  {F} gaps remain")
 
     return F == 0
+
 
 if __name__ == "__main__":
     success = asyncio.run(main())

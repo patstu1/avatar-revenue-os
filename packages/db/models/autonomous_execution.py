@@ -1,4 +1,5 @@
 """Autonomous execution control plane — policies, runs, blocker escalations (Phase A)."""
+
 import uuid
 from typing import Optional
 
@@ -20,9 +21,7 @@ class AutomationExecutionPolicy(Base):
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True, index=True
     )
-    operating_mode: Mapped[str] = mapped_column(
-        String(40), nullable=False, default="guarded_autonomous"
-    )
+    operating_mode: Mapped[str] = mapped_column(String(40), nullable=False, default="guarded_autonomous")
     min_confidence_auto_execute: Mapped[float] = mapped_column(Float, default=0.72)
     min_confidence_publish: Mapped[float] = mapped_column(Float, default=0.78)
     kill_switch_engaged: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -38,9 +37,7 @@ class AutomationExecutionRun(Base):
 
     __tablename__ = "automation_execution_runs"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     loop_step: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     confidence_score: Mapped[float] = mapped_column(Float, default=0.0)
@@ -63,9 +60,7 @@ class ExecutionBlockerEscalation(Base):
 
     __tablename__ = "execution_blocker_escalations"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     blocker_category: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     severity: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)

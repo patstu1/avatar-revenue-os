@@ -1,4 +1,5 @@
 """Integration tests for Autonomous Execution Phase B API persistence (DB-backed)."""
+
 import pytest
 
 from tests.conftest import create_brand_with_offer, register_and_login
@@ -10,7 +11,8 @@ async def test_execution_policies_recompute_and_list(api_client, sample_org_data
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/execution-policies/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/execution-policies/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
     data = post.json()
@@ -31,7 +33,8 @@ async def test_autonomous_run_start_and_list(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/autonomous-runs/start", headers=headers,
+        f"/api/v1/brands/{bid}/autonomous-runs/start",
+        headers=headers,
     )
     assert post.status_code == 200
     data = post.json()
@@ -49,7 +52,8 @@ async def test_distribution_plans_recompute_and_list(api_client, sample_org_data
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/distribution-plans/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/distribution-plans/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
 
@@ -65,7 +69,8 @@ async def test_monetization_routes_recompute_and_list(api_client, sample_org_dat
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/monetization-routes/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/monetization-routes/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
 
@@ -81,7 +86,8 @@ async def test_suppression_executions_recompute_and_list(api_client, sample_org_
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/suppression-executions/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/suppression-executions/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
     data = post.json()

@@ -1,4 +1,5 @@
 """Landing Page Engine — create, version, score, route monetization pages."""
+
 import uuid
 from typing import Optional
 
@@ -37,7 +38,9 @@ class LandingPage(Base):
 class LandingPageVariant(Base):
     __tablename__ = "lp_variants"
 
-    page_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("lp_pages.id"), nullable=False, index=True)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("lp_pages.id"), nullable=False, index=True
+    )
     variant_label: Mapped[str] = mapped_column(String(120), nullable=False)
     headline: Mapped[str] = mapped_column(String(500), nullable=False)
     subheadline: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
@@ -51,7 +54,9 @@ class LandingPageVariant(Base):
 class LandingPageBlock(Base):
     __tablename__ = "lp_blocks"
 
-    page_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("lp_pages.id"), nullable=False, index=True)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("lp_pages.id"), nullable=False, index=True
+    )
     block_type: Mapped[str] = mapped_column(String(40), nullable=False)
     position: Mapped[int] = mapped_column(Integer, default=0)
     content_json: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
@@ -61,7 +66,9 @@ class LandingPageBlock(Base):
 class LandingPageQualityReport(Base):
     __tablename__ = "lp_quality_reports"
 
-    page_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("lp_pages.id"), nullable=False, index=True)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("lp_pages.id"), nullable=False, index=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     total_score: Mapped[float] = mapped_column(Float, default=0.0)
     trust_score: Mapped[float] = mapped_column(Float, default=0.0)
@@ -75,7 +82,9 @@ class LandingPageQualityReport(Base):
 class LandingPagePublishRecord(Base):
     __tablename__ = "lp_publish_records"
 
-    page_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("lp_pages.id"), nullable=False, index=True)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("lp_pages.id"), nullable=False, index=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     published_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     publish_method: Mapped[str] = mapped_column(String(40), default="manual")

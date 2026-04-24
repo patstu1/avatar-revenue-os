@@ -1,4 +1,5 @@
 """Expansion Pack 2 Phase C — referral, competitive gap, sponsor sales, profit guardrail endpoints."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -35,9 +36,7 @@ async def _require_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
     "/{brand_id}/referral-programs",
     response_model=list[ReferralProgramRecommendationOut],
 )
-async def list_referral_programs(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_referral_programs(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2c.get_referral_program_recommendations(db, brand_id)
 
@@ -73,9 +72,7 @@ async def recompute_referral_programs(
     "/{brand_id}/competitive-gaps",
     response_model=list[CompetitiveGapReportOut],
 )
-async def list_competitive_gaps(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_competitive_gaps(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2c.get_competitive_gap_reports(db, brand_id)
 
@@ -111,9 +108,7 @@ async def recompute_competitive_gaps(
     "/{brand_id}/sponsor-targets",
     response_model=list[SponsorTargetOut],
 )
-async def list_sponsor_targets(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_sponsor_targets(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2c.get_sponsor_targets(db, brand_id)
 
@@ -149,9 +144,7 @@ async def recompute_sponsor_targets(
     "/{brand_id}/sponsor-outreach",
     response_model=list[SponsorOutreachSequenceOut],
 )
-async def list_sponsor_outreach(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_sponsor_outreach(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2c.get_sponsor_outreach_sequences(db, brand_id)
 
@@ -187,9 +180,7 @@ async def recompute_sponsor_outreach(
     "/{brand_id}/profit-guardrails",
     response_model=list[ProfitGuardrailReportOut],
 )
-async def list_profit_guardrails(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_profit_guardrails(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2c.get_profit_guardrail_reports(db, brand_id)
 

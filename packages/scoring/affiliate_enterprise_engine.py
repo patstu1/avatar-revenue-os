@@ -1,13 +1,23 @@
 """Enterprise Affiliate Engine — governance, merchant/network ranking, owned program. Pure functions."""
+
 from __future__ import annotations
 
 from collections import defaultdict
 from typing import Any
 
-GOVERNANCE_RULE_TYPES = ["required_disclosure", "banned_merchant", "banned_category", "max_commission_rate", "approval_required", "platform_disclosure"]
+GOVERNANCE_RULE_TYPES = [
+    "required_disclosure",
+    "banned_merchant",
+    "banned_category",
+    "max_commission_rate",
+    "approval_required",
+    "platform_disclosure",
+]
 
 
-def evaluate_governance(offer: dict[str, Any], rules: list[dict[str, Any]], banned: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def evaluate_governance(
+    offer: dict[str, Any], rules: list[dict[str, Any]], banned: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Check an offer against governance rules and banned lists."""
     violations = []
     merchant = offer.get("merchant_name", "").lower()
@@ -15,18 +25,42 @@ def evaluate_governance(offer: dict[str, Any], rules: list[dict[str, Any]], bann
 
     for b in banned:
         if b.get("entity_type") == "merchant" and b.get("entity_name", "").lower() == merchant:
-            violations.append({"violation_type": "banned_merchant", "severity": "hard", "detail": f"Merchant '{merchant}' is banned: {b.get('reason', '')}"})
+            violations.append(
+                {
+                    "violation_type": "banned_merchant",
+                    "severity": "hard",
+                    "detail": f"Merchant '{merchant}' is banned: {b.get('reason', '')}",
+                }
+            )
         if b.get("entity_type") == "category" and b.get("entity_name", "").lower() == category:
-            violations.append({"violation_type": "banned_category", "severity": "hard", "detail": f"Category '{category}' is banned: {b.get('reason', '')}"})
+            violations.append(
+                {
+                    "violation_type": "banned_category",
+                    "severity": "hard",
+                    "detail": f"Category '{category}' is banned: {b.get('reason', '')}",
+                }
+            )
 
     for r in rules:
         rt = r.get("rule_type", "")
         if rt == "max_commission_rate":
             max_rate = float(r.get("rule_value", {}).get("max", 100))
             if float(offer.get("commission_rate", 0)) > max_rate:
-                violations.append({"violation_type": "commission_too_high", "severity": "soft", "detail": f"Commission {offer.get('commission_rate')}% exceeds max {max_rate}%"})
+                violations.append(
+                    {
+                        "violation_type": "commission_too_high",
+                        "severity": "soft",
+                        "detail": f"Commission {offer.get('commission_rate')}% exceeds max {max_rate}%",
+                    }
+                )
         if rt == "approval_required" and not offer.get("approved"):
-            violations.append({"violation_type": "approval_required", "severity": "hard", "detail": "Offer requires approval before activation"})
+            violations.append(
+                {
+                    "violation_type": "approval_required",
+                    "severity": "hard",
+                    "detail": "Offer requires approval before activation",
+                }
+            )
 
     return violations
 
@@ -39,9 +73,21 @@ def flag_risk(offer: dict[str, Any]) -> list[dict[str, Any]]:
     epc = float(offer.get("epc", 0) or 0)
 
     if trust < 0.3:
-        flags.append({"risk_type": "low_trust", "risk_score": 1.0 - trust, "detail": f"Trust score {trust:.2f} is below threshold"})
+        flags.append(
+            {
+                "risk_type": "low_trust",
+                "risk_score": 1.0 - trust,
+                "detail": f"Trust score {trust:.2f} is below threshold",
+            }
+        )
     if refund > 0.15:
-        flags.append({"risk_type": "high_refund", "risk_score": min(1.0, refund * 3), "detail": f"Refund rate {refund:.0%} is high"})
+        flags.append(
+            {
+                "risk_type": "high_refund",
+                "risk_score": min(1.0, refund * 3),
+                "detail": f"Refund rate {refund:.0%} is high",
+            }
+        )
     if epc == 0:
         flags.append({"risk_type": "no_epc_data", "risk_score": 0.5, "detail": "No EPC data — offer not validated"})
     return flags
@@ -67,7 +113,9 @@ def rank_merchants(merchants: list[dict[str, Any]], offers: list[dict[str, Any]]
     return sorted(ranked, key=lambda x: -x["merchant_rank_score"])
 
 
-def rank_networks(networks: list[dict[str, Any]], offers: list[dict[str, Any]], merchants: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def rank_networks(
+    networks: list[dict[str, Any]], offers: list[dict[str, Any]], merchants: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Rank networks by merchant quality and offer volume."""
     net_merchants: dict[str, int] = defaultdict(int)
     net_offers: dict[str, int] = defaultdict(int)
@@ -112,7 +160,9 @@ def detect_partner_fraud(conversions: list[dict[str, Any]]) -> list[dict[str, An
     total = len(conversions)
     low_quality = sum(1 for c in conversions if float(c.get("quality_score", 0.5)) < 0.2)
     if total > 5 and low_quality / total > 0.5:
-        flags.append({"fraud_type": "low_quality_ratio", "detail": f"{low_quality}/{total} conversions below quality threshold"})
+        flags.append(
+            {"fraud_type": "low_quality_ratio", "detail": f"{low_quality}/{total} conversions below quality threshold"}
+        )
 
     flagged = sum(1 for c in conversions if c.get("fraud_flag"))
     if flagged > 0:

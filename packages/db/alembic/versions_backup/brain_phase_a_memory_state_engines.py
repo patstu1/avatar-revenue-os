@@ -4,6 +4,7 @@ Revision ID: brain_phase_a_001
 Revises: ae04phase_d_001
 Create Date: 2026-03-31
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
@@ -39,8 +40,20 @@ def upgrade() -> None:
         "brain_memory_links",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("source_entry_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brain_memory_entries.id"), nullable=False, index=True),
-        sa.Column("target_entry_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brain_memory_entries.id"), nullable=False, index=True),
+        sa.Column(
+            "source_entry_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("brain_memory_entries.id"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "target_entry_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("brain_memory_entries.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("link_type", sa.String(80), nullable=False, index=True),
         sa.Column("strength", sa.Float, server_default="0.5"),
         sa.Column("explanation", sa.Text, nullable=True),
@@ -53,7 +66,13 @@ def upgrade() -> None:
         "account_state_snapshots",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("account_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("creator_accounts.id"), nullable=False, index=True),
+        sa.Column(
+            "account_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("creator_accounts.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("current_state", sa.String(50), nullable=False, index=True),
         sa.Column("state_score", sa.Float, server_default="0"),
         sa.Column("previous_state", sa.String(50), nullable=True),

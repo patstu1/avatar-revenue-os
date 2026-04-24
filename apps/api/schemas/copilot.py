@@ -1,4 +1,5 @@
 """Pydantic schemas for Operator Copilot APIs."""
+
 from __future__ import annotations
 
 import uuid

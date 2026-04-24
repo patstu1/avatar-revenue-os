@@ -1,4 +1,5 @@
 """Offer catalog, sponsors, LTV, and audience segment models."""
+
 import uuid
 from typing import Optional
 
@@ -34,10 +35,14 @@ class Offer(Base):
     platform_restrictions: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     priority: Mapped[int] = mapped_column(Integer, default=0)
-    rotation_weight: Mapped[float] = mapped_column(Float, default=1.0,
+    rotation_weight: Mapped[float] = mapped_column(
+        Float,
+        default=1.0,
         comment="Weight for weighted random selection during offer rotation at publish time. Higher = more likely selected.",
     )
-    cta_template: Mapped[Optional[str]] = mapped_column(Text, nullable=True,
+    cta_template: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
         comment="Default CTA text template for this offer. Use {url} as placeholder for tracking URL.",
     )
 
@@ -45,9 +50,7 @@ class Offer(Base):
 class SponsorProfile(Base):
     __tablename__ = "sponsor_profiles"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     sponsor_name: Mapped[str] = mapped_column(String(255), nullable=False)
     contact_email: Mapped[Optional[str]] = mapped_column(String(255))
     industry: Mapped[Optional[str]] = mapped_column(String(255))
@@ -65,9 +68,7 @@ class SponsorOpportunity(Base):
     sponsor_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sponsor_profiles.id"), nullable=False, index=True
     )
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     deal_value: Mapped[float] = mapped_column(Float, default=0.0)
     deliverables: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
@@ -78,9 +79,7 @@ class SponsorOpportunity(Base):
 class LtvModel(Base):
     __tablename__ = "ltv_models"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     segment_name: Mapped[str] = mapped_column(String(255), nullable=False)
     model_type: Mapped[str] = mapped_column(String(100), default="rules_based")
     parameters: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
@@ -96,9 +95,7 @@ class LtvModel(Base):
 class AudienceSegment(Base):
     __tablename__ = "audience_segments"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     segment_criteria: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)

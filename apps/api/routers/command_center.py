@@ -1,4 +1,5 @@
 """System Command Center API."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, status

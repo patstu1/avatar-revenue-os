@@ -10,6 +10,7 @@ Usage:
 
 Requires DATABASE_URL_SYNC in env or .env file.
 """
+
 from __future__ import annotations
 
 import csv
@@ -95,7 +96,9 @@ def classify_vertical(row: dict) -> str:
     keywords = (row.get("Keywords", "") + " " + row.get("Industry", "") + " " + row.get("Title", "")).lower()
     if any(k in keywords for k in ("beauty", "skincare", "cosmetic", "aesthetic", "wellness", "spa", "hair", "nail")):
         return "aesthetic-theory"
-    if any(k in keywords for k in ("fitness", "supplement", "gym", "workout", "recovery", "nutrition", "sport", "health")):
+    if any(
+        k in keywords for k in ("fitness", "supplement", "gym", "workout", "recovery", "nutrition", "sport", "health")
+    ):
         return "body-theory"
     # Default to tool-signal for tech/SaaS/general
     return "tool-signal"
@@ -145,9 +148,12 @@ def build_outreach_rationale(row: dict, vertical: str) -> str:
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="Import Apollo contacts")
     parser.add_argument("csv_files", nargs="+", help="Path to Apollo CSV export(s)")
-    parser.add_argument("--brand-slug", default=None, help="Force all leads to one brand (otherwise auto-classifies by vertical)")
+    parser.add_argument(
+        "--brand-slug", default=None, help="Force all leads to one brand (otherwise auto-classifies by vertical)"
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print what would be imported without writing to DB")
     args = parser.parse_args()
 
@@ -172,7 +178,9 @@ def main():
     print(f"Loaded {len(all_rows)} contacts from {len(args.csv_files)} file(s)")
 
     # Filter to verified/extrapolated emails only
-    valid_rows = [r for r in all_rows if r.get("Email") and r.get("Email Status", "").lower() in ("verified", "extrapolated")]
+    valid_rows = [
+        r for r in all_rows if r.get("Email") and r.get("Email Status", "").lower() in ("verified", "extrapolated")
+    ]
     print(f"  → {len(valid_rows)} with verified/extrapolated emails")
 
     if args.dry_run:
@@ -182,7 +190,9 @@ def main():
         for r in valid_rows[:5]:
             scores = score_lead(r)
             v = classify_vertical(r)
-            print(f"  [{v}] {r['First Name']} {r['Last Name']} ({r['Title']}) @ {r['Company Name']} — {r['Email']} — {scores['qualification_tier']} (score={scores['composite_score']:.2f})")
+            print(
+                f"  [{v}] {r['First Name']} {r['Last Name']} ({r['Title']}) @ {r['Company Name']} — {r['Email']} — {scores['qualification_tier']} (score={scores['composite_score']:.2f})"
+            )
         print(f"  ... and {len(valid_rows) - 5} more")
         print(f"  Vertical split: {verticals}")
         return
@@ -194,13 +204,17 @@ def main():
         # Load brand map by vertical
         brand_map = {}
         if args.brand_slug:
-            b = session.execute(select(Brand).where(Brand.slug == args.brand_slug, Brand.is_active.is_(True))).scalar_one_or_none()
+            b = session.execute(
+                select(Brand).where(Brand.slug == args.brand_slug, Brand.is_active.is_(True))
+            ).scalar_one_or_none()
             if b:
                 for v in ("aesthetic-theory", "body-theory", "tool-signal"):
                     brand_map[v] = b
         else:
             for slug in ("aesthetic-theory", "body-theory", "tool-signal"):
-                b = session.execute(select(Brand).where(Brand.slug == slug, Brand.is_active.is_(True))).scalar_one_or_none()
+                b = session.execute(
+                    select(Brand).where(Brand.slug == slug, Brand.is_active.is_(True))
+                ).scalar_one_or_none()
                 if b:
                     brand_map[slug] = b
 
@@ -241,10 +255,12 @@ def main():
 
             # Check for duplicate
             existing = session.execute(
-                select(LeadOpportunity).where(
+                select(LeadOpportunity)
+                .where(
                     LeadOpportunity.brand_id == brand.id,
                     LeadOpportunity.message_text.contains(email),
-                ).limit(1)
+                )
+                .limit(1)
             ).scalar_one_or_none()
             if existing:
                 skipped += 1
@@ -295,7 +311,11 @@ def main():
                 brand_id=brand.id,
                 lead_opportunity_id=lead.id,
                 action_type="apollo_outreach",
-                priority=1 if scores["qualification_tier"] == "hot" else 2 if scores["qualification_tier"] == "warm" else 3,
+                priority=1
+                if scores["qualification_tier"] == "hot"
+                else 2
+                if scores["qualification_tier"] == "warm"
+                else 3,
                 channel="email",
                 subject_or_opener=subject,
                 timing="immediate",

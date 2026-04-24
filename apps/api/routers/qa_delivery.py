@@ -5,6 +5,7 @@ state change is auditable via SystemEvent emissions performed inside
 the underlying service; these endpoints are thin wrappers for manual
 control.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -174,9 +175,7 @@ async def get_delivery(
     db: DBSession,
 ):
     did = _parse_uuid(delivery_id)
-    delivery = (
-        await db.execute(select(Delivery).where(Delivery.id == did))
-    ).scalar_one_or_none()
+    delivery = (await db.execute(select(Delivery).where(Delivery.id == did))).scalar_one_or_none()
     if delivery is None or delivery.org_id != current_user.organization_id:
         raise HTTPException(404, "Delivery not found")
     return {
@@ -202,9 +201,7 @@ async def reschedule_followup(
     db: DBSession,
 ):
     did = _parse_uuid(delivery_id)
-    delivery = (
-        await db.execute(select(Delivery).where(Delivery.id == did))
-    ).scalar_one_or_none()
+    delivery = (await db.execute(select(Delivery).where(Delivery.id == did))).scalar_one_or_none()
     if delivery is None or delivery.org_id != current_user.organization_id:
         raise HTTPException(404, "Delivery not found")
     await svc_schedule_followup(db, delivery=delivery, when=body.followup_scheduled_at)
@@ -260,8 +257,7 @@ def _delivery_summary(d: Delivery) -> dict:
         "recipient_email": d.recipient_email,
         "deliverable_url": d.deliverable_url,
         "sent_at": d.sent_at.isoformat() if d.sent_at else None,
-        "followup_scheduled_at": d.followup_scheduled_at.isoformat()
-        if d.followup_scheduled_at else None,
+        "followup_scheduled_at": d.followup_scheduled_at.isoformat() if d.followup_scheduled_at else None,
         "created_at": d.created_at.isoformat(),
     }
 
@@ -275,11 +271,7 @@ def _parse_uuid(val: str) -> uuid.UUID:
 
 async def _require_owned_job(db, job_id: str, org_id: uuid.UUID) -> ProductionJob:
     jid = _parse_uuid(job_id)
-    job = (
-        await db.execute(
-            select(ProductionJob).where(ProductionJob.id == jid)
-        )
-    ).scalar_one_or_none()
+    job = (await db.execute(select(ProductionJob).where(ProductionJob.id == jid))).scalar_one_or_none()
     if job is None:
         raise HTTPException(404, "Production job not found")
     if job.org_id != org_id:

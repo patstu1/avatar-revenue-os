@@ -3,6 +3,7 @@
 Revision ID: content_routing_001
 Revises: content_form_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 

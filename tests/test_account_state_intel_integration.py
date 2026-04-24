@@ -1,4 +1,5 @@
 """DB-backed integration tests for Account-State Intelligence."""
+
 from __future__ import annotations
 
 import uuid
@@ -39,20 +40,45 @@ async def brand_with_accounts(db_session: AsyncSession):
     await db_session.flush()
 
     acct_new = CreatorAccount(brand_id=brand.id, platform=Platform.TIKTOK, platform_username=f"@new_{slug}")
-    acct_scaling = CreatorAccount(brand_id=brand.id, platform=Platform.INSTAGRAM, platform_username=f"@scale_{slug}", total_revenue=200, total_profit=50, conversion_rate=0.05)
+    acct_scaling = CreatorAccount(
+        brand_id=brand.id,
+        platform=Platform.INSTAGRAM,
+        platform_username=f"@scale_{slug}",
+        total_revenue=200,
+        total_profit=50,
+        conversion_rate=0.05,
+    )
     db_session.add_all([acct_new, acct_scaling])
     await db_session.flush()
 
     for i in range(20):
-        ci = ContentItem(brand_id=brand.id, creator_account_id=acct_scaling.id, title=f"Scaling content {i}", content_type=ContentType.SHORT_VIDEO, platform="instagram")
+        ci = ContentItem(
+            brand_id=brand.id,
+            creator_account_id=acct_scaling.id,
+            title=f"Scaling content {i}",
+            content_type=ContentType.SHORT_VIDEO,
+            platform="instagram",
+        )
         db_session.add(ci)
     await db_session.flush()
 
-    scaling_items = (await db_session.execute(
-        select(ContentItem).where(ContentItem.creator_account_id == acct_scaling.id)
-    )).scalars().all()
+    scaling_items = (
+        (await db_session.execute(select(ContentItem).where(ContentItem.creator_account_id == acct_scaling.id)))
+        .scalars()
+        .all()
+    )
     for ci in scaling_items:
-        db_session.add(PerformanceMetric(brand_id=brand.id, content_item_id=ci.id, creator_account_id=acct_scaling.id, platform=Platform.INSTAGRAM, impressions=5000, engagement_rate=0.08, revenue=15.0))
+        db_session.add(
+            PerformanceMetric(
+                brand_id=brand.id,
+                content_item_id=ci.id,
+                creator_account_id=acct_scaling.id,
+                platform=Platform.INSTAGRAM,
+                impressions=5000,
+                engagement_rate=0.08,
+                revenue=15.0,
+            )
+        )
     await db_session.flush()
 
     return brand, acct_new, acct_scaling
@@ -67,9 +93,11 @@ async def test_recompute_creates_reports(db_session, brand_with_accounts):
     assert result["status"] == "completed"
     assert result["rows_processed"] == 2
 
-    reports = (await db_session.execute(
-        select(AccountStateReport).where(AccountStateReport.brand_id == brand.id)
-    )).scalars().all()
+    reports = (
+        (await db_session.execute(select(AccountStateReport).where(AccountStateReport.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(reports) == 2
     states = {r.account_id: r.current_state for r in reports}
     assert acct_new.id in states
@@ -82,9 +110,9 @@ async def test_newborn_classified_correctly(db_session, brand_with_accounts):
     await recompute_account_states(db_session, brand.id)
     await db_session.commit()
 
-    report = (await db_session.execute(
-        select(AccountStateReport).where(AccountStateReport.account_id == acct_new.id)
-    )).scalar_one_or_none()
+    report = (
+        await db_session.execute(select(AccountStateReport).where(AccountStateReport.account_id == acct_new.id))
+    ).scalar_one_or_none()
     assert report is not None
     assert report.current_state in ("newborn", "warming")
     assert report.monetization_intensity in ("none", "low")
@@ -97,9 +125,9 @@ async def test_scaling_account_classified(db_session, brand_with_accounts):
     await recompute_account_states(db_session, brand.id)
     await db_session.commit()
 
-    report = (await db_session.execute(
-        select(AccountStateReport).where(AccountStateReport.account_id == acct_scaling.id)
-    )).scalar_one_or_none()
+    report = (
+        await db_session.execute(select(AccountStateReport).where(AccountStateReport.account_id == acct_scaling.id))
+    ).scalar_one_or_none()
     assert report is not None
     assert report.current_state in ("scaling", "monetizing", "early_signal", "authority_building")
 
@@ -110,9 +138,11 @@ async def test_actions_created(db_session, brand_with_accounts):
     await recompute_account_states(db_session, brand.id)
     await db_session.commit()
 
-    actions = (await db_session.execute(
-        select(AccountStateAction).where(AccountStateAction.brand_id == brand.id)
-    )).scalars().all()
+    actions = (
+        (await db_session.execute(select(AccountStateAction).where(AccountStateAction.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(actions) >= 2
 
 
@@ -122,9 +152,11 @@ async def test_transitions_on_recompute(db_session, brand_with_accounts):
     await recompute_account_states(db_session, brand.id)
     await db_session.commit()
 
-    transitions = (await db_session.execute(
-        select(AccountStateTransition).where(AccountStateTransition.brand_id == brand.id)
-    )).scalars().all()
+    transitions = (
+        (await db_session.execute(select(AccountStateTransition).where(AccountStateTransition.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert isinstance(transitions, list)
 
 
@@ -176,13 +208,16 @@ async def test_idempotent(db_session, brand_with_accounts):
     await db_session.commit()
     assert r1["rows_processed"] == r2["rows_processed"]
 
-    reports = (await db_session.execute(
-        select(AccountStateReport).where(AccountStateReport.brand_id == brand.id)
-    )).scalars().all()
+    reports = (
+        (await db_session.execute(select(AccountStateReport).where(AccountStateReport.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(reports) == 2
 
 
 def test_account_state_intel_worker_registered():
     import workers.account_state_intel_worker.tasks  # noqa: F401
     from workers.celery_app import app
+
     assert "workers.account_state_intel_worker.tasks.recompute_account_state_intel" in app.tasks

@@ -3,6 +3,7 @@
 Revision ID: u2v3w4x5y6z7
 Revises: t1u2v3w4x5y6
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -109,7 +110,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("sponsor_target_id", "sequence_name", name="uq_outreach_target_sequence"),
     )
-    op.create_index("ix_sponsor_outreach_sequences_sponsor_target_id", "sponsor_outreach_sequences", ["sponsor_target_id"])
+    op.create_index(
+        "ix_sponsor_outreach_sequences_sponsor_target_id", "sponsor_outreach_sequences", ["sponsor_target_id"]
+    )
 
     # ------------------------------------------------------------------
     # profit_guardrail_reports

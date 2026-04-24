@@ -1,4 +1,3 @@
-
 import pytest
 from sqlalchemy import select
 
@@ -53,7 +52,11 @@ async def test_recompute_all_pricing_recommendations_worker(async_session, brand
     assert result["rows"] == 1
     assert not result["errors"]
 
-    recommendations = (await async_session.execute(select(PricingRecommendation).where(PricingRecommendation.brand_id == brand.id))).scalars().all()
+    recommendations = (
+        (await async_session.execute(select(PricingRecommendation).where(PricingRecommendation.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(recommendations) == 1
     assert recommendations[0].offer_id == offer.id
 
@@ -66,7 +69,11 @@ async def test_recompute_all_bundle_recommendations_worker(async_session, brand_
     assert result["rows"] == 1
     assert not result["errors"]
 
-    recommendations = (await async_session.execute(select(BundleRecommendation).where(BundleRecommendation.brand_id == brand.id))).scalars().all()
+    recommendations = (
+        (await async_session.execute(select(BundleRecommendation).where(BundleRecommendation.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(recommendations) == 1
     assert str(offer.id) in recommendations[0].offer_ids
 
@@ -79,6 +86,10 @@ async def test_recompute_all_reactivation_campaigns_worker(async_session, brand_
     assert result["rows"] == 1
     assert not result["errors"]
 
-    campaigns = (await async_session.execute(select(ReactivationCampaign).where(ReactivationCampaign.brand_id == brand.id))).scalars().all()
+    campaigns = (
+        (await async_session.execute(select(ReactivationCampaign).where(ReactivationCampaign.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(campaigns) == 1
     assert campaigns[0].brand_id == brand.id

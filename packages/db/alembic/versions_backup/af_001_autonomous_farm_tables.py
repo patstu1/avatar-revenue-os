@@ -4,6 +4,7 @@ Revision ID: af_001
 Revises: tv_001
 Create Date: 2026-04-02
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
@@ -38,7 +39,13 @@ def upgrade() -> None:
     op.create_table(
         "af_warmup_plans",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("account_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("creator_accounts.id"), nullable=False, index=True),
+        sa.Column(
+            "account_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("creator_accounts.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
         sa.Column("current_phase", sa.String(30), default="seed"),
         sa.Column("age_days", sa.Integer, default=0),
@@ -56,7 +63,13 @@ def upgrade() -> None:
     op.create_table(
         "af_fleet_reports",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("organization_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False, index=True),
+        sa.Column(
+            "organization_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("total_accounts", sa.Integer, default=0),
         sa.Column("accounts_warming", sa.Integer, default=0),
         sa.Column("accounts_scaling", sa.Integer, default=0),
@@ -75,7 +88,14 @@ def upgrade() -> None:
     op.create_table(
         "af_voice_profiles",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("account_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("creator_accounts.id"), nullable=False, index=True, unique=True),
+        sa.Column(
+            "account_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("creator_accounts.id"),
+            nullable=False,
+            index=True,
+            unique=True,
+        ),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
         sa.Column("style", sa.String(60), nullable=False),
         sa.Column("vocabulary_level", sa.String(30), nullable=False),
@@ -95,8 +115,20 @@ def upgrade() -> None:
     op.create_table(
         "af_repurpose_records",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("source_content_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("content_items.id"), nullable=False, index=True),
-        sa.Column("derived_brief_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("content_briefs.id"), nullable=False, index=True),
+        sa.Column(
+            "source_content_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("content_items.id"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "derived_brief_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("content_briefs.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
         sa.Column("target_platform", sa.String(60), nullable=False),
         sa.Column("target_content_type", sa.String(60), nullable=False),
@@ -127,7 +159,13 @@ def upgrade() -> None:
     op.create_table(
         "af_daily_reports",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("organization_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False, index=True),
+        sa.Column(
+            "organization_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("report_date", sa.String(10), nullable=False, index=True),
         sa.Column("content_created", sa.Integer, default=0),
         sa.Column("content_approved", sa.Integer, default=0),

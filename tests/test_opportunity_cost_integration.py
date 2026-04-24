@@ -1,4 +1,5 @@
 """DB-backed integration tests for Opportunity-Cost Ranking."""
+
 from __future__ import annotations
 
 import uuid
@@ -37,8 +38,28 @@ async def brand_with_state(db_session: AsyncSession):
     db_session.add_all([acct1, acct2])
     await db_session.flush()
 
-    db_session.add(AccountStateReport(brand_id=brand.id, account_id=acct1.id, current_state="scaling", confidence=0.8, monetization_intensity="medium", posting_cadence="aggressive", expansion_eligible=True))
-    db_session.add(AccountStateReport(brand_id=brand.id, account_id=acct2.id, current_state="weak", confidence=0.7, monetization_intensity="none", posting_cadence="minimal", expansion_eligible=False))
+    db_session.add(
+        AccountStateReport(
+            brand_id=brand.id,
+            account_id=acct1.id,
+            current_state="scaling",
+            confidence=0.8,
+            monetization_intensity="medium",
+            posting_cadence="aggressive",
+            expansion_eligible=True,
+        )
+    )
+    db_session.add(
+        AccountStateReport(
+            brand_id=brand.id,
+            account_id=acct2.id,
+            current_state="weak",
+            confidence=0.7,
+            monetization_intensity="none",
+            posting_cadence="minimal",
+            expansion_eligible=False,
+        )
+    )
     await db_session.flush()
 
     return brand
@@ -53,9 +74,7 @@ async def test_recompute_creates_ranked_actions(db_session, brand_with_state):
     assert result["status"] == "completed"
     assert result["rows_processed"] >= 2
 
-    actions = (await db_session.execute(
-        select(RankedAction).where(RankedAction.brand_id == brand.id)
-    )).scalars().all()
+    actions = (await db_session.execute(select(RankedAction).where(RankedAction.brand_id == brand.id))).scalars().all()
     assert len(actions) >= 2
     assert actions[0].rank_position == 1 or any(a.rank_position == 1 for a in actions)
 
@@ -66,9 +85,11 @@ async def test_report_created(db_session, brand_with_state):
     await recompute_ranking(db_session, brand.id)
     await db_session.commit()
 
-    reports = (await db_session.execute(
-        select(OpportunityCostReport).where(OpportunityCostReport.brand_id == brand.id)
-    )).scalars().all()
+    reports = (
+        (await db_session.execute(select(OpportunityCostReport).where(OpportunityCostReport.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(reports) == 1
     assert reports[0].total_actions >= 2
     assert reports[0].total_opportunity_cost > 0
@@ -80,9 +101,11 @@ async def test_cost_of_delay_persisted(db_session, brand_with_state):
     await recompute_ranking(db_session, brand.id)
     await db_session.commit()
 
-    delays = (await db_session.execute(
-        select(CostOfDelayModel).where(CostOfDelayModel.brand_id == brand.id)
-    )).scalars().all()
+    delays = (
+        (await db_session.execute(select(CostOfDelayModel).where(CostOfDelayModel.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(delays) >= 2
     for d in delays:
         assert d.daily_cost > 0
@@ -95,9 +118,15 @@ async def test_ranking_order(db_session, brand_with_state):
     await recompute_ranking(db_session, brand.id)
     await db_session.commit()
 
-    actions = (await db_session.execute(
-        select(RankedAction).where(RankedAction.brand_id == brand.id).order_by(RankedAction.rank_position)
-    )).scalars().all()
+    actions = (
+        (
+            await db_session.execute(
+                select(RankedAction).where(RankedAction.brand_id == brand.id).order_by(RankedAction.rank_position)
+            )
+        )
+        .scalars()
+        .all()
+    )
     for i in range(1, len(actions)):
         assert actions[i - 1].composite_rank >= actions[i].composite_rank
 
@@ -148,4 +177,5 @@ async def test_idempotent(db_session, brand_with_state):
 def test_opportunity_cost_worker_registered():
     import workers.opportunity_cost_worker.tasks  # noqa: F401
     from workers.celery_app import app
+
     assert "workers.opportunity_cost_worker.tasks.recompute_opportunity_cost" in app.tasks

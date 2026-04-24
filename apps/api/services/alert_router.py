@@ -36,6 +36,7 @@ Usage:
         metadata={"error_rate": 0.52},
     )
 """
+
 from __future__ import annotations
 
 import os
@@ -70,23 +71,27 @@ DEFAULT_CHANNEL_MAP: dict[str, list[str]] = {
 
 # Events that the system tries to self-heal silently.
 # If they appear with requires_action=True, self-healing failed and we alert.
-SELF_HEALING_EVENT_TYPES = frozenset({
-    "job.retrying",              # Transient errors being retried
-    "token.refreshing",          # OAuth token refresh in progress
-    "provider.failover",         # Automatic failover to backup provider
-    "recovery.auto_retry",       # Recovery engine auto-retry
-})
+SELF_HEALING_EVENT_TYPES = frozenset(
+    {
+        "job.retrying",  # Transient errors being retried
+        "token.refreshing",  # OAuth token refresh in progress
+        "provider.failover",  # Automatic failover to backup provider
+        "recovery.auto_retry",  # Recovery engine auto-retry
+    }
+)
 
 # Event types that always warrant an alert when they appear
-ALWAYS_ALERT_EVENT_TYPES = frozenset({
-    "job.failed.auth",           # Auth failure — provider needs re-auth
-    "job.consecutive_failures",  # 3+ consecutive failures
-    "job.failed.permanent",      # Permanent failure
-    "provider.all_down",         # All providers for a category down
-    "revenue.anomaly",           # Revenue anomaly detected
-    "oauth.expired_no_refresh",  # OAuth expired with no refresh token
-    "publishing.consecutive_failures",  # Multiple publish failures in a row
-})
+ALWAYS_ALERT_EVENT_TYPES = frozenset(
+    {
+        "job.failed.auth",  # Auth failure — provider needs re-auth
+        "job.consecutive_failures",  # 3+ consecutive failures
+        "job.failed.permanent",  # Permanent failure
+        "provider.all_down",  # All providers for a category down
+        "revenue.anomaly",  # Revenue anomaly detected
+        "oauth.expired_no_refresh",  # OAuth expired with no refresh token
+        "publishing.consecutive_failures",  # Multiple publish failures in a row
+    }
+)
 
 
 def _severity_to_urgency(severity: str) -> float:
@@ -102,9 +107,7 @@ class AlertRouter:
     def __init__(self):
         self._in_app = InAppAdapter()
         self._email = EmailAdapter()
-        self._slack = SlackWebhookAdapter(
-            webhook_url=os.environ.get("SLACK_WEBHOOK_URL", "")
-        )
+        self._slack = SlackWebhookAdapter(webhook_url=os.environ.get("SLACK_WEBHOOK_URL", ""))
 
     # ------------------------------------------------------------------
     # Async path (API / async workers)
@@ -206,9 +209,7 @@ class AlertRouter:
             logger.error("alert_router.delivery_error", channel=channel, error=str(e))
             return False, str(e)
 
-    async def _resolve_channels_async(
-        self, db: AsyncSession, severity: str, org_id: uuid.UUID | None
-    ) -> list[str]:
+    async def _resolve_channels_async(self, db: AsyncSession, severity: str, org_id: uuid.UUID | None) -> list[str]:
         """Resolve channel list from DB prefs or defaults."""
         if not org_id:
             return DEFAULT_CHANNEL_MAP.get(severity, ["in_app"])
@@ -217,13 +218,9 @@ class AlertRouter:
             return DEFAULT_CHANNEL_MAP.get(severity, ["in_app"])
         return self._channels_from_prefs(prefs, severity)
 
-    async def _get_prefs_async(
-        self, db: AsyncSession, org_id: uuid.UUID
-    ) -> OperatorNotificationPreference | None:
+    async def _get_prefs_async(self, db: AsyncSession, org_id: uuid.UUID) -> OperatorNotificationPreference | None:
         result = await db.execute(
-            select(OperatorNotificationPreference).where(
-                OperatorNotificationPreference.organization_id == org_id
-            )
+            select(OperatorNotificationPreference).where(OperatorNotificationPreference.organization_id == org_id)
         )
         return result.scalar_one_or_none()
 
@@ -286,9 +283,7 @@ class AlertRouter:
         )
         return logs
 
-    def _resolve_channels_sync(
-        self, session: Session, severity: str, org_id: uuid.UUID | None
-    ) -> list[str]:
+    def _resolve_channels_sync(self, session: Session, severity: str, org_id: uuid.UUID | None) -> list[str]:
         if not org_id:
             return DEFAULT_CHANNEL_MAP.get(severity, ["in_app"])
         prefs = self._get_prefs_sync(session, org_id)
@@ -296,13 +291,9 @@ class AlertRouter:
             return DEFAULT_CHANNEL_MAP.get(severity, ["in_app"])
         return self._channels_from_prefs(prefs, severity)
 
-    def _get_prefs_sync(
-        self, session: Session, org_id: uuid.UUID
-    ) -> OperatorNotificationPreference | None:
+    def _get_prefs_sync(self, session: Session, org_id: uuid.UUID) -> OperatorNotificationPreference | None:
         return session.execute(
-            select(OperatorNotificationPreference).where(
-                OperatorNotificationPreference.organization_id == org_id
-            )
+            select(OperatorNotificationPreference).where(OperatorNotificationPreference.organization_id == org_id)
         ).scalar_one_or_none()
 
     # ------------------------------------------------------------------
@@ -310,9 +301,7 @@ class AlertRouter:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _channels_from_prefs(
-        prefs: OperatorNotificationPreference, severity: str
-    ) -> list[str]:
+    def _channels_from_prefs(prefs: OperatorNotificationPreference, severity: str) -> list[str]:
         """Extract channel list from prefs by severity."""
         mapping = {
             "critical": prefs.critical_channels,
@@ -325,9 +314,7 @@ class AlertRouter:
         return channels
 
     @staticmethod
-    def _resolve_recipient(
-        channel: str, prefs: OperatorNotificationPreference | None
-    ) -> str:
+    def _resolve_recipient(channel: str, prefs: OperatorNotificationPreference | None) -> str:
         """Resolve recipient string for a channel."""
         if channel == "in_app":
             return "operator"
@@ -357,6 +344,7 @@ class AlertRouter:
 # ---------------------------------------------------------------------------
 # Event filtering — decides which SystemEvents become operator alerts
 # ---------------------------------------------------------------------------
+
 
 def should_alert(event) -> bool:
     """Determine if a SystemEvent should trigger an operator alert.

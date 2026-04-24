@@ -2,6 +2,7 @@
 
 Requires Postgres (TEST_DATABASE_URL) and metadata create_all including Phase D tables.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -62,11 +63,7 @@ async def test_deal_desk_recompute_persists_pricing_stance(db_session):
     assert rows[0].pricing_stance in ("premium", "competitive", "penetration", "hold")
     assert rows[0].deal_strategy
 
-    ev = (
-        (await db_session.execute(select(DealDeskEvent).where(DealDeskEvent.brand_id == brand.id)))
-        .scalars()
-        .all()
-    )
+    ev = (await db_session.execute(select(DealDeskEvent).where(DealDeskEvent.brand_id == brand.id))).scalars().all()
     assert len(ev) >= 1
 
 
@@ -109,9 +106,7 @@ async def test_kill_ledger_and_hindsight_persist(db_session):
     assert k1["kill_entries_added"] >= 1
 
     entries = (
-        (await db_session.execute(select(KillLedgerEntry).where(KillLedgerEntry.brand_id == brand.id)))
-        .scalars()
-        .all()
+        (await db_session.execute(select(KillLedgerEntry).where(KillLedgerEntry.brand_id == brand.id))).scalars().all()
     )
     assert len(entries) >= 1
     assert entries[0].replacement_recommendation_json

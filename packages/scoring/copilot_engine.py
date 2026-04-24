@@ -3,6 +3,7 @@
 Every function reads persisted data and returns structured answers with truth boundaries.
 No hallucination. No guessing. If data is absent, say so.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -33,7 +34,16 @@ QUICK_PROMPTS = {
     "fleet_health": "How are my accounts doing? Any shadow bans? Which accounts are performing best?",
 }
 
-TRUTH_LEVELS = ["live", "synthetic", "proxy", "queued", "blocked", "recommendation_only", "configured_missing_credentials", "architecturally_present"]
+TRUTH_LEVELS = [
+    "live",
+    "synthetic",
+    "proxy",
+    "queued",
+    "blocked",
+    "recommendation_only",
+    "configured_missing_credentials",
+    "architecturally_present",
+]
 
 
 def _tag(level: str, source: str, detail: str = "") -> dict[str, str]:
@@ -53,7 +63,13 @@ def build_quick_status(
     missing_creds = [p for p in provider_audit if p.get("credential_status") == "not_configured" and p.get("env_keys")]
     live_providers = [p for p in provider_audit if p.get("effective_status") == "live"]
 
-    urgency = "critical" if blocked_count > 3 or failed_count > 5 else "high" if blocked_count > 0 or failed_count > 0 else "normal"
+    urgency = (
+        "critical"
+        if blocked_count > 3 or failed_count > 5
+        else "high"
+        if blocked_count > 0 or failed_count > 0
+        else "normal"
+    )
 
     return {
         "urgency": urgency,
@@ -66,7 +82,9 @@ def build_quick_status(
         "top_blockers": blockers[:5],
         "top_failures": failed_items[:5],
         "top_pending_actions": pending_actions[:5],
-        "truth_boundary": _tag("live", "system_aggregate", "Compiled from persisted blocker/failure/action/provider rows"),
+        "truth_boundary": _tag(
+            "live", "system_aggregate", "Compiled from persisted blocker/failure/action/provider rows"
+        ),
     }
 
 
@@ -83,68 +101,89 @@ def build_operator_actions(
     actions: list[dict[str, Any]] = []
 
     for a in scale_alerts:
-        actions.append({
-            "action_type": "scale_alert", "urgency": "high",
-            "title": a.get("alert_type", "Scale alert"),
-            "description": a.get("description", str(a)),
-            "source_module": "scale_alerts",
-            "truth_boundary": _tag("live", "operator_alerts"),
-        })
+        actions.append(
+            {
+                "action_type": "scale_alert",
+                "urgency": "high",
+                "title": a.get("alert_type", "Scale alert"),
+                "description": a.get("description", str(a)),
+                "source_module": "scale_alerts",
+                "truth_boundary": _tag("live", "operator_alerts"),
+            }
+        )
 
     for g in growth_commands:
         if g.get("status") == "pending_approval":
-            actions.append({
-                "action_type": "growth_approval", "urgency": "medium",
-                "title": f"Growth command needs approval: {g.get('command_type', '')}",
-                "description": g.get("explanation", str(g)),
-                "source_module": "growth_commander",
-                "truth_boundary": _tag("live", "growth_commands"),
-            })
+            actions.append(
+                {
+                    "action_type": "growth_approval",
+                    "urgency": "medium",
+                    "title": f"Growth command needs approval: {g.get('command_type', '')}",
+                    "description": g.get("explanation", str(g)),
+                    "source_module": "growth_commander",
+                    "truth_boundary": _tag("live", "growth_commands"),
+                }
+            )
 
     for b in creator_revenue_blockers:
-        actions.append({
-            "action_type": "creator_revenue_blocker", "urgency": b.get("severity", "medium"),
-            "title": f"{b.get('avenue_type', '')} blocker: {b.get('blocker_type', '')}",
-            "description": b.get("description", ""),
-            "source_module": "creator_revenue",
-            "truth_boundary": _tag("live", "creator_revenue_blockers"),
-        })
+        actions.append(
+            {
+                "action_type": "creator_revenue_blocker",
+                "urgency": b.get("severity", "medium"),
+                "title": f"{b.get('avenue_type', '')} blocker: {b.get('blocker_type', '')}",
+                "description": b.get("description", ""),
+                "source_module": "creator_revenue",
+                "truth_boundary": _tag("live", "creator_revenue_blockers"),
+            }
+        )
 
     for b in messaging_blockers:
-        actions.append({
-            "action_type": "messaging_blocker", "urgency": b.get("severity", "high"),
-            "title": f"Messaging blocker: {b.get('blocker_type', '')} ({b.get('channel', '')})",
-            "description": b.get("description", ""),
-            "source_module": "live_execution",
-            "truth_boundary": _tag("live", "messaging_blockers"),
-        })
+        actions.append(
+            {
+                "action_type": "messaging_blocker",
+                "urgency": b.get("severity", "high"),
+                "title": f"Messaging blocker: {b.get('blocker_type', '')} ({b.get('channel', '')})",
+                "description": b.get("description", ""),
+                "source_module": "live_execution",
+                "truth_boundary": _tag("live", "messaging_blockers"),
+            }
+        )
 
     for b in buffer_blockers:
-        actions.append({
-            "action_type": "buffer_blocker", "urgency": b.get("severity", "high"),
-            "title": f"Buffer blocker: {b.get('blocker_type', '')}",
-            "description": b.get("description", ""),
-            "source_module": "buffer_distribution",
-            "truth_boundary": _tag("live", "buffer_blockers"),
-        })
+        actions.append(
+            {
+                "action_type": "buffer_blocker",
+                "urgency": b.get("severity", "high"),
+                "title": f"Buffer blocker: {b.get('blocker_type', '')}",
+                "description": b.get("description", ""),
+                "source_module": "buffer_distribution",
+                "truth_boundary": _tag("live", "buffer_blockers"),
+            }
+        )
 
     for b in provider_blockers:
-        actions.append({
-            "action_type": "provider_blocker", "urgency": b.get("severity", "medium"),
-            "title": f"Provider: {b.get('provider_key', '')} — {b.get('blocker_type', '')}",
-            "description": b.get("description", ""),
-            "source_module": "provider_registry",
-            "truth_boundary": _tag("live", "provider_blockers"),
-        })
+        actions.append(
+            {
+                "action_type": "provider_blocker",
+                "urgency": b.get("severity", "medium"),
+                "title": f"Provider: {b.get('provider_key', '')} — {b.get('blocker_type', '')}",
+                "description": b.get("description", ""),
+                "source_module": "provider_registry",
+                "truth_boundary": _tag("live", "provider_blockers"),
+            }
+        )
 
     for e in autonomous_escalations:
-        actions.append({
-            "action_type": "autonomous_escalation", "urgency": "critical",
-            "title": f"Escalation: {e.get('escalation_type', '')}",
-            "description": e.get("description", str(e)),
-            "source_module": "autonomous_execution",
-            "truth_boundary": _tag("live", "execution_blocker_escalations"),
-        })
+        actions.append(
+            {
+                "action_type": "autonomous_escalation",
+                "urgency": "critical",
+                "title": f"Escalation: {e.get('escalation_type', '')}",
+                "description": e.get("description", str(e)),
+                "source_module": "autonomous_execution",
+                "truth_boundary": _tag("live", "execution_blocker_escalations"),
+            }
+        )
 
     actions.sort(key=lambda a: {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(a.get("urgency", "medium"), 2))
     return actions
@@ -159,37 +198,45 @@ def build_missing_items() -> list[dict[str, Any]]:
         status = p.get("integration_status", "stubbed")
 
         if status == "planned":
-            items.append({
-                "item": p["display_name"],
-                "category": "not_yet_integrated",
-                "description": p.get("description", ""),
-                "truth_level": "architecturally_present",
-                "action": f"Wire {p['display_name']} SDK and set {', '.join(p.get('env_keys', []))}",
-            })
+            items.append(
+                {
+                    "item": p["display_name"],
+                    "category": "not_yet_integrated",
+                    "description": p.get("description", ""),
+                    "truth_level": "architecturally_present",
+                    "action": f"Wire {p['display_name']} SDK and set {', '.join(p.get('env_keys', []))}",
+                }
+            )
         elif status == "partial" and not cred["is_ready"]:
-            items.append({
-                "item": p["display_name"],
-                "category": "partial_missing_credentials",
-                "description": f"Adapter exists but credentials missing: {', '.join(cred['missing_keys'])}",
-                "truth_level": "configured_missing_credentials",
-                "action": f"Set {', '.join(cred['missing_keys'])}",
-            })
+            items.append(
+                {
+                    "item": p["display_name"],
+                    "category": "partial_missing_credentials",
+                    "description": f"Adapter exists but credentials missing: {', '.join(cred['missing_keys'])}",
+                    "truth_level": "configured_missing_credentials",
+                    "action": f"Set {', '.join(cred['missing_keys'])}",
+                }
+            )
         elif status == "live" and not cred["is_ready"] and p.get("env_keys"):
-            items.append({
-                "item": p["display_name"],
-                "category": "live_client_missing_credentials",
-                "description": f"Real client exists but credentials not set: {', '.join(cred['missing_keys'])}",
-                "truth_level": "configured_missing_credentials",
-                "action": f"Set {', '.join(cred['missing_keys'])} to activate",
-            })
+            items.append(
+                {
+                    "item": p["display_name"],
+                    "category": "live_client_missing_credentials",
+                    "description": f"Real client exists but credentials not set: {', '.join(cred['missing_keys'])}",
+                    "truth_level": "configured_missing_credentials",
+                    "action": f"Set {', '.join(cred['missing_keys'])} to activate",
+                }
+            )
 
-    items.append({
-        "item": "Dead-end flow audit",
-        "category": "system_wiring",
-        "description": "Content form → generation: WIRED. Expansion advisor → OperatorAlert + LaunchCandidate: WIRED. Gatekeeper → OperatorAlert: WIRED. Brain decisions → action executor: WIRED. All major dead-end flows are now closed.",
-        "truth_level": "live",
-        "action": "No action needed — dead-end flows resolved.",
-    })
+    items.append(
+        {
+            "item": "Dead-end flow audit",
+            "category": "system_wiring",
+            "description": "Content form → generation: WIRED. Expansion advisor → OperatorAlert + LaunchCandidate: WIRED. Gatekeeper → OperatorAlert: WIRED. Brain decisions → action executor: WIRED. All major dead-end flows are now closed.",
+            "truth_level": "live",
+            "action": "No action needed — dead-end flows resolved.",
+        }
+    )
 
     return items
 
@@ -204,21 +251,23 @@ def build_provider_readiness() -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for p in PROVIDER_INVENTORY:
         cred = check_provider_credentials(p)
-        results.append({
-            "provider_key": p["provider_key"],
-            "display_name": p["display_name"],
-            "category": p["category"],
-            "provider_type": p["provider_type"],
-            "is_primary": p.get("is_primary", False),
-            "credential_status": cred["credential_status"],
-            "is_ready": cred["is_ready"],
-            "missing_keys": cred["missing_keys"],
-            "integration_status": p["integration_status"],
-            "truth_boundary": _tag(
-                "live" if cred["is_ready"] else "configured_missing_credentials",
-                "provider_registry",
-            ),
-        })
+        results.append(
+            {
+                "provider_key": p["provider_key"],
+                "display_name": p["display_name"],
+                "category": p["category"],
+                "provider_type": p["provider_type"],
+                "is_primary": p.get("is_primary", False),
+                "credential_status": cred["credential_status"],
+                "is_ready": cred["is_ready"],
+                "missing_keys": cred["missing_keys"],
+                "integration_status": p["integration_status"],
+                "truth_boundary": _tag(
+                    "live" if cred["is_ready"] else "configured_missing_credentials",
+                    "provider_registry",
+                ),
+            }
+        )
     return results
 
 
@@ -320,7 +369,9 @@ def generate_grounded_response(
                 lines.append(f"  - {p['display_name']} ({p['category']})")
             content = "\n".join(lines)
         elif any(k in q for k in ("missing", "blocked", "credential")):
-            blocked = [p for p in provider_summary if p.get("credential_status") == "not_configured" and p.get("env_keys")]
+            blocked = [
+                p for p in provider_summary if p.get("credential_status") == "not_configured" and p.get("env_keys")
+            ]
             lines = [f"**{len(blocked)}** providers missing credentials:"]
             for p in blocked:
                 lines.append(f"  - **{p['display_name']}**: needs {', '.join(p.get('env_keys', []))}")
@@ -343,6 +394,7 @@ def generate_grounded_response(
 
     elif any(k in q for k in ("autonomous", "readiness", "ready", "fully autonomous")):
         from packages.scoring.autonomous_readiness_engine import evaluate_autonomous_readiness
+
         ar = evaluate_autonomous_readiness()
         lines = [f"**{ar['verdict']}** ({ar['conditions_passing']}/{ar['conditions_total']} conditions passing)"]
         for c in ar["conditions"]:
@@ -351,14 +403,19 @@ def generate_grounded_response(
         content = "\n".join(lines)
         truth_boundaries = {"status": "live", "source": "autonomous_readiness_engine"}
 
-    elif any(k in q for k in ("checklist", "activate", "credential", "what do you need", "what should i set", "env var")):
+    elif any(
+        k in q for k in ("checklist", "activate", "credential", "what do you need", "what should i set", "env var")
+    ):
         from packages.scoring.autonomous_readiness_engine import get_activation_checklist
+
         checklist = get_activation_checklist()
         unconfigured = [c for c in checklist if not c["configured"]]
         if unconfigured:
             lines = [f"**{len(unconfigured)}** providers need credentials:"]
             for c in sorted(unconfigured, key=lambda x: x["priority"]):
-                lines.append(f"  - **P{c['priority']} {c['provider']}**: set {', '.join(c['missing_vars'])} → {c['unlocks'][:100]}")
+                lines.append(
+                    f"  - **P{c['priority']} {c['provider']}**: set {', '.join(c['missing_vars'])} → {c['unlocks'][:100]}"
+                )
             content = "\n".join(lines)
         else:
             content = "All providers are configured."

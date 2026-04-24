@@ -3,6 +3,7 @@ productization, monetization density.
 
 POST recompute writes. All GETs are read-only.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -28,10 +29,21 @@ async def _require_brand(brand_id: uuid.UUID, user, db: DBSession) -> Brand:
 
 
 @router.post("/{brand_id}/revenue-intel/recompute")
-async def recompute_revenue_intel(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_revenue_intel(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rsvc.recompute_revenue_intel(db, brand_id, user_id=current_user.id)
-    await log_action(db, "revenue_intel.recomputed", organization_id=current_user.organization_id, brand_id=brand_id, user_id=current_user.id, actor_type="human", entity_type="revenue_intel", details=result)
+    await log_action(
+        db,
+        "revenue_intel.recomputed",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="revenue_intel",
+        details=result,
+    )
     return result
 
 

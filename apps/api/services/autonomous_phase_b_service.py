@@ -1,4 +1,5 @@
 """Autonomous Execution Phase B — execution policies, content runner, distribution, monetization routing, suppression."""
+
 from __future__ import annotations
 
 import uuid
@@ -46,12 +47,16 @@ def _utc_now() -> datetime:
 # Serializers
 # ---------------------------------------------------------------------------
 
+
 def _policy_out(p: ExecutionPolicy) -> dict[str, Any]:
     return {
-        "id": str(p.id), "brand_id": str(p.brand_id),
-        "action_type": p.action_type, "execution_mode": p.execution_mode,
+        "id": str(p.id),
+        "brand_id": str(p.brand_id),
+        "action_type": p.action_type,
+        "execution_mode": p.execution_mode,
         "confidence_threshold": p.confidence_threshold,
-        "risk_level": p.risk_level, "cost_class": p.cost_class,
+        "risk_level": p.risk_level,
+        "cost_class": p.cost_class,
         "compliance_sensitivity": p.compliance_sensitivity,
         "platform_sensitivity": p.platform_sensitivity,
         "budget_impact": p.budget_impact,
@@ -60,35 +65,43 @@ def _policy_out(p: ExecutionPolicy) -> dict[str, Any]:
         "rollback_rule": p.rollback_rule,
         "kill_switch_class": p.kill_switch_class,
         "policy_metadata_json": p.policy_metadata_json,
-        "explanation": p.explanation, "is_active": p.is_active,
-        "created_at": p.created_at, "updated_at": p.updated_at,
+        "explanation": p.explanation,
+        "is_active": p.is_active,
+        "created_at": p.created_at,
+        "updated_at": p.updated_at,
     }
 
 
 def _run_out(r: AutonomousRun) -> dict[str, Any]:
     return {
-        "id": str(r.id), "brand_id": str(r.brand_id),
+        "id": str(r.id),
+        "brand_id": str(r.brand_id),
         "queue_item_id": str(r.queue_item_id) if r.queue_item_id else None,
         "target_account_id": str(r.target_account_id) if r.target_account_id else None,
         "target_platform": r.target_platform,
         "execution_mode": r.execution_mode,
-        "run_status": r.run_status, "current_step": r.current_step,
+        "run_status": r.run_status,
+        "current_step": r.current_step,
         "content_brief_id": str(r.content_brief_id) if r.content_brief_id else None,
         "content_item_id": str(r.content_item_id) if r.content_item_id else None,
         "publish_job_id": str(r.publish_job_id) if r.publish_job_id else None,
         "distribution_plan_id": str(r.distribution_plan_id) if r.distribution_plan_id else None,
         "monetization_route_id": str(r.monetization_route_id) if r.monetization_route_id else None,
-        "started_at": r.started_at, "completed_at": r.completed_at,
+        "started_at": r.started_at,
+        "completed_at": r.completed_at,
         "error_message": r.error_message,
         "run_metadata_json": r.run_metadata_json,
-        "explanation": r.explanation, "is_active": r.is_active,
-        "created_at": r.created_at, "updated_at": r.updated_at,
+        "explanation": r.explanation,
+        "is_active": r.is_active,
+        "created_at": r.created_at,
+        "updated_at": r.updated_at,
     }
 
 
 def _dist_plan_out(d: DistributionPlan) -> dict[str, Any]:
     return {
-        "id": str(d.id), "brand_id": str(d.brand_id),
+        "id": str(d.id),
+        "brand_id": str(d.brand_id),
         "source_concept": d.source_concept,
         "source_content_item_id": str(d.source_content_item_id) if d.source_content_item_id else None,
         "target_platforms_json": d.target_platforms_json,
@@ -97,30 +110,39 @@ def _dist_plan_out(d: DistributionPlan) -> dict[str, Any]:
         "cadence_json": d.cadence_json,
         "publish_timing_json": d.publish_timing_json,
         "duplication_guard_json": d.duplication_guard_json,
-        "plan_status": d.plan_status, "confidence": d.confidence,
-        "explanation": d.explanation, "is_active": d.is_active,
-        "created_at": d.created_at, "updated_at": d.updated_at,
+        "plan_status": d.plan_status,
+        "confidence": d.confidence,
+        "explanation": d.explanation,
+        "is_active": d.is_active,
+        "created_at": d.created_at,
+        "updated_at": d.updated_at,
     }
 
 
 def _mon_route_out(m: MonetizationRoute) -> dict[str, Any]:
     return {
-        "id": str(m.id), "brand_id": str(m.brand_id),
+        "id": str(m.id),
+        "brand_id": str(m.brand_id),
         "content_item_id": str(m.content_item_id) if m.content_item_id else None,
         "queue_item_id": str(m.queue_item_id) if m.queue_item_id else None,
-        "route_class": m.route_class, "selected_route": m.selected_route,
+        "route_class": m.route_class,
+        "selected_route": m.selected_route,
         "funnel_path": m.funnel_path,
         "follow_up_requirements_json": m.follow_up_requirements_json,
         "revenue_estimate": m.revenue_estimate,
-        "confidence": m.confidence, "route_status": m.route_status,
-        "explanation": m.explanation, "is_active": m.is_active,
-        "created_at": m.created_at, "updated_at": m.updated_at,
+        "confidence": m.confidence,
+        "route_status": m.route_status,
+        "explanation": m.explanation,
+        "is_active": m.is_active,
+        "created_at": m.created_at,
+        "updated_at": m.updated_at,
     }
 
 
 def _suppression_out(s: SuppressionExecution) -> dict[str, Any]:
     return {
-        "id": str(s.id), "brand_id": str(s.brand_id),
+        "id": str(s.id),
+        "brand_id": str(s.brand_id),
         "suppression_type": s.suppression_type,
         "affected_scope": s.affected_scope,
         "affected_entity_id": str(s.affected_entity_id) if s.affected_entity_id else None,
@@ -130,8 +152,10 @@ def _suppression_out(s: SuppressionExecution) -> dict[str, Any]:
         "confidence": s.confidence,
         "suppression_status": s.suppression_status,
         "lifted_at": s.lifted_at,
-        "explanation": s.explanation, "is_active": s.is_active,
-        "created_at": s.created_at, "updated_at": s.updated_at,
+        "explanation": s.explanation,
+        "is_active": s.is_active,
+        "created_at": s.created_at,
+        "updated_at": s.updated_at,
     }
 
 
@@ -139,14 +163,19 @@ def _suppression_out(s: SuppressionExecution) -> dict[str, Any]:
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+
 async def _avg_health(db: AsyncSession, brand_id: uuid.UUID) -> float:
     rows = list(
-        (await db.execute(
-            select(AccountMaturityReport).where(
-                AccountMaturityReport.brand_id == brand_id,
-                AccountMaturityReport.is_active.is_(True),
+        (
+            await db.execute(
+                select(AccountMaturityReport).where(
+                    AccountMaturityReport.brand_id == brand_id,
+                    AccountMaturityReport.is_active.is_(True),
+                )
             )
-        )).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     if not rows:
         return 0.5
@@ -158,7 +187,9 @@ async def _brand_context(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any
     guidelines = brand.brand_guidelines if brand else {} or {}
     return {
         "default_mode": guidelines.get("execution_mode", "guarded") if isinstance(guidelines, dict) else "guarded",
-        "compliance_level": guidelines.get("compliance_level", "standard") if isinstance(guidelines, dict) else "standard",
+        "compliance_level": guidelines.get("compliance_level", "standard")
+        if isinstance(guidelines, dict)
+        else "standard",
         "budget_remaining": 1000.0,
         "platform_sensitivity": "standard",
         "has_active_violations": False,
@@ -167,27 +198,33 @@ async def _brand_context(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any
 
 async def _active_accounts_dicts(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     accounts = list(
-        (await db.execute(
-            select(CreatorAccount).where(CreatorAccount.brand_id == brand_id)
-        )).scalars().all()
+        (await db.execute(select(CreatorAccount).where(CreatorAccount.brand_id == brand_id))).scalars().all()
     )
     maturity_rows = list(
-        (await db.execute(
-            select(AccountMaturityReport).where(
-                AccountMaturityReport.brand_id == brand_id,
-                AccountMaturityReport.is_active.is_(True),
+        (
+            await db.execute(
+                select(AccountMaturityReport).where(
+                    AccountMaturityReport.brand_id == brand_id,
+                    AccountMaturityReport.is_active.is_(True),
+                )
             )
-        )).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     mat_map = {r.account_id: r for r in maturity_rows}
 
     output_rows = list(
-        (await db.execute(
-            select(AccountOutputReport).where(
-                AccountOutputReport.brand_id == brand_id,
-                AccountOutputReport.is_active.is_(True),
+        (
+            await db.execute(
+                select(AccountOutputReport).where(
+                    AccountOutputReport.brand_id == brand_id,
+                    AccountOutputReport.is_active.is_(True),
+                )
             )
-        )).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     out_map = {r.account_id: r for r in output_rows}
 
@@ -196,46 +233,48 @@ async def _active_accounts_dicts(db: AsyncSession, brand_id: uuid.UUID) -> list[
         plat = a.platform.value if hasattr(a.platform, "value") else str(a.platform)
         mr = mat_map.get(a.id)
         opr = out_map.get(a.id)
-        result.append({
-            "account_id": str(a.id),
-            "platform": plat,
-            "maturity_state": mr.maturity_state if mr else "warming",
-            "health_score": mr.health_score if mr else 0.5,
-            "saturation_score": a.saturation_score,
-            "avg_engagement_rate": mr.avg_engagement_rate if mr else 0.0,
-            "current_output_per_week": opr.current_output_per_week if opr else 0,
-            "max_safe_output_per_week": opr.max_safe_output_per_week if opr else 21,
-        })
+        result.append(
+            {
+                "account_id": str(a.id),
+                "platform": plat,
+                "maturity_state": mr.maturity_state if mr else "warming",
+                "health_score": mr.health_score if mr else 0.5,
+                "saturation_score": a.saturation_score,
+                "avg_engagement_rate": mr.avg_engagement_rate if mr else 0.0,
+                "current_output_per_week": opr.current_output_per_week if opr else 0,
+                "max_safe_output_per_week": opr.max_safe_output_per_week if opr else 21,
+            }
+        )
     return result
 
 
 async def _platform_policies_dicts(db: AsyncSession) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True))
-        )).scalars().all()
+        (await db.execute(select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True)))).scalars().all()
     )
     return [{"platform": p.platform, "max_safe_output_per_day": p.max_safe_posts_per_day} for p in rows]
 
 
 async def _brand_offers_dicts(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
-    rows = list(
-        (await db.execute(
-            select(Offer).where(Offer.brand_id == brand_id).limit(100)
-        )).scalars().all()
-    )
-    return [{
-        "name": o.name,
-        "type": o.monetization_method.value if hasattr(o.monetization_method, "value") else str(o.monetization_method),
-        "keywords": [str(t) for t in (o.audience_fit_tags or [])],
-        "revenue_per_conversion": float(o.payout_amount) if o.payout_amount else 50.0,
-        "active": o.is_active,
-    } for o in rows]
+    rows = list((await db.execute(select(Offer).where(Offer.brand_id == brand_id).limit(100))).scalars().all())
+    return [
+        {
+            "name": o.name,
+            "type": o.monetization_method.value
+            if hasattr(o.monetization_method, "value")
+            else str(o.monetization_method),
+            "keywords": [str(t) for t in (o.audience_fit_tags or [])],
+            "revenue_per_conversion": float(o.payout_amount) if o.payout_amount else 50.0,
+            "active": o.is_active,
+        }
+        for o in rows
+    ]
 
 
 # ---------------------------------------------------------------------------
 # 1. Execution Policies
 # ---------------------------------------------------------------------------
+
 
 async def recompute_execution_policies(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     ctx = await _brand_context(db, brand_id)
@@ -252,37 +291,47 @@ async def recompute_execution_policies(db: AsyncSession, brand_id: uuid.UUID) ->
 
     created = 0
     for p in policies:
-        db.add(ExecutionPolicy(
-            brand_id=brand_id,
-            action_type=p["action_type"],
-            execution_mode=p["execution_mode"],
-            confidence_threshold=p["confidence_threshold"],
-            risk_level=p["risk_level"],
-            cost_class=p["cost_class"],
-            compliance_sensitivity=p["compliance_sensitivity"],
-            platform_sensitivity=p["platform_sensitivity"],
-            budget_impact=p["budget_impact"],
-            account_health_impact=p["account_health_impact"],
-            approval_requirement=p["approval_requirement"],
-            rollback_rule=p["rollback_rule"],
-            kill_switch_class=p["kill_switch_class"],
-            explanation=p["explanation"],
-        ))
+        db.add(
+            ExecutionPolicy(
+                brand_id=brand_id,
+                action_type=p["action_type"],
+                execution_mode=p["execution_mode"],
+                confidence_threshold=p["confidence_threshold"],
+                risk_level=p["risk_level"],
+                cost_class=p["cost_class"],
+                compliance_sensitivity=p["compliance_sensitivity"],
+                platform_sensitivity=p["platform_sensitivity"],
+                budget_impact=p["budget_impact"],
+                account_health_impact=p["account_health_impact"],
+                approval_requirement=p["approval_requirement"],
+                rollback_rule=p["rollback_rule"],
+                kill_switch_class=p["kill_switch_class"],
+                explanation=p["explanation"],
+            )
+        )
         created += 1
     await db.flush()
     return {"brand_id": str(brand_id), "policies_created": created}
 
 
 async def list_execution_policies(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(ExecutionPolicy).where(
-                ExecutionPolicy.brand_id == brand_id,
-                ExecutionPolicy.is_active.is_(True),
-            ).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(ExecutionPolicy)
+                .where(
+                    ExecutionPolicy.brand_id == brand_id,
+                    ExecutionPolicy.is_active.is_(True),
+                )
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     return [_policy_out(p) for p in rows]
 
@@ -291,25 +340,37 @@ async def list_execution_policies(
 # 2. Autonomous Runs (Content Runner)
 # ---------------------------------------------------------------------------
 
+
 async def start_autonomous_run(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     """Consume top ready queue items and start autonomous runs for each."""
     queue_items = list(
-        (await db.execute(
-            select(AutoQueueItem).where(
-                AutoQueueItem.brand_id == brand_id,
-                AutoQueueItem.is_active.is_(True),
-                AutoQueueItem.queue_status == "ready",
-            ).order_by(AutoQueueItem.priority_score.desc()).limit(10)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(AutoQueueItem)
+                .where(
+                    AutoQueueItem.brand_id == brand_id,
+                    AutoQueueItem.is_active.is_(True),
+                    AutoQueueItem.queue_status == "ready",
+                )
+                .order_by(AutoQueueItem.priority_score.desc())
+                .limit(10)
+            )
+        )
+        .scalars()
+        .all()
     )
 
     policies = list(
-        (await db.execute(
-            select(ExecutionPolicy).where(
-                ExecutionPolicy.brand_id == brand_id,
-                ExecutionPolicy.is_active.is_(True),
+        (
+            await db.execute(
+                select(ExecutionPolicy).where(
+                    ExecutionPolicy.brand_id == brand_id,
+                    ExecutionPolicy.is_active.is_(True),
+                )
             )
-        )).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     publish_policy = None
     for p in policies:
@@ -354,15 +415,24 @@ async def start_autonomous_run(db: AsyncSession, brand_id: uuid.UUID) -> dict[st
 
 
 async def list_autonomous_runs(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(AutonomousRun).where(
-                AutonomousRun.brand_id == brand_id,
-                AutonomousRun.is_active.is_(True),
-            ).order_by(AutonomousRun.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(AutonomousRun)
+                .where(
+                    AutonomousRun.brand_id == brand_id,
+                    AutonomousRun.is_active.is_(True),
+                )
+                .order_by(AutonomousRun.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     return [_run_out(r) for r in rows]
 
@@ -371,16 +441,23 @@ async def list_autonomous_runs(
 # 3. Distribution Plans
 # ---------------------------------------------------------------------------
 
+
 async def recompute_distribution_plans(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     runs = list(
-        (await db.execute(
-            select(AutonomousRun).where(
-                AutonomousRun.brand_id == brand_id,
-                AutonomousRun.is_active.is_(True),
-                AutonomousRun.run_status == "running",
-                AutonomousRun.distribution_plan_id.is_(None),
-            ).limit(20)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(AutonomousRun)
+                .where(
+                    AutonomousRun.brand_id == brand_id,
+                    AutonomousRun.is_active.is_(True),
+                    AutonomousRun.run_status == "running",
+                    AutonomousRun.distribution_plan_id.is_(None),
+                )
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
     )
 
     acct_dicts = await _active_accounts_dicts(db, brand_id)
@@ -428,15 +505,24 @@ async def recompute_distribution_plans(db: AsyncSession, brand_id: uuid.UUID) ->
 
 
 async def list_distribution_plans(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(DistributionPlan).where(
-                DistributionPlan.brand_id == brand_id,
-                DistributionPlan.is_active.is_(True),
-            ).order_by(DistributionPlan.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(DistributionPlan)
+                .where(
+                    DistributionPlan.brand_id == brand_id,
+                    DistributionPlan.is_active.is_(True),
+                )
+                .order_by(DistributionPlan.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     return [_dist_plan_out(d) for d in rows]
 
@@ -445,16 +531,23 @@ async def list_distribution_plans(
 # 4. Monetization Routes
 # ---------------------------------------------------------------------------
 
+
 async def recompute_monetization_routes(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     runs = list(
-        (await db.execute(
-            select(AutonomousRun).where(
-                AutonomousRun.brand_id == brand_id,
-                AutonomousRun.is_active.is_(True),
-                AutonomousRun.run_status == "running",
-                AutonomousRun.monetization_route_id.is_(None),
-            ).limit(20)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(AutonomousRun)
+                .where(
+                    AutonomousRun.brand_id == brand_id,
+                    AutonomousRun.is_active.is_(True),
+                    AutonomousRun.run_status == "running",
+                    AutonomousRun.monetization_route_id.is_(None),
+                )
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
     )
 
     offers = await _brand_offers_dicts(db, brand_id)
@@ -469,17 +562,20 @@ async def recompute_monetization_routes(db: AsyncSession, brand_id: uuid.UUID) -
 
     routes_created = 0
     for run in runs:
-        acct_ctx = acct_map.get(str(run.target_account_id), {
-            "platform": run.target_platform,
-            "maturity_state": "stable",
-            "health_score": 0.5,
-        })
+        acct_ctx = acct_map.get(
+            str(run.target_account_id),
+            {
+                "platform": run.target_platform,
+                "maturity_state": "stable",
+                "health_score": 0.5,
+            },
+        )
 
         qi = None
         if run.queue_item_id:
-            qi = (await db.execute(
-                select(AutoQueueItem).where(AutoQueueItem.id == run.queue_item_id)
-            )).scalar_one_or_none()
+            qi = (
+                await db.execute(select(AutoQueueItem).where(AutoQueueItem.id == run.queue_item_id))
+            ).scalar_one_or_none()
 
         content_ctx = {
             "content_family": qi.content_family if qi else "general",
@@ -523,15 +619,24 @@ async def recompute_monetization_routes(db: AsyncSession, brand_id: uuid.UUID) -
 
 
 async def list_monetization_routes(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(MonetizationRoute).where(
-                MonetizationRoute.brand_id == brand_id,
-                MonetizationRoute.is_active.is_(True),
-            ).order_by(MonetizationRoute.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(MonetizationRoute)
+                .where(
+                    MonetizationRoute.brand_id == brand_id,
+                    MonetizationRoute.is_active.is_(True),
+                )
+                .order_by(MonetizationRoute.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     return [_mon_route_out(m) for m in rows]
 
@@ -540,25 +645,35 @@ async def list_monetization_routes(
 # 5. Suppression Executions
 # ---------------------------------------------------------------------------
 
+
 async def run_suppression_check(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     acct_dicts = await _active_accounts_dicts(db, brand_id)
 
     queue_rows = list(
-        (await db.execute(
-            select(AutoQueueItem).where(
-                AutoQueueItem.brand_id == brand_id,
-                AutoQueueItem.is_active.is_(True),
-            ).limit(200)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(AutoQueueItem)
+                .where(
+                    AutoQueueItem.brand_id == brand_id,
+                    AutoQueueItem.is_active.is_(True),
+                )
+                .limit(200)
+            )
+        )
+        .scalars()
+        .all()
     )
-    qi_dicts = [{
-        "id": str(q.id),
-        "content_family": q.content_family or "general",
-        "platform": q.platform,
-        "priority_score": q.priority_score,
-        "monetization_path": q.monetization_path,
-        "queue_status": q.queue_status,
-    } for q in queue_rows]
+    qi_dicts = [
+        {
+            "id": str(q.id),
+            "content_family": q.content_family or "general",
+            "platform": q.platform,
+            "priority_score": q.priority_score,
+            "monetization_path": q.monetization_path,
+            "queue_status": q.queue_status,
+        }
+        for q in queue_rows
+    ]
 
     performance = {
         "overall_engagement_rate": 0.02,
@@ -578,18 +693,20 @@ async def run_suppression_check(db: AsyncSession, brand_id: uuid.UUID) -> dict[s
             except (ValueError, TypeError):
                 logger.debug("suppression_entity_id_parse_failed", exc_info=True)
 
-        db.add(SuppressionExecution(
-            brand_id=brand_id,
-            suppression_type=s["suppression_type"],
-            affected_scope=s["affected_scope"],
-            affected_entity_id=entity_id,
-            trigger_reason=s["trigger_reason"],
-            duration_hours=s.get("duration_hours"),
-            lift_condition=s.get("lift_condition"),
-            confidence=s["confidence"],
-            suppression_status="active",
-            explanation=s["explanation"],
-        ))
+        db.add(
+            SuppressionExecution(
+                brand_id=brand_id,
+                suppression_type=s["suppression_type"],
+                affected_scope=s["affected_scope"],
+                affected_entity_id=entity_id,
+                trigger_reason=s["trigger_reason"],
+                duration_hours=s.get("duration_hours"),
+                lift_condition=s.get("lift_condition"),
+                confidence=s["confidence"],
+                suppression_status="active",
+                explanation=s["explanation"],
+            )
+        )
         created += 1
 
     await db.flush()
@@ -597,14 +714,23 @@ async def run_suppression_check(db: AsyncSession, brand_id: uuid.UUID) -> dict[s
 
 
 async def list_suppression_executions(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(SuppressionExecution).where(
-                SuppressionExecution.brand_id == brand_id,
-                SuppressionExecution.is_active.is_(True),
-            ).order_by(SuppressionExecution.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(SuppressionExecution)
+                .where(
+                    SuppressionExecution.brand_id == brand_id,
+                    SuppressionExecution.is_active.is_(True),
+                )
+                .order_by(SuppressionExecution.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     return [_suppression_out(s) for s in rows]

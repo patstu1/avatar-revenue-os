@@ -1,4 +1,5 @@
 """Winning-Pattern Memory API."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -96,6 +97,8 @@ async def experiment_suggestions(brand_id: uuid.UUID, current_user: CurrentUser,
 
 
 @router.get("/{brand_id}/pattern-allocation-weights")
-async def allocation_weights(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession, total_budget: float = 1000.0):
+async def allocation_weights(
+    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession, total_budget: float = 1000.0
+):
     await _require_brand(brand_id, current_user, db)
     return await svc.get_allocation_weights(db, brand_id, total_budget)

@@ -7,6 +7,7 @@ Flow:
 
 No artificial caps. No retry ceilings. System retries on next cycle if all methods fail.
 """
+
 import asyncio
 import uuid
 from datetime import datetime, timezone
@@ -43,11 +44,17 @@ def publish_content(self, publish_job_id: str) -> dict:
 
         # ── Quality Governor gate ──────────────────────────────────────
         from packages.db.models.quality_governor import QualityGovernorReport
+
         if job.content_item_id:
-            qg = session.query(QualityGovernorReport).filter(
-                QualityGovernorReport.content_item_id == job.content_item_id,
-                QualityGovernorReport.is_active.is_(True),
-            ).order_by(QualityGovernorReport.created_at.desc()).first()
+            qg = (
+                session.query(QualityGovernorReport)
+                .filter(
+                    QualityGovernorReport.content_item_id == job.content_item_id,
+                    QualityGovernorReport.is_active.is_(True),
+                )
+                .order_by(QualityGovernorReport.created_at.desc())
+                .first()
+            )
             if qg and not qg.publish_allowed:
                 job.status = JobStatus.FAILED
                 job.error_message = f"Quality Governor blocked: {qg.verdict} (score={qg.total_score:.2f})"
@@ -56,12 +63,18 @@ def publish_content(self, publish_job_id: str) -> dict:
 
         # ── Workflow gate ──────────────────────────────────────────────
         from packages.db.models.workflow_builder import WorkflowInstance
+
         if job.content_item_id:
-            wf_inst = session.query(WorkflowInstance).filter(
-                WorkflowInstance.resource_type == "content_item",
-                WorkflowInstance.resource_id == job.content_item_id,
-                WorkflowInstance.is_active.is_(True),
-            ).order_by(WorkflowInstance.created_at.desc()).first()
+            wf_inst = (
+                session.query(WorkflowInstance)
+                .filter(
+                    WorkflowInstance.resource_type == "content_item",
+                    WorkflowInstance.resource_id == job.content_item_id,
+                    WorkflowInstance.is_active.is_(True),
+                )
+                .order_by(WorkflowInstance.created_at.desc())
+                .first()
+            )
             if wf_inst and wf_inst.status == "in_progress":
                 job.status = JobStatus.FAILED
                 job.error_message = f"Workflow pending: step {wf_inst.current_step_order} awaiting approval"
@@ -79,6 +92,7 @@ def publish_content(self, publish_job_id: str) -> dict:
         org_id = None
         if job.brand_id:
             from packages.db.models.core import Brand
+
             brand = session.get(Brand, job.brand_id)
             if brand:
                 org_id = brand.organization_id
@@ -88,9 +102,7 @@ def publish_content(self, publish_job_id: str) -> dict:
 
         loop = asyncio.new_event_loop()
         try:
-            publish_result = loop.run_until_complete(
-                route_and_publish(session, job, content, account, org_id)
-            )
+            publish_result = loop.run_until_complete(route_and_publish(session, job, content, account, org_id))
         finally:
             loop.close()
 
@@ -117,6 +129,7 @@ def publish_content(self, publish_job_id: str) -> dict:
             # Event-driven chain: schedule per-item metrics ingest
             try:
                 from workers.analytics_ingestion_worker.tasks import ingest_metrics_for_content_item
+
                 if job.content_item_id and job.creator_account_id:
                     ingest_metrics_for_content_item.apply_async(
                         args=[str(job.content_item_id), str(job.creator_account_id)],
@@ -224,12 +237,16 @@ def express_publish(self, content_item_id: str, brand_id: str, reason: str = "tr
         org_id = brand.organization_id
 
         # ── Find all active accounts for this brand ────────────────────
-        accounts = session.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == brand.id,
-                CreatorAccount.is_active.is_(True),
+        accounts = (
+            session.execute(
+                select(CreatorAccount).where(
+                    CreatorAccount.brand_id == brand.id,
+                    CreatorAccount.is_active.is_(True),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         if not accounts:
             return {
@@ -292,12 +309,14 @@ def express_publish(self, content_item_id: str, brand_id: str, reason: str = "tr
                     "publish_method": result.method,
                     "methods_tried": result.methods_tried,
                 }
-                successes.append({
-                    "platform": platform_val,
-                    "method": result.method,
-                    "post_id": result.post_id,
-                    "post_url": result.post_url,
-                })
+                successes.append(
+                    {
+                        "platform": platform_val,
+                        "method": result.method,
+                        "post_id": result.post_id,
+                        "post_url": result.post_url,
+                    }
+                )
             else:
                 pj.status = JobStatus.FAILED
                 pj.error_message = result.error
@@ -305,11 +324,13 @@ def express_publish(self, content_item_id: str, brand_id: str, reason: str = "tr
                     "methods_tried": result.methods_tried,
                     "last_method": result.method,
                 }
-                failures.append({
-                    "platform": platform_val,
-                    "error": result.error,
-                    "methods_tried": result.methods_tried,
-                })
+                failures.append(
+                    {
+                        "platform": platform_val,
+                        "error": result.error,
+                        "methods_tried": result.methods_tried,
+                    }
+                )
 
         # Update content status if any succeeded
         if successes:

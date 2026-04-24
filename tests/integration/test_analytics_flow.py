@@ -5,24 +5,48 @@ import pytest
 
 async def _setup_analytics(api_client, sample_org_data):
     await api_client.post("/api/v1/auth/register", json=sample_org_data)
-    login = await api_client.post("/api/v1/auth/login", json={
-        "email": sample_org_data["email"], "password": sample_org_data["password"],
-    })
+    login = await api_client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": sample_org_data["email"],
+            "password": sample_org_data["password"],
+        },
+    )
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
-    brand = await api_client.post("/api/v1/brands/", json={
-        "name": "Analytics Brand", "slug": "analytics-brand", "niche": "finance",
-    }, headers=headers)
+    brand = await api_client.post(
+        "/api/v1/brands/",
+        json={
+            "name": "Analytics Brand",
+            "slug": "analytics-brand",
+            "niche": "finance",
+        },
+        headers=headers,
+    )
     bid = brand.json()["id"]
 
-    offer = await api_client.post("/api/v1/offers/", json={
-        "brand_id": bid, "name": "Analytics Offer", "monetization_method": "affiliate",
-        "payout_amount": 30, "epc": 2.0, "conversion_rate": 0.04,
-    }, headers=headers)
+    offer = await api_client.post(
+        "/api/v1/offers/",
+        json={
+            "brand_id": bid,
+            "name": "Analytics Offer",
+            "monetization_method": "affiliate",
+            "payout_amount": 30,
+            "epc": 2.0,
+            "conversion_rate": 0.04,
+        },
+        headers=headers,
+    )
 
-    account = await api_client.post("/api/v1/accounts/", json={
-        "brand_id": bid, "platform": "youtube", "platform_username": "@analytics_test",
-    }, headers=headers)
+    account = await api_client.post(
+        "/api/v1/accounts/",
+        json={
+            "brand_id": bid,
+            "platform": "youtube",
+            "platform_username": "@analytics_test",
+        },
+        headers=headers,
+    )
 
     return headers, bid, account.json()["id"], offer.json()["id"]
 
@@ -30,10 +54,16 @@ async def _setup_analytics(api_client, sample_org_data):
 @pytest.mark.asyncio
 async def test_click_tracking(api_client, sample_org_data):
     headers, bid, acct_id, offer_id = await _setup_analytics(api_client, sample_org_data)
-    response = await api_client.post("/api/v1/analytics/events/track-click", json={
-        "brand_id": bid, "offer_id": offer_id, "platform": "youtube",
-        "tracking_id": "utm_test_click",
-    }, headers=headers)
+    response = await api_client.post(
+        "/api/v1/analytics/events/track-click",
+        json={
+            "brand_id": bid,
+            "offer_id": offer_id,
+            "platform": "youtube",
+            "tracking_id": "utm_test_click",
+        },
+        headers=headers,
+    )
     assert response.status_code == 200
     assert response.json()["event_type"] == "click"
 
@@ -41,10 +71,17 @@ async def test_click_tracking(api_client, sample_org_data):
 @pytest.mark.asyncio
 async def test_conversion_tracking(api_client, sample_org_data):
     headers, bid, acct_id, offer_id = await _setup_analytics(api_client, sample_org_data)
-    response = await api_client.post("/api/v1/analytics/events/track-conversion", json={
-        "brand_id": bid, "offer_id": offer_id, "event_type": "purchase",
-        "event_value": 49.99, "tracking_id": "conv_test",
-    }, headers=headers)
+    response = await api_client.post(
+        "/api/v1/analytics/events/track-conversion",
+        json={
+            "brand_id": bid,
+            "offer_id": offer_id,
+            "event_type": "purchase",
+            "event_value": 49.99,
+            "tracking_id": "conv_test",
+        },
+        headers=headers,
+    )
     assert response.status_code == 200
     assert response.json()["event_type"] == "purchase"
     assert response.json()["event_value"] == 49.99
@@ -74,12 +111,22 @@ async def test_content_performance_dashboard(api_client, sample_org_data):
 async def test_funnel_dashboard(api_client, sample_org_data):
     headers, bid, acct_id, offer_id = await _setup_analytics(api_client, sample_org_data)
 
-    await api_client.post("/api/v1/analytics/events/track-click", json={
-        "brand_id": bid, "platform": "youtube", "tracking_id": "funnel_click",
-    })
-    await api_client.post("/api/v1/analytics/events/track-conversion", json={
-        "brand_id": bid, "event_type": "purchase", "event_value": 25.0,
-    })
+    await api_client.post(
+        "/api/v1/analytics/events/track-click",
+        json={
+            "brand_id": bid,
+            "platform": "youtube",
+            "tracking_id": "funnel_click",
+        },
+    )
+    await api_client.post(
+        "/api/v1/analytics/events/track-conversion",
+        json={
+            "brand_id": bid,
+            "event_type": "purchase",
+            "event_value": 25.0,
+        },
+    )
 
     response = await api_client.get(f"/api/v1/analytics/dashboard/funnel?brand_id={bid}", headers=headers)
     assert response.status_code == 200

@@ -15,6 +15,7 @@ Adds:
 
 Additive only; idempotent. Safe on populated prod DB.
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -27,31 +28,35 @@ depends_on = None
 
 def _table_exists(name: str) -> bool:
     conn = op.get_bind()
-    return conn.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.tables WHERE table_name = :t"
-        ),
-        {"t": name},
-    ).first() is not None
+    return (
+        conn.execute(
+            sa.text("SELECT 1 FROM information_schema.tables WHERE table_name = :t"),
+            {"t": name},
+        ).first()
+        is not None
+    )
 
 
 def _column_exists(table: str, column: str) -> bool:
     conn = op.get_bind()
-    return conn.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name = :t AND column_name = :c"
-        ),
-        {"t": table, "c": column},
-    ).first() is not None
+    return (
+        conn.execute(
+            sa.text("SELECT 1 FROM information_schema.columns WHERE table_name = :t AND column_name = :c"),
+            {"t": table, "c": column},
+        ).first()
+        is not None
+    )
 
 
 def _index_exists(name: str) -> bool:
     conn = op.get_bind()
-    return conn.execute(
-        sa.text("SELECT 1 FROM pg_indexes WHERE indexname = :n"),
-        {"n": name},
-    ).first() is not None
+    return (
+        conn.execute(
+            sa.text("SELECT 1 FROM pg_indexes WHERE indexname = :n"),
+            {"n": name},
+        ).first()
+        is not None
+    )
 
 
 def upgrade():
@@ -75,9 +80,7 @@ def upgrade():
         if not _column_exists("clients", "last_retention_check_at"):
             op.add_column(
                 "clients",
-                sa.Column(
-                    "last_retention_check_at", sa.DateTime(timezone=True), nullable=True
-                ),
+                sa.Column("last_retention_check_at", sa.DateTime(timezone=True), nullable=True),
             )
         if not _column_exists("clients", "churn_risk_score"):
             op.add_column(
@@ -115,30 +118,23 @@ def upgrade():
     if not _table_exists("client_retention_events"):
         op.create_table(
             "client_retention_events",
-            sa.Column("id", UUID(as_uuid=True), primary_key=True,
-                      server_default=sa.text("gen_random_uuid()")),
-            sa.Column("org_id", UUID(as_uuid=True),
-                      sa.ForeignKey("organizations.id"), nullable=False),
-            sa.Column("client_id", UUID(as_uuid=True),
-                      sa.ForeignKey("clients.id"), nullable=False),
+            sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+            sa.Column("org_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
+            sa.Column("client_id", UUID(as_uuid=True), sa.ForeignKey("clients.id"), nullable=False),
             sa.Column("avenue_slug", sa.String(60), nullable=True),
             # event_type: state_evaluated, renewal_triggered,
             # reactivation_sent, upsell_offered, subscription_cancelled
             sa.Column("event_type", sa.String(60), nullable=False),
             sa.Column("previous_state", sa.String(30), nullable=True),
             sa.Column("new_state", sa.String(30), nullable=True),
-            sa.Column("triggered_by_actor_type", sa.String(30), nullable=False,
-                      server_default="system"),
+            sa.Column("triggered_by_actor_type", sa.String(30), nullable=False, server_default="system"),
             sa.Column("triggered_by_actor_id", sa.String(255), nullable=True),
             sa.Column("source_proposal_id", UUID(as_uuid=True), nullable=True),
             sa.Column("target_proposal_id", UUID(as_uuid=True), nullable=True),
             sa.Column("details_json", JSONB(), nullable=True),
-            sa.Column("created_at", sa.DateTime(timezone=True),
-                      nullable=False, server_default=sa.text("now()")),
-            sa.Column("updated_at", sa.DateTime(timezone=True),
-                      nullable=False, server_default=sa.text("now()")),
-            sa.Column("is_active", sa.Boolean(), nullable=False,
-                      server_default=sa.true()),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
         )
         op.create_index(
             "ix_client_retention_events_client",
@@ -176,8 +172,12 @@ def downgrade():
         if _index_exists("ix_clients_org_retention_state"):
             op.drop_index("ix_clients_org_retention_state", table_name="clients")
         for col in (
-            "recurring_period_days", "is_recurring", "churn_risk_score",
-            "last_retention_check_at", "next_renewal_at", "retention_state",
+            "recurring_period_days",
+            "is_recurring",
+            "churn_risk_score",
+            "last_retention_check_at",
+            "next_renewal_at",
+            "retention_state",
         ):
             if _column_exists("clients", col):
                 op.drop_column("clients", col)

@@ -1,4 +1,5 @@
 """Hyper-Scale Execution workers."""
+
 import logging
 
 from celery import shared_task
@@ -10,17 +11,23 @@ from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
 
+
 async def _run():
     from apps.api.services.hyperscale_service import recompute_capacity
+
     async with get_async_session_factory()() as db:
         orgs = list((await db.execute(select(Organization.id))).scalars().all())
     c = 0
     for oid in orgs:
         try:
             async with get_async_session_factory()() as db:
-                await recompute_capacity(db, oid); await db.commit(); c += 1
-        except Exception: logger.exception("hyperscale failed %s", oid)
+                await recompute_capacity(db, oid)
+                await db.commit()
+                c += 1
+        except Exception:
+            logger.exception("hyperscale failed %s", oid)
     return c
+
 
 @shared_task(name="workers.hyperscale_worker.tasks.recompute_scale_capacity", base=TrackedTask)
 def recompute_scale_capacity():

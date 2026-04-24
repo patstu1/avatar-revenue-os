@@ -1,4 +1,5 @@
 """Expansion Pack 2 Phase A — lead opportunities, closer actions, owned offer recommendations."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -32,9 +33,7 @@ async def _require_brand(brand_id: uuid.UUID, user, db: DBSession) -> Brand:
 
 
 @router.get("/{brand_id}/lead-opportunities", response_model=list[LeadOpportunityOut])
-async def list_lead_opportunities(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_lead_opportunities(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2a.get_lead_opportunities(db, brand_id)
 
@@ -48,9 +47,7 @@ async def list_lead_opportunities(
     "/{brand_id}/lead-opportunities/closer-actions",
     response_model=list[CloserActionOut],
 )
-async def list_closer_actions(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_closer_actions(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2a.get_closer_actions(db, brand_id)
 
@@ -61,9 +58,7 @@ async def list_closer_actions(
 
 
 @router.get("/{brand_id}/lead-qualification", response_model=list[LeadQualificationReportOut])
-async def list_lead_qualification(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_lead_qualification(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2a.get_lead_qualification_report(db, brand_id)
 
@@ -96,9 +91,7 @@ async def recompute_lead_qualification(
     "/{brand_id}/owned-offer-recommendations",
     response_model=list[OwnedOfferRecommendationOut],
 )
-async def list_owned_offer_recommendations(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_owned_offer_recommendations(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2a.get_owned_offer_recommendations(db, brand_id)
 

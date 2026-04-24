@@ -1,4 +1,5 @@
 """Pydantic schemas for Failure-Family Suppression."""
+
 from __future__ import annotations
 
 import uuid

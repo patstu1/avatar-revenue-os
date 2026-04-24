@@ -2,6 +2,7 @@
 
 Each client handles authentication, data fetching, and tracked link generation.
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,6 +22,7 @@ def _blocked(msg: str) -> dict[str, Any]:
 
 
 # ── Amazon Associates ────────────────────────────────────────────────
+
 
 class AmazonAssociatesLinkGenerator:
     """Generate tracked Amazon affiliate links.
@@ -87,6 +89,7 @@ class AmazonAssociatesLinkGenerator:
 
 # ── Impact ───────────────────────────────────────────────────────────
 
+
 class ImpactClient:
     """Impact.com Affiliate Network API client."""
 
@@ -97,6 +100,7 @@ class ImpactClient:
 
     def _headers(self) -> dict:
         import base64
+
         creds = base64.b64encode(f"{self.account_sid}:{self.auth_token}".encode()).decode()
         return {"Authorization": f"Basic {creds}", "Accept": "application/json"}
 
@@ -105,7 +109,11 @@ class ImpactClient:
             return _blocked("IMPACT_ACCOUNT_SID / IMPACT_AUTH_TOKEN not configured")
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                r = await client.get(f"{self.base_url}/Actions", params={"StartDate": start_date, "EndDate": end_date, "PageSize": 100}, headers=self._headers())
+                r = await client.get(
+                    f"{self.base_url}/Actions",
+                    params={"StartDate": start_date, "EndDate": end_date, "PageSize": 100},
+                    headers=self._headers(),
+                )
                 r.raise_for_status()
                 return {"success": True, "data": r.json().get("Actions", [])}
         except Exception as e:
@@ -198,6 +206,7 @@ class ImpactClient:
 
 # ── ShareASale ───────────────────────────────────────────────────────
 
+
 class ShareASaleClient:
     """ShareASale Affiliate Network API client."""
 
@@ -212,11 +221,18 @@ class ShareASaleClient:
             return _blocked("SHAREASALE_API_TOKEN / SHAREASALE_API_SECRET not configured")
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                r = await client.get(self.base_url, params={
-                    "affiliateId": self.merchant_id, "token": self.api_token,
-                    "version": "2.9", "action": "activity", "dateStart": date_start, "dateEnd": date_end,
-                    "XMLFormat": "1",
-                })
+                r = await client.get(
+                    self.base_url,
+                    params={
+                        "affiliateId": self.merchant_id,
+                        "token": self.api_token,
+                        "version": "2.9",
+                        "action": "activity",
+                        "dateStart": date_start,
+                        "dateEnd": date_end,
+                        "XMLFormat": "1",
+                    },
+                )
                 r.raise_for_status()
                 return {"success": True, "data": r.text}
         except Exception as e:
@@ -228,8 +244,10 @@ class ShareASaleClient:
             return _blocked("SHAREASALE_API_TOKEN not configured")
         try:
             params: dict[str, Any] = {
-                "affiliateId": self.merchant_id, "token": self.api_token,
-                "version": "2.9", "action": "merchantSearch",
+                "affiliateId": self.merchant_id,
+                "token": self.api_token,
+                "version": "2.9",
+                "action": "merchantSearch",
             }
             if category:
                 params["category"] = category
@@ -282,6 +300,7 @@ class ShareASaleClient:
 
 # ── CJ (Commission Junction) ────────────────────────────────────────
 
+
 class CJClient:
     """CJ Affiliate (Commission Junction) API client."""
 
@@ -296,7 +315,11 @@ class CJClient:
             return _blocked("CJ_API_KEY not configured")
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                r = await client.get(self.base_url, params={"date-type": "event", "start-date": start_date, "end-date": end_date}, headers={"Authorization": f"Bearer {self.api_key}"})
+                r = await client.get(
+                    self.base_url,
+                    params={"date-type": "event", "start-date": start_date, "end-date": end_date},
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                )
                 r.raise_for_status()
                 return {"success": True, "data": r.json()}
         except Exception as e:

@@ -5,6 +5,7 @@ state-changing endpoint requires ``OperatorUser`` auth and is org-scoped
 against ``current_user.organization_id`` — cross-org access is refused
 with HTTP 403.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -76,6 +77,7 @@ class CreatePaymentLinkBody(BaseModel):
     ``amount_cents`` defaults to the proposal's ``total_amount_cents``
     when omitted, so the typical flow is POST with an empty body.
     """
+
     amount_cents: int | None = Field(None, ge=0)
     currency: str | None = Field(None, max_length=10)
     product_name: str | None = Field(None, max_length=500)
@@ -156,28 +158,32 @@ async def get_proposal(
     proposal = await _require_owned_proposal(db, pid, current_user.organization_id)
 
     line_items = (
-        await db.execute(
-            select(ProposalLineItem)
-            .where(ProposalLineItem.proposal_id == proposal.id)
-            .order_by(ProposalLineItem.position, ProposalLineItem.created_at)
+        (
+            await db.execute(
+                select(ProposalLineItem)
+                .where(ProposalLineItem.proposal_id == proposal.id)
+                .order_by(ProposalLineItem.position, ProposalLineItem.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     links = (
-        await db.execute(
-            select(PaymentLink)
-            .where(PaymentLink.proposal_id == proposal.id)
-            .order_by(desc(PaymentLink.created_at))
+        (
+            await db.execute(
+                select(PaymentLink).where(PaymentLink.proposal_id == proposal.id).order_by(desc(PaymentLink.created_at))
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     payments = (
-        await db.execute(
-            select(Payment)
-            .where(Payment.proposal_id == proposal.id)
-            .order_by(desc(Payment.created_at))
-        )
-    ).scalars().all()
+        (await db.execute(select(Payment).where(Payment.proposal_id == proposal.id).order_by(desc(Payment.created_at))))
+        .scalars()
+        .all()
+    )
 
     return _proposal_response(proposal, line_items, links, payments)
 
@@ -197,9 +203,7 @@ async def add_line_item(
     pid = _parse_uuid(proposal_id)
     proposal = await _require_owned_proposal(db, pid, current_user.organization_id)
     if proposal.status not in ("draft",):
-        raise HTTPException(
-            400, f"Cannot add line items to a proposal in status={proposal.status}"
-        )
+        raise HTTPException(400, f"Cannot add line items to a proposal in status={proposal.status}")
 
     item = ProposalLineItem(
         proposal_id=proposal.id,
@@ -426,9 +430,7 @@ def _parse_uuid(value: str) -> uuid.UUID:
         raise HTTPException(400, "Invalid proposal id")
 
 
-async def _require_owned_proposal(
-    db, proposal_id: uuid.UUID, org_id: uuid.UUID
-) -> Proposal:
+async def _require_owned_proposal(db, proposal_id: uuid.UUID, org_id: uuid.UUID) -> Proposal:
     proposal = (
         await db.execute(
             select(Proposal).where(

@@ -12,6 +12,7 @@ This proves at import time that:
 
 Run with: python scripts/static_proof.py (no DB required)
 """
+
 import inspect
 import os
 import sys
@@ -45,6 +46,7 @@ def main():
     print("─── 1. BRIDGE SERVICES USE REAL MODELS ───")
 
     from apps.api.services import event_bus
+
     src = inspect.getsource(event_bus)
     check("event_bus imports SystemEvent", "from packages.db.models.system_events import" in src)
     check("event_bus imports OperatorAction", "OperatorAction" in src)
@@ -53,6 +55,7 @@ def main():
     check("event_bus has sync variant", "def emit_event_sync" in src)
 
     from apps.api.services import content_lifecycle
+
     src = inspect.getsource(content_lifecycle)
     check("content_lifecycle imports pipeline", "content_pipeline_service" in src)
     check("content_lifecycle imports event_bus", "from apps.api.services.event_bus import" in src)
@@ -65,6 +68,7 @@ def main():
     check("content_lifecycle records memory", "record_generation_outcome" in src)
 
     from apps.api.services import intelligence_bridge
+
     src = inspect.getsource(intelligence_bridge)
     check("intel_bridge imports BrainDecision", "BrainDecision" in src)
     check("intel_bridge imports WinningPatternMemory", "WinningPatternMemory" in src)
@@ -75,6 +79,7 @@ def main():
     check("intel_bridge calls emit_event", "await emit_event(" in src)
 
     from apps.api.services import monetization_bridge
+
     src = inspect.getsource(monetization_bridge)
     check("mon_bridge imports ContentItem", "ContentItem" in src)
     check("mon_bridge imports Offer", "Offer" in src)
@@ -85,6 +90,7 @@ def main():
     check("mon_bridge calls emit_action", "await emit_action(" in src)
 
     from apps.api.services import orchestration_bridge
+
     src = inspect.getsource(orchestration_bridge)
     check("orch_bridge imports SystemJob", "SystemJob" in src)
     check("orch_bridge imports ProviderBlocker", "ProviderBlocker" in src)
@@ -93,6 +99,7 @@ def main():
     check("orch_bridge calls emit_action", "await emit_action(" in src)
 
     from apps.api.services import governance_bridge
+
     src = inspect.getsource(governance_bridge)
     check("gov_bridge imports Approval", "Approval" in src)
     check("gov_bridge imports GatekeeperAlert", "GatekeeperAlert" in src)
@@ -104,6 +111,7 @@ def main():
     check("gov_bridge calls emit_action", "await emit_action(" in src)
 
     from apps.api.services import control_layer_service
+
     src = inspect.getsource(control_layer_service)
     check("control_layer queries ContentItem", "ContentItem" in src)
     check("control_layer queries SystemJob", "SystemJob" in src)
@@ -122,6 +130,7 @@ def main():
     print("─── 2. ROUTERS CALL REAL BRIDGE FUNCTIONS ───")
 
     from apps.api.routers import pipeline
+
     src = inspect.getsource(pipeline)
     check("pipeline imports lifecycle", "content_lifecycle" in src)
     check("pipeline calls generate_script_with_events", "generate_script_with_events" in src)
@@ -132,24 +141,29 @@ def main():
     check("pipeline calls finalize_media_with_events", "finalize_media_with_events" in src)
 
     from apps.api.routers import control_layer as ctrl_router
+
     src = inspect.getsource(ctrl_router)
     check("control_layer router calls service", "ctrl_svc" in src)
     check("control_layer has complete_action endpoint", "complete_operator_action" in src)
     check("control_layer has dismiss_action endpoint", "dismiss_operator_action" in src)
 
     from apps.api.routers import intelligence_hub
+
     src = inspect.getsource(intelligence_hub)
     check("intel_hub calls bridge", "intel." in src)
 
     from apps.api.routers import monetization_hub
+
     src = inspect.getsource(monetization_hub)
     check("mon_hub calls bridge", "mon_bridge." in src)
 
     from apps.api.routers import orchestration_hub
+
     src = inspect.getsource(orchestration_hub)
     check("orch_hub calls bridge", "orch." in src)
 
     from apps.api.routers import governance_hub
+
     src = inspect.getsource(governance_hub)
     check("gov_hub calls bridge", "gov." in src)
 
@@ -161,6 +175,7 @@ def main():
     print("─── 3. WORKER EVENT EMISSION ───")
 
     from workers.base_task import TrackedTask
+
     src = inspect.getsource(TrackedTask)
     check("TrackedTask imports SystemEvent", "SystemEvent" in src)
     check("TrackedTask emits on_success", "self._emit_system_event" in src and "job.completed" in src)
@@ -187,20 +202,25 @@ def main():
     )
 
     check("ContentLifecycle has 13 states", len(ContentLifecycle) == 13)
-    check("ContentLifecycle covers full pipeline", all(
-        s in [e.value for e in ContentLifecycle] for s in
-        ["draft", "generating", "generated", "qa_review", "approved", "publishing", "published", "failed"]
-    ))
+    check(
+        "ContentLifecycle covers full pipeline",
+        all(
+            s in [e.value for e in ContentLifecycle]
+            for s in ["draft", "generating", "generated", "qa_review", "approved", "publishing", "published", "failed"]
+        ),
+    )
     check("AccountLifecycle has 10 states", len(AccountLifecycle) == 10)
     check("OfferLifecycleStatus has 7 states", len(OfferLifecycleStatus) == 7)
     check("BrandLifecycle has 7 states", len(BrandLifecycle) == 7)
     check("EventDomain covers all layers", len(EventDomain) == 10)
-    check("JobStatus covers full lifecycle", all(
-        s in [e.value for e in JobStatus] for s in ["pending", "running", "completed", "failed", "retrying"]
-    ))
-    check("ActionStatus covers lifecycle", all(
-        s in [e.value for e in ActionStatus] for s in ["pending", "completed", "dismissed", "expired"]
-    ))
+    check(
+        "JobStatus covers full lifecycle",
+        all(s in [e.value for e in JobStatus] for s in ["pending", "running", "completed", "failed", "retrying"]),
+    )
+    check(
+        "ActionStatus covers lifecycle",
+        all(s in [e.value for e in ActionStatus] for s in ["pending", "completed", "dismissed", "expired"]),
+    )
 
     print()
 
@@ -264,6 +284,7 @@ def main():
     print("─── 7. NEW TABLES IN METADATA ───")
 
     from packages.db.base import Base
+
     tables = set(Base.metadata.tables.keys())
     check("system_events table", "system_events" in tables)
     check("operator_actions table", "operator_actions" in tables)

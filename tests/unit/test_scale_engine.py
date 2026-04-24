@@ -1,4 +1,5 @@
 """Unit tests for Phase 5 scale scoring engine."""
+
 import pytest
 
 from packages.scoring.scale import (

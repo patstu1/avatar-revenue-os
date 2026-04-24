@@ -1,4 +1,5 @@
 """Brand management endpoints."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -21,7 +22,8 @@ async def create_brand(body: BrandCreate, current_user: CurrentUser, db: DBSessi
         **body.model_dump(),
     )
     await log_action(
-        db, "brand.created",
+        db,
+        "brand.created",
         organization_id=current_user.organization_id,
         brand_id=brand.id,
         user_id=current_user.id,
@@ -75,7 +77,15 @@ async def update_brand(brand_id: uuid.UUID, body: BrandUpdate, current_user: Cur
     if brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     updated = await brand_service.update(db, brand_id, **body.model_dump(exclude_unset=True))
-    await log_action(db, "brand.updated", brand_id=brand_id, user_id=current_user.id, actor_type="human", entity_type="brand", entity_id=brand_id)
+    await log_action(
+        db,
+        "brand.updated",
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="brand",
+        entity_id=brand_id,
+    )
     return updated
 
 
@@ -90,8 +100,12 @@ async def delete_brand(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSe
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     await brand_service.update(db, brand_id, is_active=False)
     await log_action(
-        db, "brand.deleted",
+        db,
+        "brand.deleted",
         organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="brand", entity_id=brand_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="brand",
+        entity_id=brand_id,
     )

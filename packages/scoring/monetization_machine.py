@@ -10,6 +10,7 @@ product usage into multi-layered revenue. It implements:
 - Job-to-be-done packaging (sell outcomes, not features)
 - Revenue segmentation (different users spend differently)
 """
+
 from __future__ import annotations
 
 import math
@@ -115,12 +116,14 @@ def compute_usage_economics(
             most_expensive_meter = m.meter_type.value
 
         if m.limit > 0 and m.utilization_pct >= 80.0:
-            meters_near_limit.append({
-                "meter": m.meter_type.value,
-                "used": m.used,
-                "limit": m.limit,
-                "utilization_pct": round(m.utilization_pct, 1),
-            })
+            meters_near_limit.append(
+                {
+                    "meter": m.meter_type.value,
+                    "used": m.used,
+                    "limit": m.limit,
+                    "utilization_pct": round(m.utilization_pct, 1),
+                }
+            )
 
         overage_units = m.overage_units
         if overage_units > 0:
@@ -185,9 +188,7 @@ def predict_credit_exhaustion(
     remaining = max(balance.remaining_credits, 0)
     days_until_exhaustion = int(remaining / daily_burn_rate) if daily_burn_rate > 0 else 9999
 
-    exhaustion_date = (datetime.utcnow() + timedelta(days=days_until_exhaustion)).strftime(
-        "%Y-%m-%d"
-    )
+    exhaustion_date = (datetime.utcnow() + timedelta(days=days_until_exhaustion)).strftime("%Y-%m-%d")
 
     n = len(daily_usage_history)
     if n >= 7:
@@ -205,9 +206,7 @@ def predict_credit_exhaustion(
 
     if trend == "accelerating":
         days_until_exhaustion = max(1, int(days_until_exhaustion * 0.7))
-        exhaustion_date = (
-            datetime.utcnow() + timedelta(days=days_until_exhaustion)
-        ).strftime("%Y-%m-%d")
+        exhaustion_date = (datetime.utcnow() + timedelta(days=days_until_exhaustion)).strftime("%Y-%m-%d")
 
     if days_until_exhaustion <= 3:
         urgency = "critical"
@@ -259,14 +258,16 @@ def compute_meter_pricing(
         tier_price = round(base_price * tier["multiplier"], 4)
         tier_cost = base_cost
         tier_margin = ((tier_price - tier_cost) / tier_price * 100) if tier_price > 0 else 0
-        pricing_tiers.append({
-            "tier_name": tier["name"],
-            "volume_min": tier["min"],
-            "volume_max": tier["max"],
-            "price_per_unit": tier_price,
-            "cost_per_unit": tier_cost,
-            "margin_pct": round(tier_margin, 1),
-        })
+        pricing_tiers.append(
+            {
+                "tier_name": tier["name"],
+                "volume_min": tier["min"],
+                "volume_max": tier["max"],
+                "price_per_unit": tier_price,
+                "cost_per_unit": tier_cost,
+                "margin_pct": round(tier_margin, 1),
+            }
+        )
 
     active_tier = pricing_tiers[0]
     for pt in pricing_tiers:
@@ -897,22 +898,16 @@ def compute_plan_recommendation(
 
     reasons: list[str] = []
     if exceeded_meters:
-        reasons.append(
-            f"You've exceeded limits on: {', '.join(exceeded_meters)}"
-        )
+        reasons.append(f"You've exceeded limits on: {', '.join(exceeded_meters)}")
     if avg_utilization > 0.8:
-        reasons.append(
-            f"Average meter utilization is {avg_utilization:.0%}, suggesting your plan is tight"
-        )
+        reasons.append(f"Average meter utilization is {avg_utilization:.0%}, suggesting your plan is tight")
     if usage_trend == "accelerating":
         reasons.append("Your usage is accelerating, so headroom matters more")
     if best_savings > 0:
         reasons.append(f"Switching would save you ${best_savings:.2f}/month")
     elif best_plan != current_plan:
         upgrade_price = plans[best_plan.value].monthly_price
-        reasons.append(
-            f"Upgrading to {best_plan.value} (${upgrade_price}/mo) removes limits and adds features"
-        )
+        reasons.append(f"Upgrading to {best_plan.value} (${upgrade_price}/mo) removes limits and adds features")
     if not reasons:
         reasons.append("Your current plan is well-fitted for your usage.")
 
@@ -973,14 +968,10 @@ def classify_user_segment(
     """Classify user into segment based on behavior, not self-report."""
     total_actions = sum(usage_data.get(mt.value, 0) for mt in MeterType)
     monthly_spend = statistics.mean(spend_history) if spend_history else 0.0
-    adoption_rate = (
-        sum(1 for v in feature_adoption.values() if v) / max(len(feature_adoption), 1)
-    )
+    adoption_rate = sum(1 for v in feature_adoption.values() if v) / max(len(feature_adoption), 1)
 
     has_api = feature_adoption.get("api_access", False)
-    has_automation = feature_adoption.get("full_automation", False) or feature_adoption.get(
-        "basic_automation", False
-    )
+    has_automation = feature_adoption.get("full_automation", False) or feature_adoption.get("basic_automation", False)
     has_white_label = feature_adoption.get("white_label", False)
     has_sso = feature_adoption.get("sso_saml", False)
     manages_brands = usage_data.get("brands_managed", 0)
@@ -988,20 +979,13 @@ def classify_user_segment(
     if has_sso or (team_size > 10 and monthly_spend > 500):
         return UserSegment.ENTERPRISE
 
-    if manages_brands >= 3 or (
-        has_white_label and team_size >= 3
-    ):
+    if manages_brands >= 3 or (has_white_label and team_size >= 3):
         return UserSegment.AGENCY
 
     if has_api and has_automation and total_actions > 500:
         return UserSegment.OPERATOR
 
-    if (
-        total_actions > 200
-        and adoption_rate > 0.6
-        and monthly_spend > 50
-        and account_age_days > 30
-    ):
+    if total_actions > 200 and adoption_rate > 0.6 and monthly_spend > 50 and account_age_days > 30:
         return UserSegment.POWER_USER
 
     if monthly_spend > 0 and total_actions > 20 and account_age_days > 14:
@@ -1056,65 +1040,84 @@ def compute_ascension_profile(
         for meter_str, used in usage_meters.items():
             limit = current_plan_obj.meter_limits.get(meter_str, 0)
             if limit > 0 and used / limit >= 0.8:
-                triggers.append({
-                    "trigger": "meter_limit",
-                    "status": True,
-                    "description": f"{meter_str} at {used}/{limit} ({used / limit:.0%} used)",
-                })
+                triggers.append(
+                    {
+                        "trigger": "meter_limit",
+                        "status": True,
+                        "description": f"{meter_str} at {used}/{limit} ({used / limit:.0%} used)",
+                    }
+                )
 
     if len(spend_history) >= 2:
         prev = statistics.mean(spend_history[:-1]) if len(spend_history) > 1 else spend_history[0]
         curr = spend_history[-1]
         if prev > 0 and (curr - prev) / prev > 0.2:
-            triggers.append({
-                "trigger": "usage_velocity",
-                "status": True,
-                "description": f"Spend increased {((curr - prev) / prev) * 100:.0f}% month-over-month",
-            })
+            triggers.append(
+                {
+                    "trigger": "usage_velocity",
+                    "status": True,
+                    "description": f"Spend increased {((curr - prev) / prev) * 100:.0f}% month-over-month",
+                }
+            )
 
     if len(spend_history) >= 3:
         credit_trend = spend_history[-1] - spend_history[-3]
         if credit_trend > 0:
-            triggers.append({
-                "trigger": "credit_purchases_increasing",
-                "status": True,
-                "description": "Credit spending trending upward over last 3 months",
-            })
+            triggers.append(
+                {
+                    "trigger": "credit_purchases_increasing",
+                    "status": True,
+                    "description": "Credit spending trending upward over last 3 months",
+                }
+            )
 
     if team_size > 1:
-        triggers.append({
-            "trigger": "team_growth",
-            "status": True,
-            "description": f"Team has {team_size} members",
-        })
+        triggers.append(
+            {
+                "trigger": "team_growth",
+                "status": True,
+                "description": f"Team has {team_size} members",
+            }
+        )
 
     premium_features = {
-        "ab_testing", "full_automation", "api_access", "white_label",
-        "bulk_operations", "advanced_analytics", "webhook_integration",
+        "ab_testing",
+        "full_automation",
+        "api_access",
+        "white_label",
+        "bulk_operations",
+        "advanced_analytics",
+        "webhook_integration",
     }
     discovered = [f for f in premium_features if feature_adoption.get(f, False)]
     if discovered:
-        triggers.append({
-            "trigger": "feature_discovery",
-            "status": True,
-            "description": f"Using premium features: {', '.join(discovered)}",
-        })
+        triggers.append(
+            {
+                "trigger": "feature_discovery",
+                "status": True,
+                "description": f"Using premium features: {', '.join(discovered)}",
+            }
+        )
 
     total_actions = sum(usage_meters.values())
     if total_actions > 100:
         content_value_est = total_actions * 2.5
-        triggers.append({
-            "trigger": "value_milestone",
-            "status": True,
-            "description": f"Generated ~${content_value_est:,.0f} in content value this month",
-        })
+        triggers.append(
+            {
+                "trigger": "value_milestone",
+                "status": True,
+                "description": f"Generated ~${content_value_est:,.0f} in content value this month",
+            }
+        )
 
     if account_age_days > 60:
-        triggers.append({
-            "trigger": "time_based",
-            "status": True,
-            "description": f"On current plan for {account_age_days} days (>60 day threshold)",
-        })
+        triggers.append(
+            {
+                "trigger": "time_based",
+                "status": True,
+                "description": f"On current plan for {account_age_days} days (>60 day threshold)",
+            }
+        )
 
     avg_usage = total_actions
     typical_for_plan = {
@@ -1126,11 +1129,13 @@ def compute_ascension_profile(
     }
     plan_avg = typical_for_plan.get(current_plan, 100)
     if avg_usage > plan_avg * 1.5:
-        triggers.append({
-            "trigger": "peer_comparison",
-            "status": True,
-            "description": f"Usage ({avg_usage}) is {avg_usage / max(plan_avg, 1):.1f}x the average for {current_plan.value} plan",
-        })
+        triggers.append(
+            {
+                "trigger": "peer_comparison",
+                "status": True,
+                "description": f"Usage ({avg_usage}) is {avg_usage / max(plan_avg, 1):.1f}x the average for {current_plan.value} plan",
+            }
+        )
 
     active_triggers = [t for t in triggers if t["status"]]
     trigger_count = len(active_triggers)
@@ -1166,48 +1171,60 @@ def compute_ascension_profile(
 
     for t in active_triggers:
         if t["trigger"] == "meter_limit":
-            nudges.append({
-                "nudge_type": "soft_limit",
-                "message": f"You've used most of your monthly allowance — {t['description']}. Upgrade to get more.",
-                "timing": "in_app_immediate",
-            })
+            nudges.append(
+                {
+                    "nudge_type": "soft_limit",
+                    "message": f"You've used most of your monthly allowance — {t['description']}. Upgrade to get more.",
+                    "timing": "in_app_immediate",
+                }
+            )
 
     if any(t["trigger"] == "value_milestone" for t in active_triggers):
         value_trigger = next(t for t in active_triggers if t["trigger"] == "value_milestone")
         plan_price = current_plan_obj.monthly_price if current_plan_obj else 0
-        nudges.append({
-            "nudge_type": "value_anchor",
-            "message": f"{value_trigger['description']} on a ${plan_price}/mo plan. You're getting incredible ROI.",
-            "timing": "dashboard_banner",
-        })
+        nudges.append(
+            {
+                "nudge_type": "value_anchor",
+                "message": f"{value_trigger['description']} on a ${plan_price}/mo plan. You're getting incredible ROI.",
+                "timing": "dashboard_banner",
+            }
+        )
 
     if any(t["trigger"] == "peer_comparison" for t in active_triggers):
-        nudges.append({
-            "nudge_type": "peer_proof",
-            "message": f"Users like you typically upgrade to {next_tier.value.title()} for more headroom.",
-            "timing": "email_weekly",
-        })
+        nudges.append(
+            {
+                "nudge_type": "peer_proof",
+                "message": f"Users like you typically upgrade to {next_tier.value.title()} for more headroom.",
+                "timing": "email_weekly",
+            }
+        )
 
     if current_plan in (PlanTier.FREE, PlanTier.STARTER):
-        nudges.append({
-            "nudge_type": "feature_preview",
-            "message": "Try priority processing free for 7 days — see how fast your content gets generated.",
-            "timing": "in_app_contextual",
-        })
+        nudges.append(
+            {
+                "nudge_type": "feature_preview",
+                "message": "Try priority processing free for 7 days — see how fast your content gets generated.",
+                "timing": "in_app_contextual",
+            }
+        )
 
     if ascension_score > 50:
-        nudges.append({
-            "nudge_type": "scarcity",
-            "message": "Lock in annual pricing before rates adjust next quarter.",
-            "timing": "email_targeted",
-        })
+        nudges.append(
+            {
+                "nudge_type": "scarcity",
+                "message": "Lock in annual pricing before rates adjust next quarter.",
+                "timing": "email_targeted",
+            }
+        )
 
     if team_size > 1 and segment in (UserSegment.OPERATOR, UserSegment.AGENCY):
-        nudges.append({
-            "nudge_type": "expansion",
-            "message": f"Add {max(2, 5 - team_size)} more team seats and unlock agency features for your growing team.",
-            "timing": "dashboard_prompt",
-        })
+        nudges.append(
+            {
+                "nudge_type": "expansion",
+                "message": f"Add {max(2, 5 - team_size)} more team seats and unlock agency features for your growing team.",
+                "timing": "dashboard_prompt",
+            }
+        )
 
     return AscensionProfile(
         user_id=user_id,
@@ -1539,15 +1556,23 @@ def compute_monetization_health(
     total_users = len(users)
     if total_users == 0:
         return MonetizationHealth(
-            total_users=0, paying_users=0, free_to_paid_rate=0.0,
-            avg_revenue_per_user=0.0, avg_revenue_per_paying_user=0.0,
+            total_users=0,
+            paying_users=0,
+            free_to_paid_rate=0.0,
+            avg_revenue_per_user=0.0,
+            avg_revenue_per_paying_user=0.0,
             median_time_to_first_value_hours=0.0,
             median_time_to_first_spend_hours=0.0,
-            upgrade_rate_30d=0.0, expansion_rate_30d=0.0,
-            credit_purchase_rate=0.0, churn_rate_30d=0.0,
-            net_revenue_retention=100.0, spend_by_segment={},
-            top_upgrade_triggers=[], top_churn_triggers=[],
-            feature_revenue_correlation=[], monetization_score=0.0,
+            upgrade_rate_30d=0.0,
+            expansion_rate_30d=0.0,
+            credit_purchase_rate=0.0,
+            churn_rate_30d=0.0,
+            net_revenue_retention=100.0,
+            spend_by_segment={},
+            top_upgrade_triggers=[],
+            top_churn_triggers=[],
+            feature_revenue_correlation=[],
+            monetization_score=0.0,
         )
 
     paying_users = [u for u in users if u.get("monthly_spend", 0) > 0]
@@ -1580,11 +1605,16 @@ def compute_monetization_health(
     for ev in sorted(events, key=lambda e: e.timestamp):
         uid = ev.user_id
         if uid not in user_first_value and ev.event_name in (
-            "content_generated", "first_publish", "first_export", "first_analysis",
+            "content_generated",
+            "first_publish",
+            "first_export",
+            "first_analysis",
         ):
             user_first_value[uid] = ev.timestamp
         if uid not in user_first_spend and ev.event_name in (
-            "subscription_created", "credit_purchased", "pack_purchased",
+            "subscription_created",
+            "credit_purchased",
+            "pack_purchased",
         ):
             user_first_spend[uid] = ev.timestamp
 
@@ -1604,50 +1634,40 @@ def compute_monetization_health(
     now = datetime.utcnow()
     cutoff_30d = now - timedelta(days=30)
 
-    upgrades_30d = [
-        ev for ev in events
-        if ev.event_name == "plan_upgraded" and ev.timestamp >= cutoff_30d
-    ]
+    upgrades_30d = [ev for ev in events if ev.event_name == "plan_upgraded" and ev.timestamp >= cutoff_30d]
     upgrading_users = {ev.user_id for ev in upgrades_30d}
     upgrade_rate = (len(upgrading_users) / paying_count * 100) if paying_count > 0 else 0.0
 
     expansions_30d = [
-        ev for ev in events
-        if ev.event_name in ("seat_added", "credit_purchased", "pack_purchased")
-        and ev.timestamp >= cutoff_30d
+        ev
+        for ev in events
+        if ev.event_name in ("seat_added", "credit_purchased", "pack_purchased") and ev.timestamp >= cutoff_30d
     ]
     expanding_users = {ev.user_id for ev in expansions_30d}
     expansion_rate = (len(expanding_users) / paying_count * 100) if paying_count > 0 else 0.0
 
     credit_purchasers = {
-        ev.user_id for ev in events
-        if ev.event_name == "credit_purchased" and ev.timestamp >= cutoff_30d
+        ev.user_id for ev in events if ev.event_name == "credit_purchased" and ev.timestamp >= cutoff_30d
     }
-    credit_purchase_rate = (
-        len(credit_purchasers) / paying_count * 100
-    ) if paying_count > 0 else 0.0
+    credit_purchase_rate = (len(credit_purchasers) / paying_count * 100) if paying_count > 0 else 0.0
 
     churned_30d = [
-        ev for ev in events
-        if ev.event_name in ("subscription_cancelled", "churned")
-        and ev.timestamp >= cutoff_30d
+        ev for ev in events if ev.event_name in ("subscription_cancelled", "churned") and ev.timestamp >= cutoff_30d
     ]
     churned_users = {ev.user_id for ev in churned_30d}
     churn_rate = (len(churned_users) / paying_count * 100) if paying_count > 0 else 0.0
 
     prior_month_revenue = sum(
-        r.get("amount", 0) for r in revenue_data
+        r.get("amount", 0)
+        for r in revenue_data
         if _parse_date(r.get("date")) and cutoff_30d - timedelta(days=30) <= _parse_date(r.get("date")) < cutoff_30d
     )
     current_month_revenue = sum(
-        r.get("amount", 0) for r in revenue_data
+        r.get("amount", 0)
+        for r in revenue_data
         if _parse_date(r.get("date")) and _parse_date(r.get("date")) >= cutoff_30d
     )
-    nrr = (
-        (current_month_revenue / prior_month_revenue * 100)
-        if prior_month_revenue > 0
-        else 100.0
-    )
+    nrr = (current_month_revenue / prior_month_revenue * 100) if prior_month_revenue > 0 else 100.0
 
     spend_by_segment: dict[str, float] = defaultdict(float)
     for u in users:
@@ -1657,27 +1677,32 @@ def compute_monetization_health(
     user_features_for_corr = []
     for u in users:
         features_used = set(u.get("features_used", []))
-        user_features_for_corr.append({
-            "user_id": u.get("user_id"),
-            "features_used": features_used,
-            "monthly_spend": u.get("monthly_spend", 0),
-        })
+        user_features_for_corr.append(
+            {
+                "user_id": u.get("user_id"),
+                "features_used": features_used,
+                "monthly_spend": u.get("monthly_spend", 0),
+            }
+        )
     feature_corr = compute_feature_revenue_correlation(user_features_for_corr)
 
-    upgrade_triggers = detect_upgrade_triggers(events, [
-        {
-            "user_id": ev.user_id,
-            "upgrade_date": ev.timestamp.isoformat(),
-            "from_plan": ev.properties.get("from_plan", "unknown"),
-            "to_plan": ev.properties.get("to_plan", "unknown"),
-        }
-        for ev in upgrades_30d
-    ], window_days=14)
+    upgrade_triggers = detect_upgrade_triggers(
+        events,
+        [
+            {
+                "user_id": ev.user_id,
+                "upgrade_date": ev.timestamp.isoformat(),
+                "from_plan": ev.properties.get("from_plan", "unknown"),
+                "to_plan": ev.properties.get("to_plan", "unknown"),
+            }
+            for ev in upgrades_30d
+        ],
+        window_days=14,
+    )
 
-    churn_triggers = detect_churn_triggers(events, [
-        {"user_id": ev.user_id, "churn_date": ev.timestamp.isoformat()}
-        for ev in churned_30d
-    ], window_days=14)
+    churn_triggers = detect_churn_triggers(
+        events, [{"user_id": ev.user_id, "churn_date": ev.timestamp.isoformat()} for ev in churned_30d], window_days=14
+    )
 
     score = 0.0
     if free_to_paid_rate > 5:
@@ -1808,14 +1833,16 @@ def compute_feature_revenue_correlation(
 
         revenue_impact = m1 - m0
 
-        results.append({
-            "feature": feature,
-            "correlation": round(r_pb, 4),
-            "revenue_impact": round(revenue_impact, 2),
-            "adopter_count": n1,
-            "adopter_avg_spend": round(m1, 2),
-            "non_adopter_avg_spend": round(m0, 2),
-        })
+        results.append(
+            {
+                "feature": feature,
+                "correlation": round(r_pb, 4),
+                "revenue_impact": round(revenue_impact, 2),
+                "adopter_count": n1,
+                "adopter_avg_spend": round(m1, 2),
+                "non_adopter_avg_spend": round(m0, 2),
+            }
+        )
 
     results.sort(key=lambda x: abs(x["correlation"]), reverse=True)
     return results
@@ -1849,9 +1876,9 @@ def detect_upgrade_triggers(
 
         window_start = upgrade_date - timedelta(days=window_days)
         events_in_window = [
-            ev for ev in user_events.get(uid, [])
-            if window_start <= ev.timestamp < upgrade_date
-            and ev.event_name != "plan_upgraded"
+            ev
+            for ev in user_events.get(uid, [])
+            if window_start <= ev.timestamp < upgrade_date and ev.event_name != "plan_upgraded"
         ]
 
         seen_events: set[str] = set()
@@ -1884,14 +1911,16 @@ def detect_upgrade_triggers(
         base_rate = baseline_rates.get(event_name, 0.0)
         lift = (upgrade_rate / base_rate) if base_rate > 0 else (upgrade_rate * 10 if upgrade_rate > 0 else 0)
 
-        results.append({
-            "event": event_name,
-            "pre_upgrade_frequency": round(upgrade_rate, 3),
-            "baseline_frequency": round(base_rate, 3),
-            "lift": round(lift, 2),
-            "occurrences_in_window": count,
-            "total_windows": total_upgrade_windows,
-        })
+        results.append(
+            {
+                "event": event_name,
+                "pre_upgrade_frequency": round(upgrade_rate, 3),
+                "baseline_frequency": round(base_rate, 3),
+                "lift": round(lift, 2),
+                "occurrences_in_window": count,
+                "total_windows": total_upgrade_windows,
+            }
+        )
 
     results.sort(key=lambda x: x["lift"], reverse=True)
     return results
@@ -1926,10 +1955,7 @@ def detect_churn_triggers(
             continue
 
         window_start = churn_date - timedelta(days=window_days)
-        events_in_window = [
-            ev for ev in user_events.get(uid, [])
-            if window_start <= ev.timestamp < churn_date
-        ]
+        events_in_window = [ev for ev in user_events.get(uid, []) if window_start <= ev.timestamp < churn_date]
 
         churn_window_event_counts.append(len(events_in_window))
 
@@ -1968,28 +1994,30 @@ def detect_churn_triggers(
         active_rate = active_rates.get(event_name, 0.0)
         lift = (churn_rate / active_rate) if active_rate > 0 else (churn_rate * 10 if churn_rate > 0 else 0)
 
-        results.append({
-            "event": event_name,
-            "pre_churn_frequency": round(churn_rate, 3),
-            "active_frequency": round(active_rate, 3),
-            "lift": round(lift, 2),
-            "type": "presence",
-        })
+        results.append(
+            {
+                "event": event_name,
+                "pre_churn_frequency": round(churn_rate, 3),
+                "active_frequency": round(active_rate, 3),
+                "lift": round(lift, 2),
+                "type": "presence",
+            }
+        )
 
     avg_churn_events = statistics.mean(churn_window_event_counts) if churn_window_event_counts else 0
     avg_active_events = statistics.mean(active_event_counts) if active_event_counts else 0
 
     if avg_churn_events < avg_active_events * 0.5:
-        results.append({
-            "event": "__low_activity__",
-            "pre_churn_frequency": round(avg_churn_events, 1),
-            "active_frequency": round(avg_active_events, 1),
-            "lift": round(
-                (avg_active_events / max(avg_churn_events, 0.1)), 2
-            ),
-            "type": "absence",
-            "description": "Churning users had significantly fewer events before churn",
-        })
+        results.append(
+            {
+                "event": "__low_activity__",
+                "pre_churn_frequency": round(avg_churn_events, 1),
+                "active_frequency": round(avg_active_events, 1),
+                "lift": round((avg_active_events / max(avg_churn_events, 0.1)), 2),
+                "type": "absence",
+                "description": "Churning users had significantly fewer events before churn",
+            }
+        )
 
     all_event_names = set(active_rates.keys())
     churn_event_names = set(pre_churn_events.keys())
@@ -1998,14 +2026,16 @@ def detect_churn_triggers(
     for event_name in missing_events:
         active_rate = active_rates.get(event_name, 0)
         if active_rate > 0.3:
-            results.append({
-                "event": event_name,
-                "pre_churn_frequency": 0.0,
-                "active_frequency": round(active_rate, 3),
-                "lift": 0.0,
-                "type": "absence",
-                "description": f"Active users do '{event_name}' but churners rarely did",
-            })
+            results.append(
+                {
+                    "event": event_name,
+                    "pre_churn_frequency": 0.0,
+                    "active_frequency": round(active_rate, 3),
+                    "lift": 0.0,
+                    "type": "absence",
+                    "description": f"Active users do '{event_name}' but churners rarely did",
+                }
+            )
 
     results.sort(key=lambda x: x["lift"], reverse=True)
     return results
@@ -2046,7 +2076,11 @@ def design_outcome_packs(
             target_segment=UserSegment.CASUAL,
             target_job="Go from zero to published, monetized content",
             included_outputs=[
-                {"output": "AI-generated content pieces", "quantity": 50, "description": "Blog posts, social media, scripts"},
+                {
+                    "output": "AI-generated content pieces",
+                    "quantity": 50,
+                    "description": "Blog posts, social media, scripts",
+                },
                 {"output": "Polished scripts", "quantity": 10, "description": "Ready-to-record video/podcast scripts"},
                 {"output": "Published pieces", "quantity": 5, "description": "Cross-platform publishing"},
                 {"output": "Offer setup", "quantity": 1, "description": "Your first monetization offer configured"},
@@ -2072,7 +2106,11 @@ def design_outcome_packs(
             target_segment=UserSegment.SERIOUS,
             target_job="Create a repeatable system from content to cash",
             included_outputs=[
-                {"output": "AI-generated content pieces", "quantity": 200, "description": "Multi-format content library"},
+                {
+                    "output": "AI-generated content pieces",
+                    "quantity": 200,
+                    "description": "Multi-format content library",
+                },
                 {"output": "Polished scripts", "quantity": 30, "description": "A month of daily scripts"},
                 {"output": "Published pieces", "quantity": 20, "description": "Multi-platform presence"},
                 {"output": "Offer setups", "quantity": 5, "description": "Multiple revenue streams configured"},
@@ -2257,21 +2295,23 @@ def segment_revenue(
         bucket = segment_buckets.get(seg_value, [])
         user_count = len(bucket)
         if user_count == 0:
-            profiles.append(RevenueSegmentProfile(
-                segment=UserSegment(seg_value),
-                user_count=0,
-                total_revenue=0.0,
-                avg_revenue=0.0,
-                median_revenue=0.0,
-                revenue_share_pct=0.0,
-                growth_rate=0.0,
-                avg_feature_adoption=0.0,
-                top_spend_categories=[],
-                upgrade_propensity=0.0,
-                churn_risk=0.0,
-                expansion_potential=0.0,
-                recommended_strategy=strategy_map.get(seg_value, "Monitor"),
-            ))
+            profiles.append(
+                RevenueSegmentProfile(
+                    segment=UserSegment(seg_value),
+                    user_count=0,
+                    total_revenue=0.0,
+                    avg_revenue=0.0,
+                    median_revenue=0.0,
+                    revenue_share_pct=0.0,
+                    growth_rate=0.0,
+                    avg_feature_adoption=0.0,
+                    top_spend_categories=[],
+                    upgrade_propensity=0.0,
+                    churn_risk=0.0,
+                    expansion_potential=0.0,
+                    recommended_strategy=strategy_map.get(seg_value, "Monitor"),
+                )
+            )
             continue
 
         spends = [u.get("monthly_spend", 0) for u in bucket]
@@ -2325,21 +2365,23 @@ def segment_revenue(
         multiplier = _SEGMENT_EXPANSION_MULTIPLIER.get(UserSegment(seg_value), 1.5)
         expansion = avg_rev * (multiplier - 1.0) * user_count
 
-        profiles.append(RevenueSegmentProfile(
-            segment=UserSegment(seg_value),
-            user_count=user_count,
-            total_revenue=round(total_rev, 2),
-            avg_revenue=round(avg_rev, 2),
-            median_revenue=round(median_rev, 2),
-            revenue_share_pct=round(rev_share, 1),
-            growth_rate=round(avg_growth * 100, 1),
-            avg_feature_adoption=round(avg_adoption * 100, 1),
-            top_spend_categories=top_categories,
-            upgrade_propensity=round(upgrade_prop, 3),
-            churn_risk=round(churn_risk, 3),
-            expansion_potential=round(expansion, 2),
-            recommended_strategy=strategy_map.get(seg_value, "Monitor"),
-        ))
+        profiles.append(
+            RevenueSegmentProfile(
+                segment=UserSegment(seg_value),
+                user_count=user_count,
+                total_revenue=round(total_rev, 2),
+                avg_revenue=round(avg_rev, 2),
+                median_revenue=round(median_rev, 2),
+                revenue_share_pct=round(rev_share, 1),
+                growth_rate=round(avg_growth * 100, 1),
+                avg_feature_adoption=round(avg_adoption * 100, 1),
+                top_spend_categories=top_categories,
+                upgrade_propensity=round(upgrade_prop, 3),
+                churn_risk=round(churn_risk, 3),
+                expansion_potential=round(expansion, 2),
+                recommended_strategy=strategy_map.get(seg_value, "Monitor"),
+            )
+        )
 
     profiles.sort(key=lambda p: p.total_revenue, reverse=True)
     return profiles
@@ -2348,6 +2390,7 @@ def segment_revenue(
 @dataclass
 class MonetizationMachineReport:
     """The complete monetization machine health report."""
+
     health_score: float
     health_grade: str
     mrr: float
@@ -2414,12 +2457,14 @@ def generate_machine_report(
     subscription_mrr = sum(s.get("monthly_amount", 0) for s in subscriptions if s.get("status") == "active")
 
     credit_revenue_30d = sum(
-        ct.get("amount", 0) for ct in credit_transactions
+        ct.get("amount", 0)
+        for ct in credit_transactions
         if _parse_date(ct.get("date")) and _parse_date(ct.get("date")) >= datetime.utcnow() - timedelta(days=30)
     )
 
     pack_revenue_30d = sum(
-        pp.get("amount", 0) for pp in pack_purchases
+        pp.get("amount", 0)
+        for pp in pack_purchases
         if _parse_date(pp.get("date")) and _parse_date(pp.get("date")) >= datetime.utcnow() - timedelta(days=30)
     )
 
@@ -2435,7 +2480,8 @@ def generate_machine_report(
     cutoff = now - timedelta(days=30)
 
     expansion_events = [
-        ev for ev in events
+        ev
+        for ev in events
         if ev.event_name in ("seat_added", "credit_purchased", "pack_purchased", "plan_upgraded")
         and ev.timestamp >= cutoff
     ]
@@ -2444,9 +2490,7 @@ def generate_machine_report(
 
     total_credits_allocated = sum(u.get("total_credits", 0) for u in users)
     total_credits_used = sum(u.get("used_credits", 0) for u in users)
-    credit_utilization = (
-        total_credits_used / total_credits_allocated * 100
-    ) if total_credits_allocated > 0 else 0.0
+    credit_utilization = (total_credits_used / total_credits_allocated * 100) if total_credits_allocated > 0 else 0.0
 
     # --- Segments ---
     segments = segment_revenue(users)
@@ -2458,10 +2502,7 @@ def generate_machine_report(
         pipeline[plan] = pipeline.get(plan, 0) + 1
 
     # --- Telemetry-driven insights ---
-    revenue_records = [
-        {"amount": u.get("monthly_spend", 0), "date": u.get("last_charge_date")}
-        for u in users
-    ]
+    revenue_records = [{"amount": u.get("monthly_spend", 0), "date": u.get("last_charge_date")} for u in users]
     health = compute_monetization_health(users, events, revenue_records)
 
     # --- Pricing optimization ---
@@ -2508,79 +2549,95 @@ def generate_machine_report(
     recommended_actions: list[dict] = []
 
     if free_to_paid_rate < 3:
-        recommended_actions.append({
-            "action": "improve_free_to_paid_conversion",
-            "description": "Free-to-paid rate is below 3%. Improve onboarding, add in-app upgrade prompts, and tighten free limits.",
-            "priority": "critical",
-            "expected_impact_pct": 25,
-            "category": "conversion",
-        })
+        recommended_actions.append(
+            {
+                "action": "improve_free_to_paid_conversion",
+                "description": "Free-to-paid rate is below 3%. Improve onboarding, add in-app upgrade prompts, and tighten free limits.",
+                "priority": "critical",
+                "expected_impact_pct": 25,
+                "category": "conversion",
+            }
+        )
 
     if health.churn_rate_30d > 5:
-        recommended_actions.append({
-            "action": "reduce_churn",
-            "description": f"Churn at {health.churn_rate_30d}% is above healthy threshold. Implement win-back campaigns and improve onboarding.",
-            "priority": "critical",
-            "expected_impact_pct": 20,
-            "category": "retention",
-        })
+        recommended_actions.append(
+            {
+                "action": "reduce_churn",
+                "description": f"Churn at {health.churn_rate_30d}% is above healthy threshold. Implement win-back campaigns and improve onboarding.",
+                "priority": "critical",
+                "expected_impact_pct": 20,
+                "category": "retention",
+            }
+        )
 
     if expansion_rate < 5:
-        recommended_actions.append({
-            "action": "increase_expansion_revenue",
-            "description": "Expansion rate is low. Deploy multiplication events, credit pack nudges, and seat expansion prompts.",
-            "priority": "high",
-            "expected_impact_pct": 15,
-            "category": "expansion",
-        })
+        recommended_actions.append(
+            {
+                "action": "increase_expansion_revenue",
+                "description": "Expansion rate is low. Deploy multiplication events, credit pack nudges, and seat expansion prompts.",
+                "priority": "high",
+                "expected_impact_pct": 15,
+                "category": "expansion",
+            }
+        )
 
     if credit_utilization < 40:
-        recommended_actions.append({
-            "action": "improve_credit_utilization",
-            "description": "Users are not consuming their credits. Improve feature discovery and credit-consuming workflows.",
-            "priority": "medium",
-            "expected_impact_pct": 10,
-            "category": "activation",
-        })
+        recommended_actions.append(
+            {
+                "action": "improve_credit_utilization",
+                "description": "Users are not consuming their credits. Improve feature discovery and credit-consuming workflows.",
+                "priority": "medium",
+                "expected_impact_pct": 10,
+                "category": "activation",
+            }
+        )
 
     casual_seg = next((s for s in segments if s.segment == UserSegment.CASUAL), None)
     if casual_seg and casual_seg.user_count > total_users * 0.6:
-        recommended_actions.append({
-            "action": "activate_casual_users",
-            "description": f"{casual_seg.user_count} casual users ({casual_seg.user_count / max(total_users, 1) * 100:.0f}%). Deploy activation campaigns and outcome packs.",
-            "priority": "high",
-            "expected_impact_pct": 18,
-            "category": "activation",
-        })
+        recommended_actions.append(
+            {
+                "action": "activate_casual_users",
+                "description": f"{casual_seg.user_count} casual users ({casual_seg.user_count / max(total_users, 1) * 100:.0f}%). Deploy activation campaigns and outcome packs.",
+                "priority": "high",
+                "expected_impact_pct": 18,
+                "category": "activation",
+            }
+        )
 
     enterprise_seg = next((s for s in segments if s.segment == UserSegment.ENTERPRISE), None)
     if enterprise_seg and enterprise_seg.user_count > 0 and enterprise_seg.expansion_potential > 0:
-        recommended_actions.append({
-            "action": "expand_enterprise_accounts",
-            "description": f"${enterprise_seg.expansion_potential:,.0f} expansion potential in enterprise segment. Deploy dedicated CSM outreach.",
-            "priority": "high",
-            "expected_impact_pct": 12,
-            "category": "expansion",
-        })
+        recommended_actions.append(
+            {
+                "action": "expand_enterprise_accounts",
+                "description": f"${enterprise_seg.expansion_potential:,.0f} expansion potential in enterprise segment. Deploy dedicated CSM outreach.",
+                "priority": "high",
+                "expected_impact_pct": 12,
+                "category": "expansion",
+            }
+        )
 
     if pack_revenue_30d < mrr * 0.1:
-        recommended_actions.append({
-            "action": "promote_outcome_packs",
-            "description": "Pack revenue is under 10% of MRR. Deploy contextual pack offers and email campaigns.",
-            "priority": "medium",
-            "expected_impact_pct": 8,
-            "category": "monetization",
-        })
+        recommended_actions.append(
+            {
+                "action": "promote_outcome_packs",
+                "description": "Pack revenue is under 10% of MRR. Deploy contextual pack offers and email campaigns.",
+                "priority": "medium",
+                "expected_impact_pct": 8,
+                "category": "monetization",
+            }
+        )
 
     for plan_key, opt in pricing_optimization.items():
         if opt["action"] == "raise_price_5_10_pct":
-            recommended_actions.append({
-                "action": f"raise_price_{plan_key}",
-                "description": f"{plan_key.title()} plan utilization at {opt['avg_utilization']:.0%}. Test 5-10% price increase.",
-                "priority": "medium",
-                "expected_impact_pct": 7,
-                "category": "pricing",
-            })
+            recommended_actions.append(
+                {
+                    "action": f"raise_price_{plan_key}",
+                    "description": f"{plan_key.title()} plan utilization at {opt['avg_utilization']:.0%}. Test 5-10% price increase.",
+                    "priority": "medium",
+                    "expected_impact_pct": 7,
+                    "category": "pricing",
+                }
+            )
 
     recommended_actions.sort(key=lambda a: a.get("expected_impact_pct", 0), reverse=True)
 
@@ -2606,9 +2663,7 @@ def generate_machine_report(
     expansion_score = min(25, expansion_rate * 2)
     efficiency_score = min(25, credit_utilization * 0.3 + (arppu / max(arpu, 1)) * 5)
 
-    composite_score = (
-        conversion_score + retention_score + expansion_score + efficiency_score
-    )
+    composite_score = conversion_score + retention_score + expansion_score + efficiency_score
     final_score = (score + composite_score) / 2.0
     final_score = min(100.0, max(0.0, final_score))
 

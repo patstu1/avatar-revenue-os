@@ -1,24 +1,130 @@
 """Niche Research Engine — score niches by monetization potential, competition, trend velocity."""
+
 from __future__ import annotations
 
 from typing import Any
 
 NICHE_DATABASE: list[dict[str, Any]] = [
-    {"niche": "personal_finance", "keywords": ["budgeting", "investing", "saving", "credit", "debt", "wealth"], "youtube_cpm_range": (8, 25), "affiliate_density": 0.9, "competition": 0.8, "evergreen": True},
-    {"niche": "make_money_online", "keywords": ["side hustle", "passive income", "freelancing", "dropshipping", "affiliate"], "youtube_cpm_range": (10, 30), "affiliate_density": 0.95, "competition": 0.9, "evergreen": True},
-    {"niche": "health_fitness", "keywords": ["workout", "diet", "weight loss", "muscle", "nutrition", "supplements"], "youtube_cpm_range": (5, 15), "affiliate_density": 0.8, "competition": 0.7, "evergreen": True},
-    {"niche": "tech_reviews", "keywords": ["gadgets", "phones", "laptops", "software", "apps", "AI tools"], "youtube_cpm_range": (6, 20), "affiliate_density": 0.85, "competition": 0.75, "evergreen": False},
-    {"niche": "ai_tools", "keywords": ["ChatGPT", "AI", "automation", "productivity", "tools", "prompts"], "youtube_cpm_range": (8, 25), "affiliate_density": 0.9, "competition": 0.6, "evergreen": False},
-    {"niche": "crypto", "keywords": ["bitcoin", "crypto", "blockchain", "defi", "trading", "web3"], "youtube_cpm_range": (10, 35), "affiliate_density": 0.85, "competition": 0.85, "evergreen": False},
-    {"niche": "real_estate", "keywords": ["property", "rental", "mortgage", "flipping", "REITs", "investing"], "youtube_cpm_range": (12, 30), "affiliate_density": 0.75, "competition": 0.65, "evergreen": True},
-    {"niche": "self_improvement", "keywords": ["productivity", "habits", "mindset", "motivation", "discipline"], "youtube_cpm_range": (4, 12), "affiliate_density": 0.6, "competition": 0.5, "evergreen": True},
-    {"niche": "business_entrepreneurship", "keywords": ["startup", "business", "marketing", "sales", "growth"], "youtube_cpm_range": (8, 25), "affiliate_density": 0.8, "competition": 0.7, "evergreen": True},
-    {"niche": "cooking_recipes", "keywords": ["recipe", "cooking", "meal prep", "kitchen", "food"], "youtube_cpm_range": (3, 10), "affiliate_density": 0.7, "competition": 0.5, "evergreen": True},
-    {"niche": "gaming", "keywords": ["gaming", "game", "playthrough", "tips", "esports"], "youtube_cpm_range": (2, 8), "affiliate_density": 0.65, "competition": 0.9, "evergreen": False},
-    {"niche": "beauty_skincare", "keywords": ["skincare", "makeup", "beauty", "routine", "products"], "youtube_cpm_range": (5, 18), "affiliate_density": 0.85, "competition": 0.7, "evergreen": True},
-    {"niche": "travel", "keywords": ["travel", "destination", "budget travel", "adventure", "digital nomad"], "youtube_cpm_range": (4, 15), "affiliate_density": 0.75, "competition": 0.6, "evergreen": True},
-    {"niche": "education_courses", "keywords": ["learn", "course", "tutorial", "certification", "skills"], "youtube_cpm_range": (8, 22), "affiliate_density": 0.8, "competition": 0.55, "evergreen": True},
-    {"niche": "software_saas", "keywords": ["SaaS", "software", "tools", "review", "comparison", "tutorial"], "youtube_cpm_range": (10, 30), "affiliate_density": 0.9, "competition": 0.65, "evergreen": True},
+    {
+        "niche": "personal_finance",
+        "keywords": ["budgeting", "investing", "saving", "credit", "debt", "wealth"],
+        "youtube_cpm_range": (8, 25),
+        "affiliate_density": 0.9,
+        "competition": 0.8,
+        "evergreen": True,
+    },
+    {
+        "niche": "make_money_online",
+        "keywords": ["side hustle", "passive income", "freelancing", "dropshipping", "affiliate"],
+        "youtube_cpm_range": (10, 30),
+        "affiliate_density": 0.95,
+        "competition": 0.9,
+        "evergreen": True,
+    },
+    {
+        "niche": "health_fitness",
+        "keywords": ["workout", "diet", "weight loss", "muscle", "nutrition", "supplements"],
+        "youtube_cpm_range": (5, 15),
+        "affiliate_density": 0.8,
+        "competition": 0.7,
+        "evergreen": True,
+    },
+    {
+        "niche": "tech_reviews",
+        "keywords": ["gadgets", "phones", "laptops", "software", "apps", "AI tools"],
+        "youtube_cpm_range": (6, 20),
+        "affiliate_density": 0.85,
+        "competition": 0.75,
+        "evergreen": False,
+    },
+    {
+        "niche": "ai_tools",
+        "keywords": ["ChatGPT", "AI", "automation", "productivity", "tools", "prompts"],
+        "youtube_cpm_range": (8, 25),
+        "affiliate_density": 0.9,
+        "competition": 0.6,
+        "evergreen": False,
+    },
+    {
+        "niche": "crypto",
+        "keywords": ["bitcoin", "crypto", "blockchain", "defi", "trading", "web3"],
+        "youtube_cpm_range": (10, 35),
+        "affiliate_density": 0.85,
+        "competition": 0.85,
+        "evergreen": False,
+    },
+    {
+        "niche": "real_estate",
+        "keywords": ["property", "rental", "mortgage", "flipping", "REITs", "investing"],
+        "youtube_cpm_range": (12, 30),
+        "affiliate_density": 0.75,
+        "competition": 0.65,
+        "evergreen": True,
+    },
+    {
+        "niche": "self_improvement",
+        "keywords": ["productivity", "habits", "mindset", "motivation", "discipline"],
+        "youtube_cpm_range": (4, 12),
+        "affiliate_density": 0.6,
+        "competition": 0.5,
+        "evergreen": True,
+    },
+    {
+        "niche": "business_entrepreneurship",
+        "keywords": ["startup", "business", "marketing", "sales", "growth"],
+        "youtube_cpm_range": (8, 25),
+        "affiliate_density": 0.8,
+        "competition": 0.7,
+        "evergreen": True,
+    },
+    {
+        "niche": "cooking_recipes",
+        "keywords": ["recipe", "cooking", "meal prep", "kitchen", "food"],
+        "youtube_cpm_range": (3, 10),
+        "affiliate_density": 0.7,
+        "competition": 0.5,
+        "evergreen": True,
+    },
+    {
+        "niche": "gaming",
+        "keywords": ["gaming", "game", "playthrough", "tips", "esports"],
+        "youtube_cpm_range": (2, 8),
+        "affiliate_density": 0.65,
+        "competition": 0.9,
+        "evergreen": False,
+    },
+    {
+        "niche": "beauty_skincare",
+        "keywords": ["skincare", "makeup", "beauty", "routine", "products"],
+        "youtube_cpm_range": (5, 18),
+        "affiliate_density": 0.85,
+        "competition": 0.7,
+        "evergreen": True,
+    },
+    {
+        "niche": "travel",
+        "keywords": ["travel", "destination", "budget travel", "adventure", "digital nomad"],
+        "youtube_cpm_range": (4, 15),
+        "affiliate_density": 0.75,
+        "competition": 0.6,
+        "evergreen": True,
+    },
+    {
+        "niche": "education_courses",
+        "keywords": ["learn", "course", "tutorial", "certification", "skills"],
+        "youtube_cpm_range": (8, 22),
+        "affiliate_density": 0.8,
+        "competition": 0.55,
+        "evergreen": True,
+    },
+    {
+        "niche": "software_saas",
+        "keywords": ["SaaS", "software", "tools", "review", "comparison", "tutorial"],
+        "youtube_cpm_range": (10, 30),
+        "affiliate_density": 0.9,
+        "competition": 0.65,
+        "evergreen": True,
+    },
 ]
 
 PLATFORM_MULTIPLIERS = {
@@ -30,7 +136,9 @@ PLATFORM_MULTIPLIERS = {
 }
 
 
-def score_niche(niche: dict[str, Any], platform: str = "youtube", trend_signals: list[dict] | None = None) -> dict[str, Any]:
+def score_niche(
+    niche: dict[str, Any], platform: str = "youtube", trend_signals: list[dict] | None = None
+) -> dict[str, Any]:
     """Score a niche for a specific platform."""
     plat = PLATFORM_MULTIPLIERS.get(platform, PLATFORM_MULTIPLIERS["youtube"])
 
@@ -69,7 +177,9 @@ def score_niche(niche: dict[str, Any], platform: str = "youtube", trend_signals:
     }
 
 
-def rank_niches(platforms: list[str] | None = None, trend_signals: list[dict] | None = None, top_n: int = 10) -> list[dict[str, Any]]:
+def rank_niches(
+    platforms: list[str] | None = None, trend_signals: list[dict] | None = None, top_n: int = 10
+) -> list[dict[str, Any]]:
     """Rank all niches across platforms, return top N."""
     platforms = platforms or ["youtube", "tiktok", "instagram", "x", "linkedin"]
     all_scores = []

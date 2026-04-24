@@ -3,6 +3,7 @@
 Revision ID: content_form_001
 Revises: expansion_adv_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 

@@ -1,4 +1,5 @@
 """Content generation worker tasks."""
+
 import logging
 import uuid
 
@@ -49,40 +50,66 @@ def generate_script(self, brief_id: str, brand_id: str) -> dict:
         )
         meta_pm = dict(brief.brief_metadata or {})
         meta_pm["winning_patterns"] = [
-            {"pattern_type": w.pattern_type, "pattern_name": w.pattern_name, "win_score": w.win_score}
-            for w in top_wins
+            {"pattern_type": w.pattern_type, "pattern_name": w.pattern_name, "win_score": w.win_score} for w in top_wins
         ]
         meta_pm["losing_patterns"] = [
             {"pattern_type": lp.pattern_type, "pattern_name": lp.pattern_name, "win_score": lp.fail_score}
             for lp in top_losses
         ]
         from packages.db.models.promote_winner import PromotedWinnerRule
-        promo_rules = session.query(PromotedWinnerRule).filter(
-            PromotedWinnerRule.brand_id == brief.brand_id,
-            PromotedWinnerRule.is_active.is_(True),
-        ).all()
+
+        promo_rules = (
+            session.query(PromotedWinnerRule)
+            .filter(
+                PromotedWinnerRule.brand_id == brief.brand_id,
+                PromotedWinnerRule.is_active.is_(True),
+            )
+            .all()
+        )
         meta_pm["promoted_winner_rules"] = [
-            {"rule_type": r.rule_type, "rule_key": r.rule_key, "rule_value": r.rule_value, "weight_boost": r.weight_boost}
+            {
+                "rule_type": r.rule_type,
+                "rule_key": r.rule_key,
+                "rule_value": r.rule_value,
+                "weight_boost": r.weight_boost,
+            }
             for r in promo_rules
         ]
 
         from packages.db.models.capital_allocator import AllocationTarget, CAAllocationDecision
-        alloc_target = session.query(AllocationTarget).filter(
-            AllocationTarget.brand_id == brief.brand_id,
-            AllocationTarget.target_type == "platform",
-            AllocationTarget.target_key.contains(brief.target_platform or ""),
-            AllocationTarget.is_active.is_(True),
-        ).first()
+
+        alloc_target = (
+            session.query(AllocationTarget)
+            .filter(
+                AllocationTarget.brand_id == brief.brand_id,
+                AllocationTarget.target_type == "platform",
+                AllocationTarget.target_key.contains(brief.target_platform or ""),
+                AllocationTarget.is_active.is_(True),
+            )
+            .first()
+        )
         if alloc_target:
-            alloc_dec = session.query(CAAllocationDecision).filter(CAAllocationDecision.target_id == alloc_target.id, CAAllocationDecision.is_active.is_(True)).first()
+            alloc_dec = (
+                session.query(CAAllocationDecision)
+                .filter(CAAllocationDecision.target_id == alloc_target.id, CAAllocationDecision.is_active.is_(True))
+                .first()
+            )
             if alloc_dec:
-                meta_pm["capital_allocation"] = {"provider_tier": alloc_dec.provider_tier, "budget": alloc_dec.allocated_budget, "starved": alloc_dec.starved}
+                meta_pm["capital_allocation"] = {
+                    "provider_tier": alloc_dec.provider_tier,
+                    "budget": alloc_dec.allocated_budget,
+                    "starved": alloc_dec.starved,
+                }
 
         from packages.db.models.account_state_intel import AccountStateReport as ASR
+
         if brief.creator_account_id:
-            acct_state = session.query(ASR).filter(
-                ASR.account_id == brief.creator_account_id, ASR.is_active.is_(True)
-            ).order_by(ASR.created_at.desc()).first()
+            acct_state = (
+                session.query(ASR)
+                .filter(ASR.account_id == brief.creator_account_id, ASR.is_active.is_(True))
+                .order_by(ASR.created_at.desc())
+                .first()
+            )
             if acct_state:
                 meta_pm["account_state"] = {
                     "state": acct_state.current_state,
@@ -93,29 +120,65 @@ def generate_script(self, brief_id: str, brand_id: str) -> dict:
                 }
 
         from packages.db.models.objection_mining import ObjectionCluster
-        top_objections = session.query(ObjectionCluster).filter(
-            ObjectionCluster.brand_id == brief.brand_id, ObjectionCluster.is_active.is_(True)
-        ).order_by(ObjectionCluster.avg_monetization_impact.desc()).limit(3).all()
+
+        top_objections = (
+            session.query(ObjectionCluster)
+            .filter(ObjectionCluster.brand_id == brief.brand_id, ObjectionCluster.is_active.is_(True))
+            .order_by(ObjectionCluster.avg_monetization_impact.desc())
+            .limit(3)
+            .all()
+        )
         if top_objections:
-            meta_pm["top_objections"] = [{"type": o.objection_type, "impact": o.avg_monetization_impact, "angle": o.recommended_response_angle} for o in top_objections]
+            meta_pm["top_objections"] = [
+                {"type": o.objection_type, "impact": o.avg_monetization_impact, "angle": o.recommended_response_angle}
+                for o in top_objections
+            ]
 
         from packages.db.models.failure_family import SuppressionRule as FFRule
+
         ff_rules = session.query(FFRule).filter(FFRule.brand_id == brief.brand_id, FFRule.is_active.is_(True)).all()
         if ff_rules:
-            meta_pm["suppressed_families"] = [{"type": r.family_type, "key": r.family_key, "mode": r.suppression_mode, "reason": r.reason} for r in ff_rules]
+            meta_pm["suppressed_families"] = [
+                {"type": r.family_type, "key": r.family_key, "mode": r.suppression_mode, "reason": r.reason}
+                for r in ff_rules
+            ]
 
         from packages.db.models.campaigns import Campaign as CampModel
         from packages.db.models.landing_pages import LandingPage as LPModel
-        best_camp = session.query(CampModel).filter(CampModel.brand_id == brief.brand_id, CampModel.offer_id == brief.offer_id, CampModel.is_active.is_(True)).order_by(CampModel.confidence.desc()).first() if brief.offer_id else None
+
+        best_camp = (
+            session.query(CampModel)
+            .filter(
+                CampModel.brand_id == brief.brand_id,
+                CampModel.offer_id == brief.offer_id,
+                CampModel.is_active.is_(True),
+            )
+            .order_by(CampModel.confidence.desc())
+            .first()
+            if brief.offer_id
+            else None
+        )
         if best_camp:
-            meta_pm["campaign"] = {"id": str(best_camp.id), "type": best_camp.campaign_type, "name": best_camp.campaign_name, "truth_label": best_camp.truth_label}
+            meta_pm["campaign"] = {
+                "id": str(best_camp.id),
+                "type": best_camp.campaign_type,
+                "name": best_camp.campaign_name,
+                "truth_label": best_camp.truth_label,
+            }
             if best_camp.landing_page_id:
                 lp = session.get(LPModel, best_camp.landing_page_id)
                 if lp:
-                    meta_pm["landing_page"] = {"id": str(lp.id), "type": lp.page_type, "headline": lp.headline, "url": lp.destination_url, "truth_label": lp.truth_label}
+                    meta_pm["landing_page"] = {
+                        "id": str(lp.id),
+                        "type": lp.page_type,
+                        "headline": lp.headline,
+                        "url": lp.destination_url,
+                        "truth_label": lp.truth_label,
+                    }
 
         from packages.db.models.brand_governance import BrandGovernanceProfile as BGP
         from packages.db.models.brand_governance import BrandVoiceRule as BVR
+
         bg_profile = session.query(BGP).filter(BGP.brand_id == brief.brand_id, BGP.is_active.is_(True)).first()
         bg_rules = session.query(BVR).filter(BVR.brand_id == brief.brand_id, BVR.is_active.is_(True)).all()
         if bg_profile or bg_rules:
@@ -130,11 +193,17 @@ def generate_script(self, brief_id: str, brand_id: str) -> dict:
 
         from packages.db.models.content_form import ContentFormRecommendation
         from packages.scoring.tiered_routing_engine import classify_task_tier, route_to_provider
-        content_form_rec = session.query(ContentFormRecommendation).filter(
-            ContentFormRecommendation.brand_id == brief.brand_id,
-            ContentFormRecommendation.platform == (brief.target_platform or "youtube"),
-            ContentFormRecommendation.is_active.is_(True),
-        ).order_by(ContentFormRecommendation.confidence.desc()).first()
+
+        content_form_rec = (
+            session.query(ContentFormRecommendation)
+            .filter(
+                ContentFormRecommendation.brand_id == brief.brand_id,
+                ContentFormRecommendation.platform == (brief.target_platform or "youtube"),
+                ContentFormRecommendation.is_active.is_(True),
+            )
+            .order_by(ContentFormRecommendation.confidence.desc())
+            .first()
+        )
 
         selected_form = None
         selected_tier = classify_task_tier(brief.target_platform or "youtube")
@@ -149,10 +218,7 @@ def generate_script(self, brief_id: str, brand_id: str) -> dict:
             brief.brief_metadata = meta
 
         hook = brief.hook or f"Here's what nobody tells you about {brief.title}"
-        body = (
-            f"Today we're breaking down: {brief.title}.\n\n"
-            f"Angle: {brief.angle or 'Data-driven approach'}\n\n"
-        )
+        body = f"Today we're breaking down: {brief.title}.\n\nAngle: {brief.angle or 'Data-driven approach'}\n\n"
         if brief.key_points and isinstance(brief.key_points, list):
             for i, point in enumerate(brief.key_points, 1):
                 body += f"Point {i}: {point}\n"
@@ -165,6 +231,7 @@ def generate_script(self, brief_id: str, brand_id: str) -> dict:
         full_script = f"[HOOK]\n{hook}\n\n[BODY]\n{body}\n\n[CTA]\n{cta}"
 
         import hashlib
+
         prompt_hash = hashlib.sha256(f"{brief.title}:{brief.angle}:{existing_count}".encode()).hexdigest()[:16]
 
         script = Script(
@@ -180,7 +247,13 @@ def generate_script(self, brief_id: str, brand_id: str) -> dict:
             word_count=len(full_script.split()),
             generation_model="template_v1",
             generation_prompt_hash=prompt_hash,
-            generation_metadata={"source": "template", "brief_id": str(brief.id), "worker": True, "content_form": selected_form, "quality_tier": selected_tier},
+            generation_metadata={
+                "source": "template",
+                "brief_id": str(brief.id),
+                "worker": True,
+                "content_form": selected_form,
+                "quality_tier": selected_tier,
+            },
             status="generated",
         )
         session.add(script)
@@ -211,28 +284,36 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
         provider = "fallback"
 
         if avatar:
-            profiles = session.query(AvatarProviderProfile).filter(
-                AvatarProviderProfile.avatar_id == avatar.id
-            ).all()
+            profiles = session.query(AvatarProviderProfile).filter(AvatarProviderProfile.avatar_id == avatar.id).all()
             if profiles:
                 try:
                     from packages.provider_clients.media_providers import select_provider
-                    profile_dicts = [{
-                        "provider": p.provider,
-                        "capabilities": p.capabilities or {},
-                        "health_status": p.health_status.value if hasattr(p.health_status, 'value') else str(p.health_status),
-                        "is_primary": p.is_primary,
-                        "is_fallback": p.is_fallback,
-                        "cost_per_minute": p.cost_per_minute,
-                    } for p in profiles]
+
+                    profile_dicts = [
+                        {
+                            "provider": p.provider,
+                            "capabilities": p.capabilities or {},
+                            "health_status": p.health_status.value
+                            if hasattr(p.health_status, "value")
+                            else str(p.health_status),
+                            "is_primary": p.is_primary,
+                            "is_fallback": p.is_fallback,
+                            "cost_per_minute": p.cost_per_minute,
+                        }
+                        for p in profiles
+                    ]
                     provider = select_provider("async_video", profile_dicts) or "fallback"
                 except Exception:
                     logger.debug("provider selection failed, using fallback", exc_info=True)
 
-        existing_job = session.query(MediaJob).filter(
-            MediaJob.script_id == script.id,
-            MediaJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]),
-        ).first()
+        existing_job = (
+            session.query(MediaJob)
+            .filter(
+                MediaJob.script_id == script.id,
+                MediaJob.status.in_([JobStatus.PENDING, JobStatus.RUNNING]),
+            )
+            .first()
+        )
 
         if existing_job:
             media_job = existing_job
@@ -243,7 +324,10 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
                 job_type="avatar_video",
                 status=JobStatus.PENDING,
                 provider=provider,
-                input_payload={"script_text": script.full_script[:500], "duration_hint": script.estimated_duration_seconds},
+                input_payload={
+                    "script_text": script.full_script[:500],
+                    "duration_hint": script.estimated_duration_seconds,
+                },
                 retry_count=0,
             )
             session.add(media_job)
@@ -251,6 +335,7 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
 
         media_job.status = JobStatus.RUNNING
         from datetime import datetime, timezone
+
         media_job.dispatched_at = datetime.now(timezone.utc).isoformat()
         session.commit()
 
@@ -271,7 +356,9 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
             media_job.error_message = provider_result.get("error", "Provider not configured")
             media_job.output_payload = {"provider": provider, "blocked": True, "error": provider_result.get("error")}
         else:
-            error_msg = provider_result.get("error", "Unknown provider error") if provider_result else "No provider available"
+            error_msg = (
+                provider_result.get("error", "Unknown provider error") if provider_result else "No provider available"
+            )
             media_job.status = JobStatus.FAILED
             media_job.error_message = error_msg
             media_job.output_payload = {"provider": provider, "error": error_msg}
@@ -285,7 +372,9 @@ def generate_media(self, script_id: str, avatar_id: str) -> dict:
                 "error": media_job.error_message or "Provider unavailable",
             }
 
-        output_url = media_job.output_url or (media_job.output_payload or {}).get("output_url", f"media/{media_job.id}/output")
+        output_url = media_job.output_url or (media_job.output_payload or {}).get(
+            "output_url", f"media/{media_job.id}/output"
+        )
 
         brief = None
         if script.brief_id:
@@ -362,7 +451,7 @@ async def _call_media_provider(provider: str, script, avatar, cred_keys: dict | 
             return {"success": False, "blocked": True, "error": "HEYGEN_API_KEY not configured"}
         avatar_id = "default"
         voice_id = ""
-        if avatar and hasattr(avatar, 'heygen_avatar_id') and avatar.heygen_avatar_id:
+        if avatar and hasattr(avatar, "heygen_avatar_id") and avatar.heygen_avatar_id:
             avatar_id = avatar.heygen_avatar_id
         result = await client.create_video(script_text, avatar_id=avatar_id, voice_id=voice_id)
         if result.get("success"):
@@ -436,7 +525,11 @@ async def _call_media_provider(provider: str, script, avatar, cred_keys: dict | 
                 return {"success": True, "url": video_url, "model": key_name.split("_")[0].lower()}
             return result
 
-    return {"success": False, "blocked": True, "error": "No media provider credentials configured. Add API keys in Settings."}
+    return {
+        "success": False,
+        "blocked": True,
+        "error": "No media provider credentials configured. Add API keys in Settings.",
+    }
 
 
 def _call_media_provider_sync(provider: str, script, avatar) -> dict:
@@ -459,6 +552,7 @@ def _call_media_provider_sync(provider: str, script, avatar) -> dict:
         engine = get_sync_engine()
         with SyncSession(engine) as cred_session:
             from packages.db.models.core import Brand
+
             brand = cred_session.get(Brand, script.brand_id) if script.brand_id else None
             if brand and brand.organization_id:
                 for pk in ("heygen", "did", "runway", "kling", "elevenlabs", "fish_audio"):
@@ -504,6 +598,7 @@ def _build_provider_client_map() -> dict[str, tuple[type, str]]:
         VoxtralClient,
         WanClient,
     )
+
     mapping = {
         "heygen": (HeyGenClient, "avatar"),
         "did": (DIDClient, "avatar"),
@@ -524,7 +619,11 @@ def _build_provider_client_map() -> dict[str, tuple[type, str]]:
 
 
 def _resolve_provider_and_credential(
-    session, org_id, brand_id, job_type: str, quality_tier: str = "standard",
+    session,
+    org_id,
+    brand_id,
+    job_type: str,
+    quality_tier: str = "standard",
     preferred_provider: str | None = None,
 ) -> tuple[str, str | None]:
     """Synchronous provider + credential resolution.
@@ -545,8 +644,11 @@ def _resolve_provider_and_credential(
 
     # Attempt 2: DB-routed best provider for category
     category_map = {
-        "avatar_video": "avatar", "avatar": "avatar",
-        "video": "video", "voice": "voice", "image": "image",
+        "avatar_video": "avatar",
+        "avatar": "avatar",
+        "video": "video",
+        "voice": "voice",
+        "image": "image",
     }
     category = category_map.get(job_type, job_type)
     routed = load_credential_for_task(session, org_id, category, quality_tier)
@@ -610,7 +712,9 @@ def generate_media_async(
 
         # ── Resolve provider + credential ──────────────────────────────
         provider_key, api_key = _resolve_provider_and_credential(
-            session, org_id, script.brand_id,
+            session,
+            org_id,
+            script.brand_id,
             job_type=job_type,
             quality_tier=quality_tier,
             preferred_provider=preferred_provider,
@@ -679,9 +783,7 @@ def generate_media_async(
 
         loop = asyncio.new_event_loop()
         try:
-            result = loop.run_until_complete(
-                client.submit_async(script_text, webhook_url=webhook_url, **submit_kwargs)
-            )
+            result = loop.run_until_complete(client.submit_async(script_text, webhook_url=webhook_url, **submit_kwargs))
         except Exception as exc:
             media_job.status = "failed"
             media_job.error_message = f"submit_async raised: {exc}"
@@ -782,6 +884,7 @@ def poll_media_job(self, media_job_id: str, backoff_seconds: float = 5) -> dict:
 
         # ── Load credential (DB-first, .env fallback handled by credential_loader)
         from packages.clients.credential_loader import load_credential
+
         api_key = load_credential(session, media_job.org_id, provider_key)
 
         client_map = _build_provider_client_map()
@@ -934,8 +1037,8 @@ def check_stale_jobs(self) -> dict:
 
             # Try to poll provider for current status
             from packages.clients.credential_loader import load_credential
-            api_key = load_credential(session, job.org_id, job.provider)
 
+            api_key = load_credential(session, job.org_id, job.provider)
 
             client_map = _build_provider_client_map()
             client_info = client_map.get(job.provider)

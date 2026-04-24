@@ -1,4 +1,5 @@
 """Decision record endpoints — read-only access to persisted decision objects."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query
@@ -45,7 +46,9 @@ async def list_decisions(
 
 
 @router.get("/{decision_type}/{decision_id}")
-async def get_decision(decision_type: str, decision_id: uuid.UUID, brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
+async def get_decision(
+    decision_type: str, decision_id: uuid.UUID, brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
+):
     await require_brand_access(brand_id, current_user, db)
     service = DECISION_SERVICES.get(decision_type)
     if service is None:

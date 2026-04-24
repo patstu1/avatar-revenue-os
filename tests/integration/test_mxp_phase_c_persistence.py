@@ -2,6 +2,7 @@
 
 Run in Docker Compose or with a reachable Postgres matching tests/conftest.py.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -56,9 +57,7 @@ async def test_recovery_recompute_persists_incidents(db_session):
     )
     assert len(incidents) >= 1
     actions = (
-        (await db_session.execute(select(RecoveryAction).where(RecoveryAction.brand_id == brand.id)))
-        .scalars()
-        .all()
+        (await db_session.execute(select(RecoveryAction).where(RecoveryAction.brand_id == brand.id))).scalars().all()
     )
     assert len(actions) >= 1
 

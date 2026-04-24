@@ -11,6 +11,7 @@ This service integrates the orchestration layer with the control layer by:
 The existing worker infrastructure (TrackedTask, SystemJob, ProviderRegistry)
 handles execution. This bridge makes it visible and connected.
 """
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -32,6 +33,7 @@ logger = structlog.get_logger()
 
 # ── Job State Aggregation ──────────────────────────────────────────
 
+
 async def get_orchestration_state(
     db: AsyncSession,
     org_id: uuid.UUID,
@@ -47,12 +49,10 @@ async def get_orchestration_state(
     hour_24 = now - timedelta(hours=24)
 
     # --- Job state distribution ---
-    job_status_q = await db.execute(
-        select(SystemJob.status, func.count()).group_by(SystemJob.status)
-    )
+    job_status_q = await db.execute(select(SystemJob.status, func.count()).group_by(SystemJob.status))
     jobs_by_status = {}
     for row in job_status_q.all():
-        key = row[0].value if hasattr(row[0], 'value') else str(row[0])
+        key = row[0].value if hasattr(row[0], "value") else str(row[0])
         jobs_by_status[key] = row[1]
 
     # --- Jobs by queue (last 24h) ---
@@ -91,10 +91,7 @@ async def get_orchestration_state(
 
     # --- Currently running jobs ---
     running_q = await db.execute(
-        select(SystemJob)
-        .where(SystemJob.status == JobStatus.RUNNING)
-        .order_by(SystemJob.started_at.desc())
-        .limit(20)
+        select(SystemJob).where(SystemJob.status == JobStatus.RUNNING).order_by(SystemJob.started_at.desc()).limit(20)
     )
     running_jobs = [
         {
@@ -108,43 +105,61 @@ async def get_orchestration_state(
     ]
 
     # --- Job throughput (1h vs 24h) ---
-    completed_1h = (await db.execute(
-        select(func.count()).select_from(SystemJob).where(
-            SystemJob.status == JobStatus.COMPLETED,
-            SystemJob.completed_at >= hour_1,
+    completed_1h = (
+        await db.execute(
+            select(func.count())
+            .select_from(SystemJob)
+            .where(
+                SystemJob.status == JobStatus.COMPLETED,
+                SystemJob.completed_at >= hour_1,
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    completed_24h = (await db.execute(
-        select(func.count()).select_from(SystemJob).where(
-            SystemJob.status == JobStatus.COMPLETED,
-            SystemJob.completed_at >= hour_24,
+    completed_24h = (
+        await db.execute(
+            select(func.count())
+            .select_from(SystemJob)
+            .where(
+                SystemJob.status == JobStatus.COMPLETED,
+                SystemJob.completed_at >= hour_24,
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    failed_24h = (await db.execute(
-        select(func.count()).select_from(SystemJob).where(
-            SystemJob.status == JobStatus.FAILED,
-            SystemJob.completed_at >= hour_24,
+    failed_24h = (
+        await db.execute(
+            select(func.count())
+            .select_from(SystemJob)
+            .where(
+                SystemJob.status == JobStatus.FAILED,
+                SystemJob.completed_at >= hour_24,
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # --- Average duration for completed jobs ---
-    avg_duration = (await db.execute(
-        select(func.avg(SystemJob.duration_seconds)).where(
-            SystemJob.status == JobStatus.COMPLETED,
-            SystemJob.completed_at >= hour_24,
-            SystemJob.duration_seconds.isnot(None),
+    avg_duration = (
+        await db.execute(
+            select(func.avg(SystemJob.duration_seconds)).where(
+                SystemJob.status == JobStatus.COMPLETED,
+                SystemJob.completed_at >= hour_24,
+                SystemJob.duration_seconds.isnot(None),
+            )
         )
-    )).scalar()
+    ).scalar()
 
     # --- Retry rate ---
-    retried_24h = (await db.execute(
-        select(func.count()).select_from(SystemJob).where(
-            SystemJob.retries > 0,
-            SystemJob.created_at >= hour_24,
+    retried_24h = (
+        await db.execute(
+            select(func.count())
+            .select_from(SystemJob)
+            .where(
+                SystemJob.retries > 0,
+                SystemJob.created_at >= hour_24,
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     total_24h = completed_24h + failed_24h
     success_rate = (completed_24h / total_24h * 100) if total_24h > 0 else 100.0
@@ -167,6 +182,7 @@ async def get_orchestration_state(
 
 # ── Provider Health ──────────────────────────────────────────────────
 
+
 async def get_provider_health(
     db: AsyncSession,
     brand_id: Optional[uuid.UUID] = None,
@@ -187,7 +203,7 @@ async def get_provider_health(
     blockers_q = await db.execute(blocker_query.limit(20))
     blockers = blockers_q.scalars().all()
 
-    blocked_providers = {b.provider_key for b in blockers if hasattr(b, 'provider_key')}
+    blocked_providers = {b.provider_key for b in blockers if hasattr(b, "provider_key")}
 
     healthy = 0
     degraded = 0
@@ -205,25 +221,27 @@ async def get_provider_health(
         else:
             healthy += 1
 
-        provider_list.append({
-            "provider_key": p.provider_key,
-            "display_name": p.display_name,
-            "category": p.category,
-            "provider_type": p.provider_type,
-            "status": status,
-            "credential_status": p.credential_status,
-            "is_primary": p.is_primary,
-            "is_fallback": p.is_fallback,
-        })
+        provider_list.append(
+            {
+                "provider_key": p.provider_key,
+                "display_name": p.display_name,
+                "category": p.category,
+                "provider_type": p.provider_type,
+                "status": status,
+                "credential_status": p.credential_status,
+                "is_primary": p.is_primary,
+                "is_fallback": p.is_fallback,
+            }
+        )
 
     blocker_list = [
         {
             "id": str(b.id),
-            "provider_key": b.provider_key if hasattr(b, 'provider_key') else None,
+            "provider_key": b.provider_key if hasattr(b, "provider_key") else None,
             "blocker_type": b.blocker_type,
             "severity": b.severity,
             "detail": b.description[:200] if b.description else None,
-            "operator_action_needed": b.operator_action_needed if hasattr(b, 'operator_action_needed') else True,
+            "operator_action_needed": b.operator_action_needed if hasattr(b, "operator_action_needed") else True,
         }
         for b in blockers
     ]
@@ -259,20 +277,19 @@ async def check_provider_ready(
     blockers = (await db.execute(blocker_query.limit(5))).scalars().all()
 
     # Check provider entry
-    provider = (await db.execute(
-        select(ProviderRegistryEntry).where(
-            ProviderRegistryEntry.provider_key == provider_key,
-            ProviderRegistryEntry.is_active.is_(True),
+    provider = (
+        await db.execute(
+            select(ProviderRegistryEntry).where(
+                ProviderRegistryEntry.provider_key == provider_key,
+                ProviderRegistryEntry.is_active.is_(True),
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if not provider:
         return {"ready": False, "reason": f"Provider '{provider_key}' not found or inactive"}
 
-    matching_blockers = [
-        b for b in blockers
-        if hasattr(b, 'provider_key') and b.provider_key == provider_key
-    ]
+    matching_blockers = [b for b in blockers if hasattr(b, "provider_key") and b.provider_key == provider_key]
 
     if matching_blockers:
         return {
@@ -288,6 +305,7 @@ async def check_provider_ready(
 
 
 # ── Surface Orchestration Actions ──────────────────────────────────
+
 
 async def surface_orchestration_actions(
     db: AsyncSession,
@@ -305,19 +323,22 @@ async def surface_orchestration_actions(
     # 1. Jobs stuck in running state (> 30 minutes)
     stuck_threshold = now - timedelta(minutes=30)
     stuck_jobs = await db.execute(
-        select(SystemJob).where(
+        select(SystemJob)
+        .where(
             SystemJob.status == JobStatus.RUNNING,
             SystemJob.started_at < stuck_threshold,
-        ).limit(5)
+        )
+        .limit(5)
     )
     for job in stuck_jobs.scalars().all():
         minutes_running = int((now - job.started_at).total_seconds() / 60) if job.started_at else 0
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="investigate_stuck_job",
             title=f"Job stuck: {job.job_name[:50]} ({minutes_running}min)",
             description=f"Job has been running for {minutes_running} minutes in queue '{job.queue}'. "
-                       f"May need manual intervention or restart.",
+            f"May need manual intervention or restart.",
             category="failure",
             priority="high",
             entity_type="system_job",
@@ -328,15 +349,18 @@ async def surface_orchestration_actions(
 
     # 2. Jobs that exhausted retries
     exhausted_q = await db.execute(
-        select(SystemJob).where(
+        select(SystemJob)
+        .where(
             SystemJob.status == JobStatus.FAILED,
             SystemJob.retries >= SystemJob.max_retries,
             SystemJob.completed_at >= hour_24,
-        ).limit(5)
+        )
+        .limit(5)
     )
     for job in exhausted_q.scalars().all():
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="retry_exhausted_job",
             title=f"Max retries: {job.job_name[:50]}",
             description=f"Job failed after {job.retries} retries. Error: {(job.error_message or '')[:200]}",
@@ -351,18 +375,20 @@ async def surface_orchestration_actions(
 
     # 3. Provider blockers needing operator action
     blocker_q = await db.execute(
-        select(ProviderBlocker).where(
+        select(ProviderBlocker)
+        .where(
             ProviderBlocker.resolved.is_(False),
-        ).limit(5)
+        )
+        .limit(5)
     )
     for b in blocker_q.scalars().all():
-        if hasattr(b, 'operator_action_needed') and b.operator_action_needed:
+        if hasattr(b, "operator_action_needed") and b.operator_action_needed:
             action = await emit_action(
-                db, org_id=org_id,
+                db,
+                org_id=org_id,
                 action_type="resolve_provider_blocker",
                 title=f"Provider blocked: {b.provider_key if hasattr(b, 'provider_key') else 'unknown'}",
-                description=f"Type: {b.blocker_type}. Severity: {b.severity}. "
-                           f"Detail: {(b.description or '')[:200]}",
+                description=f"Type: {b.blocker_type}. Severity: {b.severity}. Detail: {(b.description or '')[:200]}",
                 category="health",
                 priority="critical" if b.severity == "critical" else "high",
                 entity_type="provider_blocker",
@@ -372,23 +398,27 @@ async def surface_orchestration_actions(
             actions_created.append({"type": "provider_blocker", "action_id": str(action.id)})
 
     # 4. High failure rate warning
-    total_24h = (await db.execute(
-        select(func.count()).select_from(SystemJob).where(
-            SystemJob.created_at >= hour_24
-        )
-    )).scalar() or 0
+    total_24h = (
+        await db.execute(select(func.count()).select_from(SystemJob).where(SystemJob.created_at >= hour_24))
+    ).scalar() or 0
 
-    failed_24h = (await db.execute(
-        select(func.count()).select_from(SystemJob).where(
-            SystemJob.status == JobStatus.FAILED,
-            SystemJob.completed_at >= hour_24,
+    failed_24h = (
+        await db.execute(
+            select(func.count())
+            .select_from(SystemJob)
+            .where(
+                SystemJob.status == JobStatus.FAILED,
+                SystemJob.completed_at >= hour_24,
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     if total_24h > 10 and failed_24h / total_24h > 0.2:
         await emit_event(
-            db, domain="orchestration", event_type="orchestration.high_failure_rate",
-            summary=f"High failure rate: {failed_24h}/{total_24h} jobs failed in last 24h ({failed_24h/total_24h:.0%})",
+            db,
+            domain="orchestration",
+            event_type="orchestration.high_failure_rate",
+            summary=f"High failure rate: {failed_24h}/{total_24h} jobs failed in last 24h ({failed_24h / total_24h:.0%})",
             org_id=org_id,
             severity="error",
             requires_action=True,

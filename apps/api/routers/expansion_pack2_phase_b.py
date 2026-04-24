@@ -1,4 +1,5 @@
 """Expansion Pack 2 Phase B — pricing, bundling, retention, reactivation endpoints."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -34,9 +35,7 @@ async def _require_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
     "/{brand_id}/pricing-recommendations",
     response_model=list[PricingRecommendationOut],
 )
-async def list_pricing_recommendations(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_pricing_recommendations(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2b.get_pricing_recommendations(db, brand_id)
 
@@ -72,9 +71,7 @@ async def recompute_pricing_recommendations(
     "/{brand_id}/bundle-recommendations",
     response_model=list[BundleRecommendationOut],
 )
-async def list_bundle_recommendations(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_bundle_recommendations(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2b.get_bundle_recommendations(db, brand_id)
 
@@ -110,9 +107,7 @@ async def recompute_bundle_recommendations(
     "/{brand_id}/retention-recommendations",
     response_model=list[RetentionRecommendationOut],
 )
-async def list_retention_recommendations(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_retention_recommendations(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2b.get_retention_recommendations(db, brand_id)
 
@@ -148,9 +143,7 @@ async def recompute_retention_recommendations(
     "/{brand_id}/reactivation-campaigns",
     response_model=list[ReactivationCampaignOut],
 )
-async def list_reactivation_campaigns(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_reactivation_campaigns(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await ep2b.get_reactivation_campaigns(db, brand_id)
 

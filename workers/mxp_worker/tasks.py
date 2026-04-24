@@ -1,4 +1,5 @@
 """Maximum-strength pack recurring recomputes (11 modules)."""
+
 import logging
 
 from sqlalchemy import select

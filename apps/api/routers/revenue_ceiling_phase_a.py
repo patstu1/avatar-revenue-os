@@ -2,6 +2,7 @@
 
 POST endpoints write; GETs are read-only.
 """
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -37,13 +38,20 @@ async def list_offer_ladders(brand_id: uuid.UUID, current_user: CurrentUser, db:
 
 
 @router.post("/{brand_id}/offer-ladders/recompute")
-async def recompute_offer_ladders(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_offer_ladders(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rca.recompute_offer_ladders(db, brand_id)
     await log_action(
-        db, "revenue_ceiling.offer_ladders_recomputed",
-        organization_id=current_user.organization_id, brand_id=brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="offer_ladder", details=result,
+        db,
+        "revenue_ceiling.offer_ladders_recomputed",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="offer_ladder",
+        details=result,
     )
     return result
 
@@ -55,13 +63,20 @@ async def get_owned_audience(brand_id: uuid.UUID, current_user: CurrentUser, db:
 
 
 @router.post("/{brand_id}/owned-audience/recompute")
-async def recompute_owned_audience(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_owned_audience(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rca.recompute_owned_audience(db, brand_id)
     await log_action(
-        db, "revenue_ceiling.owned_audience_recomputed",
-        organization_id=current_user.organization_id, brand_id=brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="owned_audience", details=result,
+        db,
+        "revenue_ceiling.owned_audience_recomputed",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="owned_audience",
+        details=result,
     )
     return result
 
@@ -73,13 +88,20 @@ async def list_message_sequences(brand_id: uuid.UUID, current_user: CurrentUser,
 
 
 @router.post("/{brand_id}/message-sequences/generate")
-async def generate_message_sequences(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def generate_message_sequences(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rca.generate_message_sequences(db, brand_id)
     await log_action(
-        db, "revenue_ceiling.message_sequences_generated",
-        organization_id=current_user.organization_id, brand_id=brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="message_sequence", details=result,
+        db,
+        "revenue_ceiling.message_sequences_generated",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="message_sequence",
+        details=result,
     )
     return result
 
@@ -97,12 +119,19 @@ async def list_funnel_leaks(brand_id: uuid.UUID, current_user: CurrentUser, db: 
 
 
 @router.post("/{brand_id}/funnel-leaks/recompute")
-async def recompute_funnel_leaks(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_funnel_leaks(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rca.recompute_funnel_leaks(db, brand_id)
     await log_action(
-        db, "revenue_ceiling.funnel_leaks_recomputed",
-        organization_id=current_user.organization_id, brand_id=brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="funnel_leak", details=result,
+        db,
+        "revenue_ceiling.funnel_leaks_recomputed",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="funnel_leak",
+        details=result,
     )
     return result

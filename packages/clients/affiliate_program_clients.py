@@ -2,6 +2,7 @@
 
 Each client handles authentication, offer discovery, and link generation for its network.
 """
+
 from __future__ import annotations
 
 import logging
@@ -32,7 +33,9 @@ class ClickBankClient:
     def _headers(self) -> dict:
         return {"Authorization": f"{self.api_key}:{self.clerk_id}", "Accept": "application/json"}
 
-    async def fetch_marketplace(self, category: str = "", sort_by: str = "GRAVITY", max_results: int = 20) -> dict[str, Any]:
+    async def fetch_marketplace(
+        self, category: str = "", sort_by: str = "GRAVITY", max_results: int = 20
+    ) -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("CLICKBANK_API_KEY / CLICKBANK_CLERK_ID not configured")
         try:
@@ -52,7 +55,11 @@ class ClickBankClient:
             return _blocked("CLICKBANK_API_KEY not configured")
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                r = await client.get(f"{self.base_url}/analytics/status", params={"startDate": start_date, "endDate": end_date}, headers=self._headers())
+                r = await client.get(
+                    f"{self.base_url}/analytics/status",
+                    params={"startDate": start_date, "endDate": end_date},
+                    headers=self._headers(),
+                )
                 r.raise_for_status()
                 return {"success": True, "data": r.json()}
         except Exception as e:
@@ -83,12 +90,17 @@ class AmazonAssociatesClient:
             return _blocked("AMAZON_ASSOCIATES_ACCESS_KEY / AMAZON_ASSOCIATES_TAG not configured")
         try:
             payload = {
-                "Keywords": keywords, "SearchIndex": category,
-                "ItemCount": max_results, "PartnerTag": self.partner_tag,
-                "PartnerType": "Associates", "Resources": ["ItemInfo.Title", "Offers.Listings.Price"],
+                "Keywords": keywords,
+                "SearchIndex": category,
+                "ItemCount": max_results,
+                "PartnerTag": self.partner_tag,
+                "PartnerType": "Associates",
+                "Resources": ["ItemInfo.Title", "Offers.Listings.Price"],
             }
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                r = await client.post(f"{self.base_url}/searchitems", json=payload, headers={"Content-Type": "application/json"})
+                r = await client.post(
+                    f"{self.base_url}/searchitems", json=payload, headers={"Content-Type": "application/json"}
+                )
                 if r.status_code == 200:
                     return {"success": True, "data": r.json()}
                 return _blocked(f"Amazon PA-API HTTP {r.status_code}")
@@ -114,7 +126,9 @@ class SemrushClient:
             return _blocked("SEMRUSH_AFFILIATE_KEY not configured")
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-                r = await client.get(f"{self.base_url}/stats", params={"key": self.api_key, "dateStart": start_date, "dateEnd": end_date})
+                r = await client.get(
+                    f"{self.base_url}/stats", params={"key": self.api_key, "dateStart": start_date, "dateEnd": end_date}
+                )
                 r.raise_for_status()
                 return {"success": True, "data": r.json()}
         except Exception as e:
@@ -282,7 +296,15 @@ AFFILIATE_PROGRAMS: dict[str, dict[str, Any]] = {
         "type": "digital_marketplace",
         "commission_range": "50-75%",
         "cookie_days": 60,
-        "best_niches": ["make_money_online", "health_fitness", "self_improvement", "education_courses", "personal_finance", "crypto", "real_estate"],
+        "best_niches": [
+            "make_money_online",
+            "health_fitness",
+            "self_improvement",
+            "education_courses",
+            "personal_finance",
+            "crypto",
+            "real_estate",
+        ],
         "env_keys": ["CLICKBANK_API_KEY", "CLICKBANK_CLERK_ID"],
         "payout_model": "percentage",
         "avg_payout": 40.0,
@@ -292,7 +314,16 @@ AFFILIATE_PROGRAMS: dict[str, dict[str, Any]] = {
         "type": "retail_marketplace",
         "commission_range": "1-10%",
         "cookie_days": 1,
-        "best_niches": ["tech_reviews", "cooking_recipes", "beauty_skincare", "gaming", "health_fitness", "personal_finance", "self_improvement", "travel"],
+        "best_niches": [
+            "tech_reviews",
+            "cooking_recipes",
+            "beauty_skincare",
+            "gaming",
+            "health_fitness",
+            "personal_finance",
+            "self_improvement",
+            "travel",
+        ],
         "env_keys": ["AMAZON_ASSOCIATES_ACCESS_KEY", "AMAZON_ASSOCIATES_TAG"],
         "payout_model": "percentage",
         "avg_payout": 5.0,
@@ -302,7 +333,13 @@ AFFILIATE_PROGRAMS: dict[str, dict[str, Any]] = {
         "type": "saas_high_ticket",
         "commission_range": "$200/sale, $10/trial",
         "cookie_days": 120,
-        "best_niches": ["business_entrepreneurship", "software_saas", "make_money_online", "ai_tools", "personal_finance"],
+        "best_niches": [
+            "business_entrepreneurship",
+            "software_saas",
+            "make_money_online",
+            "ai_tools",
+            "personal_finance",
+        ],
         "env_keys": ["SEMRUSH_AFFILIATE_KEY"],
         "payout_model": "flat",
         "avg_payout": 200.0,
@@ -352,7 +389,15 @@ AFFILIATE_PROGRAMS: dict[str, dict[str, Any]] = {
         "type": "affiliate_network",
         "commission_range": "varies (5-50%)",
         "cookie_days": 30,
-        "best_niches": ["business_entrepreneurship", "software_saas", "health_fitness", "beauty_skincare", "personal_finance", "make_money_online", "education_courses"],
+        "best_niches": [
+            "business_entrepreneurship",
+            "software_saas",
+            "health_fitness",
+            "beauty_skincare",
+            "personal_finance",
+            "make_money_online",
+            "education_courses",
+        ],
         "env_keys": ["SHAREASALE_API_TOKEN"],
         "payout_model": "mixed",
         "avg_payout": 25.0,
@@ -362,7 +407,14 @@ AFFILIATE_PROGRAMS: dict[str, dict[str, Any]] = {
         "type": "affiliate_network",
         "commission_range": "varies by advertiser",
         "cookie_days": 30,
-        "best_niches": ["software_saas", "business_entrepreneurship", "personal_finance", "tech_reviews", "travel", "health_fitness"],
+        "best_niches": [
+            "software_saas",
+            "business_entrepreneurship",
+            "personal_finance",
+            "tech_reviews",
+            "travel",
+            "health_fitness",
+        ],
         "env_keys": ["IMPACT_ACCOUNT_SID", "IMPACT_AUTH_TOKEN"],
         "payout_model": "mixed",
         "avg_payout": 30.0,

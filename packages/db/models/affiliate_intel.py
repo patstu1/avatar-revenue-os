@@ -1,4 +1,5 @@
 """Elite Affiliate Intelligence — full affiliate revenue operating layer."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -23,7 +24,9 @@ class AffiliateNetworkAccount(Base):
 class AffiliateMerchant(Base):
     __tablename__ = "af_merchants"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    network_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("af_network_accounts.id"), nullable=True)
+    network_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("af_network_accounts.id"), nullable=True
+    )
     merchant_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     merchant_category: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     trust_score: Mapped[float] = mapped_column(Float, default=0.5)
@@ -33,8 +36,12 @@ class AffiliateMerchant(Base):
 class AffiliateOffer(Base):
     __tablename__ = "af_offers"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    merchant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("af_merchants.id"), nullable=True)
-    offer_id_internal: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True)
+    merchant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("af_merchants.id"), nullable=True
+    )
+    offer_id_internal: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True
+    )
     product_name: Mapped[str] = mapped_column(String(500), nullable=False)
     product_category: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, index=True)
     offer_type: Mapped[str] = mapped_column(String(60), default="affiliate", index=True)
@@ -59,8 +66,12 @@ class AffiliateOffer(Base):
 class AffiliateLink(Base):
     __tablename__ = "af_links"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    offer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("af_offers.id"), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
+    offer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("af_offers.id"), nullable=False, index=True
+    )
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
     campaign_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     landing_page_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     platform: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -77,7 +88,9 @@ class AffiliateLink(Base):
 class AffiliateClickEvent(Base):
     __tablename__ = "af_clicks"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    link_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("af_links.id"), nullable=False, index=True)
+    link_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("af_links.id"), nullable=False, index=True
+    )
     clicked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     referrer: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     platform: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -86,8 +99,12 @@ class AffiliateClickEvent(Base):
 class AffiliateConversionEvent(Base):
     __tablename__ = "af_conversions"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    link_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("af_links.id"), nullable=False, index=True)
-    offer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("af_offers.id"), nullable=False, index=True)
+    link_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("af_links.id"), nullable=False, index=True
+    )
+    offer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("af_offers.id"), nullable=False, index=True
+    )
     conversion_value: Mapped[float] = mapped_column(Float, default=0.0)
     conversion_type: Mapped[str] = mapped_column(String(40), default="sale")
     converted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -96,7 +113,9 @@ class AffiliateConversionEvent(Base):
 class AffiliateCommissionEvent(Base):
     __tablename__ = "af_commissions"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    conversion_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("af_conversions.id"), nullable=False, index=True)
+    conversion_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("af_conversions.id"), nullable=False, index=True
+    )
     commission_amount: Mapped[float] = mapped_column(Float, default=0.0)
     commission_status: Mapped[str] = mapped_column(String(30), default="pending")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -105,7 +124,9 @@ class AffiliateCommissionEvent(Base):
 class AffiliatePayoutEvent(Base):
     __tablename__ = "af_payouts"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    network_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("af_network_accounts.id"), nullable=True)
+    network_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("af_network_accounts.id"), nullable=True
+    )
     payout_amount: Mapped[float] = mapped_column(Float, default=0.0)
     payout_status: Mapped[str] = mapped_column(String(30), default="pending")
     period: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)

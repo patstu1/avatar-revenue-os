@@ -1,4 +1,5 @@
 """Provider Registry — source of truth for all API/connector/provider integrations."""
+
 import uuid
 from typing import Optional
 
@@ -64,7 +65,9 @@ class ProviderReadinessReport(Base):
 class ProviderUsageEvent(Base):
     __tablename__ = "provider_usage_events"
 
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True)
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True
+    )
     provider_key: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     success: Mapped[bool] = mapped_column(Boolean, default=True)

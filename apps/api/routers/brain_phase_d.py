@@ -1,4 +1,5 @@
 """Brain Architecture Phase D — meta-monitoring, self-correction, readiness, escalation APIs."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -27,7 +28,9 @@ async def _require_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
 
 @router.get("/{brand_id}/meta-monitoring", response_model=list[MetaMonitoringReportOut])
 async def list_meta_monitoring(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(20, ge=1, le=100),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -41,7 +44,9 @@ async def list_meta_monitoring(
 
 @router.post("/{brand_id}/meta-monitoring/recompute", response_model=RecomputeSummaryOut)
 async def recompute_meta_monitoring(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -61,7 +66,9 @@ async def recompute_meta_monitoring(
 
 @router.get("/{brand_id}/self-corrections", response_model=list[SelfCorrectionActionOut])
 async def list_self_corrections(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -75,7 +82,9 @@ async def list_self_corrections(
 
 @router.get("/{brand_id}/readiness-brain", response_model=list[ReadinessBrainReportOut])
 async def list_readiness_brain(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(10, ge=1, le=50),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -89,7 +98,9 @@ async def list_readiness_brain(
 
 @router.post("/{brand_id}/readiness-brain/recompute", response_model=RecomputeSummaryOut)
 async def recompute_readiness_brain(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -106,7 +117,9 @@ async def recompute_readiness_brain(
 
 @router.get("/{brand_id}/brain-escalations", response_model=list[BrainEscalationOut])
 async def list_brain_escalations(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)

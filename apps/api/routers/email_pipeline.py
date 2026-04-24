@@ -2,6 +2,7 @@
 
 Provides visibility into the Phase 1 revenue machine email system.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -29,10 +30,17 @@ router = APIRouter(prefix="/email-pipeline", tags=["email-pipeline"])
 @router.get("/connections")
 async def list_connections(db: DBSession):
     """List all inbox connections with sync status."""
-    rows = (await db.execute(
-        select(InboxConnection).where(InboxConnection.is_active.is_(True))
-        .order_by(desc(InboxConnection.last_sync_at))
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(InboxConnection)
+                .where(InboxConnection.is_active.is_(True))
+                .order_by(desc(InboxConnection.last_sync_at))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return [
         {
@@ -118,27 +126,44 @@ async def list_threads(
 @router.get("/threads/{thread_id}")
 async def get_thread(thread_id: str, db: DBSession):
     """Get a thread with all its messages and classifications."""
-    thread = (await db.execute(
-        select(EmailThread).where(EmailThread.id == uuid.UUID(thread_id))
-    )).scalar_one_or_none()
+    thread = (await db.execute(select(EmailThread).where(EmailThread.id == uuid.UUID(thread_id)))).scalar_one_or_none()
 
     if not thread:
         raise HTTPException(404, "Thread not found")
 
-    messages = (await db.execute(
-        select(EmailMessage).where(EmailMessage.thread_id == thread.id)
-        .order_by(EmailMessage.message_date)
-    )).scalars().all()
+    messages = (
+        (
+            await db.execute(
+                select(EmailMessage).where(EmailMessage.thread_id == thread.id).order_by(EmailMessage.message_date)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    classifications = (await db.execute(
-        select(EmailClassification).where(EmailClassification.thread_id == thread.id)
-        .order_by(desc(EmailClassification.created_at))
-    )).scalars().all()
+    classifications = (
+        (
+            await db.execute(
+                select(EmailClassification)
+                .where(EmailClassification.thread_id == thread.id)
+                .order_by(desc(EmailClassification.created_at))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    drafts = (await db.execute(
-        select(EmailReplyDraft).where(EmailReplyDraft.thread_id == thread.id)
-        .order_by(desc(EmailReplyDraft.created_at))
-    )).scalars().all()
+    drafts = (
+        (
+            await db.execute(
+                select(EmailReplyDraft)
+                .where(EmailReplyDraft.thread_id == thread.id)
+                .order_by(desc(EmailReplyDraft.created_at))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return {
         "thread": {
@@ -230,14 +255,8 @@ async def list_drafts(
             "status": d.status,
             "confidence": d.confidence,
             "intent": classification.intent if classification is not None else None,
-            "classification_confidence": (
-                classification.confidence if classification is not None else None
-            ),
-            "mode_source": (
-                d.decision_trace.get("mode_source")
-                if isinstance(d.decision_trace, dict)
-                else None
-            ),
+            "classification_confidence": (classification.confidence if classification is not None else None),
+            "mode_source": (d.decision_trace.get("mode_source") if isinstance(d.decision_trace, dict) else None),
             "package_offered": d.package_offered,
             "approved_by": d.approved_by,
             "created_at": d.created_at.isoformat(),
@@ -261,9 +280,7 @@ async def approve_draft(
     from apps.api.services.reply_draft_actions import approve_draft as approve_svc
 
     try:
-        draft = await approve_svc(
-            db, draft_id=uuid.UUID(draft_id), actor=current_user
-        )
+        draft = await approve_svc(db, draft_id=uuid.UUID(draft_id), actor=current_user)
     except DraftActionError as exc:
         if exc.current_status == "missing":
             raise HTTPException(404, "Draft not found")
@@ -322,26 +339,31 @@ async def reject_draft(
 @router.get("/summary")
 async def pipeline_summary(db: DBSession):
     """Dashboard summary: thread counts by sales stage + recent activity."""
-    stage_counts = (await db.execute(
-        select(
-            EmailThread.sales_stage,
-            func.count(EmailThread.id),
-        ).where(EmailThread.is_active.is_(True))
-        .group_by(EmailThread.sales_stage)
-    )).all()
-
-    pending_drafts = (await db.execute(
-        select(func.count(EmailReplyDraft.id)).where(
-            EmailReplyDraft.status == "pending",
-            EmailReplyDraft.is_active.is_(True),
+    stage_counts = (
+        await db.execute(
+            select(
+                EmailThread.sales_stage,
+                func.count(EmailThread.id),
+            )
+            .where(EmailThread.is_active.is_(True))
+            .group_by(EmailThread.sales_stage)
         )
-    )).scalar()
+    ).all()
 
-    recent_transitions = (await db.execute(
-        select(SalesStageTransition)
-        .order_by(desc(SalesStageTransition.created_at))
-        .limit(10)
-    )).scalars().all()
+    pending_drafts = (
+        await db.execute(
+            select(func.count(EmailReplyDraft.id)).where(
+                EmailReplyDraft.status == "pending",
+                EmailReplyDraft.is_active.is_(True),
+            )
+        )
+    ).scalar()
+
+    recent_transitions = (
+        (await db.execute(select(SalesStageTransition).order_by(desc(SalesStageTransition.created_at)).limit(10)))
+        .scalars()
+        .all()
+    )
 
     return {
         "pipeline": {stage: count for stage, count in stage_counts},

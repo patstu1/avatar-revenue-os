@@ -17,6 +17,7 @@ Provides:
   request_approval(db, ...)                  idempotent GMApproval insert
   open_escalation(db, ...)                   idempotent GMEscalation insert
 """
+
 from __future__ import annotations
 
 import uuid
@@ -53,18 +54,18 @@ class StageSpec:
 # Narrow, from-the-spec subset. Every stage that materially gates
 # revenue/fulfillment is represented. Extensible without schema change.
 STAGE_CATALOGUE: dict[tuple[str, str], StageSpec] = {
-    ("lead", "created"):                  StageSpec("created", "lead", 5, "lead_stuck_in_created"),
-    ("lead", "routed"):                   StageSpec("routed", "lead", 10, "lead_not_routed"),
-    ("lead", "outreach_active"):          StageSpec("outreach_active", "lead", 15, "outreach_not_sent"),
-    ("email_reply_draft", "pending"):     StageSpec("pending", "email_reply_draft", 120, "draft_awaiting_approval"),
-    ("email_reply_draft", "approved"):    StageSpec("approved", "email_reply_draft", 5, "approved_draft_not_sent"),
-    ("proposal", "sent"):                 StageSpec("sent", "proposal", 60 * 24, "proposal_unpaid_24h"),
-    ("payment", "pending"):               StageSpec("pending", "payment", 10, "payment_pending_too_long"),
-    ("client", "active"):                 StageSpec("active", "client", 5, "client_active_no_intake"),
-    ("intake_request", "sent"):           StageSpec("sent", "intake_request", 60 * 48, "intake_pending_48h"),
-    ("production_job", "running"):        StageSpec("running", "production_job", 60 * 24, "production_idle_24h"),
-    ("production_job", "qa_pending"):     StageSpec("qa_pending", "production_job", 30, "qa_idle_30m"),
-    ("production_job", "qa_passed"):      StageSpec("qa_passed", "production_job", 15, "delivery_not_dispatched"),
+    ("lead", "created"): StageSpec("created", "lead", 5, "lead_stuck_in_created"),
+    ("lead", "routed"): StageSpec("routed", "lead", 10, "lead_not_routed"),
+    ("lead", "outreach_active"): StageSpec("outreach_active", "lead", 15, "outreach_not_sent"),
+    ("email_reply_draft", "pending"): StageSpec("pending", "email_reply_draft", 120, "draft_awaiting_approval"),
+    ("email_reply_draft", "approved"): StageSpec("approved", "email_reply_draft", 5, "approved_draft_not_sent"),
+    ("proposal", "sent"): StageSpec("sent", "proposal", 60 * 24, "proposal_unpaid_24h"),
+    ("payment", "pending"): StageSpec("pending", "payment", 10, "payment_pending_too_long"),
+    ("client", "active"): StageSpec("active", "client", 5, "client_active_no_intake"),
+    ("intake_request", "sent"): StageSpec("sent", "intake_request", 60 * 48, "intake_pending_48h"),
+    ("production_job", "running"): StageSpec("running", "production_job", 60 * 24, "production_idle_24h"),
+    ("production_job", "qa_pending"): StageSpec("qa_pending", "production_job", 30, "qa_idle_30m"),
+    ("production_job", "qa_passed"): StageSpec("qa_passed", "production_job", 15, "delivery_not_dispatched"),
 }
 
 

@@ -1,4 +1,5 @@
 """Audit logging service — persists every critical action."""
+
 import uuid
 from typing import Optional
 

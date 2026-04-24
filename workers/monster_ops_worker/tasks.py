@@ -1,4 +1,5 @@
 """Monster Ops workers — expansion advisor, gatekeeper, scale engine recompute."""
+
 import logging
 
 from celery import shared_task
@@ -23,6 +24,7 @@ async def _run_all(coro_factory):
 
 async def _recompute_expansion(bid):
     from apps.api.services.expansion_advisor_service import recompute_advisory
+
     async with get_async_session_factory()() as db:
         await recompute_advisory(db, bid)
         await db.commit()
@@ -38,6 +40,7 @@ async def _recompute_gatekeeper(bid):
         recompute_tests,
         recompute_truth,
     )
+
     async with get_async_session_factory()() as db:
         await recompute_completion(db, bid)
         await recompute_truth(db, bid)
@@ -51,6 +54,7 @@ async def _recompute_gatekeeper(bid):
 
 async def _recompute_scale(bid):
     from apps.api.services.scale_service import recompute_scale_recommendations
+
     async with get_async_session_factory()() as db:
         await recompute_scale_recommendations(db, bid)
         await db.commit()
@@ -76,6 +80,7 @@ def recompute_scale_engine():
 
 async def _run_offer_learning(bid):
     from apps.api.services.offer_learning_service import run_offer_learning
+
     async with get_async_session_factory()() as db:
         await run_offer_learning(db, bid)
         await db.commit()
@@ -96,12 +101,18 @@ async def _detect_weak_lanes(bid):
     from packages.db.models.scale_alerts import OperatorAlert
 
     async with get_async_session_factory()() as db:
-        accounts = list((await db.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == bid,
-                CreatorAccount.is_active.is_(True),
+        accounts = list(
+            (
+                await db.execute(
+                    select(CreatorAccount).where(
+                        CreatorAccount.brand_id == bid,
+                        CreatorAccount.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         if not accounts:
             return {"flagged": 0, "winners": 0}
@@ -121,13 +132,17 @@ async def _detect_weak_lanes(bid):
             age_days = (now - ca).days if ca else 0
 
             if ppp < 2.0 and imp > 300 and age_days > 30:
-                already_killed = (await db.execute(
-                    select(KillLedgerEntry).where(
-                        KillLedgerEntry.brand_id == bid,
-                        KillLedgerEntry.scope_id == acct.id,
-                        KillLedgerEntry.is_active.is_(True),
-                    ).limit(1)
-                )).scalar_one_or_none()
+                already_killed = (
+                    await db.execute(
+                        select(KillLedgerEntry)
+                        .where(
+                            KillLedgerEntry.brand_id == bid,
+                            KillLedgerEntry.scope_id == acct.id,
+                            KillLedgerEntry.is_active.is_(True),
+                        )
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
 
                 urgency = 75.0
                 if age_days > 60:
@@ -136,44 +151,55 @@ async def _detect_weak_lanes(bid):
                     urgency = 95.0
 
                 if not already_killed:
-                    db.add(KillLedgerEntry(
-                        brand_id=bid,
-                        scope_type="creator_account",
-                        scope_id=acct.id,
-                        kill_reason=f"Auto-flagged: ${ppp:.2f}/post < $2.00 threshold after {age_days}d with {imp} followers.",
-                        performance_snapshot_json={
-                            "profit_per_post": ppp, "follower_count": imp, "age_days": age_days,
-                            "fatigue_score": float(acct.fatigue_score or 0),
-                            "saturation_score": float(acct.saturation_score or 0),
-                        },
-                        replacement_recommendation_json={"action": "suppress_or_reallocate", "reason": "below_kill_threshold"},
-                        confidence_score=0.85,
-                    ))
+                    db.add(
+                        KillLedgerEntry(
+                            brand_id=bid,
+                            scope_type="creator_account",
+                            scope_id=acct.id,
+                            kill_reason=f"Auto-flagged: ${ppp:.2f}/post < $2.00 threshold after {age_days}d with {imp} followers.",
+                            performance_snapshot_json={
+                                "profit_per_post": ppp,
+                                "follower_count": imp,
+                                "age_days": age_days,
+                                "fatigue_score": float(acct.fatigue_score or 0),
+                                "saturation_score": float(acct.saturation_score or 0),
+                            },
+                            replacement_recommendation_json={
+                                "action": "suppress_or_reallocate",
+                                "reason": "below_kill_threshold",
+                            },
+                            confidence_score=0.85,
+                        )
+                    )
 
-                db.add(OperatorAlert(
-                    brand_id=bid,
-                    alert_type="weak_lane_auto_kill",
-                    title=f"KILL/SUPPRESS: {acct.platform_username} — ${ppp:.2f}/post after {age_days}d",
-                    summary=f"{acct.platform_username}: ${ppp:.2f} profit/post, {imp} followers, {age_days}d old. {'ESCALATED — over 60d weak.' if age_days > 60 else 'Below kill threshold.'}",
-                    explanation=f"Profit/post ${ppp:.2f} < $2.00. Age {age_days}d. {'Kill ledger entry created.' if not already_killed else 'Already in kill ledger.'}",
-                    recommended_action=f"Suppress {acct.platform_username} and reallocate budget to top performers.",
-                    confidence=0.85,
-                    urgency=urgency,
-                ))
+                db.add(
+                    OperatorAlert(
+                        brand_id=bid,
+                        alert_type="weak_lane_auto_kill",
+                        title=f"KILL/SUPPRESS: {acct.platform_username} — ${ppp:.2f}/post after {age_days}d",
+                        summary=f"{acct.platform_username}: ${ppp:.2f} profit/post, {imp} followers, {age_days}d old. {'ESCALATED — over 60d weak.' if age_days > 60 else 'Below kill threshold.'}",
+                        explanation=f"Profit/post ${ppp:.2f} < $2.00. Age {age_days}d. {'Kill ledger entry created.' if not already_killed else 'Already in kill ledger.'}",
+                        recommended_action=f"Suppress {acct.platform_username} and reallocate budget to top performers.",
+                        confidence=0.85,
+                        urgency=urgency,
+                    )
+                )
                 flagged += 1
 
             elif ppp > avg_ppp * 1.5 and ppp > 5.0 and age_days > 14:
-                db.add(OperatorAlert(
-                    brand_id=bid,
-                    alert_type="winner_scale_push",
-                    title=f"SCALE WINNER: {acct.platform_username} — ${ppp:.2f}/post (1.5x avg)",
-                    summary=f"{acct.platform_username} outperforms at ${ppp:.2f}/post vs avg ${avg_ppp:.2f}. Push harder.",
-                    explanation=f"Top performer: ${ppp:.2f}/post is {ppp/max(avg_ppp,0.01):.1f}x the portfolio average. Current capacity: {acct.posting_capacity_per_day}/day.",
-                    recommended_action=f"Increase posting capacity for {acct.platform_username} to {min(acct.posting_capacity_per_day * 2, 10)}/day. Prioritize this account for hero content.",
-                    confidence=0.80,
-                    urgency=65.0,
-                    expected_upside=float(ppp * acct.posting_capacity_per_day * 7),
-                ))
+                db.add(
+                    OperatorAlert(
+                        brand_id=bid,
+                        alert_type="winner_scale_push",
+                        title=f"SCALE WINNER: {acct.platform_username} — ${ppp:.2f}/post (1.5x avg)",
+                        summary=f"{acct.platform_username} outperforms at ${ppp:.2f}/post vs avg ${avg_ppp:.2f}. Push harder.",
+                        explanation=f"Top performer: ${ppp:.2f}/post is {ppp / max(avg_ppp, 0.01):.1f}x the portfolio average. Current capacity: {acct.posting_capacity_per_day}/day.",
+                        recommended_action=f"Increase posting capacity for {acct.platform_username} to {min(acct.posting_capacity_per_day * 2, 10)}/day. Prioritize this account for hero content.",
+                        confidence=0.80,
+                        urgency=65.0,
+                        expected_upside=float(ppp * acct.posting_capacity_per_day * 7),
+                    )
+                )
                 winners_pushed += 1
 
         if flagged or winners_pushed:
@@ -189,25 +215,29 @@ async def _trigger_expansion_from_saturation(bid):
     from packages.db.models.scale_alerts import OperatorAlert
 
     async with get_async_session_factory()() as db:
-        accounts = list((await db.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == bid,
-                CreatorAccount.is_active.is_(True),
+        accounts = list(
+            (
+                await db.execute(
+                    select(CreatorAccount).where(
+                        CreatorAccount.brand_id == bid,
+                        CreatorAccount.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         if not accounts:
             return {"status": "no_accounts"}
 
         avg_sat = sum(float(a.saturation_score or 0) for a in accounts) / len(accounts)
         avg_fatigue = sum(float(a.fatigue_score or 0) for a in accounts) / len(accounts)
-        all_healthy = all(
-            getattr(a.account_health, "value", str(a.account_health)) != "critical"
-            for a in accounts
-        )
+        all_healthy = all(getattr(a.account_health, "value", str(a.account_health)) != "critical" for a in accounts)
 
         if avg_sat > 0.7 and all_healthy and avg_fatigue < 0.7:
             from apps.api.services.expansion_advisor_service import recompute_advisory
+
             result = await recompute_advisory(db, bid)
             await db.commit()
 
@@ -216,18 +246,24 @@ async def _trigger_expansion_from_saturation(bid):
             is_good_launch_window = month not in (12, 1)
 
             if result.get("should_add") and not is_good_launch_window:
-                db.add(OperatorAlert(
-                    brand_id=bid,
-                    alert_type="expansion_launch_window",
-                    title="Expansion recommended but launch window is suboptimal",
-                    summary=f"Month {month} is typically weak for new account launches. Consider waiting until February.",
-                    recommended_action="Delay launch by 1-2 months unless urgency is critical.",
-                    confidence=0.6,
-                    urgency=40.0,
-                ))
+                db.add(
+                    OperatorAlert(
+                        brand_id=bid,
+                        alert_type="expansion_launch_window",
+                        title="Expansion recommended but launch window is suboptimal",
+                        summary=f"Month {month} is typically weak for new account launches. Consider waiting until February.",
+                        recommended_action="Delay launch by 1-2 months unless urgency is critical.",
+                        confidence=0.6,
+                        urgency=40.0,
+                    )
+                )
                 await db.commit()
 
-            return {"status": "expansion_triggered", "should_add": result.get("should_add"), "good_launch_window": is_good_launch_window}
+            return {
+                "status": "expansion_triggered",
+                "should_add": result.get("should_add"),
+                "good_launch_window": is_good_launch_window,
+            }
         elif not all_healthy:
             return {"status": "skipped_unhealthy_accounts"}
         elif avg_fatigue >= 0.7:
@@ -257,14 +293,16 @@ async def _daily_operator_digest(bid):
         quick, actions, missing, providers = await _copilot_context(db, bid)
 
         for action in actions[:20]:
-            db.add(CopilotActionSummary(
-                brand_id=bid,
-                action_type=action.get("action_type", "unknown"),
-                urgency=action.get("urgency", "medium"),
-                title=action.get("title", "")[:500],
-                description=action.get("description", "")[:2000],
-                source_module=action.get("source_module", "unknown"),
-            ))
+            db.add(
+                CopilotActionSummary(
+                    brand_id=bid,
+                    action_type=action.get("action_type", "unknown"),
+                    urgency=action.get("urgency", "medium"),
+                    title=action.get("title", "")[:500],
+                    description=action.get("description", "")[:2000],
+                    source_module=action.get("source_module", "unknown"),
+                )
+            )
 
         await db.commit()
 

@@ -4,6 +4,7 @@ Revision ID: i9d4e5f6g7h8
 Revises: h8c3d4e5f6g7
 Create Date: 2026-03-29
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -18,7 +19,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table("operator_alerts",
+    op.create_table(
+        "operator_alerts",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -50,7 +52,8 @@ def upgrade() -> None:
     op.create_index("ix_operator_alerts_alert_type", "operator_alerts", ["alert_type"])
     op.create_index("ix_operator_alerts_status", "operator_alerts", ["status"])
 
-    op.create_table("launch_candidates",
+    op.create_table(
+        "launch_candidates",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -87,7 +90,8 @@ def upgrade() -> None:
     op.create_index("ix_launch_candidates_brand_id", "launch_candidates", ["brand_id"])
     op.create_index("ix_launch_candidates_candidate_type", "launch_candidates", ["candidate_type"])
 
-    op.create_table("scale_blocker_reports",
+    op.create_table(
+        "scale_blocker_reports",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -106,7 +110,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_scale_blocker_reports_brand_id", "scale_blocker_reports", ["brand_id"])
 
-    op.create_table("notification_deliveries",
+    op.create_table(
+        "notification_deliveries",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -126,7 +131,8 @@ def upgrade() -> None:
     op.create_index("ix_notification_deliveries_brand_id", "notification_deliveries", ["brand_id"])
     op.create_index("ix_notification_deliveries_status", "notification_deliveries", ["status"])
 
-    op.create_table("launch_readiness_reports",
+    op.create_table(
+        "launch_readiness_reports",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),

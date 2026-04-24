@@ -6,6 +6,7 @@ Create Date: 2026-04-20
 
 Batch 4. Additive; each table guarded by ``IF NOT EXISTS``.
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -19,9 +20,7 @@ depends_on = None
 def _table_exists(name: str) -> bool:
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"
-        ),
+        sa.text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"),
         {"t": name},
     )
     return bool(result.scalar())
@@ -29,12 +28,9 @@ def _table_exists(name: str) -> bool:
 
 def _base_cols():
     return (
-        sa.Column("id", UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
-        sa.Column("created_at", sa.DateTime(timezone=True),
-                  server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True),
-                  server_default=sa.func.now(), nullable=False),
+        sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
 
 
@@ -60,8 +56,9 @@ def upgrade() -> None:
             sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
             sa.Column("source_module", sa.String(80), nullable=True),
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
-            sa.UniqueConstraint("org_id", "entity_type", "entity_id", "action_type",
-                                name="uq_gm_approvals_entity_action"),
+            sa.UniqueConstraint(
+                "org_id", "entity_type", "entity_id", "action_type", name="uq_gm_approvals_entity_action"
+            ),
         )
         for col in ("org_id", "action_type", "entity_type", "entity_id", "risk_level", "status"):
             op.create_index(f"ix_gm_approvals_{col}", "gm_approvals", [col])
@@ -89,8 +86,9 @@ def upgrade() -> None:
             sa.Column("occurrence_count", sa.Integer, nullable=False, server_default="1"),
             sa.Column("source_module", sa.String(80), nullable=True),
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
-            sa.UniqueConstraint("org_id", "entity_type", "entity_id", "reason_code",
-                                name="uq_gm_escalations_entity_reason"),
+            sa.UniqueConstraint(
+                "org_id", "entity_type", "entity_id", "reason_code", name="uq_gm_escalations_entity_reason"
+            ),
         )
         for col in ("org_id", "entity_type", "entity_id", "reason_code", "stage", "severity", "status"):
             op.create_index(f"ix_gm_escalations_{col}", "gm_escalations", [col])

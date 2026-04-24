@@ -1,4 +1,5 @@
 """Operator Copilot — sessions, messages, grounded summaries."""
+
 from __future__ import annotations
 
 import os
@@ -60,7 +61,9 @@ async def get_session_for_user(db: AsyncSession, session_id: uuid.UUID, user: Us
     return sess
 
 
-async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+async def _copilot_context(
+    db: AsyncSession, brand_id: uuid.UUID
+) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Gather grounded context from real DB state — not empty lists."""
     from packages.db.models.autonomous_execution import ExecutionBlockerEscalation
     from packages.db.models.buffer_distribution import BufferBlocker
@@ -77,69 +80,194 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
             d = {}
             for col in r.__table__.columns:
                 v = getattr(r, col.name, None)
-                d[col.name] = str(v) if hasattr(v, 'hex') else v
+                d[col.name] = str(v) if hasattr(v, "hex") else v
             d.update(extra_fields)
             out.append(d)
         return out
 
-    scale_alerts = _to_dicts(list((await db.execute(
-        select(OperatorAlert).where(OperatorAlert.brand_id == brand_id, OperatorAlert.is_active.is_(True)).limit(20)
-    )).scalars().all()))
+    scale_alerts = _to_dicts(
+        list(
+            (
+                await db.execute(
+                    select(OperatorAlert)
+                    .where(OperatorAlert.brand_id == brand_id, OperatorAlert.is_active.is_(True))
+                    .limit(20)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    )
 
-    growth_commands = _to_dicts(list((await db.execute(
-        select(GrowthCommand).where(GrowthCommand.brand_id == brand_id, GrowthCommand.is_active.is_(True)).limit(20)
-    )).scalars().all()))
+    growth_commands = _to_dicts(
+        list(
+            (
+                await db.execute(
+                    select(GrowthCommand)
+                    .where(GrowthCommand.brand_id == brand_id, GrowthCommand.is_active.is_(True))
+                    .limit(20)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    )
 
-    cr_blockers = _to_dicts(list((await db.execute(
-        select(CreatorRevenueBlocker).where(CreatorRevenueBlocker.brand_id == brand_id, CreatorRevenueBlocker.is_active.is_(True), CreatorRevenueBlocker.resolved.is_(False)).limit(20)
-    )).scalars().all()))
+    cr_blockers = _to_dicts(
+        list(
+            (
+                await db.execute(
+                    select(CreatorRevenueBlocker)
+                    .where(
+                        CreatorRevenueBlocker.brand_id == brand_id,
+                        CreatorRevenueBlocker.is_active.is_(True),
+                        CreatorRevenueBlocker.resolved.is_(False),
+                    )
+                    .limit(20)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    )
 
-    msg_blockers = _to_dicts(list((await db.execute(
-        select(MessagingBlocker).where(MessagingBlocker.brand_id == brand_id, MessagingBlocker.is_active.is_(True), MessagingBlocker.resolved.is_(False)).limit(20)
-    )).scalars().all()))
+    msg_blockers = _to_dicts(
+        list(
+            (
+                await db.execute(
+                    select(MessagingBlocker)
+                    .where(
+                        MessagingBlocker.brand_id == brand_id,
+                        MessagingBlocker.is_active.is_(True),
+                        MessagingBlocker.resolved.is_(False),
+                    )
+                    .limit(20)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    )
 
-    buf_blockers = _to_dicts(list((await db.execute(
-        select(BufferBlocker).where(BufferBlocker.brand_id == brand_id, BufferBlocker.is_active.is_(True), BufferBlocker.resolved.is_(False)).limit(20)
-    )).scalars().all()))
+    buf_blockers = _to_dicts(
+        list(
+            (
+                await db.execute(
+                    select(BufferBlocker)
+                    .where(
+                        BufferBlocker.brand_id == brand_id,
+                        BufferBlocker.is_active.is_(True),
+                        BufferBlocker.resolved.is_(False),
+                    )
+                    .limit(20)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    )
 
-    prov_blockers = _to_dicts(list((await db.execute(
-        select(ProviderBlocker).where(ProviderBlocker.brand_id == brand_id, ProviderBlocker.is_active.is_(True), ProviderBlocker.resolved.is_(False)).limit(20)
-    )).scalars().all()))
+    prov_blockers = _to_dicts(
+        list(
+            (
+                await db.execute(
+                    select(ProviderBlocker)
+                    .where(
+                        ProviderBlocker.brand_id == brand_id,
+                        ProviderBlocker.is_active.is_(True),
+                        ProviderBlocker.resolved.is_(False),
+                    )
+                    .limit(20)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    )
 
-    gk_alerts = _to_dicts(list((await db.execute(
-        select(GatekeeperAlert).where(GatekeeperAlert.brand_id == brand_id, GatekeeperAlert.is_active.is_(True)).limit(10)
-    )).scalars().all()))
+    gk_alerts = _to_dicts(
+        list(
+            (
+                await db.execute(
+                    select(GatekeeperAlert)
+                    .where(GatekeeperAlert.brand_id == brand_id, GatekeeperAlert.is_active.is_(True))
+                    .limit(10)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    )
 
-    expansion_advisories = _to_dicts(list((await db.execute(
-        select(AccountExpansionAdvisory).where(AccountExpansionAdvisory.brand_id == brand_id, AccountExpansionAdvisory.is_active.is_(True)).limit(5)
-    )).scalars().all()))
+    expansion_advisories = _to_dicts(
+        list(
+            (
+                await db.execute(
+                    select(AccountExpansionAdvisory)
+                    .where(AccountExpansionAdvisory.brand_id == brand_id, AccountExpansionAdvisory.is_active.is_(True))
+                    .limit(5)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    )
 
     autonomous_escalations = []
     try:
-        autonomous_escalations = _to_dicts(list((await db.execute(
-            select(ExecutionBlockerEscalation).where(ExecutionBlockerEscalation.brand_id == brand_id, ExecutionBlockerEscalation.is_active.is_(True)).limit(10)
-        )).scalars().all()))
+        autonomous_escalations = _to_dicts(
+            list(
+                (
+                    await db.execute(
+                        select(ExecutionBlockerEscalation)
+                        .where(
+                            ExecutionBlockerEscalation.brand_id == brand_id,
+                            ExecutionBlockerEscalation.is_active.is_(True),
+                        )
+                        .limit(10)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        )
     except Exception:
         logger.debug("autonomous_escalations unavailable", exc_info=True)
 
     all_blockers = scale_alerts + cr_blockers + msg_blockers + buf_blockers + prov_blockers + gk_alerts
-    failed_items = [a for a in scale_alerts if "fail" in str(a.get("alert_type", "")).lower() or "weak_lane" in str(a.get("alert_type", "")).lower()]
+    failed_items = [
+        a
+        for a in scale_alerts
+        if "fail" in str(a.get("alert_type", "")).lower() or "weak_lane" in str(a.get("alert_type", "")).lower()
+    ]
     pending_actions = expansion_advisories + [g for g in growth_commands if g.get("status") == "pending_approval"]
     provider_audit = build_provider_summary()
     quick = build_quick_status(all_blockers, failed_items, pending_actions, provider_audit)
 
-    winning_pattern_rows = list((await db.execute(
-        select(WinningPatternMemory)
-        .where(WinningPatternMemory.brand_id == brand_id, WinningPatternMemory.is_active.is_(True))
-        .order_by(desc(WinningPatternMemory.win_score))
-        .limit(10)
-    )).scalars().all())
-    losing_pattern_rows = list((await db.execute(
-        select(LosingPatternMemory)
-        .where(LosingPatternMemory.brand_id == brand_id, LosingPatternMemory.is_active.is_(True))
-        .order_by(desc(LosingPatternMemory.fail_score))
-        .limit(5)
-    )).scalars().all())
+    winning_pattern_rows = list(
+        (
+            await db.execute(
+                select(WinningPatternMemory)
+                .where(WinningPatternMemory.brand_id == brand_id, WinningPatternMemory.is_active.is_(True))
+                .order_by(desc(WinningPatternMemory.win_score))
+                .limit(10)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    losing_pattern_rows = list(
+        (
+            await db.execute(
+                select(LosingPatternMemory)
+                .where(LosingPatternMemory.brand_id == brand_id, LosingPatternMemory.is_active.is_(True))
+                .order_by(desc(LosingPatternMemory.fail_score))
+                .limit(5)
+            )
+        )
+        .scalars()
+        .all()
+    )
     quick["winning_patterns"] = [
         {"pattern_type": r.pattern_type, "pattern_name": r.pattern_name, "win_score": r.win_score}
         for r in winning_pattern_rows
@@ -150,61 +278,161 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
     ]
 
     from packages.db.models.promote_winner import ActiveExperiment, PromotedWinnerRule
-    active_exps = list((await db.execute(
-        select(ActiveExperiment).where(ActiveExperiment.brand_id == brand_id, ActiveExperiment.status == "active").limit(10)
-    )).scalars().all())
-    promo_rules = list((await db.execute(
-        select(PromotedWinnerRule).where(PromotedWinnerRule.brand_id == brand_id, PromotedWinnerRule.is_active.is_(True)).limit(10)
-    )).scalars().all())
-    quick["active_experiments"] = [{"name": e.experiment_name, "variable": e.tested_variable, "status": e.status} for e in active_exps]
-    quick["promoted_winner_rules"] = [{"rule_type": r.rule_type, "rule_key": r.rule_key, "boost": r.weight_boost} for r in promo_rules]
+
+    active_exps = list(
+        (
+            await db.execute(
+                select(ActiveExperiment)
+                .where(ActiveExperiment.brand_id == brand_id, ActiveExperiment.status == "active")
+                .limit(10)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    promo_rules = list(
+        (
+            await db.execute(
+                select(PromotedWinnerRule)
+                .where(PromotedWinnerRule.brand_id == brand_id, PromotedWinnerRule.is_active.is_(True))
+                .limit(10)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    quick["active_experiments"] = [
+        {"name": e.experiment_name, "variable": e.tested_variable, "status": e.status} for e in active_exps
+    ]
+    quick["promoted_winner_rules"] = [
+        {"rule_type": r.rule_type, "rule_key": r.rule_key, "boost": r.weight_boost} for r in promo_rules
+    ]
 
     from packages.db.models.capital_allocator import CAAllocationDecision, CapitalAllocationReport
-    alloc_report = (await db.execute(
-        select(CapitalAllocationReport).where(CapitalAllocationReport.brand_id == brand_id).order_by(CapitalAllocationReport.created_at.desc()).limit(1)
-    )).scalar_one_or_none()
+
+    alloc_report = (
+        await db.execute(
+            select(CapitalAllocationReport)
+            .where(CapitalAllocationReport.brand_id == brand_id)
+            .order_by(CapitalAllocationReport.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     if alloc_report:
         quick["capital_allocation"] = {
-            "total_budget": alloc_report.total_budget, "hero_spend": alloc_report.hero_spend,
-            "bulk_spend": alloc_report.bulk_spend, "starved_count": alloc_report.starved_count,
+            "total_budget": alloc_report.total_budget,
+            "hero_spend": alloc_report.hero_spend,
+            "bulk_spend": alloc_report.bulk_spend,
+            "starved_count": alloc_report.starved_count,
             "target_count": alloc_report.target_count,
         }
-        starved_decisions = list((await db.execute(
-            select(CAAllocationDecision).where(CAAllocationDecision.report_id == alloc_report.id, CAAllocationDecision.starved.is_(True))
-        )).scalars().all())
+        starved_decisions = list(
+            (
+                await db.execute(
+                    select(CAAllocationDecision).where(
+                        CAAllocationDecision.report_id == alloc_report.id, CAAllocationDecision.starved.is_(True)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
         quick["starved_lanes"] = [d.explanation for d in starved_decisions[:5]]
 
     from packages.db.models.account_state_intel import AccountStateReport
-    acct_states = list((await db.execute(
-        select(AccountStateReport).where(AccountStateReport.brand_id == brand_id, AccountStateReport.is_active.is_(True))
-    )).scalars().all())
+
+    acct_states = list(
+        (
+            await db.execute(
+                select(AccountStateReport).where(
+                    AccountStateReport.brand_id == brand_id, AccountStateReport.is_active.is_(True)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
     quick["account_states"] = [
-        {"account_id": str(s.account_id), "state": s.current_state, "monetization": s.monetization_intensity, "cadence": s.posting_cadence, "expansion": s.expansion_eligible, "next_move": s.next_best_move}
+        {
+            "account_id": str(s.account_id),
+            "state": s.current_state,
+            "monetization": s.monetization_intensity,
+            "cadence": s.posting_cadence,
+            "expansion": s.expansion_eligible,
+            "next_move": s.next_best_move,
+        }
         for s in acct_states[:10]
     ]
 
     from packages.db.models.quality_governor import QualityBlock, QualityGovernorReport
-    qg_fails = list((await db.execute(
-        select(QualityGovernorReport).where(QualityGovernorReport.brand_id == brand_id, QualityGovernorReport.verdict == "fail", QualityGovernorReport.is_active.is_(True)).limit(10)
-    )).scalars().all())
-    qg_blocks = list((await db.execute(
-        select(QualityBlock).where(QualityBlock.brand_id == brand_id, QualityBlock.is_active.is_(True)).limit(10)
-    )).scalars().all())
-    quick["quality_failures"] = [{"content_item_id": str(r.content_item_id), "score": r.total_score, "verdict": r.verdict} for r in qg_fails]
+
+    qg_fails = list(
+        (
+            await db.execute(
+                select(QualityGovernorReport)
+                .where(
+                    QualityGovernorReport.brand_id == brand_id,
+                    QualityGovernorReport.verdict == "fail",
+                    QualityGovernorReport.is_active.is_(True),
+                )
+                .limit(10)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    qg_blocks = list(
+        (
+            await db.execute(
+                select(QualityBlock)
+                .where(QualityBlock.brand_id == brand_id, QualityBlock.is_active.is_(True))
+                .limit(10)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    quick["quality_failures"] = [
+        {"content_item_id": str(r.content_item_id), "score": r.total_score, "verdict": r.verdict} for r in qg_fails
+    ]
     quick["quality_blocks"] = [{"content_item_id": str(b.content_item_id), "reason": b.block_reason} for b in qg_blocks]
 
     from packages.db.models.objection_mining import ObjectionCluster, ObjectionPriorityReport
-    obj_clusters = list((await db.execute(
-        select(ObjectionCluster).where(ObjectionCluster.brand_id == brand_id, ObjectionCluster.is_active.is_(True)).order_by(ObjectionCluster.avg_monetization_impact.desc()).limit(5)
-    )).scalars().all())
-    quick["top_objections"] = [{"type": c.objection_type, "count": c.signal_count, "impact": c.avg_monetization_impact, "angle": c.recommended_response_angle} for c in obj_clusters]
-    obj_report = (await db.execute(
-        select(ObjectionPriorityReport).where(ObjectionPriorityReport.brand_id == brand_id).order_by(ObjectionPriorityReport.created_at.desc()).limit(1)
-    )).scalar_one_or_none()
+
+    obj_clusters = list(
+        (
+            await db.execute(
+                select(ObjectionCluster)
+                .where(ObjectionCluster.brand_id == brand_id, ObjectionCluster.is_active.is_(True))
+                .order_by(ObjectionCluster.avg_monetization_impact.desc())
+                .limit(5)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    quick["top_objections"] = [
+        {
+            "type": c.objection_type,
+            "count": c.signal_count,
+            "impact": c.avg_monetization_impact,
+            "angle": c.recommended_response_angle,
+        }
+        for c in obj_clusters
+    ]
+    obj_report = (
+        await db.execute(
+            select(ObjectionPriorityReport)
+            .where(ObjectionPriorityReport.brand_id == brand_id)
+            .order_by(ObjectionPriorityReport.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     if obj_report:
         quick["objection_summary"] = obj_report.summary
 
     from apps.api.services.opportunity_cost_service import get_top_actions
+
     try:
         top_actions = await get_top_actions(db, brand_id, limit=5)
         quick["top_opportunity_actions"] = top_actions
@@ -213,57 +441,196 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         quick["top_opportunity_actions"] = []
 
     from packages.db.models.failure_family import FailureFamilyReport, SuppressionRule
-    ff_reports = list((await db.execute(
-        select(FailureFamilyReport).where(FailureFamilyReport.brand_id == brand_id, FailureFamilyReport.is_active.is_(True)).order_by(FailureFamilyReport.failure_count.desc()).limit(5)
-    )).scalars().all())
-    ff_rules = list((await db.execute(
-        select(SuppressionRule).where(SuppressionRule.brand_id == brand_id, SuppressionRule.is_active.is_(True))
-    )).scalars().all())
-    quick["failure_families"] = [{"type": f.family_type, "key": f.family_key, "count": f.failure_count, "alt": f.recommended_alternative} for f in ff_reports]
-    quick["active_suppressions"] = [{"type": r.family_type, "key": r.family_key, "mode": r.suppression_mode, "reason": r.reason} for r in ff_rules]
+
+    ff_reports = list(
+        (
+            await db.execute(
+                select(FailureFamilyReport)
+                .where(FailureFamilyReport.brand_id == brand_id, FailureFamilyReport.is_active.is_(True))
+                .order_by(FailureFamilyReport.failure_count.desc())
+                .limit(5)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    ff_rules = list(
+        (
+            await db.execute(
+                select(SuppressionRule).where(SuppressionRule.brand_id == brand_id, SuppressionRule.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    quick["failure_families"] = [
+        {"type": f.family_type, "key": f.family_key, "count": f.failure_count, "alt": f.recommended_alternative}
+        for f in ff_reports
+    ]
+    quick["active_suppressions"] = [
+        {"type": r.family_type, "key": r.family_key, "mode": r.suppression_mode, "reason": r.reason} for r in ff_rules
+    ]
 
     from packages.db.models.campaigns import Campaign as CampModel
     from packages.db.models.campaigns import CampaignBlocker as CBModel
-    camps = list((await db.execute(select(CampModel).where(CampModel.brand_id == brand_id, CampModel.is_active.is_(True)).order_by(CampModel.confidence.desc()).limit(5))).scalars().all())
-    camp_blockers = list((await db.execute(select(CBModel).where(CBModel.brand_id == brand_id, CBModel.is_active.is_(True)).limit(5))).scalars().all())
-    quick["campaigns"] = [{"name": c.campaign_name, "type": c.campaign_type, "status": c.launch_status, "confidence": c.confidence} for c in camps]
+
+    camps = list(
+        (
+            await db.execute(
+                select(CampModel)
+                .where(CampModel.brand_id == brand_id, CampModel.is_active.is_(True))
+                .order_by(CampModel.confidence.desc())
+                .limit(5)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    camp_blockers = list(
+        (await db.execute(select(CBModel).where(CBModel.brand_id == brand_id, CBModel.is_active.is_(True)).limit(5)))
+        .scalars()
+        .all()
+    )
+    quick["campaigns"] = [
+        {"name": c.campaign_name, "type": c.campaign_type, "status": c.launch_status, "confidence": c.confidence}
+        for c in camps
+    ]
     quick["campaign_blockers"] = [{"type": b.blocker_type, "desc": b.description} for b in camp_blockers]
 
     from packages.db.models.affiliate_intel import AffiliateBlocker as AFB
     from packages.db.models.affiliate_intel import AffiliateLeak as AFL
     from packages.db.models.affiliate_intel import AffiliateOffer as AFO
-    af_top = list((await db.execute(select(AFO).where(AFO.brand_id == brand_id, AFO.is_active.is_(True)).order_by(AFO.rank_score.desc()).limit(5))).scalars().all())
-    af_leaks = list((await db.execute(select(AFL).where(AFL.brand_id == brand_id, AFL.is_active.is_(True)).limit(5))).scalars().all())
-    af_blockers = list((await db.execute(select(AFB).where(AFB.brand_id == brand_id, AFB.is_active.is_(True)).limit(5))).scalars().all())
+
+    af_top = list(
+        (
+            await db.execute(
+                select(AFO)
+                .where(AFO.brand_id == brand_id, AFO.is_active.is_(True))
+                .order_by(AFO.rank_score.desc())
+                .limit(5)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    af_leaks = list(
+        (await db.execute(select(AFL).where(AFL.brand_id == brand_id, AFL.is_active.is_(True)).limit(5)))
+        .scalars()
+        .all()
+    )
+    af_blockers = list(
+        (await db.execute(select(AFB).where(AFB.brand_id == brand_id, AFB.is_active.is_(True)).limit(5)))
+        .scalars()
+        .all()
+    )
     quick["top_affiliate_offers"] = [{"name": o.product_name, "epc": o.epc, "rank": o.rank_score} for o in af_top]
-    quick["affiliate_leaks"] = [{"type": l.leak_type, "severity": l.severity, "loss": l.revenue_loss_estimate} for l in af_leaks]
+    quick["affiliate_leaks"] = [
+        {"type": l.leak_type, "severity": l.severity, "loss": l.revenue_loss_estimate} for l in af_leaks
+    ]
     quick["affiliate_blockers"] = [{"type": b.blocker_type, "desc": b.description} for b in af_blockers]
 
     from packages.db.models.brand_governance import BrandGovernanceViolation as BGV
-    bg_violations = list((await db.execute(select(BGV).where(BGV.brand_id == brand_id, BGV.is_active.is_(True)).order_by(BGV.created_at.desc()).limit(5))).scalars().all())
-    quick["governance_violations"] = [{"type": v.violation_type, "severity": v.severity, "detail": v.detail[:100]} for v in bg_violations]
+
+    bg_violations = list(
+        (
+            await db.execute(
+                select(BGV)
+                .where(BGV.brand_id == brand_id, BGV.is_active.is_(True))
+                .order_by(BGV.created_at.desc())
+                .limit(5)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    quick["governance_violations"] = [
+        {"type": v.violation_type, "severity": v.severity, "detail": v.detail[:100]} for v in bg_violations
+    ]
 
     from packages.db.models.enterprise_security import ComplianceControlReport, RiskOverrideEvent
-    compliance_fails = list((await db.execute(select(ComplianceControlReport).where(ComplianceControlReport.organization_id == brand_id, ComplianceControlReport.status == "not_met", ComplianceControlReport.is_active.is_(True)).limit(5))).scalars().all())
-    risk_overrides = list((await db.execute(select(RiskOverrideEvent).where(RiskOverrideEvent.organization_id == brand_id, RiskOverrideEvent.is_active.is_(True)).limit(3))).scalars().all())
-    quick["compliance_gaps"] = [{"framework": c.framework, "control": c.control_name, "status": c.status} for c in compliance_fails]
+
+    compliance_fails = list(
+        (
+            await db.execute(
+                select(ComplianceControlReport)
+                .where(
+                    ComplianceControlReport.organization_id == brand_id,
+                    ComplianceControlReport.status == "not_met",
+                    ComplianceControlReport.is_active.is_(True),
+                )
+                .limit(5)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    risk_overrides = list(
+        (
+            await db.execute(
+                select(RiskOverrideEvent)
+                .where(RiskOverrideEvent.organization_id == brand_id, RiskOverrideEvent.is_active.is_(True))
+                .limit(3)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    quick["compliance_gaps"] = [
+        {"framework": c.framework, "control": c.control_name, "status": c.status} for c in compliance_fails
+    ]
     quick["risk_overrides"] = [{"type": r.override_type, "reason": r.reason[:80]} for r in risk_overrides]
 
     from packages.db.models.workflow_builder import WorkflowInstance
-    pending_wf = list((await db.execute(select(WorkflowInstance).where(WorkflowInstance.status == "in_progress", WorkflowInstance.is_active.is_(True)).limit(5))).scalars().all())
-    quick["pending_workflows"] = [{"resource": i.resource_type, "step": i.current_step_order, "status": i.status} for i in pending_wf]
+
+    pending_wf = list(
+        (
+            await db.execute(
+                select(WorkflowInstance)
+                .where(WorkflowInstance.status == "in_progress", WorkflowInstance.is_active.is_(True))
+                .limit(5)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    quick["pending_workflows"] = [
+        {"resource": i.resource_type, "step": i.current_step_order, "status": i.status} for i in pending_wf
+    ]
 
     from packages.db.models.hyperscale import ScaleHealthReport as SHR
-    scale_health = (await db.execute(select(SHR).where(SHR.organization_id == brand_id).order_by(SHR.created_at.desc()).limit(1))).scalar_one_or_none()
+
+    scale_health = (
+        await db.execute(select(SHR).where(SHR.organization_id == brand_id).order_by(SHR.created_at.desc()).limit(1))
+    ).scalar_one_or_none()
     if scale_health:
-        quick["scale_health"] = {"status": scale_health.health_status, "queue_depth": scale_health.queue_depth_total, "ceiling_pct": scale_health.ceiling_utilization_pct, "recommendation": scale_health.recommendation}
+        quick["scale_health"] = {
+            "status": scale_health.health_status,
+            "queue_depth": scale_health.queue_depth_total,
+            "ceiling_pct": scale_health.ceiling_utilization_pct,
+            "recommendation": scale_health.recommendation,
+        }
 
     from packages.db.models.integrations_listening import ListeningCluster as LC
-    listening_clusters = list((await db.execute(select(LC).where(LC.organization_id == brand_id, LC.is_active.is_(True)).order_by(LC.signal_count.desc()).limit(3))).scalars().all())
-    quick["listening_signals"] = [{"type": c.cluster_type, "count": c.signal_count, "action": c.recommended_action} for c in listening_clusters]
+
+    listening_clusters = list(
+        (
+            await db.execute(
+                select(LC)
+                .where(LC.organization_id == brand_id, LC.is_active.is_(True))
+                .order_by(LC.signal_count.desc())
+                .limit(3)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    quick["listening_signals"] = [
+        {"type": c.cluster_type, "count": c.signal_count, "action": c.recommended_action} for c in listening_clusters
+    ]
 
     try:
         from apps.api.services.executive_intel_service import get_executive_summary
+
         exec_summary = await get_executive_summary(db, brand_id)
         if exec_summary.get("status") != "no_data":
             quick["executive_summary"] = exec_summary
@@ -272,6 +639,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     try:
         from apps.api.services.offer_lab_service import get_best_offer
+
         best_offer = await get_best_offer(db, brand_id)
         if best_offer.get("offer_id"):
             quick["best_offer"] = best_offer
@@ -280,6 +648,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     try:
         from apps.api.services.revenue_leak_service import get_leak_summary
+
         leak_summary = await get_leak_summary(db, brand_id)
         if leak_summary.get("total_leaks", 0) > 0:
             quick["revenue_leaks"] = leak_summary
@@ -288,6 +657,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     try:
         from apps.api.services.digital_twin_service import get_top_recommendations
+
         sim_recs = await get_top_recommendations(db, brand_id)
         if sim_recs:
             quick["simulation_recommendations"] = sim_recs
@@ -296,6 +666,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     try:
         from apps.api.services.recovery_engine_service import get_recovery_summary
+
         rec_summary = await get_recovery_summary(db, brand_id)
         if rec_summary.get("open_incidents", 0) > 0:
             quick["recovery_status"] = rec_summary
@@ -304,6 +675,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     try:
         from apps.api.services.operator_permission_service import get_autonomy_summary
+
         autonomy = await get_autonomy_summary(db, brand_id)
         quick["autonomy_matrix"] = autonomy
     except Exception:
@@ -311,6 +683,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     try:
         from apps.api.services.causal_attribution_service import get_attribution_summary
+
         causal = await get_attribution_summary(db, brand_id)
         if causal.get("reports"):
             quick["causal_attribution"] = causal
@@ -319,6 +692,7 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
     try:
         from apps.api.services.trend_viral_service import get_top_opportunities
+
         trends = await get_top_opportunities(db, brand_id, limit=3)
         if trends:
             quick["top_trend_opportunities"] = trends
@@ -328,9 +702,15 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
     # Fleet status, warmup phases, shadow ban alerts
     try:
         from packages.db.models.autonomous_farm import AccountWarmupPlan, FleetStatusReport
-        fleet = (await db.execute(
-            select(FleetStatusReport).where(FleetStatusReport.is_active.is_(True)).order_by(FleetStatusReport.created_at.desc()).limit(1)
-        )).scalar_one_or_none()
+
+        fleet = (
+            await db.execute(
+                select(FleetStatusReport)
+                .where(FleetStatusReport.is_active.is_(True))
+                .order_by(FleetStatusReport.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         if fleet:
             quick["fleet_status"] = {
                 "total_accounts": fleet.total_accounts,
@@ -345,13 +725,27 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
                 "expansion_details": fleet.expansion_details,
             }
 
-        warmup_plans = list((await db.execute(
-            select(AccountWarmupPlan).where(AccountWarmupPlan.brand_id == brand_id, AccountWarmupPlan.is_active.is_(True))
-        )).scalars().all())
+        warmup_plans = list(
+            (
+                await db.execute(
+                    select(AccountWarmupPlan).where(
+                        AccountWarmupPlan.brand_id == brand_id, AccountWarmupPlan.is_active.is_(True)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
         quick["warmup_accounts"] = [
-            {"account_id": str(w.account_id), "phase": w.current_phase, "age_days": w.age_days,
-             "max_posts_per_day": w.max_posts_per_day, "monetization_allowed": w.monetization_allowed,
-             "shadow_ban_detected": w.shadow_ban_detected, "shadow_ban_severity": w.shadow_ban_severity}
+            {
+                "account_id": str(w.account_id),
+                "phase": w.current_phase,
+                "age_days": w.age_days,
+                "max_posts_per_day": w.max_posts_per_day,
+                "monetization_allowed": w.monetization_allowed,
+                "shadow_ban_detected": w.shadow_ban_detected,
+                "shadow_ban_severity": w.shadow_ban_severity,
+            }
             for w in warmup_plans
         ]
         shadow_banned = [w for w in warmup_plans if w.shadow_ban_detected]
@@ -371,13 +765,20 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
         from packages.db.models.publishing import PerformanceMetric
         from packages.scoring.revenue_forecast_engine import forecast_revenue, generate_forecast_summary
+
         daily_revs = [
-            float(r[0]) for r in (await db.execute(
-                select(sqlfunc.coalesce(sqlfunc.sum(PerformanceMetric.revenue), 0.0))
-                .where(PerformanceMetric.brand_id == brand_id, PerformanceMetric.measured_at >= datetime.now(timezone.utc) - timedelta(days=30))
-                .group_by(sqlfunc.date(PerformanceMetric.measured_at))
-                .order_by(sqlfunc.date(PerformanceMetric.measured_at))
-            )).all()
+            float(r[0])
+            for r in (
+                await db.execute(
+                    select(sqlfunc.coalesce(sqlfunc.sum(PerformanceMetric.revenue), 0.0))
+                    .where(
+                        PerformanceMetric.brand_id == brand_id,
+                        PerformanceMetric.measured_at >= datetime.now(timezone.utc) - timedelta(days=30),
+                    )
+                    .group_by(sqlfunc.date(PerformanceMetric.measured_at))
+                    .order_by(sqlfunc.date(PerformanceMetric.measured_at))
+                )
+            ).all()
         ]
         if daily_revs and len(daily_revs) >= 7:
             forecast = forecast_revenue(daily_revs)
@@ -395,11 +796,15 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         from sqlalchemy import func as sqlfunc
 
         from packages.db.models.publishing import PerformanceMetric
+
         month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        mtd_revenue = (await db.execute(
-            select(sqlfunc.coalesce(sqlfunc.sum(PerformanceMetric.revenue), 0.0))
-            .where(PerformanceMetric.brand_id == brand_id, PerformanceMetric.measured_at >= month_start)
-        )).scalar() or 0.0
+        mtd_revenue = (
+            await db.execute(
+                select(sqlfunc.coalesce(sqlfunc.sum(PerformanceMetric.revenue), 0.0)).where(
+                    PerformanceMetric.brand_id == brand_id, PerformanceMetric.measured_at >= month_start
+                )
+            )
+        ).scalar() or 0.0
         quick["monthly_revenue_mtd"] = round(float(mtd_revenue), 2)
     except Exception:
         logger.debug("copilot context enrichment failed", exc_info=True)
@@ -414,31 +819,54 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
 
         top_niches = rank_niches(top_n=10)
         quick["niche_rankings"] = [
-            {"niche": n["niche"], "platform": n["platform"], "score": n["composite_score"],
-             "monetization": n["monetization_score"], "cpm": n["avg_cpm"], "evergreen": n["evergreen"]}
+            {
+                "niche": n["niche"],
+                "platform": n["platform"],
+                "score": n["composite_score"],
+                "monetization": n["monetization_score"],
+                "cpm": n["avg_cpm"],
+                "evergreen": n["evergreen"],
+            }
             for n in top_niches
         ]
 
         all_programs = []
         for key, prog in AFFILIATE_PROGRAMS.items():
-            all_programs.append({
-                "name": prog["name"], "key": key, "type": prog["type"],
-                "commission": prog["commission_range"], "avg_payout": prog["avg_payout"],
-                "best_niches": prog["best_niches"][:5],
-                "configured": all(os.environ.get(k) for k in prog["env_keys"]) if prog["env_keys"] else True,
-            })
+            all_programs.append(
+                {
+                    "name": prog["name"],
+                    "key": key,
+                    "type": prog["type"],
+                    "commission": prog["commission_range"],
+                    "avg_payout": prog["avg_payout"],
+                    "best_niches": prog["best_niches"][:5],
+                    "configured": all(os.environ.get(k) for k in prog["env_keys"]) if prog["env_keys"] else True,
+                }
+            )
         all_programs.sort(key=lambda x: x["avg_payout"], reverse=True)
         quick["affiliate_programs"] = all_programs
 
-        current_accounts = list((await db.execute(
-            select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-        )).scalars().all())
+        current_accounts = list(
+            (
+                await db.execute(
+                    select(CreatorAccount).where(
+                        CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
         quick["current_accounts"] = [
-            {"platform": getattr(a.platform, 'value', str(a.platform)), "username": a.platform_username, "niche": a.niche_focus or "general"}
+            {
+                "platform": getattr(a.platform, "value", str(a.platform)),
+                "username": a.platform_username,
+                "niche": a.niche_focus or "general",
+            }
             for a in current_accounts
         ]
 
-        covered_platforms = set(getattr(a.platform, 'value', str(a.platform)) for a in current_accounts)
+        covered_platforms = set(getattr(a.platform, "value", str(a.platform)) for a in current_accounts)
         all_platforms = {"youtube", "tiktok", "instagram", "x", "linkedin"}
         missing_platforms = all_platforms - covered_platforms
         quick["missing_platforms"] = list(missing_platforms)
@@ -461,38 +889,57 @@ async def _copilot_context(db: AsyncSession, brand_id: uuid.UUID) -> tuple[dict[
         from packages.db.models.publishing import PerformanceMetric
 
         niche_revenue = {}
-        accts = list((await db.execute(
-            select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-        )).scalars().all())
+        accts = list(
+            (
+                await db.execute(
+                    select(CreatorAccount).where(
+                        CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
         for acct in accts:
             niche = acct.niche_focus or "general"
-            rev = (await db.execute(
-                select(sqlfunc.coalesce(sqlfunc.sum(PerformanceMetric.revenue), 0.0))
-                .where(PerformanceMetric.creator_account_id == acct.id)
-            )).scalar() or 0.0
+            rev = (
+                await db.execute(
+                    select(sqlfunc.coalesce(sqlfunc.sum(PerformanceMetric.revenue), 0.0)).where(
+                        PerformanceMetric.creator_account_id == acct.id
+                    )
+                )
+            ).scalar() or 0.0
             niche_revenue[niche] = niche_revenue.get(niche, 0) + float(rev)
         if niche_revenue:
-            quick["revenue_by_niche"] = {k: round(v, 2) for k, v in sorted(niche_revenue.items(), key=lambda x: x[1], reverse=True)}
+            quick["revenue_by_niche"] = {
+                k: round(v, 2) for k, v in sorted(niche_revenue.items(), key=lambda x: x[1], reverse=True)
+            }
     except Exception:
         logger.debug("copilot context enrichment failed", exc_info=True)
 
-    actions = build_operator_actions(scale_alerts, growth_commands, cr_blockers, msg_blockers, buf_blockers, prov_blockers, autonomous_escalations)
+    actions = build_operator_actions(
+        scale_alerts, growth_commands, cr_blockers, msg_blockers, buf_blockers, prov_blockers, autonomous_escalations
+    )
     missing = build_missing_items()
     return quick, actions, missing, provider_audit
 
 
 async def list_sessions(db: AsyncSession, brand_id: uuid.UUID, user_id: uuid.UUID) -> list[CopilotChatSession]:
     rows = (
-        await db.execute(
-            select(CopilotChatSession)
-            .where(
-                CopilotChatSession.brand_id == brand_id,
-                CopilotChatSession.user_id == user_id,
-                CopilotChatSession.is_active.is_(True),
+        (
+            await db.execute(
+                select(CopilotChatSession)
+                .where(
+                    CopilotChatSession.brand_id == brand_id,
+                    CopilotChatSession.user_id == user_id,
+                    CopilotChatSession.is_active.is_(True),
+                )
+                .order_by(CopilotChatSession.updated_at.desc())
             )
-            .order_by(CopilotChatSession.updated_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 
@@ -508,15 +955,19 @@ async def list_messages(db: AsyncSession, session_id: uuid.UUID, user: User) -> 
     if not sess:
         return None
     rows = (
-        await db.execute(
-            select(CopilotChatMessage)
-            .where(
-                CopilotChatMessage.session_id == session_id,
-                CopilotChatMessage.is_active.is_(True),
+        (
+            await db.execute(
+                select(CopilotChatMessage)
+                .where(
+                    CopilotChatMessage.session_id == session_id,
+                    CopilotChatMessage.is_active.is_(True),
+                )
+                .order_by(CopilotChatMessage.created_at.asc())
             )
-            .order_by(CopilotChatMessage.created_at.asc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [_message_to_dict(m) for m in rows]
 
 
@@ -551,6 +1002,7 @@ async def post_message(
     quick, actions, missing, providers = await _copilot_context(db, sess.brand_id)
 
     from packages.clients.claude_client import ClaudeCopilotClient
+
     claude = ClaudeCopilotClient()
     claude_result = await claude.generate_response(content, quick, actions, missing, providers)
 

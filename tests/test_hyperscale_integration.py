@@ -1,4 +1,5 @@
 """DB-backed integration tests for Hyper-Scale Execution."""
+
 from __future__ import annotations
 
 import uuid
@@ -29,11 +30,36 @@ from packages.db.models.hyperscale import (
 async def org_with_segments(db_session: AsyncSession):
     slug = f"hs-{uuid.uuid4().hex[:6]}"
     org = Organization(name="HS Org", slug=f"org-{slug}")
-    db_session.add(org); await db_session.flush()
+    db_session.add(org)
+    await db_session.flush()
 
-    db_session.add(ExecutionQueueSegment(organization_id=org.id, segment_key="brand_a:gen:50", segment_type="generation", queue_depth=30, running_count=5, max_concurrency=20, priority=50))
-    db_session.add(ExecutionQueueSegment(organization_id=org.id, segment_key="brand_b:gen:80", segment_type="generation", queue_depth=10, running_count=2, max_concurrency=15, priority=80))
-    db_session.add(UsageCeilingRule(organization_id=org.id, ceiling_type="monthly_cost", max_value=500.0, current_value=350.0, period="monthly"))
+    db_session.add(
+        ExecutionQueueSegment(
+            organization_id=org.id,
+            segment_key="brand_a:gen:50",
+            segment_type="generation",
+            queue_depth=30,
+            running_count=5,
+            max_concurrency=20,
+            priority=50,
+        )
+    )
+    db_session.add(
+        ExecutionQueueSegment(
+            organization_id=org.id,
+            segment_key="brand_b:gen:80",
+            segment_type="generation",
+            queue_depth=10,
+            running_count=2,
+            max_concurrency=15,
+            priority=80,
+        )
+    )
+    db_session.add(
+        UsageCeilingRule(
+            organization_id=org.id, ceiling_type="monthly_cost", max_value=500.0, current_value=350.0, period="monthly"
+        )
+    )
     await db_session.flush()
     return org
 
@@ -46,19 +72,34 @@ async def test_recompute_capacity(db_session, org_with_segments):
     assert result["status"] == "completed"
     assert result["rows_processed"] >= 3
 
-    caps = (await db_session.execute(select(ExecutionCapacityReport).where(ExecutionCapacityReport.organization_id == org.id))).scalars().all()
+    caps = (
+        (
+            await db_session.execute(
+                select(ExecutionCapacityReport).where(ExecutionCapacityReport.organization_id == org.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(caps) == 1
     assert caps[0].total_queued == 40
 
-    health = (await db_session.execute(select(ScaleHealthReport).where(ScaleHealthReport.organization_id == org.id))).scalars().all()
+    health = (
+        (await db_session.execute(select(ScaleHealthReport).where(ScaleHealthReport.organization_id == org.id)))
+        .scalars()
+        .all()
+    )
     assert len(health) == 1
 
 
 @pytest.mark.asyncio
 async def test_health_report_generated(db_session, org_with_segments):
     org = org_with_segments
-    await recompute_capacity(db_session, org.id); await db_session.commit()
-    health = (await db_session.execute(select(ScaleHealthReport).where(ScaleHealthReport.organization_id == org.id))).scalar_one()
+    await recompute_capacity(db_session, org.id)
+    await db_session.commit()
+    health = (
+        await db_session.execute(select(ScaleHealthReport).where(ScaleHealthReport.organization_id == org.id))
+    ).scalar_one()
     assert health.health_status in ("healthy", "busy", "degraded", "critical")
     assert health.queue_depth_total == 40
 
@@ -66,7 +107,8 @@ async def test_health_report_generated(db_session, org_with_segments):
 @pytest.mark.asyncio
 async def test_list_capacity(db_session, org_with_segments):
     org = org_with_segments
-    await recompute_capacity(db_session, org.id); await db_session.commit()
+    await recompute_capacity(db_session, org.id)
+    await db_session.commit()
     caps = await list_capacity(db_session, org.id)
     assert len(caps) == 1
 
@@ -89,7 +131,8 @@ async def test_list_ceilings(db_session, org_with_segments):
 @pytest.mark.asyncio
 async def test_list_scale_health(db_session, org_with_segments):
     org = org_with_segments
-    await recompute_capacity(db_session, org.id); await db_session.commit()
+    await recompute_capacity(db_session, org.id)
+    await db_session.commit()
     health = await list_scale_health(db_session, org.id)
     assert len(health) == 1
 
@@ -97,7 +140,8 @@ async def test_list_scale_health(db_session, org_with_segments):
 @pytest.mark.asyncio
 async def test_get_execution_health(db_session, org_with_segments):
     org = org_with_segments
-    await recompute_capacity(db_session, org.id); await db_session.commit()
+    await recompute_capacity(db_session, org.id)
+    await db_session.commit()
     h = await get_execution_health(db_session, org.id)
     assert "health_status" in h
     assert "recommendation" in h
@@ -106,13 +150,24 @@ async def test_get_execution_health(db_session, org_with_segments):
 @pytest.mark.asyncio
 async def test_idempotent(db_session, org_with_segments):
     org = org_with_segments
-    await recompute_capacity(db_session, org.id); await db_session.commit()
-    await recompute_capacity(db_session, org.id); await db_session.commit()
-    caps = (await db_session.execute(select(ExecutionCapacityReport).where(ExecutionCapacityReport.organization_id == org.id))).scalars().all()
+    await recompute_capacity(db_session, org.id)
+    await db_session.commit()
+    await recompute_capacity(db_session, org.id)
+    await db_session.commit()
+    caps = (
+        (
+            await db_session.execute(
+                select(ExecutionCapacityReport).where(ExecutionCapacityReport.organization_id == org.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(caps) == 1
 
 
 def test_hyperscale_worker_registered():
     import workers.hyperscale_worker.tasks  # noqa: F401
     from workers.celery_app import app
+
     assert "workers.hyperscale_worker.tasks.recompute_scale_capacity" in app.tasks

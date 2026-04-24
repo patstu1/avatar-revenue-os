@@ -8,6 +8,7 @@ Batch 3B. Additive schema — no changes to existing tables. Each table
 is guarded by ``IF NOT EXISTS`` so re-running on a partially migrated
 DB is safe.
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -21,9 +22,7 @@ depends_on = None
 def _table_exists(name: str) -> bool:
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"
-        ),
+        sa.text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"),
         {"t": name},
     )
     return bool(result.scalar())
@@ -74,8 +73,7 @@ def upgrade() -> None:
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
             sa.UniqueConstraint("org_id", "primary_email", name="uq_clients_org_email"),
         )
-        for col in ("org_id", "brand_id", "primary_email", "first_proposal_id",
-                    "first_payment_id", "status"):
+        for col in ("org_id", "brand_id", "primary_email", "first_proposal_id", "first_payment_id", "status"):
             op.create_index(f"ix_clients_{col}", "clients", [col])
 
     # 2. intake_requests  (must come before client_onboarding_events because FK)
@@ -101,8 +99,7 @@ def upgrade() -> None:
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
             sa.UniqueConstraint("token", name="uq_intake_requests_token"),
         )
-        for col in ("org_id", "client_id", "proposal_id", "payment_id",
-                    "token", "status"):
+        for col in ("org_id", "client_id", "proposal_id", "payment_id", "token", "status"):
             op.create_index(f"ix_intake_requests_{col}", "intake_requests", [col])
 
     # 3. intake_submissions
@@ -136,21 +133,32 @@ def upgrade() -> None:
             sa.Column("proposal_id", UUID(as_uuid=True), sa.ForeignKey("proposals.id"), nullable=True),
             sa.Column("payment_id", UUID(as_uuid=True), sa.ForeignKey("payments.id"), nullable=True),
             sa.Column("intake_request_id", UUID(as_uuid=True), sa.ForeignKey("intake_requests.id"), nullable=True),
-            sa.Column("intake_submission_id", UUID(as_uuid=True), sa.ForeignKey("intake_submissions.id"), nullable=True),
+            sa.Column(
+                "intake_submission_id", UUID(as_uuid=True), sa.ForeignKey("intake_submissions.id"), nullable=True
+            ),
             sa.Column("details_json", JSONB, nullable=True),
             sa.Column("actor_type", sa.String(30), nullable=False, server_default="system"),
             sa.Column("actor_id", sa.String(255), nullable=True),
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
         )
-        for col in ("client_id", "org_id", "event_type", "proposal_id", "payment_id",
-                    "intake_request_id", "intake_submission_id"):
+        for col in (
+            "client_id",
+            "org_id",
+            "event_type",
+            "proposal_id",
+            "payment_id",
+            "intake_request_id",
+            "intake_submission_id",
+        ):
             op.create_index(f"ix_client_onb_events_{col}", "client_onboarding_events", [col])
 
 
 def downgrade() -> None:
     for name in (
-        "client_onboarding_events", "intake_submissions",
-        "intake_requests", "clients",
+        "client_onboarding_events",
+        "intake_submissions",
+        "intake_requests",
+        "clients",
     ):
         if _table_exists(name):
             op.drop_table(name)

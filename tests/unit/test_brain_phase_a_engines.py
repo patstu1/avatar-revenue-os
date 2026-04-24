@@ -13,6 +13,7 @@ from packages.scoring.brain_phase_a_engine import (
 
 # ── Account State Engine ──────────────────────────────────────────────
 
+
 class TestComputeAccountState:
     def test_newborn_account(self):
         result = compute_account_state({"age_days": 5, "follower_count": 50})
@@ -24,37 +25,57 @@ class TestComputeAccountState:
         assert result["current_state"] == "warming"
 
     def test_stable_account(self):
-        result = compute_account_state({
-            "age_days": 90, "follower_count": 500,
-            "avg_engagement": 0.02, "profit_per_post": 5,
-        })
+        result = compute_account_state(
+            {
+                "age_days": 90,
+                "follower_count": 500,
+                "avg_engagement": 0.02,
+                "profit_per_post": 5,
+            }
+        )
         assert result["current_state"] == "stable"
 
     def test_scaling_account(self):
-        result = compute_account_state({
-            "age_days": 120, "follower_count": 2000,
-            "avg_engagement": 0.03, "profit_per_post": 10,
-        })
+        result = compute_account_state(
+            {
+                "age_days": 120,
+                "follower_count": 2000,
+                "avg_engagement": 0.03,
+                "profit_per_post": 10,
+            }
+        )
         assert result["current_state"] == "scaling"
 
     def test_max_output_account(self):
-        result = compute_account_state({
-            "age_days": 200, "follower_count": 10000,
-            "avg_engagement": 0.04, "profit_per_post": 20,
-            "posting_capacity_per_day": 2, "output_per_week": 12,
-        })
+        result = compute_account_state(
+            {
+                "age_days": 200,
+                "follower_count": 10000,
+                "avg_engagement": 0.04,
+                "profit_per_post": 20,
+                "posting_capacity_per_day": 2,
+                "output_per_week": 12,
+            }
+        )
         assert result["current_state"] == "max_output"
 
     def test_saturated_account(self):
-        result = compute_account_state({
-            "age_days": 200, "saturation_score": 0.8,
-        })
+        result = compute_account_state(
+            {
+                "age_days": 200,
+                "saturation_score": 0.8,
+            }
+        )
         assert result["current_state"] == "saturated"
 
     def test_cooling_account(self):
-        result = compute_account_state({
-            "age_days": 200, "fatigue_score": 0.7, "saturation_score": 0.3,
-        })
+        result = compute_account_state(
+            {
+                "age_days": 200,
+                "fatigue_score": 0.7,
+                "saturation_score": 0.3,
+            }
+        )
         assert result["current_state"] == "cooling"
 
     def test_at_risk_account(self):
@@ -63,7 +84,14 @@ class TestComputeAccountState:
 
     def test_output_has_all_fields(self):
         result = compute_account_state({"age_days": 30})
-        for key in ["current_state", "state_score", "transition_reason", "next_expected_state", "confidence", "explanation"]:
+        for key in [
+            "current_state",
+            "state_score",
+            "transition_reason",
+            "next_expected_state",
+            "confidence",
+            "explanation",
+        ]:
             assert key in result
 
     def test_confidence_bounded(self):
@@ -72,6 +100,7 @@ class TestComputeAccountState:
 
 
 # ── Opportunity State Engine ──────────────────────────────────────────
+
 
 class TestComputeOpportunityState:
     def test_blocked_opportunity(self):
@@ -83,15 +112,22 @@ class TestComputeOpportunityState:
         assert result["current_state"] == "suppress"
 
     def test_scale_winner(self):
-        result = compute_opportunity_state({
-            "opportunity_score": 0.7, "tests_run": 3, "win_rate": 0.6,
-        })
+        result = compute_opportunity_state(
+            {
+                "opportunity_score": 0.7,
+                "tests_run": 3,
+                "win_rate": 0.6,
+            }
+        )
         assert result["current_state"] == "scale"
 
     def test_test_phase(self):
-        result = compute_opportunity_state({
-            "opportunity_score": 0.5, "readiness": 0.6,
-        })
+        result = compute_opportunity_state(
+            {
+                "opportunity_score": 0.5,
+                "readiness": 0.6,
+            }
+        )
         assert result["current_state"] == "test"
 
     def test_monitor_phase(self):
@@ -108,6 +144,7 @@ class TestComputeOpportunityState:
 
 
 # ── Execution State Engine ────────────────────────────────────────────
+
 
 class TestComputeExecutionState:
     def test_completed(self):
@@ -129,21 +166,33 @@ class TestComputeExecutionState:
         assert result["current_state"] == "blocked"
 
     def test_autonomous_execution(self):
-        result = compute_execution_state({
-            "execution_mode": "autonomous", "confidence": 0.85, "estimated_cost": 20,
-        })
+        result = compute_execution_state(
+            {
+                "execution_mode": "autonomous",
+                "confidence": 0.85,
+                "estimated_cost": 20,
+            }
+        )
         assert result["current_state"] == "autonomous"
 
     def test_guarded_low_confidence(self):
-        result = compute_execution_state({
-            "execution_mode": "autonomous", "confidence": 0.5, "estimated_cost": 20,
-        })
+        result = compute_execution_state(
+            {
+                "execution_mode": "autonomous",
+                "confidence": 0.5,
+                "estimated_cost": 20,
+            }
+        )
         assert result["current_state"] == "guarded"
 
     def test_guarded_high_cost(self):
-        result = compute_execution_state({
-            "execution_mode": "autonomous", "confidence": 0.85, "estimated_cost": 100,
-        })
+        result = compute_execution_state(
+            {
+                "execution_mode": "autonomous",
+                "confidence": 0.85,
+                "estimated_cost": 100,
+            }
+        )
         assert result["current_state"] == "guarded"
 
     def test_manual(self):
@@ -156,6 +205,7 @@ class TestComputeExecutionState:
 
 
 # ── Audience State V2 Engine ──────────────────────────────────────────
+
 
 class TestComputeAudienceStateV2:
     def test_unaware(self):
@@ -214,6 +264,7 @@ class TestComputeAudienceStateV2:
 
 # ── Brain Memory Consolidation ────────────────────────────────────────
 
+
 class TestConsolidateBrainMemory:
     def test_empty_context_returns_confidence_adjustment(self):
         result = consolidate_brain_memory({})
@@ -222,7 +273,16 @@ class TestConsolidateBrainMemory:
 
     def test_winner_account_creates_entry(self):
         ctx = {
-            "accounts": [{"id": "abc123", "platform": "tiktok", "niche": "finance", "profit_per_post": 15, "avg_engagement": 0.04, "age_days": 90}],
+            "accounts": [
+                {
+                    "id": "abc123",
+                    "platform": "tiktok",
+                    "niche": "finance",
+                    "profit_per_post": 15,
+                    "avg_engagement": 0.04,
+                    "age_days": 90,
+                }
+            ],
             "offers": [],
             "suppression_history": [],
             "recovery_incidents": [],
@@ -233,7 +293,16 @@ class TestConsolidateBrainMemory:
 
     def test_loser_account_creates_entry(self):
         ctx = {
-            "accounts": [{"id": "xyz789", "platform": "instagram", "niche": "health", "profit_per_post": 0.5, "avg_engagement": 0.005, "age_days": 90}],
+            "accounts": [
+                {
+                    "id": "xyz789",
+                    "platform": "instagram",
+                    "niche": "health",
+                    "profit_per_post": 0.5,
+                    "avg_engagement": 0.005,
+                    "age_days": 90,
+                }
+            ],
             "offers": [],
             "suppression_history": [],
             "recovery_incidents": [],
@@ -257,7 +326,15 @@ class TestConsolidateBrainMemory:
         ctx = {
             "accounts": [],
             "offers": [],
-            "suppression_history": [{"scope_type": "content", "scope_id": "s1", "reason": "audience fatigue", "confidence": 0.7, "detail": {}}],
+            "suppression_history": [
+                {
+                    "scope_type": "content",
+                    "scope_id": "s1",
+                    "reason": "audience fatigue",
+                    "confidence": 0.7,
+                    "detail": {},
+                }
+            ],
             "recovery_incidents": [],
             "top_content": [],
         }
@@ -269,7 +346,17 @@ class TestConsolidateBrainMemory:
             "accounts": [],
             "offers": [],
             "suppression_history": [],
-            "recovery_incidents": [{"scope_type": "system", "scope_id": "r1", "incident_type": "provider_failure", "confidence": 0.55, "detail": {}, "explanation": "API down", "fix": "switch provider"}],
+            "recovery_incidents": [
+                {
+                    "scope_type": "system",
+                    "scope_id": "r1",
+                    "incident_type": "provider_failure",
+                    "confidence": 0.55,
+                    "detail": {},
+                    "explanation": "API down",
+                    "fix": "switch provider",
+                }
+            ],
             "top_content": [],
         }
         result = consolidate_brain_memory(ctx)
@@ -277,7 +364,16 @@ class TestConsolidateBrainMemory:
 
     def test_entry_types_are_valid(self):
         ctx = {
-            "accounts": [{"id": "a1", "platform": "youtube", "niche": "gaming", "profit_per_post": 20, "avg_engagement": 0.05, "age_days": 100}],
+            "accounts": [
+                {
+                    "id": "a1",
+                    "platform": "youtube",
+                    "niche": "gaming",
+                    "profit_per_post": 20,
+                    "avg_engagement": 0.05,
+                    "age_days": 100,
+                }
+            ],
             "offers": [{"id": "o1", "niche": "gaming", "epc": 4.0, "conversion_rate": 0.06}],
             "suppression_history": [],
             "recovery_incidents": [],

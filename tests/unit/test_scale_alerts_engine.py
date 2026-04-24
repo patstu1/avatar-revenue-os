@@ -11,20 +11,37 @@ from packages.scoring.scale_alerts_engine import (
 
 
 def _scale_rec(**kw):
-    base = {"recommendation_key": "add_experimental_account", "scale_readiness_score": 72,
-            "incremental_profit_new_account": 180, "incremental_profit_existing_push": 22,
-            "explanation": "Expansion profitable.", "best_next_account": {"rationale": "Test"}, "id": "rec1"}
+    base = {
+        "recommendation_key": "add_experimental_account",
+        "scale_readiness_score": 72,
+        "incremental_profit_new_account": 180,
+        "incremental_profit_existing_push": 22,
+        "explanation": "Expansion profitable.",
+        "best_next_account": {"rationale": "Test"},
+        "id": "rec1",
+    }
     base.update(kw)
     return base
 
 
 def _accounts():
     return [
-        {"id": "a1", "platform": "youtube", "geography": "US", "language": "en",
-         "niche_focus": "finance", "username": "@test", "follower_count": 10000,
-         "fatigue_score": 0.2, "saturation_score": 0.15, "originality_drift_score": 0.1,
-         "account_health": "healthy", "ctr": 0.03, "conversion_rate": 0.03,
-         "posting_capacity_per_day": 2}
+        {
+            "id": "a1",
+            "platform": "youtube",
+            "geography": "US",
+            "language": "en",
+            "niche_focus": "finance",
+            "username": "@test",
+            "follower_count": 10000,
+            "fatigue_score": 0.2,
+            "saturation_score": 0.15,
+            "originality_drift_score": 0.1,
+            "account_health": "healthy",
+            "ctr": 0.03,
+            "conversion_rate": 0.03,
+            "posting_capacity_per_day": 2,
+        }
     ]
 
 
@@ -73,7 +90,9 @@ def test_scale_alerts_many_leaks():
 
 
 def test_launch_candidate_from_scale_rec():
-    candidates = generate_launch_candidates(_scale_rec(), _accounts(), "finance", 0.15, 0.85, [{"id": "o1", "name": "Offer"}])
+    candidates = generate_launch_candidates(
+        _scale_rec(), _accounts(), "finance", 0.15, 0.85, [{"id": "o1", "name": "Offer"}]
+    )
     assert len(candidates) == 1
     c = candidates[0]
     assert c["candidate_type"] == "experimental_account"
@@ -83,7 +102,9 @@ def test_launch_candidate_from_scale_rec():
 
 
 def test_launch_candidate_flagship_from_scale_winners():
-    candidates = generate_launch_candidates(_scale_rec(recommendation_key="scale_current_winners_harder"), _accounts(), "finance", 0.15, 0.85, [])
+    candidates = generate_launch_candidates(
+        _scale_rec(recommendation_key="scale_current_winners_harder"), _accounts(), "finance", 0.15, 0.85, []
+    )
     assert len(candidates) >= 1
     assert any(c["candidate_type"] == "flagship_expansion" for c in candidates)
 

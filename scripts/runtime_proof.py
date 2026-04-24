@@ -10,6 +10,7 @@ actually works at runtime — not just that imports are clean, but that
 real database writes happen, real events are emitted, real actions are
 created, and real state transitions occur.
 """
+
 import asyncio
 import os
 import sys
@@ -19,7 +20,9 @@ import uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # ── Setup ──────────────────────────────────────────────────────────
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os"
+)
 os.environ.setdefault("DATABASE_URL_SYNC", "postgresql://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 
 from sqlalchemy import func, select, text
@@ -77,15 +80,20 @@ async def run_all_proofs():
         await db.flush()
 
         user = User(
-            organization_id=org.id, email=f"proof_{uuid.uuid4().hex[:6]}@test.com",
-            hashed_password="proof", full_name="Proof User", role="admin",
+            organization_id=org.id,
+            email=f"proof_{uuid.uuid4().hex[:6]}@test.com",
+            hashed_password="proof",
+            full_name="Proof User",
+            role="admin",
         )
         db.add(user)
         await db.flush()
 
         brand = Brand(
-            organization_id=org.id, name=f"Proof Brand {uuid.uuid4().hex[:6]}",
-            slug=f"proof-brand-{uuid.uuid4().hex[:6]}", niche="testing",
+            organization_id=org.id,
+            name=f"Proof Brand {uuid.uuid4().hex[:6]}",
+            slug=f"proof-brand-{uuid.uuid4().hex[:6]}",
+            niche="testing",
         )
         db.add(brand)
         await db.flush()
@@ -104,56 +112,84 @@ async def run_all_proofs():
         # 1a. Create event across content domain
         correlation = uuid.uuid4()
         evt1 = await emit_event(
-            db, domain="content", event_type="content.generating",
+            db,
+            domain="content",
+            event_type="content.generating",
             summary="Proof: content generation started",
-            org_id=org.id, brand_id=brand.id,
-            entity_type="content_brief", entity_id=uuid.uuid4(),
-            previous_state="draft", new_state="generating",
-            severity="info", correlation_id=correlation,
+            org_id=org.id,
+            brand_id=brand.id,
+            entity_type="content_brief",
+            entity_id=uuid.uuid4(),
+            previous_state="draft",
+            new_state="generating",
+            severity="info",
+            correlation_id=correlation,
         )
         record("Event creation (content domain)", evt1.id is not None, f"id={evt1.id}")
 
         # 1b. Correlated event in same flow
         evt2 = await emit_event(
-            db, domain="content", event_type="content.generated",
+            db,
+            domain="content",
+            event_type="content.generated",
             summary="Proof: content generated",
-            org_id=org.id, brand_id=brand.id,
-            entity_type="script", entity_id=uuid.uuid4(),
-            previous_state="generating", new_state="generated",
-            correlation_id=correlation, parent_event_id=evt1.id,
+            org_id=org.id,
+            brand_id=brand.id,
+            entity_type="script",
+            entity_id=uuid.uuid4(),
+            previous_state="generating",
+            new_state="generated",
+            correlation_id=correlation,
+            parent_event_id=evt1.id,
         )
         record("Correlation ID linking", evt2.correlation_id == correlation, f"correlation={correlation}")
         record("Parent event linking", evt2.parent_event_id == evt1.id)
 
         # 1c. Events across different domains
         evt3 = await emit_event(
-            db, domain="monetization", event_type="revenue.attributed",
-            summary="Proof: revenue event", org_id=org.id, brand_id=brand.id,
+            db,
+            domain="monetization",
+            event_type="revenue.attributed",
+            summary="Proof: revenue event",
+            org_id=org.id,
+            brand_id=brand.id,
             details={"revenue": 42.50, "source": "proof"},
         )
         evt4 = await emit_event(
-            db, domain="orchestration", event_type="job.completed",
-            summary="Proof: job completed", org_id=org.id,
-            severity="info", new_state="completed",
+            db,
+            domain="orchestration",
+            event_type="job.completed",
+            summary="Proof: job completed",
+            org_id=org.id,
+            severity="info",
+            new_state="completed",
         )
         evt5 = await emit_event(
-            db, domain="governance", event_type="audit.permission_checked",
-            summary="Proof: permission checked", org_id=org.id,
+            db,
+            domain="governance",
+            event_type="audit.permission_checked",
+            summary="Proof: permission checked",
+            org_id=org.id,
         )
         record("Multi-domain events", all(e.id for e in [evt3, evt4, evt5]))
 
         # 1d. Append-only retrieval
         from packages.db.models.system_events import SystemEvent
-        count = (await db.execute(
-            select(func.count()).select_from(SystemEvent).where(SystemEvent.organization_id == org.id)
-        )).scalar()
+
+        count = (
+            await db.execute(select(func.count()).select_from(SystemEvent).where(SystemEvent.organization_id == org.id))
+        ).scalar()
         record("Append-only retrieval", count >= 5, f"count={count}")
 
         # 1e. Requires-action flag
         evt_action = await emit_event(
-            db, domain="recovery", event_type="job.failed",
+            db,
+            domain="recovery",
+            event_type="job.failed",
             summary="Proof: job failure requiring action",
-            org_id=org.id, severity="error", requires_action=True,
+            org_id=org.id,
+            severity="error",
+            requires_action=True,
         )
         record("Requires-action flag", evt_action.requires_action is True)
 
@@ -167,58 +203,92 @@ async def run_all_proofs():
 
         # 2a. Create actions from different sources
         action_blocked = await emit_action(
-            db, org_id=org.id, action_type="review_blocked_content",
-            title="Proof: blocked content", category="blocker", priority="high",
-            brand_id=brand.id, entity_type="content_item", entity_id=uuid.uuid4(),
+            db,
+            org_id=org.id,
+            action_type="review_blocked_content",
+            title="Proof: blocked content",
+            category="blocker",
+            priority="high",
+            brand_id=brand.id,
+            entity_type="content_item",
+            entity_id=uuid.uuid4(),
             source_module="quality_governor",
         )
         record("Action: blocked content", action_blocked.id is not None and action_blocked.status == "pending")
 
         action_stale = await emit_action(
-            db, org_id=org.id, action_type="review_stale_approval",
-            title="Proof: stale approval", category="approval", priority="medium",
+            db,
+            org_id=org.id,
+            action_type="review_stale_approval",
+            title="Proof: stale approval",
+            category="approval",
+            priority="medium",
             source_module="governance_bridge",
         )
         record("Action: stale approval", action_stale.id is not None)
 
         action_stuck = await emit_action(
-            db, org_id=org.id, action_type="investigate_stuck_job",
-            title="Proof: stuck job", category="failure", priority="high",
-            entity_type="system_job", source_module="orchestration_bridge",
+            db,
+            org_id=org.id,
+            action_type="investigate_stuck_job",
+            title="Proof: stuck job",
+            category="failure",
+            priority="high",
+            entity_type="system_job",
+            source_module="orchestration_bridge",
         )
         record("Action: stuck job", action_stuck.id is not None)
 
         action_provider = await emit_action(
-            db, org_id=org.id, action_type="resolve_provider_blocker",
-            title="Proof: provider failure", category="health", priority="critical",
+            db,
+            org_id=org.id,
+            action_type="resolve_provider_blocker",
+            title="Proof: provider failure",
+            category="health",
+            priority="critical",
             source_module="provider_registry",
         )
         record("Action: provider failure", action_provider.priority == "critical")
 
         action_unmon = await emit_action(
-            db, org_id=org.id, action_type="assign_offer",
-            title="Proof: unmonetized content", category="monetization", priority="medium",
-            brand_id=brand.id, source_module="monetization_bridge",
+            db,
+            org_id=org.id,
+            action_type="assign_offer",
+            title="Proof: unmonetized content",
+            category="monetization",
+            priority="medium",
+            brand_id=brand.id,
+            source_module="monetization_bridge",
         )
         record("Action: unmonetized content", action_unmon.category == "monetization")
 
         action_orphan = await emit_action(
-            db, org_id=org.id, action_type="create_content_for_offer",
-            title="Proof: orphan offer", category="monetization", priority="medium",
+            db,
+            org_id=org.id,
+            action_type="create_content_for_offer",
+            title="Proof: orphan offer",
+            category="monetization",
+            priority="medium",
             source_module="monetization_bridge",
         )
         record("Action: orphan offer", action_orphan.id is not None)
 
         action_retry = await emit_action(
-            db, org_id=org.id, action_type="retry_exhausted_job",
-            title="Proof: exhausted retries", category="failure", priority="high",
+            db,
+            org_id=org.id,
+            action_type="retry_exhausted_job",
+            title="Proof: exhausted retries",
+            category="failure",
+            priority="high",
             source_module="orchestration_bridge",
         )
         record("Action: exhausted retries", action_retry.id is not None)
 
         # 2b. Complete an action
         await complete_action(db, action_blocked, completed_by="proof_user", result={"outcome": "resolved"})
-        record("Action completion", action_blocked.status == "completed" and action_blocked.completed_by == "proof_user")
+        record(
+            "Action completion", action_blocked.status == "completed" and action_blocked.completed_by == "proof_user"
+        )
 
         # 2c. Dismiss an action
         await dismiss_action(db, action_stale, dismissed_by="proof_operator")
@@ -226,11 +296,14 @@ async def run_all_proofs():
 
         # 2d. Count pending actions
         from packages.db.models.system_events import OperatorAction
-        pending = (await db.execute(
-            select(func.count()).select_from(OperatorAction).where(
-                OperatorAction.organization_id == org.id, OperatorAction.status == "pending"
+
+        pending = (
+            await db.execute(
+                select(func.count())
+                .select_from(OperatorAction)
+                .where(OperatorAction.organization_id == org.id, OperatorAction.status == "pending")
             )
-        )).scalar()
+        ).scalar()
         record("Pending actions count", pending >= 5, f"pending={pending}")
 
         await db.flush()
@@ -243,6 +316,7 @@ async def run_all_proofs():
 
         # 3a. Intelligence → generation context
         from apps.api.services.intelligence_bridge import get_generation_intelligence
+
         intel = await get_generation_intelligence(db, brand.id)
         record(
             "Intelligence context retrieval",
@@ -252,11 +326,13 @@ async def run_all_proofs():
 
         # 3b. Kill ledger check
         from apps.api.services.intelligence_bridge import check_kill_ledger
+
         kill = await check_kill_ledger(db, brand.id)
         record("Kill ledger check", isinstance(kill, dict) and "blocked" in kill, f"blocked={kill.get('blocked')}")
 
         # 3c. Monetization → revenue state
         from apps.api.services.monetization_bridge import get_brand_revenue_state
+
         rev_state = await get_brand_revenue_state(db, brand.id)
         record(
             "Brand revenue state",
@@ -266,10 +342,14 @@ async def run_all_proofs():
 
         # 3d. Governance → memory recording
         from apps.api.services.governance_bridge import get_memory_context, record_generation_outcome
+
         mem = await record_generation_outcome(
-            db, brand.id, uuid.uuid4(),
+            db,
+            brand.id,
+            uuid.uuid4(),
             generation_params={"model": "proof_test", "platform": "youtube"},
-            quality_score=0.85, approval_status="approved",
+            quality_score=0.85,
+            approval_status="approved",
         )
         record("Memory outcome recording", mem is not None and mem.id is not None, f"memory_id={mem.id}")
 
@@ -281,11 +361,13 @@ async def run_all_proofs():
 
         # 3f. Creative atoms retrieval
         from apps.api.services.governance_bridge import get_creative_atoms
+
         atoms = await get_creative_atoms(db, brand.id)
         record("Creative atom retrieval", isinstance(atoms, list))
 
         # 3g. Governance summary
         from apps.api.services.governance_bridge import get_governance_summary
+
         gov_summary = await get_governance_summary(db, org.id)
         record(
             "Governance summary",
@@ -310,7 +392,11 @@ async def run_all_proofs():
 
         # 4a. System health
         health = await get_system_health(db, org.id)
-        record("System health aggregation", isinstance(health, dict) and "total_brands" in health, f"brands={health.get('total_brands')}")
+        record(
+            "System health aggregation",
+            isinstance(health, dict) and "total_brands" in health,
+            f"brands={health.get('total_brands')}",
+        )
         record("Health has pipeline state", "content_draft" in health and "content_published" in health)
         record("Health has job state", "jobs_pending" in health and "jobs_failed_24h" in health)
         record("Health has action state", "actions_pending" in health and "actions_critical" in health)
@@ -352,8 +438,21 @@ async def run_all_proofs():
 
         # 5a. Content lifecycle states match frontend vocabulary
         content_states = [e.value for e in ContentLifecycle]
-        expected = ["draft", "brief_ready", "generating", "generated", "qa_review", "approved",
-                    "rejected", "publishing", "published", "tracking", "underperforming", "archived", "failed"]
+        expected = [
+            "draft",
+            "brief_ready",
+            "generating",
+            "generated",
+            "qa_review",
+            "approved",
+            "rejected",
+            "publishing",
+            "published",
+            "tracking",
+            "underperforming",
+            "archived",
+            "failed",
+        ]
         record("Content lifecycle states", content_states == expected, f"states={len(content_states)}")
 
         # 5b. Job status states
@@ -362,35 +461,76 @@ async def run_all_proofs():
 
         # 5c. Event domains match OS layers
         domains = [e.value for e in EventDomain]
-        record("Event domains match layers", all(d in domains for d in [
-            "content", "publishing", "monetization", "intelligence", "orchestration", "governance", "recovery",
-        ]))
+        record(
+            "Event domains match layers",
+            all(
+                d in domains
+                for d in [
+                    "content",
+                    "publishing",
+                    "monetization",
+                    "intelligence",
+                    "orchestration",
+                    "governance",
+                    "recovery",
+                ]
+            ),
+        )
 
         # 5d. Action statuses
         action_states = [e.value for e in ActionStatus]
-        record("Action status lifecycle", all(s in action_states for s in ["pending", "in_progress", "completed", "dismissed", "expired"]))
+        record(
+            "Action status lifecycle",
+            all(s in action_states for s in ["pending", "in_progress", "completed", "dismissed", "expired"]),
+        )
 
         # 5e. State transition event
         prev = "draft"
         new = "generating"
         event = await emit_event(
-            db, domain="content", event_type="content.state_changed",
+            db,
+            domain="content",
+            event_type="content.state_changed",
             summary=f"State proof: {prev} → {new}",
-            org_id=org.id, brand_id=brand.id,
-            entity_type="content_item", entity_id=uuid.uuid4(),
-            previous_state=prev, new_state=new,
+            org_id=org.id,
+            brand_id=brand.id,
+            entity_type="content_item",
+            entity_id=uuid.uuid4(),
+            previous_state=prev,
+            new_state=new,
         )
         record("State transition event", event.previous_state == prev and event.new_state == new)
 
         # 5f. Backend-frontend vocabulary agreement
         frontend_statuses = [
-            "draft", "brief_ready", "generating", "script_generated", "generated",
-            "media_queued", "media_complete", "qa_review", "qa_complete", "quality_blocked",
-            "approved", "rejected", "revision_requested", "scheduled", "publishing", "published", "failed",
+            "draft",
+            "brief_ready",
+            "generating",
+            "script_generated",
+            "generated",
+            "media_queued",
+            "media_complete",
+            "qa_review",
+            "qa_complete",
+            "quality_blocked",
+            "approved",
+            "rejected",
+            "revision_requested",
+            "scheduled",
+            "publishing",
+            "published",
+            "failed",
         ]
         # Verify these are recognized in the ContentLifecycle or as pipeline status strings
-        recognized = set(content_states) | {"script_generated", "media_queued", "media_complete",
-                                            "qa_complete", "quality_blocked", "revision_requested", "scheduled"}
+        recognized = set(content_states) | {
+            "script_generated",
+            "media_queued",
+            "media_complete",
+            "qa_complete",
+            "quality_blocked",
+            "revision_requested",
+            "scheduled",
+        }
         all_recognized = all(s in recognized for s in frontend_statuses)
         record("Frontend-backend vocabulary match", all_recognized)
 
@@ -405,36 +545,53 @@ async def run_all_proofs():
 
         # 6a. Permission check
         perm = await check_permission(
-            db, org.id, "publish_content", user_role="operator",
-            actor_id=str(user.id), entity_type="content_item",
+            db,
+            org.id,
+            "publish_content",
+            user_role="operator",
+            actor_id=str(user.id),
+            entity_type="content_item",
         )
         record("Permission check executes", isinstance(perm, dict))
 
         # 6b. Audit trail with actor/reason/timestamp
         audit_result = await audit_state_transition(
-            db, org_id=org.id, brand_id=brand.id,
-            actor_id=str(user.id), actor_type="human",
-            entity_type="content_item", entity_id=uuid.uuid4(),
-            action="content.approved", previous_state="qa_complete", new_state="approved",
-            reason="Passed QA review", details={"qa_score": 0.92},
+            db,
+            org_id=org.id,
+            brand_id=brand.id,
+            actor_id=str(user.id),
+            actor_type="human",
+            entity_type="content_item",
+            entity_id=uuid.uuid4(),
+            action="content.approved",
+            previous_state="qa_complete",
+            new_state="approved",
+            reason="Passed QA review",
+            details={"qa_score": 0.92},
         )
         record("Audit trail creation", "audit_id" in audit_result and "event_id" in audit_result)
 
         # 6c. Verify audit wrote to both tables
         from packages.db.models.system import AuditLog
-        audit_entry = (await db.execute(
-            select(AuditLog).where(AuditLog.id == uuid.UUID(audit_result["audit_id"]))
-        )).scalar_one_or_none()
+
+        audit_entry = (
+            await db.execute(select(AuditLog).where(AuditLog.id == uuid.UUID(audit_result["audit_id"])))
+        ).scalar_one_or_none()
         record("Audit has actor", audit_entry is not None and audit_entry.actor_type == "human")
         record("Audit has reason", audit_entry is not None and "reason" in (audit_entry.details or {}))
         record("Audit has entity", audit_entry is not None and audit_entry.entity_type == "content_item")
 
         # 6d. Corresponding system event
-        audit_event = (await db.execute(
-            select(SystemEvent).where(SystemEvent.id == uuid.UUID(audit_result["event_id"]))
-        )).scalar_one_or_none()
+        audit_event = (
+            await db.execute(select(SystemEvent).where(SystemEvent.id == uuid.UUID(audit_result["event_id"])))
+        ).scalar_one_or_none()
         record("Audit event created", audit_event is not None and audit_event.event_domain == "governance")
-        record("Audit event has states", audit_event is not None and audit_event.previous_state == "qa_complete" and audit_event.new_state == "approved")
+        record(
+            "Audit event has states",
+            audit_event is not None
+            and audit_event.previous_state == "qa_complete"
+            and audit_event.new_state == "approved",
+        )
 
         await db.flush()
         print()
@@ -446,51 +603,74 @@ async def run_all_proofs():
 
         # 7a. Failure classification via event
         fail_event = await emit_event(
-            db, domain="orchestration", event_type="job.failed",
+            db,
+            domain="orchestration",
+            event_type="job.failed",
             summary="Recovery proof: job failed after 3 retries",
-            org_id=org.id, severity="error", requires_action=True,
-            new_state="failed", previous_state="running",
-            actor_type="worker", actor_id="proof_worker",
+            org_id=org.id,
+            severity="error",
+            requires_action=True,
+            new_state="failed",
+            previous_state="running",
+            actor_type="worker",
+            actor_id="proof_worker",
             details={"error": "Connection timeout", "retries": 3, "max_retries": 3},
         )
         record("Failure classified as event", fail_event.event_severity == "error" and fail_event.requires_action)
 
         # 7b. Retry path event
         retry_event = await emit_event(
-            db, domain="orchestration", event_type="job.retrying",
+            db,
+            domain="orchestration",
+            event_type="job.retrying",
             summary="Recovery proof: job retrying (attempt 2/3)",
-            org_id=org.id, severity="warning",
-            new_state="retrying", previous_state="running",
+            org_id=org.id,
+            severity="warning",
+            new_state="retrying",
+            previous_state="running",
             details={"retry_count": 2, "max_retries": 3},
         )
         record("Retry path event", retry_event.event_severity == "warning" and retry_event.new_state == "retrying")
 
         # 7c. Exhausted retry → action
         exhausted_action = await emit_action(
-            db, org_id=org.id, action_type="retry_exhausted_job",
+            db,
+            org_id=org.id,
+            action_type="retry_exhausted_job",
             title="Proof: max retries reached",
-            category="failure", priority="high",
+            category="failure",
+            priority="high",
             source_module="orchestration_bridge",
             action_payload={"error": "Connection timeout", "retries": 3},
         )
-        record("Exhausted retry → action", exhausted_action.priority == "high" and exhausted_action.category == "failure")
+        record(
+            "Exhausted retry → action", exhausted_action.priority == "high" and exhausted_action.category == "failure"
+        )
 
         # 7d. Escalation event
         escalation = await emit_event(
-            db, domain="recovery", event_type="recovery.escalated",
+            db,
+            domain="recovery",
+            event_type="recovery.escalated",
             summary="Proof: failure escalated to operator",
-            org_id=org.id, severity="critical", requires_action=True,
+            org_id=org.id,
+            severity="critical",
+            requires_action=True,
             details={"incident_type": "provider_failure", "auto_recoverable": False},
         )
         record("Escalation event", escalation.event_severity == "critical" and escalation.requires_action)
 
         # 7e. No silent failure (events exist for all states)
-        failure_events = (await db.execute(
-            select(func.count()).select_from(SystemEvent).where(
-                SystemEvent.organization_id == org.id,
-                SystemEvent.event_severity.in_(["error", "critical"]),
+        failure_events = (
+            await db.execute(
+                select(func.count())
+                .select_from(SystemEvent)
+                .where(
+                    SystemEvent.organization_id == org.id,
+                    SystemEvent.event_severity.in_(["error", "critical"]),
+                )
             )
-        )).scalar()
+        ).scalar()
         record("No silent failures (errors surfaced)", failure_events >= 2, f"error_events={failure_events}")
 
         await db.flush()
@@ -503,11 +683,14 @@ async def run_all_proofs():
 
         # 8a. Learning entry from outcome (already created in 3d)
         from packages.db.models.learning import MemoryEntry
-        mem_count = (await db.execute(
-            select(func.count()).select_from(MemoryEntry).where(
-                MemoryEntry.brand_id == brand.id, MemoryEntry.memory_type == "generation_outcome"
+
+        mem_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(MemoryEntry)
+                .where(MemoryEntry.brand_id == brand.id, MemoryEntry.memory_type == "generation_outcome")
             )
-        )).scalar()
+        ).scalar()
         record("Memory entries from outcomes", mem_count >= 1, f"count={mem_count}")
 
         # 8b. Memory retrieval with confidence scoring
@@ -519,15 +702,20 @@ async def run_all_proofs():
 
         # 8c. Second memory entry to prove accumulation
         await record_generation_outcome(
-            db, brand.id, uuid.uuid4(),
+            db,
+            brand.id,
+            uuid.uuid4(),
             generation_params={"model": "claude", "platform": "tiktok"},
-            quality_score=0.45, approval_status="rejected",
+            quality_score=0.45,
+            approval_status="rejected",
         )
-        mem_count2 = (await db.execute(
-            select(func.count()).select_from(MemoryEntry).where(
-                MemoryEntry.brand_id == brand.id, MemoryEntry.memory_type == "generation_outcome"
+        mem_count2 = (
+            await db.execute(
+                select(func.count())
+                .select_from(MemoryEntry)
+                .where(MemoryEntry.brand_id == brand.id, MemoryEntry.memory_type == "generation_outcome")
             )
-        )).scalar()
+        ).scalar()
         record("Memory accumulates", mem_count2 >= 2, f"count={mem_count2}")
 
         await db.flush()
@@ -633,7 +821,7 @@ async def run_all_proofs():
 
         print()
         print(f"  {'Flow':<30} {'Trigger':<35} {'Result':<8}")
-        print(f"  {'─'*30} {'─'*35} {'─'*8}")
+        print(f"  {'─' * 30} {'─' * 35} {'─' * 8}")
         for f in flows:
             icon = "✓ PASS" if f["pass"] else "✗ FAIL"
             print(f"  {f['flow']:<30} {f['trigger'][:35]:<35} {icon}")

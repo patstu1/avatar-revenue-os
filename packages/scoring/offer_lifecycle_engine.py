@@ -1,4 +1,5 @@
 """Offer lifecycle engine — state assessment, decay detection, transition recommendations."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -184,21 +185,23 @@ def assess_offer_lifecycle(
             f"growth {offer.get('growth_rate', 0):.2%}. {action}"
         )
 
-        results.append({
-            "offer_id": oid,
-            "lifecycle_state": state,
-            "health_score": health,
-            "dependency_risk_score": round(dep_risk, 4),
-            "decay_score": round(decay, 4),
-            "recommended_action": action,
-            "expected_impact": {
-                "revenue_delta": expected_impact,
-                "direction": "positive" if expected_impact >= 0 else "negative",
-            },
-            "confidence": round(conf, 4),
-            "explanation": explanation,
-            OLC: True,
-        })
+        results.append(
+            {
+                "offer_id": oid,
+                "lifecycle_state": state,
+                "health_score": health,
+                "dependency_risk_score": round(dep_risk, 4),
+                "decay_score": round(decay, 4),
+                "recommended_action": action,
+                "expected_impact": {
+                    "revenue_delta": expected_impact,
+                    "direction": "positive" if expected_impact >= 0 else "negative",
+                },
+                "confidence": round(conf, 4),
+                "explanation": explanation,
+                OLC: True,
+            }
+        )
 
     return results
 

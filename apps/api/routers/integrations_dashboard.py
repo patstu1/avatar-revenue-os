@@ -3,6 +3,7 @@
 Serves both the per-provider REST routes (used internally) and the
 consolidated endpoints (used by the frontend integrations page).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -19,6 +20,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Request models
 # ---------------------------------------------------------------------------
+
 
 class ConfigureRequest(BaseModel):
     provider_id: str
@@ -38,6 +40,7 @@ class TestRequest(BaseModel):
 # Frontend-facing consolidated endpoints
 # ---------------------------------------------------------------------------
 
+
 def _map_health_to_status(health: str | None, has_key: bool, has_oauth: bool) -> str:
     """Map internal health_status to frontend status enum."""
     if health in ("healthy", "configured"):
@@ -50,8 +53,7 @@ def _map_health_to_status(health: str | None, has_key: bool, has_oauth: bool) ->
 
 
 @router.get("/integrations/providers")
-async def list_providers(current_user: CurrentUser, db: DBSession,
-                          category: str = Query(None)):
+async def list_providers(current_user: CurrentUser, db: DBSession, category: str = Query(None)):
     """List all providers, shaped for the frontend integrations page."""
     raw = await im.list_providers(db, current_user.organization_id, category)
 
@@ -75,9 +77,7 @@ async def list_providers(current_user: CurrentUser, db: DBSession,
             "total_cost_usd": p.get("total_cost_usd", 0),
             "last_health_check": p.get("last_health_check"),
             "error_message": (
-                f"Health: {p['health_status']}"
-                if p.get("health_status") in ("auth_failed", "unreachable")
-                else None
+                f"Health: {p['health_status']}" if p.get("health_status") in ("auth_failed", "unreachable") else None
             ),
         }
         for p in raw
@@ -96,12 +96,14 @@ async def configure_provider(body: ConfigureRequest, current_user: OperatorUser,
     from packages.db.models.integration_registry import IntegrationProvider
 
     # Resolve provider by ID
-    provider = (await db.execute(
-        select(IntegrationProvider).where(
-            IntegrationProvider.id == uuid.UUID(body.provider_id),
-            IntegrationProvider.organization_id == current_user.organization_id,
+    provider = (
+        await db.execute(
+            select(IntegrationProvider).where(
+                IntegrationProvider.id == uuid.UUID(body.provider_id),
+                IntegrationProvider.organization_id == current_user.organization_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if not provider:
         raise HTTPException(404, f"Provider {body.provider_id} not found")
@@ -111,8 +113,12 @@ async def configure_provider(body: ConfigureRequest, current_user: OperatorUser,
     # Set credentials
     if body.api_key is not None:
         result = await im.set_credential(
-            db, current_user.organization_id, provider.provider_key,
-            api_key=body.api_key, api_secret=body.api_secret, oauth_token=body.oauth_token,
+            db,
+            current_user.organization_id,
+            provider.provider_key,
+            api_key=body.api_key,
+            api_secret=body.api_secret,
+            oauth_token=body.oauth_token,
         )
         if "error" in result:
             raise HTTPException(400, result["error"])
@@ -152,12 +158,14 @@ async def test_connection(body: TestRequest, current_user: OperatorUser, db: DBS
 
     from packages.db.models.integration_registry import IntegrationProvider
 
-    provider = (await db.execute(
-        select(IntegrationProvider).where(
-            IntegrationProvider.id == uuid.UUID(body.provider_id),
-            IntegrationProvider.organization_id == current_user.organization_id,
+    provider = (
+        await db.execute(
+            select(IntegrationProvider).where(
+                IntegrationProvider.id == uuid.UUID(body.provider_id),
+                IntegrationProvider.organization_id == current_user.organization_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if not provider:
         raise HTTPException(404, f"Provider {body.provider_id} not found")
@@ -165,6 +173,7 @@ async def test_connection(body: TestRequest, current_user: OperatorUser, db: DBS
     # Reuse the health monitor's ping logic
     try:
         from workers.health_monitor_worker.tasks import _ping_provider
+
         result = _ping_provider(body.api_key, provider.provider_key)
     except ImportError:
         # Fallback: just verify the key is non-empty
@@ -191,6 +200,7 @@ async def test_connection(body: TestRequest, current_user: OperatorUser, db: DBS
 # Per-provider REST routes (used by internal services)
 # ---------------------------------------------------------------------------
 
+
 @router.post("/integrations/seed")
 async def seed_providers(current_user: OperatorUser, db: DBSession):
     """Seed default provider catalog for this organization."""
@@ -200,13 +210,22 @@ async def seed_providers(current_user: OperatorUser, db: DBSession):
 
 
 @router.post("/integrations/providers/{provider_key}/credential")
-async def set_credential(provider_key: str, current_user: OperatorUser, db: DBSession,
-                          api_key: str = Query(None), api_secret: str = Query(None),
-                          oauth_token: str = Query(None)):
+async def set_credential(
+    provider_key: str,
+    current_user: OperatorUser,
+    db: DBSession,
+    api_key: str = Query(None),
+    api_secret: str = Query(None),
+    oauth_token: str = Query(None),
+):
     """Set or update credentials for a provider. Encrypted before storage."""
     result = await im.set_credential(
-        db, current_user.organization_id, provider_key,
-        api_key=api_key, api_secret=api_secret, oauth_token=oauth_token,
+        db,
+        current_user.organization_id,
+        provider_key,
+        api_key=api_key,
+        api_secret=api_secret,
+        oauth_token=oauth_token,
     )
     if "error" in result:
         raise HTTPException(400, result["error"])
@@ -215,8 +234,9 @@ async def set_credential(provider_key: str, current_user: OperatorUser, db: DBSe
 
 
 @router.get("/integrations/route")
-async def get_provider_for_task(current_user: CurrentUser, db: DBSession,
-                                 category: str = Query(...), quality_tier: str = Query("standard")):
+async def get_provider_for_task(
+    current_user: CurrentUser, db: DBSession, category: str = Query(...), quality_tier: str = Query("standard")
+):
     """Get the best available provider for a task. Used by content pipeline."""
     result = await im.get_provider_for_task(db, current_user.organization_id, category, quality_tier)
     if not result:
@@ -233,10 +253,15 @@ async def enable_provider(provider_key: str, current_user: OperatorUser, db: DBS
     from sqlalchemy import update
 
     from packages.db.models.integration_registry import IntegrationProvider
-    await db.execute(update(IntegrationProvider).where(
-        IntegrationProvider.organization_id == current_user.organization_id,
-        IntegrationProvider.provider_key == provider_key,
-    ).values(is_enabled=True))
+
+    await db.execute(
+        update(IntegrationProvider)
+        .where(
+            IntegrationProvider.organization_id == current_user.organization_id,
+            IntegrationProvider.provider_key == provider_key,
+        )
+        .values(is_enabled=True)
+    )
     await db.commit()
     return {"provider": provider_key, "enabled": True}
 
@@ -247,9 +272,14 @@ async def disable_provider(provider_key: str, current_user: OperatorUser, db: DB
     from sqlalchemy import update
 
     from packages.db.models.integration_registry import IntegrationProvider
-    await db.execute(update(IntegrationProvider).where(
-        IntegrationProvider.organization_id == current_user.organization_id,
-        IntegrationProvider.provider_key == provider_key,
-    ).values(is_enabled=False))
+
+    await db.execute(
+        update(IntegrationProvider)
+        .where(
+            IntegrationProvider.organization_id == current_user.organization_id,
+            IntegrationProvider.provider_key == provider_key,
+        )
+        .values(is_enabled=False)
+    )
     await db.commit()
     return {"provider": provider_key, "enabled": False}

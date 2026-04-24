@@ -1,4 +1,5 @@
 """Pydantic schemas for Portfolio Capital Allocator."""
+
 from __future__ import annotations
 
 import uuid

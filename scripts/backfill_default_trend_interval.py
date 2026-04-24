@@ -9,6 +9,7 @@ Idempotent. Safe to run multiple times.
 Usage:
     python3 scripts/backfill_default_trend_interval.py
 """
+
 from __future__ import annotations
 
 from sqlalchemy import text

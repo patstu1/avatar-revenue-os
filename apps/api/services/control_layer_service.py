@@ -5,6 +5,7 @@ to build a real-time picture of system health, pending actions, and recent
 events. Unlike the old dashboard that showed static counts, this surfaces
 operational state that drives action.
 """
+
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -35,25 +36,23 @@ async def get_system_health(db: AsyncSession, org_id: uuid.UUID) -> dict:
     brand_ids_q = select(Brand.id).where(Brand.organization_id == org_id)
 
     # --- Entity counts ---
-    brands_count = (await db.execute(
-        select(func.count()).select_from(Brand).where(Brand.organization_id == org_id)
-    )).scalar() or 0
+    brands_count = (
+        await db.execute(select(func.count()).select_from(Brand).where(Brand.organization_id == org_id))
+    ).scalar() or 0
 
-    accounts_count = (await db.execute(
-        select(func.count()).select_from(CreatorAccount).where(
-            CreatorAccount.brand_id.in_(brand_ids_q)
+    accounts_count = (
+        await db.execute(
+            select(func.count()).select_from(CreatorAccount).where(CreatorAccount.brand_id.in_(brand_ids_q))
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    offers_count = (await db.execute(
-        select(func.count()).select_from(Offer).where(Offer.brand_id.in_(brand_ids_q))
-    )).scalar() or 0
+    offers_count = (
+        await db.execute(select(func.count()).select_from(Offer).where(Offer.brand_id.in_(brand_ids_q)))
+    ).scalar() or 0
 
-    content_total = (await db.execute(
-        select(func.count()).select_from(ContentItem).where(
-            ContentItem.brand_id.in_(brand_ids_q)
-        )
-    )).scalar() or 0
+    content_total = (
+        await db.execute(select(func.count()).select_from(ContentItem).where(ContentItem.brand_id.in_(brand_ids_q)))
+    ).scalar() or 0
 
     # --- Content pipeline state (real status distribution) ---
     content_status_q = await db.execute(
@@ -64,63 +63,76 @@ async def get_system_health(db: AsyncSession, org_id: uuid.UUID) -> dict:
     content_by_status = {str(row[0]): row[1] for row in content_status_q.all()}
 
     # --- Job state ---
-    job_status_q = await db.execute(
-        select(SystemJob.status, func.count())
-        .group_by(SystemJob.status)
-    )
+    job_status_q = await db.execute(select(SystemJob.status, func.count()).group_by(SystemJob.status))
     jobs_by_status = {}
     for row in job_status_q.all():
-        key = row[0].value if hasattr(row[0], 'value') else str(row[0])
+        key = row[0].value if hasattr(row[0], "value") else str(row[0])
         jobs_by_status[key] = row[1]
 
-    jobs_completed_24h = (await db.execute(
-        select(func.count()).select_from(SystemJob).where(
-            and_(SystemJob.status == JobStatus.COMPLETED, SystemJob.completed_at >= day_ago)
+    jobs_completed_24h = (
+        await db.execute(
+            select(func.count())
+            .select_from(SystemJob)
+            .where(and_(SystemJob.status == JobStatus.COMPLETED, SystemJob.completed_at >= day_ago))
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    jobs_failed_24h = (await db.execute(
-        select(func.count()).select_from(SystemJob).where(
-            and_(SystemJob.status == JobStatus.FAILED, SystemJob.completed_at >= day_ago)
+    jobs_failed_24h = (
+        await db.execute(
+            select(func.count())
+            .select_from(SystemJob)
+            .where(and_(SystemJob.status == JobStatus.FAILED, SystemJob.completed_at >= day_ago))
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # --- Operator actions ---
-    actions_pending = (await db.execute(
-        select(func.count()).select_from(OperatorAction).where(
-            and_(OperatorAction.organization_id == org_id, OperatorAction.status == "pending")
+    actions_pending = (
+        await db.execute(
+            select(func.count())
+            .select_from(OperatorAction)
+            .where(and_(OperatorAction.organization_id == org_id, OperatorAction.status == "pending"))
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    actions_critical = (await db.execute(
-        select(func.count()).select_from(OperatorAction).where(
-            and_(
-                OperatorAction.organization_id == org_id,
-                OperatorAction.status == "pending",
-                OperatorAction.priority == "critical",
+    actions_critical = (
+        await db.execute(
+            select(func.count())
+            .select_from(OperatorAction)
+            .where(
+                and_(
+                    OperatorAction.organization_id == org_id,
+                    OperatorAction.status == "pending",
+                    OperatorAction.priority == "critical",
+                )
             )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    actions_completed_24h = (await db.execute(
-        select(func.count()).select_from(OperatorAction).where(
-            and_(
-                OperatorAction.organization_id == org_id,
-                OperatorAction.status == "completed",
-                OperatorAction.completed_at >= day_ago,
+    actions_completed_24h = (
+        await db.execute(
+            select(func.count())
+            .select_from(OperatorAction)
+            .where(
+                and_(
+                    OperatorAction.organization_id == org_id,
+                    OperatorAction.status == "completed",
+                    OperatorAction.completed_at >= day_ago,
+                )
             )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # --- Provider cost ---
-    total_cost = (await db.execute(
-        select(func.coalesce(func.sum(ProviderUsageCost.cost), 0.0)).where(
-            and_(
-                ProviderUsageCost.brand_id.in_(brand_ids_q),
-                ProviderUsageCost.created_at >= month_ago,
+    total_cost = (
+        await db.execute(
+            select(func.coalesce(func.sum(ProviderUsageCost.cost), 0.0)).where(
+                and_(
+                    ProviderUsageCost.brand_id.in_(brand_ids_q),
+                    ProviderUsageCost.created_at >= month_ago,
+                )
             )
         )
-    )).scalar() or 0.0
+    ).scalar() or 0.0
 
     return {
         "total_brands": brands_count,
@@ -162,28 +174,40 @@ async def _get_provider_counts(db: AsyncSession, status_type: str) -> int:
     from packages.db.models.integration_registry import IntegrationProvider
 
     if status_type == "healthy":
-        return (await db.execute(
-            select(func.count()).select_from(IntegrationProvider).where(
-                IntegrationProvider.is_enabled.is_(True),
-                IntegrationProvider.health_status.in_(["healthy", "configured"]),
+        return (
+            await db.execute(
+                select(func.count())
+                .select_from(IntegrationProvider)
+                .where(
+                    IntegrationProvider.is_enabled.is_(True),
+                    IntegrationProvider.health_status.in_(["healthy", "configured"]),
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
 
     if status_type == "degraded":
-        return (await db.execute(
-            select(func.count()).select_from(IntegrationProvider).where(
-                IntegrationProvider.is_enabled.is_(True),
-                IntegrationProvider.health_status.in_(["auth_failed", "unconfigured"]),
+        return (
+            await db.execute(
+                select(func.count())
+                .select_from(IntegrationProvider)
+                .where(
+                    IntegrationProvider.is_enabled.is_(True),
+                    IntegrationProvider.health_status.in_(["auth_failed", "unconfigured"]),
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
 
     if status_type == "blocked":
-        return (await db.execute(
-            select(func.count()).select_from(IntegrationProvider).where(
-                IntegrationProvider.is_enabled.is_(True),
-                IntegrationProvider.health_status == "unreachable",
+        return (
+            await db.execute(
+                select(func.count())
+                .select_from(IntegrationProvider)
+                .where(
+                    IntegrationProvider.is_enabled.is_(True),
+                    IntegrationProvider.health_status == "unreachable",
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
 
     return 0
 
@@ -193,13 +217,15 @@ async def _get_total_revenue_30d(db: AsyncSession, brand_ids_q, month_ago) -> fl
     from packages.db.models.revenue_ledger import RevenueLedgerEntry
 
     # Primary: canonical revenue ledger
-    ledger = (await db.execute(
-        select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
-            RevenueLedgerEntry.brand_id.in_(brand_ids_q),
-            RevenueLedgerEntry.occurred_at >= month_ago,
-            RevenueLedgerEntry.is_active.is_(True),
+    ledger = (
+        await db.execute(
+            select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
+                RevenueLedgerEntry.brand_id.in_(brand_ids_q),
+                RevenueLedgerEntry.occurred_at >= month_ago,
+                RevenueLedgerEntry.is_active.is_(True),
+            )
         )
-    )).scalar() or 0.0
+    ).scalar() or 0.0
 
     if float(ledger) > 0:
         return float(ledger)
@@ -208,26 +234,28 @@ async def _get_total_revenue_30d(db: AsyncSession, brand_ids_q, month_ago) -> fl
     from packages.db.models.creator_revenue import CreatorRevenueEvent
     from packages.db.models.publishing import PerformanceMetric
 
-    perf = (await db.execute(
-        select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0)).where(
-            PerformanceMetric.brand_id.in_(brand_ids_q),
-            PerformanceMetric.created_at >= month_ago,
+    perf = (
+        await db.execute(
+            select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0)).where(
+                PerformanceMetric.brand_id.in_(brand_ids_q),
+                PerformanceMetric.created_at >= month_ago,
+            )
         )
-    )).scalar() or 0.0
+    ).scalar() or 0.0
 
-    creator = (await db.execute(
-        select(func.coalesce(func.sum(CreatorRevenueEvent.revenue), 0.0)).where(
-            CreatorRevenueEvent.brand_id.in_(brand_ids_q),
-            CreatorRevenueEvent.created_at >= month_ago,
+    creator = (
+        await db.execute(
+            select(func.coalesce(func.sum(CreatorRevenueEvent.revenue), 0.0)).where(
+                CreatorRevenueEvent.brand_id.in_(brand_ids_q),
+                CreatorRevenueEvent.created_at >= month_ago,
+            )
         )
-    )).scalar() or 0.0
+    ).scalar() or 0.0
 
     return float(perf) + float(creator)
 
 
-async def get_pending_actions(
-    db: AsyncSession, org_id: uuid.UUID, limit: int = 20
-) -> list[dict]:
+async def get_pending_actions(db: AsyncSession, org_id: uuid.UUID, limit: int = 20) -> list[dict]:
     """Get pending operator actions, ordered by priority and recency."""
     priority_order = case(
         (OperatorAction.priority == "critical", 0),
@@ -270,9 +298,7 @@ async def get_pending_actions(
     ]
 
 
-async def get_recent_events(
-    db: AsyncSession, org_id: uuid.UUID, limit: int = 30
-) -> list[dict]:
+async def get_recent_events(db: AsyncSession, org_id: uuid.UUID, limit: int = 30) -> list[dict]:
     """Get recent system events for the activity feed."""
     q = await db.execute(
         select(SystemEvent)
@@ -339,31 +365,47 @@ async def _get_governance_counts(db: AsyncSession, org_id: uuid.UUID) -> dict:
 
     brand_ids_q = select(Brand.id).where(Brand.organization_id == org_id)
 
-    pending_approvals = (await db.execute(
-        select(func.count()).select_from(Approval).where(
-            Approval.brand_id.in_(brand_ids_q),
-            Approval.status == "pending",
+    pending_approvals = (
+        await db.execute(
+            select(func.count())
+            .select_from(Approval)
+            .where(
+                Approval.brand_id.in_(brand_ids_q),
+                Approval.status == "pending",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    open_alerts = (await db.execute(
-        select(func.count()).select_from(GatekeeperAlert).where(
-            GatekeeperAlert.brand_id.in_(brand_ids_q),
-            GatekeeperAlert.resolved.is_(False),
+    open_alerts = (
+        await db.execute(
+            select(func.count())
+            .select_from(GatekeeperAlert)
+            .where(
+                GatekeeperAlert.brand_id.in_(brand_ids_q),
+                GatekeeperAlert.resolved.is_(False),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    memory_entries = (await db.execute(
-        select(func.count()).select_from(MemoryEntry).where(
-            MemoryEntry.brand_id.in_(brand_ids_q),
+    memory_entries = (
+        await db.execute(
+            select(func.count())
+            .select_from(MemoryEntry)
+            .where(
+                MemoryEntry.brand_id.in_(brand_ids_q),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    creative_atoms = (await db.execute(
-        select(func.count()).select_from(CreativeMemoryAtom).where(
-            CreativeMemoryAtom.brand_id.in_(brand_ids_q),
+    creative_atoms = (
+        await db.execute(
+            select(func.count())
+            .select_from(CreativeMemoryAtom)
+            .where(
+                CreativeMemoryAtom.brand_id.in_(brand_ids_q),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     return {
         "pending_approvals": pending_approvals,
@@ -382,33 +424,49 @@ async def _get_intelligence_counts(db: AsyncSession, org_id: uuid.UUID) -> dict:
 
     brand_ids_q = select(Brand.id).where(Brand.organization_id == org_id)
 
-    winning = (await db.execute(
-        select(func.count()).select_from(WinningPatternMemory).where(
-            WinningPatternMemory.brand_id.in_(brand_ids_q),
-            WinningPatternMemory.is_active.is_(True),
+    winning = (
+        await db.execute(
+            select(func.count())
+            .select_from(WinningPatternMemory)
+            .where(
+                WinningPatternMemory.brand_id.in_(brand_ids_q),
+                WinningPatternMemory.is_active.is_(True),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    decisions = (await db.execute(
-        select(func.count()).select_from(BrainDecision).where(
-            BrainDecision.brand_id.in_(brand_ids_q),
-            BrainDecision.is_active.is_(True),
+    decisions = (
+        await db.execute(
+            select(func.count())
+            .select_from(BrainDecision)
+            .where(
+                BrainDecision.brand_id.in_(brand_ids_q),
+                BrainDecision.is_active.is_(True),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    experiments = (await db.execute(
-        select(func.count()).select_from(ActiveExperiment).where(
-            ActiveExperiment.brand_id.in_(brand_ids_q),
-            ActiveExperiment.status == "active",
+    experiments = (
+        await db.execute(
+            select(func.count())
+            .select_from(ActiveExperiment)
+            .where(
+                ActiveExperiment.brand_id.in_(brand_ids_q),
+                ActiveExperiment.status == "active",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    suppressions = (await db.execute(
-        select(func.count()).select_from(SuppressionRule).where(
-            SuppressionRule.brand_id.in_(brand_ids_q),
-            SuppressionRule.is_active.is_(True),
+    suppressions = (
+        await db.execute(
+            select(func.count())
+            .select_from(SuppressionRule)
+            .where(
+                SuppressionRule.brand_id.in_(brand_ids_q),
+                SuppressionRule.is_active.is_(True),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     return {
         "winning_patterns": winning,

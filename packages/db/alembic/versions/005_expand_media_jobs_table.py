@@ -9,6 +9,7 @@ Revision ID: 005_media_jobs_v2
 Revises: 004_monetization
 Create Date: 2026-04-05
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -37,20 +38,19 @@ def upgrade() -> None:
     # ---------------------------------------------------------------
 
     # --- 1. Add new columns (skip if already present) ---
-    safe_add_column("media_jobs", "org_id",
-                    sa.Column("org_id", UUID(as_uuid=True), nullable=True))
-    safe_add_column("media_jobs", "content_item_id",
-                    sa.Column("content_item_id", UUID(as_uuid=True), nullable=True))
-    safe_add_column("media_jobs", "quality_tier",
-                    sa.Column("quality_tier", sa.String(50), server_default="standard", nullable=False))
-    safe_add_column("media_jobs", "output_url",
-                    sa.Column("output_url", sa.String(2048), nullable=True))
-    safe_add_column("media_jobs", "dispatched_at",
-                    sa.Column("dispatched_at", sa.DateTime(timezone=True), nullable=True))
-    safe_add_column("media_jobs", "next_pipeline_task",
-                    sa.Column("next_pipeline_task", sa.String(500), nullable=True))
-    safe_add_column("media_jobs", "next_pipeline_args",
-                    sa.Column("next_pipeline_args", JSONB, nullable=True))
+    safe_add_column("media_jobs", "org_id", sa.Column("org_id", UUID(as_uuid=True), nullable=True))
+    safe_add_column("media_jobs", "content_item_id", sa.Column("content_item_id", UUID(as_uuid=True), nullable=True))
+    safe_add_column(
+        "media_jobs",
+        "quality_tier",
+        sa.Column("quality_tier", sa.String(50), server_default="standard", nullable=False),
+    )
+    safe_add_column("media_jobs", "output_url", sa.Column("output_url", sa.String(2048), nullable=True))
+    safe_add_column(
+        "media_jobs", "dispatched_at", sa.Column("dispatched_at", sa.DateTime(timezone=True), nullable=True)
+    )
+    safe_add_column("media_jobs", "next_pipeline_task", sa.Column("next_pipeline_task", sa.String(500), nullable=True))
+    safe_add_column("media_jobs", "next_pipeline_args", sa.Column("next_pipeline_args", JSONB, nullable=True))
 
     # --- 2. Rename columns (only if old name exists and new name doesn't) ---
     existing_cols = get_columns("media_jobs")
@@ -64,25 +64,34 @@ def upgrade() -> None:
 
     # --- 3. Widen provider and provider_job_id columns ---
     # These are safe to run multiple times (widening is a no-op if already wide)
-    op.alter_column("media_jobs", "provider",
-                    type_=sa.String(100), existing_type=sa.String(50),
-                    nullable=False, existing_nullable=True)
-    op.alter_column("media_jobs", "provider_job_id",
-                    type_=sa.String(500), existing_type=sa.String(255))
+    op.alter_column(
+        "media_jobs",
+        "provider",
+        type_=sa.String(100),
+        existing_type=sa.String(50),
+        nullable=False,
+        existing_nullable=True,
+    )
+    op.alter_column("media_jobs", "provider_job_id", type_=sa.String(500), existing_type=sa.String(255))
 
     # --- 4. Change status default ---
-    op.alter_column("media_jobs", "status",
-                    server_default="dispatched",
-                    existing_type=sa.String(20))
+    op.alter_column("media_jobs", "status", server_default="dispatched", existing_type=sa.String(20))
 
     # --- 5. Add FK constraints for new columns (idempotent) ---
     safe_create_fk(
-        "fk_media_jobs_org_id", "media_jobs",
-        "organizations", ["org_id"], ["id"], ondelete="CASCADE",
+        "fk_media_jobs_org_id",
+        "media_jobs",
+        "organizations",
+        ["org_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     safe_create_fk(
-        "fk_media_jobs_content_item_id", "media_jobs",
-        "content_items", ["content_item_id"], ["id"],
+        "fk_media_jobs_content_item_id",
+        "media_jobs",
+        "content_items",
+        ["content_item_id"],
+        ["id"],
     )
 
     # --- 6. Drop old columns no longer in the new schema ---
@@ -121,7 +130,9 @@ def upgrade() -> None:
 
     # --- 7. Add unique constraint on provider_job_id (idempotent) ---
     safe_create_unique_constraint(
-        "uq_media_jobs_provider_job_id", "media_jobs", ["provider_job_id"],
+        "uq_media_jobs_provider_job_id",
+        "media_jobs",
+        ["provider_job_id"],
     )
 
     # --- 8. Add new indexes (idempotent) ---
@@ -138,9 +149,14 @@ def downgrade() -> None:
     from packages.db.alembic.migration_safety import index_exists
 
     # Drop new indexes (safe)
-    for idx in ["ix_media_jobs_provider_job_id", "ix_media_jobs_provider",
-                "ix_media_jobs_job_type", "ix_media_jobs_script_id",
-                "ix_media_jobs_content_item_id", "ix_media_jobs_org_id"]:
+    for idx in [
+        "ix_media_jobs_provider_job_id",
+        "ix_media_jobs_provider",
+        "ix_media_jobs_job_type",
+        "ix_media_jobs_script_id",
+        "ix_media_jobs_content_item_id",
+        "ix_media_jobs_org_id",
+    ]:
         if index_exists(idx):
             op.drop_index(idx, "media_jobs")
 
@@ -149,18 +165,18 @@ def downgrade() -> None:
         op.drop_constraint("uq_media_jobs_provider_job_id", "media_jobs", type_="unique")
 
     # Restore dropped columns
-    safe_add_column("media_jobs", "avatar_id",
-                    sa.Column("avatar_id", UUID(as_uuid=True), nullable=True))
-    safe_add_column("media_jobs", "output_asset_id",
-                    sa.Column("output_asset_id", UUID(as_uuid=True), nullable=True))
-    safe_add_column("media_jobs", "max_retries",
-                    sa.Column("max_retries", sa.Integer, server_default="3", nullable=False))
-    safe_add_column("media_jobs", "error_details",
-                    sa.Column("error_details", JSONB, server_default=sa.text("'{}'::jsonb"), nullable=True))
-    safe_add_column("media_jobs", "cost",
-                    sa.Column("cost", sa.Float, server_default="0.0", nullable=False))
-    safe_add_column("media_jobs", "started_at",
-                    sa.Column("started_at", sa.DateTime(timezone=True), nullable=True))
+    safe_add_column("media_jobs", "avatar_id", sa.Column("avatar_id", UUID(as_uuid=True), nullable=True))
+    safe_add_column("media_jobs", "output_asset_id", sa.Column("output_asset_id", UUID(as_uuid=True), nullable=True))
+    safe_add_column(
+        "media_jobs", "max_retries", sa.Column("max_retries", sa.Integer, server_default="3", nullable=False)
+    )
+    safe_add_column(
+        "media_jobs",
+        "error_details",
+        sa.Column("error_details", JSONB, server_default=sa.text("'{}'::jsonb"), nullable=True),
+    )
+    safe_add_column("media_jobs", "cost", sa.Column("cost", sa.Float, server_default="0.0", nullable=False))
+    safe_add_column("media_jobs", "started_at", sa.Column("started_at", sa.DateTime(timezone=True), nullable=True))
 
     # Restore FK constraints
     safe_create_fk("media_jobs_avatar_id_fkey", "media_jobs", "avatars", ["avatar_id"], ["id"])
@@ -173,8 +189,15 @@ def downgrade() -> None:
         op.drop_constraint("fk_media_jobs_org_id", "media_jobs", type_="foreignkey")
 
     # Drop new columns
-    for col in ["next_pipeline_args", "next_pipeline_task", "dispatched_at",
-                "output_url", "quality_tier", "content_item_id", "org_id"]:
+    for col in [
+        "next_pipeline_args",
+        "next_pipeline_task",
+        "dispatched_at",
+        "output_url",
+        "quality_tier",
+        "content_item_id",
+        "org_id",
+    ]:
         safe_drop_column("media_jobs", col)
 
     # Rename columns back
@@ -187,13 +210,8 @@ def downgrade() -> None:
         op.alter_column("media_jobs", "input_payload", new_column_name="input_config")
 
     # Restore provider column width
-    op.alter_column("media_jobs", "provider",
-                    type_=sa.String(50), existing_type=sa.String(100),
-                    nullable=True)
-    op.alter_column("media_jobs", "provider_job_id",
-                    type_=sa.String(255), existing_type=sa.String(500))
+    op.alter_column("media_jobs", "provider", type_=sa.String(50), existing_type=sa.String(100), nullable=True)
+    op.alter_column("media_jobs", "provider_job_id", type_=sa.String(255), existing_type=sa.String(500))
 
     # Restore status default
-    op.alter_column("media_jobs", "status",
-                    server_default="pending",
-                    existing_type=sa.String(20))
+    op.alter_column("media_jobs", "status", server_default="pending", existing_type=sa.String(20))

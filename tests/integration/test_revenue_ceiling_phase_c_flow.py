@@ -52,6 +52,7 @@ async def _auth_brand_two_offers(api_client, sample_org_data):
 # GET — empty before recompute
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_phase_c_gets_empty_before_recompute(api_client, sample_org_data):
     headers, bid = await _auth_brand_two_offers(api_client, sample_org_data)
@@ -71,6 +72,7 @@ async def test_phase_c_gets_empty_before_recompute(api_client, sample_org_data):
 # ---------------------------------------------------------------------------
 # Recompute + GET — recurring revenue
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_phase_c_recurring_revenue_recompute_and_get(api_client, sample_org_data):
@@ -96,6 +98,7 @@ async def test_phase_c_recurring_revenue_recompute_and_get(api_client, sample_or
 # ---------------------------------------------------------------------------
 # Recompute + GET — sponsor inventory
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_phase_c_sponsor_inventory_recompute_and_get(api_client, db_session, sample_org_data):
@@ -129,6 +132,7 @@ async def test_phase_c_sponsor_inventory_recompute_and_get(api_client, db_sessio
 # Recompute + GET — trust conversion
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_phase_c_trust_conversion_recompute_and_get(api_client, sample_org_data):
     headers, bid = await _auth_brand_two_offers(api_client, sample_org_data)
@@ -151,6 +155,7 @@ async def test_phase_c_trust_conversion_recompute_and_get(api_client, sample_org
 # ---------------------------------------------------------------------------
 # Recompute + GET — monetization mix
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_phase_c_monetization_mix_recompute_and_get(api_client, sample_org_data):
@@ -176,6 +181,7 @@ async def test_phase_c_monetization_mix_recompute_and_get(api_client, sample_org
 # ---------------------------------------------------------------------------
 # Recompute + GET — paid promotion candidates
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_phase_c_paid_promotion_recompute_and_get(api_client, db_session, sample_org_data):
@@ -204,6 +210,7 @@ async def test_phase_c_paid_promotion_recompute_and_get(api_client, db_session, 
 # Persistence — recompute replaces, does not duplicate
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_phase_c_recurring_revenue_recompute_is_idempotent(api_client, sample_org_data):
     headers, bid = await _auth_brand_two_offers(api_client, sample_org_data)
@@ -222,6 +229,7 @@ async def test_phase_c_recurring_revenue_recompute_is_idempotent(api_client, sam
 # ---------------------------------------------------------------------------
 # Celery task registration
 # ---------------------------------------------------------------------------
+
 
 def test_phase_c_celery_tasks_registered():
     import workers.revenue_ceiling_worker.tasks  # noqa: F401

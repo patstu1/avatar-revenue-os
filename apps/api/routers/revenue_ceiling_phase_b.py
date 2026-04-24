@@ -1,4 +1,5 @@
 """Revenue Ceiling Phase B — high-ticket, productization, revenue density, upsell."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -33,7 +34,9 @@ async def list_high_ticket_opportunities(brand_id: uuid.UUID, current_user: Curr
 
 
 @router.post("/{brand_id}/high-ticket-opportunities/recompute")
-async def recompute_high_ticket_opportunities(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_high_ticket_opportunities(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rcb.recompute_high_ticket_opportunities(db, brand_id)
     await log_action(
@@ -56,7 +59,9 @@ async def list_product_opportunities(brand_id: uuid.UUID, current_user: CurrentU
 
 
 @router.post("/{brand_id}/product-opportunities/recompute")
-async def recompute_product_opportunities(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_product_opportunities(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rcb.recompute_product_opportunities(db, brand_id)
     await log_action(
@@ -79,7 +84,9 @@ async def list_revenue_density(brand_id: uuid.UUID, current_user: CurrentUser, d
 
 
 @router.post("/{brand_id}/revenue-density/recompute")
-async def recompute_revenue_density(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_revenue_density(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rcb.recompute_revenue_density(db, brand_id)
     await log_action(
@@ -102,7 +109,9 @@ async def list_upsell_recommendations(brand_id: uuid.UUID, current_user: Current
 
 
 @router.post("/{brand_id}/upsell-recommendations/recompute")
-async def recompute_upsell_recommendations(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_upsell_recommendations(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rcb.recompute_upsell_recommendations(db, brand_id)
     await log_action(

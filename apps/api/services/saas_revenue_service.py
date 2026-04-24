@@ -1,4 +1,5 @@
 """SaaS & High-Ticket Revenue Service — bridges scoring engines to database."""
+
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -19,47 +20,123 @@ from packages.db.models.saas_metrics import (
 logger = structlog.get_logger()
 
 PIPELINE_STAGES = ["awareness", "interest", "consideration", "proposal", "negotiation", "closed_won", "closed_lost"]
-STAGE_WEIGHTS = {"awareness": 0.05, "interest": 0.15, "consideration": 0.30, "proposal": 0.50, "negotiation": 0.75, "closed_won": 1.0, "closed_lost": 0.0}
+STAGE_WEIGHTS = {
+    "awareness": 0.05,
+    "interest": 0.15,
+    "consideration": 0.30,
+    "proposal": 0.50,
+    "negotiation": 0.75,
+    "closed_won": 1.0,
+    "closed_lost": 0.0,
+}
 
 REVENUE_AVENUES = [
-    {"key": "saas_subscription", "label": "SaaS / Subscriptions", "type": "recurring", "setup_effort": "high", "time_to_revenue_days": 90},
-    {"key": "high_ticket_consulting", "label": "High-Ticket Consulting", "type": "one_time", "setup_effort": "medium", "time_to_revenue_days": 30},
-    {"key": "digital_products", "label": "Digital Products / Courses", "type": "mixed", "setup_effort": "high", "time_to_revenue_days": 60},
-    {"key": "affiliate", "label": "Affiliate Revenue", "type": "recurring", "setup_effort": "low", "time_to_revenue_days": 14},
-    {"key": "sponsorships", "label": "Sponsorships / Brand Deals", "type": "one_time", "setup_effort": "medium", "time_to_revenue_days": 30},
-    {"key": "ad_revenue", "label": "Ad Revenue (AdSense / RPM)", "type": "recurring", "setup_effort": "low", "time_to_revenue_days": 7},
-    {"key": "community_membership", "label": "Community / Membership", "type": "recurring", "setup_effort": "medium", "time_to_revenue_days": 45},
-    {"key": "ugc_services", "label": "UGC & Creative Services", "type": "one_time", "setup_effort": "low", "time_to_revenue_days": 14},
-    {"key": "licensing", "label": "Licensing / Syndication", "type": "recurring", "setup_effort": "medium", "time_to_revenue_days": 60},
-    {"key": "live_events", "label": "Live Events / Workshops", "type": "one_time", "setup_effort": "high", "time_to_revenue_days": 45},
+    {
+        "key": "saas_subscription",
+        "label": "SaaS / Subscriptions",
+        "type": "recurring",
+        "setup_effort": "high",
+        "time_to_revenue_days": 90,
+    },
+    {
+        "key": "high_ticket_consulting",
+        "label": "High-Ticket Consulting",
+        "type": "one_time",
+        "setup_effort": "medium",
+        "time_to_revenue_days": 30,
+    },
+    {
+        "key": "digital_products",
+        "label": "Digital Products / Courses",
+        "type": "mixed",
+        "setup_effort": "high",
+        "time_to_revenue_days": 60,
+    },
+    {
+        "key": "affiliate",
+        "label": "Affiliate Revenue",
+        "type": "recurring",
+        "setup_effort": "low",
+        "time_to_revenue_days": 14,
+    },
+    {
+        "key": "sponsorships",
+        "label": "Sponsorships / Brand Deals",
+        "type": "one_time",
+        "setup_effort": "medium",
+        "time_to_revenue_days": 30,
+    },
+    {
+        "key": "ad_revenue",
+        "label": "Ad Revenue (AdSense / RPM)",
+        "type": "recurring",
+        "setup_effort": "low",
+        "time_to_revenue_days": 7,
+    },
+    {
+        "key": "community_membership",
+        "label": "Community / Membership",
+        "type": "recurring",
+        "setup_effort": "medium",
+        "time_to_revenue_days": 45,
+    },
+    {
+        "key": "ugc_services",
+        "label": "UGC & Creative Services",
+        "type": "one_time",
+        "setup_effort": "low",
+        "time_to_revenue_days": 14,
+    },
+    {
+        "key": "licensing",
+        "label": "Licensing / Syndication",
+        "type": "recurring",
+        "setup_effort": "medium",
+        "time_to_revenue_days": 60,
+    },
+    {
+        "key": "live_events",
+        "label": "Live Events / Workshops",
+        "type": "one_time",
+        "setup_effort": "high",
+        "time_to_revenue_days": 45,
+    },
 ]
 
 
 async def get_saas_metrics(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     """Compute current SaaS metrics from active subscriptions and events."""
     active_subs = (
-        await db.execute(
-            select(Subscription).where(
-                Subscription.brand_id == brand_id,
-                Subscription.status.in_(["active", "past_due", "trial"]),
-                Subscription.is_active.is_(True),
+        (
+            await db.execute(
+                select(Subscription).where(
+                    Subscription.brand_id == brand_id,
+                    Subscription.status.in_(["active", "past_due", "trial"]),
+                    Subscription.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     total_mrr = sum(s.mrr for s in active_subs)
     arr = total_mrr * 12
 
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
     recent_events = (
-        await db.execute(
-            select(SubscriptionEvent).where(
-                SubscriptionEvent.brand_id == brand_id,
-                SubscriptionEvent.event_at >= thirty_days_ago,
-                SubscriptionEvent.is_active.is_(True),
+        (
+            await db.execute(
+                select(SubscriptionEvent).where(
+                    SubscriptionEvent.brand_id == brand_id,
+                    SubscriptionEvent.event_at >= thirty_days_ago,
+                    SubscriptionEvent.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     new_mrr = sum(e.new_mrr for e in recent_events if e.event_type == "new")
     churned_mrr = sum(abs(e.mrr_delta) for e in recent_events if e.event_type == "churn")
@@ -78,7 +155,9 @@ async def get_saas_metrics(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     avg_lifespan_months = 1.0 / gross_churn_rate if gross_churn_rate > 0 else 36.0
     ltv = avg_mrr * avg_lifespan_months
 
-    quick_ratio = (new_mrr + expansion_mrr) / (churned_mrr + contraction_mrr) if (churned_mrr + contraction_mrr) > 0 else 10.0
+    quick_ratio = (
+        (new_mrr + expansion_mrr) / (churned_mrr + contraction_mrr) if (churned_mrr + contraction_mrr) > 0 else 10.0
+    )
 
     plan_breakdown = defaultdict(lambda: {"count": 0, "mrr": 0.0})
     for s in active_subs:
@@ -109,14 +188,18 @@ async def get_saas_metrics(db: AsyncSession, brand_id: uuid.UUID) -> dict:
 async def get_churn_analysis(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     """Run churn prediction on all active subscribers."""
     active_subs = (
-        await db.execute(
-            select(Subscription).where(
-                Subscription.brand_id == brand_id,
-                Subscription.status.in_(["active", "past_due", "trial"]),
-                Subscription.is_active.is_(True),
+        (
+            await db.execute(
+                select(Subscription).where(
+                    Subscription.brand_id == brand_id,
+                    Subscription.status.in_(["active", "past_due", "trial"]),
+                    Subscription.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     if not active_subs:
         return {"status": "no_subscriptions", "at_risk": [], "summary": {}}
@@ -146,7 +229,9 @@ async def get_churn_analysis(db: AsyncSession, brand_id: uuid.UUID) -> dict:
 
         recent_events = (
             await db.execute(
-                select(func.count()).select_from(SubscriptionEvent).where(
+                select(func.count())
+                .select_from(SubscriptionEvent)
+                .where(
                     SubscriptionEvent.subscription_id == sub.id,
                     SubscriptionEvent.event_type == "payment_failed",
                     SubscriptionEvent.event_at >= now - timedelta(days=30),
@@ -172,18 +257,20 @@ async def get_churn_analysis(db: AsyncSession, brand_id: uuid.UUID) -> dict:
         risk_buckets[bucket] += 1
 
         if risk_score >= 0.2:
-            at_risk.append({
-                "subscription_id": str(sub.id),
-                "customer_id": sub.customer_id,
-                "customer_name": sub.customer_name,
-                "plan_name": sub.plan_name,
-                "mrr": sub.mrr,
-                "risk_score": round(risk_score, 3),
-                "risk_level": bucket,
-                "signals": signals,
-                "tenure_days": tenure_days,
-                "recommended_action": _churn_recommendation(bucket, signals),
-            })
+            at_risk.append(
+                {
+                    "subscription_id": str(sub.id),
+                    "customer_id": sub.customer_id,
+                    "customer_name": sub.customer_name,
+                    "plan_name": sub.plan_name,
+                    "mrr": sub.mrr,
+                    "risk_score": round(risk_score, 3),
+                    "risk_level": bucket,
+                    "signals": signals,
+                    "tenure_days": tenure_days,
+                    "recommended_action": _churn_recommendation(bucket, signals),
+                }
+            )
 
     at_risk.sort(key=lambda x: x["risk_score"], reverse=True)
     mrr_at_risk = sum(r["mrr"] for r in at_risk)
@@ -213,14 +300,18 @@ def _churn_recommendation(level: str, signals: list[str]) -> str:
 async def get_expansion_opportunities(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     """Identify upsell/cross-sell opportunities from active subscribers."""
     active_subs = (
-        await db.execute(
-            select(Subscription).where(
-                Subscription.brand_id == brand_id,
-                Subscription.status == "active",
-                Subscription.is_active.is_(True),
+        (
+            await db.execute(
+                select(Subscription).where(
+                    Subscription.brand_id == brand_id,
+                    Subscription.status == "active",
+                    Subscription.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     if not active_subs:
         return {"status": "no_subscriptions", "opportunities": []}
@@ -251,18 +342,20 @@ async def get_expansion_opportunities(db: AsyncSession, brand_id: uuid.UUID) -> 
                 expected_delta = sub.mrr * 2
 
         if opp_score >= 0.25:
-            opportunities.append({
-                "subscription_id": str(sub.id),
-                "customer_id": sub.customer_id,
-                "customer_name": sub.customer_name,
-                "current_plan": sub.plan_name,
-                "current_mrr": sub.mrr,
-                "opportunity_type": opp_type,
-                "expected_mrr_delta": round(expected_delta, 2),
-                "probability": round(opp_score, 3),
-                "expected_value": round(expected_delta * opp_score * 12, 2),
-                "tenure_days": tenure_days,
-            })
+            opportunities.append(
+                {
+                    "subscription_id": str(sub.id),
+                    "customer_id": sub.customer_id,
+                    "customer_name": sub.customer_name,
+                    "current_plan": sub.plan_name,
+                    "current_mrr": sub.mrr,
+                    "opportunity_type": opp_type,
+                    "expected_mrr_delta": round(expected_delta, 2),
+                    "probability": round(opp_score, 3),
+                    "expected_value": round(expected_delta * opp_score * 12, 2),
+                    "tenure_days": tenure_days,
+                }
+            )
 
     opportunities.sort(key=lambda x: x["expected_value"], reverse=True)
     total_expansion = sum(o["expected_value"] for o in opportunities)
@@ -278,13 +371,17 @@ async def get_expansion_opportunities(db: AsyncSession, brand_id: uuid.UUID) -> 
 async def get_pipeline_analysis(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     """Analyze high-ticket deal pipeline with velocity and bottleneck detection."""
     deals = (
-        await db.execute(
-            select(HighTicketDeal).where(
-                HighTicketDeal.brand_id == brand_id,
-                HighTicketDeal.is_active.is_(True),
+        (
+            await db.execute(
+                select(HighTicketDeal).where(
+                    HighTicketDeal.brand_id == brand_id,
+                    HighTicketDeal.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     if not deals:
         return {"status": "empty_pipeline", "stages": {}, "deals": []}
@@ -319,20 +416,22 @@ async def get_pipeline_analysis(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     deal_list = []
     for d in open_deals:
         stale_days = (now - d.last_activity_at).days
-        deal_list.append({
-            "id": str(d.id),
-            "customer_name": d.customer_name,
-            "deal_value": d.deal_value,
-            "stage": d.stage,
-            "product_type": d.product_type,
-            "probability": d.probability,
-            "weighted_value": round(d.deal_value * d.probability, 2),
-            "score": d.score,
-            "days_stale": stale_days,
-            "interactions": d.interactions,
-            "expected_close": d.expected_close_date.isoformat() if d.expected_close_date else None,
-            "needs_attention": stale_days > 7,
-        })
+        deal_list.append(
+            {
+                "id": str(d.id),
+                "customer_name": d.customer_name,
+                "deal_value": d.deal_value,
+                "stage": d.stage,
+                "product_type": d.product_type,
+                "probability": d.probability,
+                "weighted_value": round(d.deal_value * d.probability, 2),
+                "score": d.score,
+                "days_stale": stale_days,
+                "interactions": d.interactions,
+                "expected_close": d.expected_close_date.isoformat() if d.expected_close_date else None,
+                "needs_attention": stale_days > 7,
+            }
+        )
 
     deal_list.sort(key=lambda x: x["weighted_value"], reverse=True)
 
@@ -344,13 +443,17 @@ async def get_pipeline_analysis(db: AsyncSession, brand_id: uuid.UUID) -> dict:
             "weighted_pipeline_value": round(weighted_pipeline, 2),
             "velocity_30d": round(velocity_30d, 2),
             "avg_deal_size": round(total_pipeline / max(len(open_deals), 1), 2),
-            "win_rate_30d": round(len(won_30d) / max(len([d for d in deals if d.last_activity_at >= thirty_days_ago]), 1), 3),
+            "win_rate_30d": round(
+                len(won_30d) / max(len([d for d in deals if d.last_activity_at >= thirty_days_ago]), 1), 3
+            ),
         },
         "bottleneck": {
             "stage": bottleneck_stage[0],
             "avg_days": bottleneck_stage[1]["avg_days_in_stage"] if bottleneck_stage[1] else 0,
             "deals_stuck": bottleneck_stage[1]["count"] if bottleneck_stage[1] else 0,
-        } if bottleneck_stage[0] else None,
+        }
+        if bottleneck_stage[0]
+        else None,
         "stages": stage_data,
         "deals": deal_list[:50],
     }
@@ -406,15 +509,20 @@ async def get_revenue_avenue_rankings(db: AsyncSession, brand_id: uuid.UUID) -> 
                 func.sum(CreatorRevenueOpportunity.expected_value).label("total_expected"),
                 func.avg(CreatorRevenueOpportunity.expected_margin).label("avg_margin"),
                 func.count().label("cnt"),
-            ).where(
+            )
+            .where(
                 CreatorRevenueOpportunity.brand_id == brand_id,
                 CreatorRevenueOpportunity.status == "active",
                 CreatorRevenueOpportunity.is_active.is_(True),
-            ).group_by(CreatorRevenueOpportunity.avenue_type)
+            )
+            .group_by(CreatorRevenueOpportunity.avenue_type)
         )
     ).all()
 
-    opp_map = {r.avenue_type: {"expected": float(r.total_expected), "margin": float(r.avg_margin), "count": r.cnt} for r in opportunity_data}
+    opp_map = {
+        r.avenue_type: {"expected": float(r.total_expected), "margin": float(r.avg_margin), "count": r.cnt}
+        for r in opportunity_data
+    }
 
     revenue_map = {
         "saas_subscription": float(saas_mrr),
@@ -433,21 +541,23 @@ async def get_revenue_avenue_rankings(db: AsyncSession, brand_id: uuid.UUID) -> 
 
         effort_multiplier = {"low": 1.0, "medium": 0.7, "high": 0.4}[avenue["setup_effort"]]
         time_decay = 1.0 / (1.0 + avenue["time_to_revenue_days"] / 90)
-        roi_score = (potential * margin * effort_multiplier * time_decay)
+        roi_score = potential * margin * effort_multiplier * time_decay
         roi_score = round(min(roi_score / 1000, 100), 1) if roi_score > 0 else 0
 
-        rankings.append({
-            "avenue_key": key,
-            "label": avenue["label"],
-            "type": avenue["type"],
-            "current_monthly_revenue": round(current_monthly, 2),
-            "potential_monthly_revenue": round(potential, 2),
-            "margin": round(margin, 3),
-            "setup_effort": avenue["setup_effort"],
-            "time_to_revenue_days": avenue["time_to_revenue_days"],
-            "roi_score": roi_score,
-            "active_opportunities": opp.get("count", 0),
-        })
+        rankings.append(
+            {
+                "avenue_key": key,
+                "label": avenue["label"],
+                "type": avenue["type"],
+                "current_monthly_revenue": round(current_monthly, 2),
+                "potential_monthly_revenue": round(potential, 2),
+                "margin": round(margin, 3),
+                "setup_effort": avenue["setup_effort"],
+                "time_to_revenue_days": avenue["time_to_revenue_days"],
+                "roi_score": roi_score,
+                "active_opportunities": opp.get("count", 0),
+            }
+        )
 
     rankings.sort(key=lambda x: x["roi_score"], reverse=True)
 
@@ -469,13 +579,17 @@ async def get_revenue_avenue_rankings(db: AsyncSession, brand_id: uuid.UUID) -> 
 async def get_cohort_analysis(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     """Run monthly cohort retention analysis on subscriptions."""
     subs = (
-        await db.execute(
-            select(Subscription).where(
-                Subscription.brand_id == brand_id,
-                Subscription.is_active.is_(True),
+        (
+            await db.execute(
+                select(Subscription).where(
+                    Subscription.brand_id == brand_id,
+                    Subscription.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     if not subs:
         return {"status": "no_data", "cohorts": []}
@@ -504,16 +618,18 @@ async def get_cohort_analysis(db: AsyncSession, brand_id: uuid.UUID) -> dict:
             1,
         )
 
-        cohorts.append({
-            "cohort_month": cohort_month,
-            "initial_count": initial_count,
-            "initial_mrr": round(initial_mrr, 2),
-            "current_active": len(still_active),
-            "current_mrr": round(current_mrr, 2),
-            "retention_rate": round(retention_rate, 4),
-            "revenue_retention": round(revenue_retention, 4),
-            "months_since_start": months_since,
-        })
+        cohorts.append(
+            {
+                "cohort_month": cohort_month,
+                "initial_count": initial_count,
+                "initial_mrr": round(initial_mrr, 2),
+                "current_active": len(still_active),
+                "current_mrr": round(current_mrr, 2),
+                "retention_rate": round(retention_rate, 4),
+                "revenue_retention": round(revenue_retention, 4),
+                "months_since_start": months_since,
+            }
+        )
 
     return {
         "status": "analyzed",
@@ -570,11 +686,13 @@ async def get_revenue_stack(db: AsyncSession, brand_id: uuid.UUID) -> dict:
             select(
                 CreatorRevenueOpportunity.avenue_type,
                 func.sum(CreatorRevenueOpportunity.expected_value).label("total"),
-            ).where(
+            )
+            .where(
                 CreatorRevenueOpportunity.brand_id == brand_id,
                 CreatorRevenueOpportunity.status == "active",
                 CreatorRevenueOpportunity.is_active.is_(True),
-            ).group_by(CreatorRevenueOpportunity.avenue_type)
+            )
+            .group_by(CreatorRevenueOpportunity.avenue_type)
         )
     ).all()
     opp_rev = {r.avenue_type: float(r.total) for r in opp_rows}
@@ -601,11 +719,13 @@ async def get_revenue_stack(db: AsyncSession, brand_id: uuid.UUID) -> dict:
         diversification_score = 0.0
     else:
         shares = [stack[k]["monthly"] / total_monthly for k in active_streams] if total_monthly > 0 else []
-        hhi = sum(s ** 2 for s in shares)
+        hhi = sum(s**2 for s in shares)
         diversification_score = round(1.0 - hhi, 3) if shares else 0.0
 
     max_share = max((v["monthly"] / total_monthly for v in stack.values() if total_monthly > 0), default=0)
-    vulnerability = "critical" if max_share > 0.8 else "high" if max_share > 0.6 else "moderate" if max_share > 0.4 else "healthy"
+    vulnerability = (
+        "critical" if max_share > 0.8 else "high" if max_share > 0.6 else "moderate" if max_share > 0.4 else "healthy"
+    )
 
     return {
         "status": "computed",
@@ -692,14 +812,18 @@ async def get_launch_analysis(db: AsyncSession, brand_id: uuid.UUID, launch_id: 
 async def score_pipeline_deals(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     """Score all open pipeline deals using engagement, recency, and value signals."""
     deals = (
-        await db.execute(
-            select(HighTicketDeal).where(
-                HighTicketDeal.brand_id == brand_id,
-                HighTicketDeal.stage.notin_(["closed_won", "closed_lost"]),
-                HighTicketDeal.is_active.is_(True),
+        (
+            await db.execute(
+                select(HighTicketDeal).where(
+                    HighTicketDeal.brand_id == brand_id,
+                    HighTicketDeal.stage.notin_(["closed_won", "closed_lost"]),
+                    HighTicketDeal.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     if not deals:
         return {"status": "empty_pipeline", "scored": []}
@@ -720,18 +844,20 @@ async def score_pipeline_deals(db: AsyncSession, brand_id: uuid.UUID) -> dict:
         )
 
         d.score = composite
-        scored.append({
-            "deal_id": str(d.id),
-            "customer_name": d.customer_name,
-            "deal_value": d.deal_value,
-            "stage": d.stage,
-            "score": composite,
-            "recency_score": round(recency_score, 3),
-            "interaction_score": round(interaction_score, 3),
-            "stage_score": round(stage_score, 3),
-            "value_score": round(value_score, 3),
-            "recommended_action": _deal_action(composite, stale_days, d.stage),
-        })
+        scored.append(
+            {
+                "deal_id": str(d.id),
+                "customer_name": d.customer_name,
+                "deal_value": d.deal_value,
+                "stage": d.stage,
+                "score": composite,
+                "recency_score": round(recency_score, 3),
+                "interaction_score": round(interaction_score, 3),
+                "stage_score": round(stage_score, 3),
+                "value_score": round(value_score, 3),
+                "recommended_action": _deal_action(composite, stale_days, d.stage),
+            }
+        )
 
     await db.flush()
     scored.sort(key=lambda x: x["score"], reverse=True)

@@ -1,4 +1,5 @@
 """Onboarding API — Quick-start endpoints for new users."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, status

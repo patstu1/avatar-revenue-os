@@ -1,4 +1,5 @@
 """Trend / Viral Opportunity Engine — continuous opportunity detection."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -67,7 +68,9 @@ class ViralOpportunity(Base):
 
 class TrendOpportunityScore(Base):
     __tablename__ = "tv_opp_scores"
-    opportunity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tv_opportunities.id"), nullable=False, index=True)
+    opportunity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tv_opportunities.id"), nullable=False, index=True
+    )
     dimension: Mapped[str] = mapped_column(String(40), nullable=False)
     score: Mapped[float] = mapped_column(Float, default=0.0)
     explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -95,7 +98,9 @@ class TrendSuppressionRule(Base):
 class TrendBlocker(Base):
     __tablename__ = "tv_blockers"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("tv_opportunities.id"), nullable=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tv_opportunities.id"), nullable=True
+    )
     blocker_type: Mapped[str] = mapped_column(String(60), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     severity: Mapped[str] = mapped_column(String(20), default="medium")

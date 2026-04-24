@@ -8,6 +8,7 @@ not by human operators. Operators can manually revoke a grant via the API.
 
 Daily caps prevent runaway execution even for trusted brands.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -24,19 +25,26 @@ class BrandAutonomyGrant(Base):
     __tablename__ = "brand_autonomy_grants"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("brands.id"),
+        nullable=False,
+        index=True,
     )
     action_type: Mapped[str] = mapped_column(
-        String(100), nullable=False,
+        String(100),
+        nullable=False,
         comment="The action_type this grant applies to (e.g. create_content_for_offer)",
     )
 
     # --- Grant state ---
     granted_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(),
+        DateTime(timezone=True),
+        server_default=func.now(),
     )
     granted_by: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="auto",
+        String(50),
+        nullable=False,
+        default="auto",
         comment="'auto' (from update_autonomy_grants task) or an operator user_id",
     )
     success_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -44,7 +52,8 @@ class BrandAutonomyGrant(Base):
 
     # --- Daily cap ---
     daily_cap: Mapped[int] = mapped_column(
-        Integer, default=5,
+        Integer,
+        default=5,
         comment="Max auto-approvals per UTC day for this (brand, action_type) pair",
     )
     today_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -56,6 +65,5 @@ class BrandAutonomyGrant(Base):
 
     __table_args__ = (
         UniqueConstraint("brand_id", "action_type", name="uq_brand_autonomy_grant_brand_action"),
-        Index("ix_brand_autonomy_grants_brand_active", "brand_id",
-              postgresql_where="revoked_at IS NULL"),
+        Index("ix_brand_autonomy_grants_brand_active", "brand_id", postgresql_where="revoked_at IS NULL"),
     )

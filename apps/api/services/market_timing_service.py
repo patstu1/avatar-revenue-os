@@ -1,4 +1,5 @@
 """Market Timing service — timing reports per category and macro signal events."""
+
 from __future__ import annotations
 
 import uuid
@@ -24,9 +25,7 @@ def _strip_meta(d: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def recompute_market_timing(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_market_timing(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -42,9 +41,7 @@ async def recompute_market_timing(
     # Brand context
     aud_scalar = (
         await db.execute(
-            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(
-                CreatorAccount.brand_id == brand_id
-            )
+            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(CreatorAccount.brand_id == brand_id)
         )
     ).scalar()
     audience_size = int(aud_scalar or 0)
@@ -62,9 +59,7 @@ async def recompute_market_timing(
 
     active_offers = (
         await db.execute(
-            select(func.count()).select_from(Offer).where(
-                Offer.brand_id == brand_id, Offer.is_active.is_(True)
-            )
+            select(func.count()).select_from(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
         )
     ).scalar()
     offer_count = int(active_offers or 0)
@@ -83,25 +78,19 @@ async def recompute_market_timing(
 
     # Load existing macro signal events for this brand
     existing_signals = list(
-        (
-            await db.execute(
-                select(MacroSignalEvent).where(
-                    MacroSignalEvent.brand_id == brand_id
-                )
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(MacroSignalEvent).where(MacroSignalEvent.brand_id == brand_id))).scalars().all()
     )
 
     macro_signals: list[dict[str, Any]] = []
     for sig in existing_signals:
         meta = sig.signal_metadata_json or {}
-        macro_signals.append({
-            "signal_type": sig.signal_type,
-            "value": float(meta.get("value", 0.5)),
-            "source": sig.source_name,
-        })
+        macro_signals.append(
+            {
+                "signal_type": sig.signal_type,
+                "value": float(meta.get("value", 0.5)),
+                "source": sig.source_name,
+            }
+        )
 
     # If no macro signals exist, synthesize baseline signals
     if not macro_signals:
@@ -175,9 +164,7 @@ def _report_dict(x: MarketTimingReport) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_market_timing_reports(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_market_timing_reports(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -211,9 +198,7 @@ def _macro_dict(x: MacroSignalEvent) -> dict[str, Any]:
     }
 
 
-async def get_macro_signal_events(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_macro_signal_events(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

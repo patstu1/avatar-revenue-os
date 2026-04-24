@@ -1,4 +1,5 @@
 """Audience State service — segment state inference, transition events, action recs."""
+
 from __future__ import annotations
 
 import uuid
@@ -29,9 +30,7 @@ def _strip_meta(d: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def recompute_audience_states(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_audience_states(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -55,9 +54,7 @@ async def recompute_audience_states(
         prev_states[seg_id] = pr.state_name
 
     # Delete existing active reports and events
-    await db.execute(
-        delete(AudienceStateEvent).where(AudienceStateEvent.brand_id == brand_id)
-    )
+    await db.execute(delete(AudienceStateEvent).where(AudienceStateEvent.brand_id == brand_id))
     await db.execute(
         delete(AudienceStateReport).where(
             AudienceStateReport.brand_id == brand_id,
@@ -88,11 +85,13 @@ async def recompute_audience_states(
 
     for seg in segments:
         seg_id_str = str(seg.id)
-        segment_dicts.append({
-            "segment_id": seg_id_str,
-            "name": seg.name,
-            "estimated_size": seg.estimated_size,
-        })
+        segment_dicts.append(
+            {
+                "segment_id": seg_id_str,
+                "name": seg.name,
+                "estimated_size": seg.estimated_size,
+            }
+        )
 
         engagement_data[seg_id_str] = {
             "engagement_rate": float(seg.conversion_rate or 0) * 0.5,
@@ -188,9 +187,7 @@ def _report_dict(x: AudienceStateReport) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_audience_states(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_audience_states(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

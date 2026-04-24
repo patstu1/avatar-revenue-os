@@ -38,6 +38,7 @@ no LLM calls — so unit tests run in milliseconds):
     score_avatar_quality_spec()  — enforce premium checklist
     generate_avatar_followup()   — end-to-end orchestrator
 """
+
 from __future__ import annotations
 
 import re
@@ -66,6 +67,7 @@ from packages.clients.email_templates import (
 #  Approved triggers
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class AvatarTrigger(str, Enum):
     """The only states that may produce an avatar follow-up.
 
@@ -73,6 +75,7 @@ class AvatarTrigger(str, Enum):
     lead lifecycle event (`checkout_started_no_payment`) emitted by the
     CRM / worker side.
     """
+
     WARM_INTEREST = "warm_interest"
     PRICING_REQUEST = "pricing_request"
     PROOF_REQUEST = "proof_request"
@@ -85,29 +88,35 @@ class AvatarTrigger(str, Enum):
 
 
 # Triggers that use the short personalized opener style
-_WARM_OPEN_TRIGGERS = frozenset({
-    AvatarTrigger.WARM_INTEREST,
-    AvatarTrigger.PRICING_REQUEST,
-    AvatarTrigger.PROOF_REQUEST,
-    AvatarTrigger.HIGH_VALUE_LEAD_TRUST_ACCELERATION,
-})
+_WARM_OPEN_TRIGGERS = frozenset(
+    {
+        AvatarTrigger.WARM_INTEREST,
+        AvatarTrigger.PRICING_REQUEST,
+        AvatarTrigger.PROOF_REQUEST,
+        AvatarTrigger.HIGH_VALUE_LEAD_TRUST_ACCELERATION,
+    }
+)
 
 # Triggers that use the "you got close — here's the path" re-engagement style
-_REENGAGE_TRIGGERS = frozenset({
-    AvatarTrigger.CLICKED_PACKAGE_LINK_NO_PURCHASE,
-    AvatarTrigger.CHECKOUT_STARTED_NO_PAYMENT,
-    AvatarTrigger.INTAKE_STARTED_NOT_COMPLETED,
-    AvatarTrigger.STALLED_AFTER_PRICING,
-    AvatarTrigger.STALLED_AFTER_PROOF,
-})
+_REENGAGE_TRIGGERS = frozenset(
+    {
+        AvatarTrigger.CLICKED_PACKAGE_LINK_NO_PURCHASE,
+        AvatarTrigger.CHECKOUT_STARTED_NO_PAYMENT,
+        AvatarTrigger.INTAKE_STARTED_NOT_COMPLETED,
+        AvatarTrigger.STALLED_AFTER_PRICING,
+        AvatarTrigger.STALLED_AFTER_PROOF,
+    }
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  State machine
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class AvatarAssetState(str, Enum):
     """Lifecycle states tracked on every AvatarFollowupRecord."""
+
     QUEUED = "queued"
     GENERATING = "generating"
     READY = "ready"
@@ -135,17 +144,19 @@ def can_transition(src: AvatarAssetState, dst: AvatarAssetState) -> bool:
 #  Premium quality spec — the visual/voice contract handed to the provider
 # ═══════════════════════════════════════════════════════════════════════════
 
-_PREMIUM_REQUIRED_FIELDS: frozenset[str] = frozenset({
-    "avatar_id",
-    "voice_id",
-    "lighting_profile",
-    "background_type",
-    "framing",
-    "wardrobe_tier",
-    "facial_expression",
-    "pacing_style",
-    "resolution",
-})
+_PREMIUM_REQUIRED_FIELDS: frozenset[str] = frozenset(
+    {
+        "avatar_id",
+        "voice_id",
+        "lighting_profile",
+        "background_type",
+        "framing",
+        "wardrobe_tier",
+        "facial_expression",
+        "pacing_style",
+        "resolution",
+    }
+)
 
 # Allowed enum values per field — anything else fails the quality gate.
 _PREMIUM_ENUMS: dict[str, frozenset[str]] = {
@@ -171,8 +182,9 @@ class AvatarQualitySpec:
     system fails closed — if premium cannot be guaranteed, we draft
     for review instead of shipping something cheesy or uncanny.
     """
-    avatar_id: str                             # real provider avatar id
-    voice_id: str                              # real provider voice id
+
+    avatar_id: str  # real provider avatar id
+    voice_id: str  # real provider voice id
     lighting_profile: str = "soft_contrast_cinematic"
     background_type: str = "dark_premium"
     framing: str = "chest_up"
@@ -290,24 +302,15 @@ _FORBIDDEN_SCRIPT_PATTERNS: list[tuple[str, str]] = [
 
 
 _ALLOWED_CTA_LINES: dict[str, str] = {
-    AvatarTrigger.WARM_INTEREST.value:
-        "Secure it here and intake starts immediately: {checkout_url}",
-    AvatarTrigger.PRICING_REQUEST.value:
-        "Secure the package here — pricing is locked: {checkout_url}",
-    AvatarTrigger.PROOF_REQUEST.value:
-        "Secure the package here — the first proof point ships against your actual offer: {checkout_url}",
-    AvatarTrigger.CLICKED_PACKAGE_LINK_NO_PURCHASE.value:
-        "Finish checkout here and we move straight into intake: {checkout_url}",
-    AvatarTrigger.CHECKOUT_STARTED_NO_PAYMENT.value:
-        "Finish checkout here and intake starts immediately: {checkout_url}",
-    AvatarTrigger.INTAKE_STARTED_NOT_COMPLETED.value:
-        "Complete intake here and we start production: {intake_url}",
-    AvatarTrigger.STALLED_AFTER_PRICING.value:
-        "Secure the package here whenever you're ready: {checkout_url}",
-    AvatarTrigger.STALLED_AFTER_PROOF.value:
-        "Proceed now and we begin production: {checkout_url}",
-    AvatarTrigger.HIGH_VALUE_LEAD_TRUST_ACCELERATION.value:
-        "Secure the fit here and we move immediately: {checkout_url}",
+    AvatarTrigger.WARM_INTEREST.value: "Secure it here and intake starts immediately: {checkout_url}",
+    AvatarTrigger.PRICING_REQUEST.value: "Secure the package here — pricing is locked: {checkout_url}",
+    AvatarTrigger.PROOF_REQUEST.value: "Secure the package here — the first proof point ships against your actual offer: {checkout_url}",
+    AvatarTrigger.CLICKED_PACKAGE_LINK_NO_PURCHASE.value: "Finish checkout here and we move straight into intake: {checkout_url}",
+    AvatarTrigger.CHECKOUT_STARTED_NO_PAYMENT.value: "Finish checkout here and intake starts immediately: {checkout_url}",
+    AvatarTrigger.INTAKE_STARTED_NOT_COMPLETED.value: "Complete intake here and we start production: {intake_url}",
+    AvatarTrigger.STALLED_AFTER_PRICING.value: "Secure the package here whenever you're ready: {checkout_url}",
+    AvatarTrigger.STALLED_AFTER_PROOF.value: "Proceed now and we begin production: {checkout_url}",
+    AvatarTrigger.HIGH_VALUE_LEAD_TRUST_ACCELERATION.value: "Secure the fit here and we move immediately: {checkout_url}",
 }
 
 
@@ -318,11 +321,12 @@ class AvatarScript:
     The script is structured — not free text — so every doctrine gate
     runs on exactly the fields the provider will speak.
     """
+
     trigger: str
     package_slug: str
     package_name: str
     package_price: str
-    brand_name: str                  # "" if unknown
+    brand_name: str  # "" if unknown
     opener: str
     observation: str
     recommendation: str
@@ -403,9 +407,7 @@ def build_avatar_script(
     observation = _build_observation(trigger, recommendation)
 
     # ── Recommendation — verbatim package name + price, one sentence ──
-    recommendation_line = (
-        f"Best fit is {pkg_name} at {pkg_price} — built for exactly this situation."
-    )
+    recommendation_line = f"Best fit is {pkg_name} at {pkg_price} — built for exactly this situation."
 
     # ── CTA — one line, from the approved table ────────────────────────
     cta_template = _ALLOWED_CTA_LINES[trigger.value]
@@ -463,9 +465,11 @@ def _build_observation(
 #  Eligibility — can this trigger + lead produce an avatar at all?
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class AvatarEligibility:
     """Result of the pre-generation eligibility check."""
+
     eligible: bool
     trigger: str
     reason: str
@@ -515,7 +519,8 @@ def decide_avatar_eligibility(
     if is_cold_first_touch and not settings.avatar_cold_first_touch_enabled:
         evaluated.append("cold_first_touch:BLOCKED")
         return AvatarEligibility(
-            False, trigger_value,
+            False,
+            trigger_value,
             "cold first touch disabled — avatar is warm-lead only by default",
             evaluated,
         )
@@ -525,7 +530,8 @@ def decide_avatar_eligibility(
     if trigger_value not in settings.avatar_allowed_triggers:
         evaluated.append(f"trigger_allowlist:MISS:{trigger_value}")
         return AvatarEligibility(
-            False, trigger_value,
+            False,
+            trigger_value,
             f"trigger {trigger_value} not in avatar_allowed_triggers",
             evaluated,
         )
@@ -537,7 +543,8 @@ def decide_avatar_eligibility(
         if now - last_avatar_sent_at < window:
             evaluated.append(f"cooldown:HIT:{settings.avatar_send_cooldown_hours}h")
             return AvatarEligibility(
-                False, trigger_value,
+                False,
+                trigger_value,
                 f"within {settings.avatar_send_cooldown_hours}h cooldown",
                 evaluated,
             )
@@ -547,7 +554,8 @@ def decide_avatar_eligibility(
     if lead_score < settings.avatar_min_lead_score:
         evaluated.append(f"lead_score:MISS:{lead_score}<{settings.avatar_min_lead_score}")
         return AvatarEligibility(
-            False, trigger_value,
+            False,
+            trigger_value,
             f"lead_score {lead_score} below floor {settings.avatar_min_lead_score}",
             evaluated,
         )
@@ -555,17 +563,14 @@ def decide_avatar_eligibility(
 
     # ── Step 6: lead confidence ────────────────────────────────────────
     if lead_confidence < settings.avatar_min_confidence:
-        evaluated.append(
-            f"lead_confidence:MISS:{lead_confidence:.2f}<{settings.avatar_min_confidence:.2f}"
-        )
+        evaluated.append(f"lead_confidence:MISS:{lead_confidence:.2f}<{settings.avatar_min_confidence:.2f}")
         return AvatarEligibility(
-            False, trigger_value,
+            False,
+            trigger_value,
             f"lead_confidence {lead_confidence:.2f} below floor",
             evaluated,
         )
-    evaluated.append(
-        f"lead_confidence:PASS:{lead_confidence:.2f}>={settings.avatar_min_confidence:.2f}"
-    )
+    evaluated.append(f"lead_confidence:PASS:{lead_confidence:.2f}>={settings.avatar_min_confidence:.2f}")
 
     return AvatarEligibility(True, trigger_value, "all eligibility checks passed", evaluated)
 
@@ -574,12 +579,14 @@ def decide_avatar_eligibility(
 #  Send-mode decider — auto / draft / escalate
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class AvatarSendDecision:
     """Routing decision for an avatar follow-up once it's built.
 
     mode is one of: auto_send | draft | escalate
     """
+
     mode: str
     source: str
     rationale: str
@@ -608,7 +615,10 @@ class AvatarSendDecision:
 # Enterprise / high-ambiguity signals that force draft even when the script
 # is clean — we want a human eye on large deals, custom scope, procurement.
 _AVATAR_AMBIGUITY_PATTERNS: list[tuple[str, str]] = [
-    (r"(?i)\b(enterprise|procurement|legal\s+review|master\s+service\s+agreement|\bmsa\b|security\s+review)\b", "enterprise_ambiguous"),
+    (
+        r"(?i)\b(enterprise|procurement|legal\s+review|master\s+service\s+agreement|\bmsa\b|security\s+review)\b",
+        "enterprise_ambiguous",
+    ),
     (r"(?i)\b(custom\s+(scope|package|quote|proposal)|bespoke|tailor(ed)?)\b", "custom_scope"),
     (r"(?i)\b(six.?figure|seven.?figure|\$\s*\d{1,3}[,.]?\d{3}[,.]?\d{3})\b", "high_value_ambiguous"),
     (r"(?i)\b(partnership|joint\s+venture|rev\s*share|equity)\b", "partnership"),
@@ -659,9 +669,7 @@ def decide_avatar_send_mode(
         decision.mode = "draft"
         decision.source = "quality_gate_failed"
         decision.quality_gate_issues = issues
-        decision.rationale = (
-            "premium quality spec failed — refusing to ship low-end/uncanny output"
-        )
+        decision.rationale = "premium quality spec failed — refusing to ship low-end/uncanny output"
         return decision
     evaluated.append("quality_gate:PASS")
 
@@ -702,19 +710,16 @@ def decide_avatar_send_mode(
     # ── Step 6: package confidence ─────────────────────────────────────
     if recommendation_confidence < settings.avatar_min_confidence:
         evaluated.append(
-            f"recommendation_confidence:MISS:{recommendation_confidence:.2f}"
-            f"<{settings.avatar_min_confidence:.2f}"
+            f"recommendation_confidence:MISS:{recommendation_confidence:.2f}<{settings.avatar_min_confidence:.2f}"
         )
         decision.mode = "draft"
         decision.source = "recommendation_confidence_low"
         decision.rationale = (
-            f"package confidence {recommendation_confidence:.2f} below "
-            f"{settings.avatar_min_confidence:.2f}"
+            f"package confidence {recommendation_confidence:.2f} below {settings.avatar_min_confidence:.2f}"
         )
         return decision
     evaluated.append(
-        f"recommendation_confidence:PASS:{recommendation_confidence:.2f}"
-        f">={settings.avatar_min_confidence:.2f}"
+        f"recommendation_confidence:PASS:{recommendation_confidence:.2f}>={settings.avatar_min_confidence:.2f}"
     )
 
     # ── Step 7: all checks passed ──────────────────────────────────────
@@ -729,24 +734,15 @@ def decide_avatar_send_mode(
 # ═══════════════════════════════════════════════════════════════════════════
 
 _DELIVERY_NOTES: dict[str, str] = {
-    AvatarTrigger.WARM_INTEREST.value:
-        "Made this quick breakdown for you — shows the best-fit package and next step.",
-    AvatarTrigger.PRICING_REQUEST.value:
-        "This shows the fit and the locked pricing in one short clip.",
-    AvatarTrigger.PROOF_REQUEST.value:
-        "This is the fastest way I'd approach it — package and next step inside.",
-    AvatarTrigger.CLICKED_PACKAGE_LINK_NO_PURCHASE.value:
-        "Noticed you got close to the package — short clip to finish the path.",
-    AvatarTrigger.CHECKOUT_STARTED_NO_PAYMENT.value:
-        "Short clip on the best-fit package and the fastest path to finish checkout.",
-    AvatarTrigger.INTAKE_STARTED_NOT_COMPLETED.value:
-        "Short clip to make the intake step obvious and quick to complete.",
-    AvatarTrigger.STALLED_AFTER_PRICING.value:
-        "Short clip with the best-fit package and the no-friction next step.",
-    AvatarTrigger.STALLED_AFTER_PROOF.value:
-        "Short clip showing the best-fit package and how we'd move.",
-    AvatarTrigger.HIGH_VALUE_LEAD_TRUST_ACCELERATION.value:
-        "Short clip with the best-fit package and exactly how I'd approach it.",
+    AvatarTrigger.WARM_INTEREST.value: "Made this quick breakdown for you — shows the best-fit package and next step.",
+    AvatarTrigger.PRICING_REQUEST.value: "This shows the fit and the locked pricing in one short clip.",
+    AvatarTrigger.PROOF_REQUEST.value: "This is the fastest way I'd approach it — package and next step inside.",
+    AvatarTrigger.CLICKED_PACKAGE_LINK_NO_PURCHASE.value: "Noticed you got close to the package — short clip to finish the path.",
+    AvatarTrigger.CHECKOUT_STARTED_NO_PAYMENT.value: "Short clip on the best-fit package and the fastest path to finish checkout.",
+    AvatarTrigger.INTAKE_STARTED_NOT_COMPLETED.value: "Short clip to make the intake step obvious and quick to complete.",
+    AvatarTrigger.STALLED_AFTER_PRICING.value: "Short clip with the best-fit package and the no-friction next step.",
+    AvatarTrigger.STALLED_AFTER_PROOF.value: "Short clip showing the best-fit package and how we'd move.",
+    AvatarTrigger.HIGH_VALUE_LEAD_TRUST_ACCELERATION.value: "Short clip with the best-fit package and exactly how I'd approach it.",
 }
 
 
@@ -807,9 +803,10 @@ def build_avatar_delivery_email(
 #  Provider protocol + fake
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class AvatarGenerationResult:
-    status: str                # queued | generating | ready | failed
+    status: str  # queued | generating | ready | failed
     provider: str
     provider_job_id: str
     video_url: str = ""
@@ -825,6 +822,7 @@ class AvatarProviderAdapter(Protocol):
     The live stack wraps packages.provider_clients.media_providers adapters.
     Tests use FakeAvatarProvider below so they can run without network.
     """
+
     name: str
 
     def generate(
@@ -832,8 +830,7 @@ class AvatarProviderAdapter(Protocol):
         *,
         script: AvatarScript,
         quality_spec: AvatarQualitySpec,
-    ) -> AvatarGenerationResult:
-        ...
+    ) -> AvatarGenerationResult: ...
 
 
 @dataclass
@@ -844,6 +841,7 @@ class FakeAvatarProvider:
     every request so tests can assert on what the live provider would
     have been asked to produce.
     """
+
     name: str = "fake"
     base_url: str = "https://fake.proofhook.test/avatars"
     fail_next: bool = False
@@ -889,6 +887,7 @@ class FakeAvatarProvider:
 #  Full tracked follow-up record
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class AvatarFollowupRecord:
     """DB-ready tracked artifact — links to contact/opportunity/thread.
@@ -897,6 +896,7 @@ class AvatarFollowupRecord:
     an avatar follow-up, what package did it push, did they come back
     through checkout / intake, did the send land in sent/viewed states."
     """
+
     record_id: uuid.UUID = field(default_factory=uuid.uuid4)
     # Linkage
     contact_id: str | None = None
@@ -916,7 +916,7 @@ class AvatarFollowupRecord:
     quality_mode: str = "premium"
     quality_issues: list[str] = field(default_factory=list)
     # Send decision
-    send_mode: str = ""                         # auto_send | draft | escalate
+    send_mode: str = ""  # auto_send | draft | escalate
     send_mode_source: str = ""
     send_rationale: str = ""
     # Provider / state
@@ -938,9 +938,7 @@ class AvatarFollowupRecord:
 
     def transition(self, new_state: AvatarAssetState, reason: str = "") -> None:
         if not can_transition(self.state, new_state):
-            raise ValueError(
-                f"illegal state transition: {self.state.value} → {new_state.value}"
-            )
+            raise ValueError(f"illegal state transition: {self.state.value} → {new_state.value}")
         self.state_history.append((f"{self.state.value}->{new_state.value}", reason))
         self.state = new_state
         if new_state == AvatarAssetState.SENT:
@@ -984,6 +982,7 @@ class AvatarFollowupRecord:
 # ═══════════════════════════════════════════════════════════════════════════
 #  End-to-end orchestrator
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 def generate_avatar_followup(
     *,
@@ -1048,7 +1047,9 @@ def generate_avatar_followup(
 
     # ── Step 2: package recommendation ─────────────────────────────────
     recommendation = recommend_package(
-        intent=trigger.value if trigger.value in {"warm_interest", "pricing_request", "proof_request"} else "warm_interest",
+        intent=trigger.value
+        if trigger.value in {"warm_interest", "pricing_request", "proof_request"}
+        else "warm_interest",
         body_text=inbound_body,
         subject=inbound_subject,
         from_email=from_email,

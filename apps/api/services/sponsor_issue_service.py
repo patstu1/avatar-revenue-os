@@ -5,6 +5,7 @@ Closes Iss:P → Iss:Y for sponsor_deals. Parallel to
 sponsor-specific subtypes. Severity scaling same as high_ticket
 (>=$10k critical, >=$1k warning, else info).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -43,9 +44,7 @@ async def classify_sponsor_issue(
     actor_id: str | None = None,
 ) -> dict:
     if subtype not in SPONSOR_ISSUE_SUBTYPES:
-        raise ValueError(
-            f"subtype must be one of {SPONSOR_ISSUE_SUBTYPES}, got {subtype!r}"
-        )
+        raise ValueError(f"subtype must be one of {SPONSOR_ISSUE_SUBTYPES}, got {subtype!r}")
     if affected_cents < 0:
         raise ValueError("affected_cents cannot be negative")
 
@@ -74,7 +73,7 @@ async def classify_sponsor_issue(
         description=(
             notes
             or f"Operator-classified sponsor issue: {subtype}. "
-            f"Affected amount: ${affected_cents/100:,.2f}. "
+            f"Affected amount: ${affected_cents / 100:,.2f}. "
             f"Sponsor email: {draft.to_email}."
         )[:4000],
         severity=severity,
@@ -94,7 +93,8 @@ async def classify_sponsor_issue(
     onboarding_event_id: uuid.UUID | None = None
     if client is not None:
         ce = ClientOnboardingEvent(
-            client_id=client.id, org_id=client.org_id,
+            client_id=client.id,
+            org_id=client.org_id,
             event_type=f"sponsor.issue.{subtype}",
             details_json={
                 "draft_id": str(draft.id),
@@ -104,22 +104,23 @@ async def classify_sponsor_issue(
                 "severity": severity,
                 "notes": notes,
             },
-            actor_type=actor_type, actor_id=actor_id,
+            actor_type=actor_type,
+            actor_id=actor_id,
         )
         db.add(ce)
         await db.flush()
         onboarding_event_id = ce.id
 
     await emit_event(
-        db, domain="fulfillment",
+        db,
+        domain="fulfillment",
         event_type=f"client.issue.sponsor_{subtype}",
-        summary=(
-            f"Sponsor {subtype}: {draft.to_email} "
-            f"${affected_cents/100:,.2f} ({severity})"
-        ),
+        summary=(f"Sponsor {subtype}: {draft.to_email} ${affected_cents / 100:,.2f} ({severity})"),
         org_id=draft.org_id,
-        entity_type="email_reply_draft", entity_id=draft.id,
-        actor_type=actor_type, actor_id=actor_id,
+        entity_type="email_reply_draft",
+        entity_id=draft.id,
+        actor_type=actor_type,
+        actor_id=actor_id,
         severity=severity,
         details={
             "draft_id": str(draft.id),
@@ -135,8 +136,6 @@ async def classify_sponsor_issue(
         "severity": severity,
         "subtype": subtype,
         "client_id": str(client.id) if client else None,
-        "onboarding_event_id": (
-            str(onboarding_event_id) if onboarding_event_id else None
-        ),
+        "onboarding_event_id": (str(onboarding_event_id) if onboarding_event_id else None),
         "affected_cents": affected_cents,
     }

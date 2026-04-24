@@ -1,4 +1,5 @@
 """Recovery service — detect operational incidents and persist recommended actions."""
+
 from __future__ import annotations
 
 import uuid
@@ -42,17 +43,13 @@ def _escalation_state(severity: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-async def recompute_recovery_incidents(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_recovery_incidents(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     account_count = (
-        await db.execute(
-            select(func.count(CreatorAccount.id)).where(CreatorAccount.brand_id == brand_id)
-        )
+        await db.execute(select(func.count(CreatorAccount.id)).where(CreatorAccount.brand_id == brand_id))
     ).scalar() or 0
 
     failed_jobs = (
@@ -65,9 +62,7 @@ async def recompute_recovery_incidents(
     ).scalar() or 0
 
     total_jobs = (
-        await db.execute(
-            select(func.count(SystemJob.id)).where(SystemJob.brand_id == brand_id)
-        )
+        await db.execute(select(func.count(SystemJob.id)).where(SystemJob.brand_id == brand_id))
     ).scalar() or 1
 
     publish_failure_rate = failed_jobs / max(total_jobs, 1)
@@ -83,9 +78,7 @@ async def recompute_recovery_incidents(
 
     avg_ctr = (
         await db.execute(
-            select(func.coalesce(func.avg(PerformanceMetric.ctr), 0.04)).where(
-                PerformanceMetric.brand_id == brand_id
-            )
+            select(func.coalesce(func.avg(PerformanceMetric.ctr), 0.04)).where(PerformanceMetric.brand_id == brand_id)
         )
     ).scalar()
     avg_ctr = float(avg_ctr or 0.04)
@@ -135,9 +128,7 @@ async def recompute_recovery_incidents(
 
     total_cost = (
         await db.execute(
-            select(func.coalesce(func.sum(ProviderUsageCost.cost), 0.0)).where(
-                ProviderUsageCost.brand_id == brand_id
-            )
+            select(func.coalesce(func.sum(ProviderUsageCost.cost), 0.0)).where(ProviderUsageCost.brand_id == brand_id)
         )
     ).scalar()
     total_cost = float(total_cost or 0.0)
@@ -152,9 +143,7 @@ async def recompute_recovery_incidents(
     paid_spent = float(paid_spent or 0.0)
 
     publish_rows = (
-        await db.execute(
-            select(func.count(PublishJob.id)).where(PublishJob.brand_id == brand_id)
-        )
+        await db.execute(select(func.count(PublishJob.id)).where(PublishJob.brand_id == brand_id))
     ).scalar() or 0
     publish_failed = (
         await db.execute(
@@ -166,13 +155,7 @@ async def recompute_recovery_incidents(
     ).scalar() or 0
     landing_fail_rate = publish_failed / max(publish_rows, 1)
 
-    ltv_rows = list(
-        (
-            await db.execute(select(LtvModel).where(LtvModel.brand_id == brand_id))
-        )
-        .scalars()
-        .all()
-    )
+    ltv_rows = list((await db.execute(select(LtvModel).where(LtvModel.brand_id == brand_id))).scalars().all())
     ltv_vals = [float(m.estimated_ltv_90d) for m in ltv_rows if m.estimated_ltv_90d]
     ltv_drop_metric = 0.0
     if len(ltv_vals) >= 2:
@@ -182,13 +165,7 @@ async def recompute_recovery_incidents(
             ltv_drop_metric = (lo - hi) / hi
 
     sponsor_rows = list(
-        (
-            await db.execute(
-                select(SponsorOpportunity).where(SponsorOpportunity.brand_id == brand_id)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(SponsorOpportunity).where(SponsorOpportunity.brand_id == brand_id))).scalars().all()
     )
     sponsor_roi_change = 0.0
     if sponsor_rows:
@@ -197,9 +174,7 @@ async def recompute_recovery_incidents(
         sponsor_roi_change = (avg_deal - 15000.0) / max(15000.0, 1.0)
 
     bounce_rows = (
-        await db.execute(
-            select(PerformanceMetric.raw_data).where(PerformanceMetric.brand_id == brand_id)
-        )
+        await db.execute(select(PerformanceMetric.raw_data).where(PerformanceMetric.brand_id == brand_id))
     ).all()
     email_bounce_rate = 0.0
     for (raw,) in bounce_rows:
@@ -438,9 +413,7 @@ def _ra_dict(x: RecoveryAction) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_recovery_incidents(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_recovery_incidents(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     sev_rank = case(
         (RecoveryIncident.severity == "critical", 0),
         (RecoveryIncident.severity == "high", 1),
@@ -488,16 +461,12 @@ async def get_recovery_incidents(
         d["actions"] = [_ra_dict(x) for x in by_incident.get(r.id, [])]
         expl = d.get("explanation_json") or {}
         d["confidence"] = expl.get("confidence")
-        d["expected_mitigation_effect"] = (
-            d["actions"][0].get("expected_effect_json") if d["actions"] else None
-        )
+        d["expected_mitigation_effect"] = d["actions"][0].get("expected_effect_json") if d["actions"] else None
         out.append(d)
     return out
 
 
-async def get_recovery_actions(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_recovery_actions(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

@@ -1,4 +1,5 @@
 """Brain Architecture Pack — Phase B tables: decisions, policies, confidence, cost/upside, arbitration."""
+
 import uuid
 from typing import Optional
 
@@ -33,7 +34,9 @@ class PolicyEvaluation(Base):
     __tablename__ = "policy_evaluations"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    decision_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brain_decisions.id"), nullable=True, index=True)
+    decision_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brain_decisions.id"), nullable=True, index=True
+    )
     action_ref: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     policy_mode: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
@@ -51,7 +54,9 @@ class ConfidenceReport(Base):
     __tablename__ = "confidence_reports"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    decision_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brain_decisions.id"), nullable=True, index=True)
+    decision_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brain_decisions.id"), nullable=True, index=True
+    )
     scope_label: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     confidence_score: Mapped[float] = mapped_column(Float, default=0.0)
     confidence_band: Mapped[str] = mapped_column(String(30), default="medium")
@@ -71,7 +76,9 @@ class UpsideCostEstimate(Base):
     __tablename__ = "upside_cost_estimates"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    decision_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brain_decisions.id"), nullable=True, index=True)
+    decision_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brain_decisions.id"), nullable=True, index=True
+    )
     scope_label: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     expected_upside: Mapped[float] = mapped_column(Float, default=0.0)
     expected_cost: Mapped[float] = mapped_column(Float, default=0.0)

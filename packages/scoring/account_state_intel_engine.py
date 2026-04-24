@@ -2,29 +2,111 @@
 
 Pure functions. No I/O.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 ACCOUNT_STATES = [
-    "newborn", "warming", "early_signal", "scaling", "monetizing",
-    "authority_building", "trust_repair", "saturated", "cooling",
-    "weak", "suppressed", "blocked",
+    "newborn",
+    "warming",
+    "early_signal",
+    "scaling",
+    "monetizing",
+    "authority_building",
+    "trust_repair",
+    "saturated",
+    "cooling",
+    "weak",
+    "suppressed",
+    "blocked",
 ]
 
 STATE_POLICIES = {
-    "newborn":            {"monetization_intensity": "none",   "posting_cadence": "slow",      "expansion_eligible": False, "content_forms": ["short_video", "text_post"],              "blocked_actions": ["aggressive_monetization", "paid_amplification"]},
-    "warming":            {"monetization_intensity": "low",    "posting_cadence": "normal",    "expansion_eligible": False, "content_forms": ["short_video", "carousel", "text_post"],  "blocked_actions": ["aggressive_monetization"]},
-    "early_signal":       {"monetization_intensity": "low",    "posting_cadence": "normal",    "expansion_eligible": False, "content_forms": ["short_video", "carousel", "story"],      "blocked_actions": []},
-    "scaling":            {"monetization_intensity": "medium",  "posting_cadence": "aggressive","expansion_eligible": True,  "content_forms": ["short_video", "long_video", "carousel", "live_stream"], "blocked_actions": []},
-    "monetizing":         {"monetization_intensity": "high",   "posting_cadence": "aggressive","expansion_eligible": True,  "content_forms": ["short_video", "long_video", "carousel", "story"],       "blocked_actions": []},
-    "authority_building": {"monetization_intensity": "medium",  "posting_cadence": "normal",    "expansion_eligible": True,  "content_forms": ["long_video", "carousel", "text_post"],  "blocked_actions": ["hard_sell_cta"]},
-    "trust_repair":       {"monetization_intensity": "none",   "posting_cadence": "slow",      "expansion_eligible": False, "content_forms": ["text_post", "story"],                   "blocked_actions": ["aggressive_monetization", "paid_amplification", "new_offer_launch"]},
-    "saturated":          {"monetization_intensity": "low",    "posting_cadence": "reduced",   "expansion_eligible": False, "content_forms": ["short_video", "text_post"],              "blocked_actions": ["volume_increase"]},
-    "cooling":            {"monetization_intensity": "low",    "posting_cadence": "reduced",   "expansion_eligible": False, "content_forms": ["short_video", "text_post", "story"],     "blocked_actions": ["aggressive_monetization"]},
-    "weak":               {"monetization_intensity": "none",   "posting_cadence": "minimal",   "expansion_eligible": False, "content_forms": ["text_post"],                            "blocked_actions": ["aggressive_monetization", "paid_amplification", "volume_increase"]},
-    "suppressed":         {"monetization_intensity": "none",   "posting_cadence": "paused",    "expansion_eligible": False, "content_forms": [],                                       "blocked_actions": ["all"]},
-    "blocked":            {"monetization_intensity": "none",   "posting_cadence": "paused",    "expansion_eligible": False, "content_forms": [],                                       "blocked_actions": ["all"]},
+    "newborn": {
+        "monetization_intensity": "none",
+        "posting_cadence": "slow",
+        "expansion_eligible": False,
+        "content_forms": ["short_video", "text_post"],
+        "blocked_actions": ["aggressive_monetization", "paid_amplification"],
+    },
+    "warming": {
+        "monetization_intensity": "low",
+        "posting_cadence": "normal",
+        "expansion_eligible": False,
+        "content_forms": ["short_video", "carousel", "text_post"],
+        "blocked_actions": ["aggressive_monetization"],
+    },
+    "early_signal": {
+        "monetization_intensity": "low",
+        "posting_cadence": "normal",
+        "expansion_eligible": False,
+        "content_forms": ["short_video", "carousel", "story"],
+        "blocked_actions": [],
+    },
+    "scaling": {
+        "monetization_intensity": "medium",
+        "posting_cadence": "aggressive",
+        "expansion_eligible": True,
+        "content_forms": ["short_video", "long_video", "carousel", "live_stream"],
+        "blocked_actions": [],
+    },
+    "monetizing": {
+        "monetization_intensity": "high",
+        "posting_cadence": "aggressive",
+        "expansion_eligible": True,
+        "content_forms": ["short_video", "long_video", "carousel", "story"],
+        "blocked_actions": [],
+    },
+    "authority_building": {
+        "monetization_intensity": "medium",
+        "posting_cadence": "normal",
+        "expansion_eligible": True,
+        "content_forms": ["long_video", "carousel", "text_post"],
+        "blocked_actions": ["hard_sell_cta"],
+    },
+    "trust_repair": {
+        "monetization_intensity": "none",
+        "posting_cadence": "slow",
+        "expansion_eligible": False,
+        "content_forms": ["text_post", "story"],
+        "blocked_actions": ["aggressive_monetization", "paid_amplification", "new_offer_launch"],
+    },
+    "saturated": {
+        "monetization_intensity": "low",
+        "posting_cadence": "reduced",
+        "expansion_eligible": False,
+        "content_forms": ["short_video", "text_post"],
+        "blocked_actions": ["volume_increase"],
+    },
+    "cooling": {
+        "monetization_intensity": "low",
+        "posting_cadence": "reduced",
+        "expansion_eligible": False,
+        "content_forms": ["short_video", "text_post", "story"],
+        "blocked_actions": ["aggressive_monetization"],
+    },
+    "weak": {
+        "monetization_intensity": "none",
+        "posting_cadence": "minimal",
+        "expansion_eligible": False,
+        "content_forms": ["text_post"],
+        "blocked_actions": ["aggressive_monetization", "paid_amplification", "volume_increase"],
+    },
+    "suppressed": {
+        "monetization_intensity": "none",
+        "posting_cadence": "paused",
+        "expansion_eligible": False,
+        "content_forms": [],
+        "blocked_actions": ["all"],
+    },
+    "blocked": {
+        "monetization_intensity": "none",
+        "posting_cadence": "paused",
+        "expansion_eligible": False,
+        "content_forms": [],
+        "blocked_actions": ["all"],
+    },
 }
 
 
@@ -66,7 +148,9 @@ def classify_account_state(inputs: dict[str, Any]) -> dict[str, Any]:
         return _result("weak", 0.75, inputs, "Warning health with very low engagement")
 
     if revenue > 0 and conversion_rate > 0 and profit > 0:
-        return _result("monetizing", 0.85, inputs, f"Actively monetizing — ${revenue:.0f} revenue, {conversion_rate:.1%} CVR")
+        return _result(
+            "monetizing", 0.85, inputs, f"Actively monetizing — ${revenue:.0f} revenue, {conversion_rate:.1%} CVR"
+        )
 
     if profit > 0 and engagement_rate > 0.03:
         return _result("scaling", 0.80, inputs, "Profitable with strong engagement — scaling")
@@ -145,32 +229,114 @@ def generate_actions(state: str, inputs: dict[str, Any]) -> list[dict[str, Any]]
     actions: list[dict[str, Any]] = []
 
     if state == "newborn":
-        actions.append({"action_type": "publish_content", "action_detail": "Publish 5+ initial posts across primary content forms", "priority": "high"})
+        actions.append(
+            {
+                "action_type": "publish_content",
+                "action_detail": "Publish 5+ initial posts across primary content forms",
+                "priority": "high",
+            }
+        )
     elif state == "warming":
-        actions.append({"action_type": "consistency_check", "action_detail": "Maintain daily posting cadence", "priority": "high"})
-        actions.append({"action_type": "engagement_focus", "action_detail": "Reply to comments, engage with niche accounts", "priority": "medium"})
+        actions.append(
+            {"action_type": "consistency_check", "action_detail": "Maintain daily posting cadence", "priority": "high"}
+        )
+        actions.append(
+            {
+                "action_type": "engagement_focus",
+                "action_detail": "Reply to comments, engage with niche accounts",
+                "priority": "medium",
+            }
+        )
     elif state == "early_signal":
-        actions.append({"action_type": "amplify_winners", "action_detail": "Identify top-performing content and create variations", "priority": "high"})
+        actions.append(
+            {
+                "action_type": "amplify_winners",
+                "action_detail": "Identify top-performing content and create variations",
+                "priority": "high",
+            }
+        )
     elif state == "scaling":
-        actions.append({"action_type": "volume_increase", "action_detail": "Increase posting volume to 2-3x baseline", "priority": "high"})
-        actions.append({"action_type": "monetization_test", "action_detail": "Test soft monetization on high-engagement content", "priority": "medium"})
+        actions.append(
+            {
+                "action_type": "volume_increase",
+                "action_detail": "Increase posting volume to 2-3x baseline",
+                "priority": "high",
+            }
+        )
+        actions.append(
+            {
+                "action_type": "monetization_test",
+                "action_detail": "Test soft monetization on high-engagement content",
+                "priority": "medium",
+            }
+        )
     elif state == "monetizing":
-        actions.append({"action_type": "conversion_optimize", "action_detail": "A/B test CTAs and offer angles", "priority": "high"})
-        actions.append({"action_type": "expand_offers", "action_detail": "Add complementary offers to the stack", "priority": "medium"})
+        actions.append(
+            {
+                "action_type": "conversion_optimize",
+                "action_detail": "A/B test CTAs and offer angles",
+                "priority": "high",
+            }
+        )
+        actions.append(
+            {
+                "action_type": "expand_offers",
+                "action_detail": "Add complementary offers to the stack",
+                "priority": "medium",
+            }
+        )
     elif state == "authority_building":
-        actions.append({"action_type": "long_form_content", "action_detail": "Create authority-building long-form content", "priority": "high"})
+        actions.append(
+            {
+                "action_type": "long_form_content",
+                "action_detail": "Create authority-building long-form content",
+                "priority": "high",
+            }
+        )
     elif state == "trust_repair":
-        actions.append({"action_type": "pause_monetization", "action_detail": "Remove all monetization until trust metrics recover", "priority": "critical"})
-        actions.append({"action_type": "value_content", "action_detail": "Publish value-first, no-ask content", "priority": "high"})
+        actions.append(
+            {
+                "action_type": "pause_monetization",
+                "action_detail": "Remove all monetization until trust metrics recover",
+                "priority": "critical",
+            }
+        )
+        actions.append(
+            {"action_type": "value_content", "action_detail": "Publish value-first, no-ask content", "priority": "high"}
+        )
     elif state == "saturated":
-        actions.append({"action_type": "creative_refresh", "action_detail": "Test completely new content formats and hooks", "priority": "high"})
-        actions.append({"action_type": "reduce_volume", "action_detail": "Drop posting volume by 30-50%", "priority": "medium"})
+        actions.append(
+            {
+                "action_type": "creative_refresh",
+                "action_detail": "Test completely new content formats and hooks",
+                "priority": "high",
+            }
+        )
+        actions.append(
+            {"action_type": "reduce_volume", "action_detail": "Drop posting volume by 30-50%", "priority": "medium"}
+        )
     elif state == "cooling":
-        actions.append({"action_type": "investigate_decline", "action_detail": "Analyze what changed — algorithm, content quality, or audience", "priority": "high"})
+        actions.append(
+            {
+                "action_type": "investigate_decline",
+                "action_detail": "Analyze what changed — algorithm, content quality, or audience",
+                "priority": "high",
+            }
+        )
     elif state == "weak":
-        actions.append({"action_type": "audit_quality", "action_detail": "Full content quality audit", "priority": "critical"})
-        actions.append({"action_type": "consider_pivot", "action_detail": "Evaluate niche or format pivot", "priority": "high"})
+        actions.append(
+            {"action_type": "audit_quality", "action_detail": "Full content quality audit", "priority": "critical"}
+        )
+        actions.append(
+            {"action_type": "consider_pivot", "action_detail": "Evaluate niche or format pivot", "priority": "high"}
+        )
     elif state in ("suppressed", "blocked"):
-        actions.append({"action_type": "platform_appeal", "action_detail": "Contact platform support for resolution", "priority": "critical"})
+        actions.append(
+            {
+                "action_type": "platform_appeal",
+                "action_detail": "Contact platform support for resolution",
+                "priority": "critical",
+            }
+        )
 
     return actions

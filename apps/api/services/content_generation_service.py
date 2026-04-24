@@ -4,6 +4,7 @@ Closes the core loop: brief → AI-generated script → quality score → approv
 Uses the tiered routing engine to select the right AI provider.
 Zero human input required once a brief exists.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -73,7 +74,7 @@ def _build_generation_prompt(brief: ContentBrief, brand: Brand | None, metadata:
     if brief.target_platform:
         parts.append(f"PLATFORM: {brief.target_platform}")
     if brief.content_type:
-        ct = brief.content_type.value if hasattr(brief.content_type, 'value') else str(brief.content_type)
+        ct = brief.content_type.value if hasattr(brief.content_type, "value") else str(brief.content_type)
         parts.append(f"CONTENT TYPE: {ct}")
     if brief.hook:
         parts.append(f"HOOK ANGLE: {brief.hook}")
@@ -83,12 +84,13 @@ def _build_generation_prompt(brief: ContentBrief, brand: Brand | None, metadata:
         parts.append(f"KEY POINTS: {', '.join(str(p) for p in brief.key_points)}")
     if brief.tone_guidance:
         parts.append(f"TONE: {brief.tone_guidance}")
-    elif brand and hasattr(brand, 'tone_of_voice') and brand.tone_of_voice:
+    elif brand and hasattr(brand, "tone_of_voice") and brand.tone_of_voice:
         parts.append(f"TONE: {brand.tone_of_voice}")
     if brief.target_duration_seconds:
         parts.append(f"TARGET DURATION: {brief.target_duration_seconds} seconds")
     try:
         from packages.scoring.cta_engine import select_cta
+
         platform = brief.target_platform or "youtube"
         has_offer = bool(metadata.get("offer_url"))
         has_lead_magnet = bool(metadata.get("lead_magnet_url"))
@@ -112,6 +114,7 @@ def _build_generation_prompt(brief: ContentBrief, brand: Brand | None, metadata:
     if not offer_url:
         try:
             from packages.scoring.affiliate_link_engine import generate_tracking_id, select_best_product
+
             niche = metadata.get("niche") or (brand.niche if brand else "general")
             content_id = str(brief.id)
             acct_id = str(brief.creator_account_id) if brief.creator_account_id else ""
@@ -126,6 +129,7 @@ def _build_generation_prompt(brief: ContentBrief, brand: Brand | None, metadata:
                         build_placement_instruction,
                         select_placement,
                     )
+
                     platform = brief.target_platform or "youtube"
                     placement = select_placement(platform)
                     instruction = build_placement_instruction(placement, product["link"], product["name"])
@@ -145,7 +149,9 @@ def _build_generation_prompt(brief: ContentBrief, brand: Brand | None, metadata:
     if wins:
         parts.append("\nWINNING PATTERNS (use these):")
         for w in wins[:5]:
-            parts.append(f"  - {w.get('pattern_name', '')} (type: {w.get('pattern_type', '')}, score: {w.get('win_score', 0):.2f})")
+            parts.append(
+                f"  - {w.get('pattern_name', '')} (type: {w.get('pattern_type', '')}, score: {w.get('win_score', 0):.2f})"
+            )
 
     losses = metadata.get("losing_patterns", [])
     if losses:
@@ -157,7 +163,9 @@ def _build_generation_prompt(brief: ContentBrief, brand: Brand | None, metadata:
     if niche_wins:
         parts.append("\nCROSS-PLATFORM NICHE INTELLIGENCE (validated across multiple accounts):")
         for np in niche_wins[:3]:
-            parts.append(f"  - {np.get('pattern_name', '')} (type: {np.get('pattern_type', '')}, avg score: {np.get('avg_win_score', 0):.2f}, validated by {np.get('brand_count', 1)} accounts)")
+            parts.append(
+                f"  - {np.get('pattern_name', '')} (type: {np.get('pattern_type', '')}, avg score: {np.get('avg_win_score', 0):.2f}, validated by {np.get('brand_count', 1)} accounts)"
+            )
 
     niche_losses = metadata.get("niche_losing_patterns", [])
     if niche_losses:
@@ -204,6 +212,7 @@ def _build_generation_prompt(brief: ContentBrief, brand: Brand | None, metadata:
 
     try:
         from packages.scoring.hashtag_engine import build_hashtag_prompt_section, select_optimal_hashtags
+
         platform = brief.target_platform or "youtube"
         niche = metadata.get("niche") or (brand.niche if brand else "general")
         keywords = brief.seo_keywords if isinstance(brief.seo_keywords, list) else []
@@ -239,46 +248,77 @@ async def _enrich_brief_metadata(db: AsyncSession, brief: ContentBrief) -> dict:
     """Pull all intelligence data into brief metadata for AI prompt construction."""
     meta = dict(brief.brief_metadata or {})
 
-    wins = list((await db.execute(
-        select(WinningPatternMemory).where(
-            WinningPatternMemory.brand_id == brief.brand_id,
-            WinningPatternMemory.is_active.is_(True),
-        ).order_by(WinningPatternMemory.win_score.desc()).limit(5)
-    )).scalars().all())
-    meta["winning_patterns"] = [
-        {"pattern_type": w.pattern_type, "pattern_name": w.pattern_name, "win_score": w.win_score}
-        for w in wins
-    ]
-
-    losses = list((await db.execute(
-        select(LosingPatternMemory).where(
-            LosingPatternMemory.brand_id == brief.brand_id,
-            LosingPatternMemory.is_active.is_(True),
-        ).order_by(LosingPatternMemory.fail_score.desc()).limit(3)
-    )).scalars().all())
-    meta["losing_patterns"] = [
-        {"pattern_type": lp.pattern_type, "pattern_name": lp.pattern_name, "win_score": lp.fail_score}
-        for lp in losses
-    ]
-
-    suppressions = list((await db.execute(
-        select(SuppressionRule).where(
-            SuppressionRule.brand_id == brief.brand_id,
-            SuppressionRule.is_active.is_(True),
+    wins = list(
+        (
+            await db.execute(
+                select(WinningPatternMemory)
+                .where(
+                    WinningPatternMemory.brand_id == brief.brand_id,
+                    WinningPatternMemory.is_active.is_(True),
+                )
+                .order_by(WinningPatternMemory.win_score.desc())
+                .limit(5)
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
+    meta["winning_patterns"] = [
+        {"pattern_type": w.pattern_type, "pattern_name": w.pattern_name, "win_score": w.win_score} for w in wins
+    ]
+
+    losses = list(
+        (
+            await db.execute(
+                select(LosingPatternMemory)
+                .where(
+                    LosingPatternMemory.brand_id == brief.brand_id,
+                    LosingPatternMemory.is_active.is_(True),
+                )
+                .order_by(LosingPatternMemory.fail_score.desc())
+                .limit(3)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    meta["losing_patterns"] = [
+        {"pattern_type": lp.pattern_type, "pattern_name": lp.pattern_name, "win_score": lp.fail_score} for lp in losses
+    ]
+
+    suppressions = list(
+        (
+            await db.execute(
+                select(SuppressionRule).where(
+                    SuppressionRule.brand_id == brief.brand_id,
+                    SuppressionRule.is_active.is_(True),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
     if suppressions:
         meta["suppressed_families"] = [
             {"type": s.family_type, "key": s.family_key, "mode": s.suppression_mode, "reason": s.reason}
             for s in suppressions
         ]
 
-    objections = list((await db.execute(
-        select(ObjectionCluster).where(
-            ObjectionCluster.brand_id == brief.brand_id,
-            ObjectionCluster.is_active.is_(True),
-        ).order_by(ObjectionCluster.avg_monetization_impact.desc()).limit(3)
-    )).scalars().all())
+    objections = list(
+        (
+            await db.execute(
+                select(ObjectionCluster)
+                .where(
+                    ObjectionCluster.brand_id == brief.brand_id,
+                    ObjectionCluster.is_active.is_(True),
+                )
+                .order_by(ObjectionCluster.avg_monetization_impact.desc())
+                .limit(3)
+            )
+        )
+        .scalars()
+        .all()
+    )
     if objections:
         meta["top_objections"] = [
             {"type": o.objection_type, "impact": o.avg_monetization_impact, "angle": o.recommended_response_angle}
@@ -287,6 +327,7 @@ async def _enrich_brief_metadata(db: AsyncSession, brief: ContentBrief) -> dict:
 
     try:
         from apps.api.services.pattern_memory_service import compute_niche_aggregate_patterns
+
         brand = (await db.execute(select(Brand).where(Brand.id == brief.brand_id))).scalar_one_or_none()
         niche = brand.niche if brand else None
         if niche:
@@ -304,19 +345,31 @@ async def _enrich_brief_metadata(db: AsyncSession, brief: ContentBrief) -> dict:
         try:
             from packages.db.models.ai_personality import AIPersonality, PersonalityMemory
             from packages.scoring.personality_engine import build_personality_prompt
-            personality = (await db.execute(
-                select(AIPersonality).where(
-                    AIPersonality.account_id == brief.creator_account_id,
-                    AIPersonality.is_active.is_(True),
+
+            personality = (
+                await db.execute(
+                    select(AIPersonality).where(
+                        AIPersonality.account_id == brief.creator_account_id,
+                        AIPersonality.is_active.is_(True),
+                    )
                 )
-            )).scalar_one_or_none()
+            ).scalar_one_or_none()
             if personality:
-                memories = list((await db.execute(
-                    select(PersonalityMemory).where(
-                        PersonalityMemory.personality_id == personality.id,
-                        PersonalityMemory.is_active.is_(True),
-                    ).order_by(PersonalityMemory.importance_score.desc()).limit(5)
-                )).scalars().all())
+                memories = list(
+                    (
+                        await db.execute(
+                            select(PersonalityMemory)
+                            .where(
+                                PersonalityMemory.personality_id == personality.id,
+                                PersonalityMemory.is_active.is_(True),
+                            )
+                            .order_by(PersonalityMemory.importance_score.desc())
+                            .limit(5)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
                 p_dict = {
                     "character_name": personality.character_name,
                     "character_tagline": personality.character_tagline,
@@ -330,7 +383,14 @@ async def _enrich_brief_metadata(db: AsyncSession, brief: ContentBrief) -> dict:
                     "outro_phrases": personality.outro_phrases or [],
                     "forbidden_phrases": personality.forbidden_phrases or [],
                 }
-                mem_dicts = [{"memory_type": m.memory_type, "memory_value": m.memory_value, "importance_score": m.importance_score} for m in memories]
+                mem_dicts = [
+                    {
+                        "memory_type": m.memory_type,
+                        "memory_value": m.memory_value,
+                        "importance_score": m.importance_score,
+                    }
+                    for m in memories
+                ]
                 meta["personality"] = p_dict
                 meta["personality_prompt"] = build_personality_prompt(p_dict, mem_dicts)
                 meta["character_name"] = personality.character_name
@@ -346,12 +406,15 @@ async def _enrich_brief_metadata(db: AsyncSession, brief: ContentBrief) -> dict:
 
     if brief.creator_account_id:
         from packages.db.models.autonomous_farm import AccountVoiceProfile
-        vp = (await db.execute(
-            select(AccountVoiceProfile).where(
-                AccountVoiceProfile.account_id == brief.creator_account_id,
-                AccountVoiceProfile.is_active.is_(True),
+
+        vp = (
+            await db.execute(
+                select(AccountVoiceProfile).where(
+                    AccountVoiceProfile.account_id == brief.creator_account_id,
+                    AccountVoiceProfile.is_active.is_(True),
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
         if vp and vp.full_profile:
             meta["voice_profile"] = vp.full_profile
 
@@ -369,15 +432,19 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
     """
     from sqlalchemy import update
 
-    claimed = (await db.execute(
-        update(ContentBrief)
-        .where(ContentBrief.id == brief_id, ContentBrief.status.in_(["draft", "ready", "pending_generation"]))
-        .values(status="generating")
-        .returning(ContentBrief.id)
-    )).scalar_one_or_none()
+    claimed = (
+        await db.execute(
+            update(ContentBrief)
+            .where(ContentBrief.id == brief_id, ContentBrief.status.in_(["draft", "ready", "pending_generation"]))
+            .values(status="generating")
+            .returning(ContentBrief.id)
+        )
+    ).scalar_one_or_none()
 
     if not claimed:
-        brief_check = (await db.execute(select(ContentBrief.status).where(ContentBrief.id == brief_id))).scalar_one_or_none()
+        brief_check = (
+            await db.execute(select(ContentBrief.status).where(ContentBrief.id == brief_id))
+        ).scalar_one_or_none()
         if not brief_check:
             return {"success": False, "error": "Brief not found"}
         return {"success": False, "error": f"Brief already claimed (status: {brief_check})"}
@@ -395,13 +462,17 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
         import os
 
         from packages.scoring.tiered_routing_engine import check_budget_remaining
+
         daily_budget = float(os.environ.get("DAILY_AI_BUDGET_USD", "50.0"))
         daily_spent = float(meta.get("daily_spend_usd", 0))
         budget_check = check_budget_remaining(daily_budget, daily_spent)
         if not budget_check["within_budget"]:
             brief.status = "draft"
             await db.flush()
-            return {"success": False, "error": f"Daily AI budget exceeded (${daily_spent:.2f}/${daily_budget:.2f}). Resuming tomorrow."}
+            return {
+                "success": False,
+                "error": f"Daily AI budget exceeded (${daily_spent:.2f}/${daily_budget:.2f}). Resuming tomorrow.",
+            }
 
         tier = classify_task_tier(brief.target_platform or "youtube")
         provider_key = route_to_provider("text", tier)
@@ -410,12 +481,14 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
         db_api_key = None
         if brand and hasattr(brand, "organization_id") and brand.organization_id:
             from apps.api.services.integration_manager import get_credential
+
             db_api_key = await get_credential(db, brand.organization_id, provider_key)
 
         client = await _get_ai_client(provider_key, api_key=db_api_key)
 
         if brief.offer_id:
             from packages.db.models.core import Offer
+
             offer = (await db.execute(select(Offer).where(Offer.id == brief.offer_id))).scalar_one_or_none()
             if offer:
                 meta["offer_name"] = offer.name
@@ -424,12 +497,12 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
 
         prompt = _build_generation_prompt(brief, brand, meta)
 
-        ct = brief.content_type.value if hasattr(brief.content_type, 'value') else str(brief.content_type)
+        ct = brief.content_type.value if hasattr(brief.content_type, "value") else str(brief.content_type)
         is_video_script = ct in ("SHORT_VIDEO", "LONG_VIDEO", "REEL", "SHORT", "STORY")
         system_prompt = SCRIPT_SYSTEM_PROMPT if is_video_script else CAPTION_SYSTEM_PROMPT
 
         max_tokens = 2048 if is_video_script else 1024
-        if hasattr(client, 'generate'):
+        if hasattr(client, "generate"):
             if provider_key == "claude":
                 result = await client.generate(prompt, max_tokens=max_tokens, system=system_prompt)
             elif provider_key == "gemini_flash":
@@ -458,9 +531,7 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
 
     prompt_hash = hashlib.sha256(f"{brief.title}:{brief.angle}:{provider_key}".encode()).hexdigest()[:16]
 
-    existing_count = len(list((await db.execute(
-        select(Script.id).where(Script.brief_id == brief.id)
-    )).scalars().all()))
+    existing_count = len(list((await db.execute(select(Script.id).where(Script.brief_id == brief.id))).scalars().all()))
 
     script = Script(
         brief_id=brief.id,
@@ -493,11 +564,13 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
     try:
         from packages.clients.ai_clients import GPTImageClient, Imagen4Client
         from packages.db.models.content import Asset
+
         # Load image provider credentials from encrypted DB
         _img_key = None
         _imagen_key = None
         if brand and hasattr(brand, "organization_id") and brand.organization_id:
             from apps.api.services.integration_manager import get_credential as _gc
+
             _img_key = await _gc(db, brand.organization_id, "openai_image")
             _imagen_key = await _gc(db, brand.organization_id, "imagen4")
         img_client = GPTImageClient(api_key=_img_key)
@@ -510,8 +583,10 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
                 img_url = img_result["data"].get("url") or img_result["data"].get("image_url") or ""
                 if img_url:
                     asset = Asset(
-                        brand_id=brief.brand_id, asset_type="thumbnail",
-                        file_path=img_url, mime_type="image/png",
+                        brand_id=brief.brand_id,
+                        asset_type="thumbnail",
+                        file_path=img_url,
+                        mime_type="image/png",
                         storage_provider="external_url",
                         metadata_blob={"source": "ai_generated", "prompt": img_prompt[:200]},
                     )
@@ -542,14 +617,19 @@ async def generate_content_from_brief(db: AsyncSession, brief_id: uuid.UUID) -> 
     await db.flush()
 
     media_result = None
-    ct_val = brief.content_type.value if hasattr(brief.content_type, 'value') else str(brief.content_type)
+    ct_val = brief.content_type.value if hasattr(brief.content_type, "value") else str(brief.content_type)
     if ct_val in ("SHORT_VIDEO", "LONG_VIDEO", "REEL", "SHORT", "STORY"):
         try:
             from apps.api.services.media_production_service import produce_full_video
+
             media_result = await produce_full_video(db, content_item.id)
             if media_result.get("success"):
-                logger.info("Video produced for content %s: avatar=%s voice=%s",
-                            content_item.id, media_result.get("avatar_provider"), media_result.get("voice_provider"))
+                logger.info(
+                    "Video produced for content %s: avatar=%s voice=%s",
+                    content_item.id,
+                    media_result.get("avatar_provider"),
+                    media_result.get("voice_provider"),
+                )
             else:
                 logger.warning("Video production failed for content %s: %s", content_item.id, media_result.get("error"))
         except Exception:

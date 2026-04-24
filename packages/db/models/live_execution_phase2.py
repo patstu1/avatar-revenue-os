@@ -1,4 +1,5 @@
 """Live Execution Phase 2 + Buffer Execution Expansion models."""
+
 import uuid
 from typing import Optional
 
@@ -10,11 +11,15 @@ from packages.db.base import Base
 
 # ── A. Webhook / Event Ingestion ──────────────────────────────────────
 
+
 class WebhookEvent(Base):
     """Inbound webhook event from any external source (Stripe, Buffer, CRM, ESP, etc.)."""
+
     __tablename__ = "webhook_events"
 
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True)
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True
+    )
     source: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     source_category: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
@@ -29,6 +34,7 @@ class WebhookEvent(Base):
 
 class ExternalEventIngestion(Base):
     """Summarises a batch or real-time ingestion run from a specific source."""
+
     __tablename__ = "external_event_ingestions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -47,8 +53,10 @@ class ExternalEventIngestion(Base):
 
 # ── B. Sequence Trigger Actions ───────────────────────────────────────
 
+
 class SequenceTriggerAction(Base):
     """An automated action triggered by an event (conversion, CRM change, etc.)."""
+
     __tablename__ = "sequence_trigger_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -67,8 +75,10 @@ class SequenceTriggerAction(Base):
 
 # ── C. Payment / Checkout Connector ──────────────────────────────────
 
+
 class PaymentConnectorSync(Base):
     """Tracks a sync operation from a payment provider (Stripe, Shopify, etc.)."""
+
     __tablename__ = "payment_connector_syncs"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -87,8 +97,10 @@ class PaymentConnectorSync(Base):
 
 # ── D. Platform Analytics Sync ───────────────────────────────────────
 
+
 class PlatformAnalyticsSync(Base):
     """Tracks a scheduled or manual analytics pull from a platform/Buffer."""
+
     __tablename__ = "platform_analytics_syncs"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -109,8 +121,10 @@ class PlatformAnalyticsSync(Base):
 
 # ── E. Ad Reporting Imports ──────────────────────────────────────────
 
+
 class AdReportingImport(Base):
     """Tracks an import of ad platform reporting data (Meta, Google, TikTok)."""
+
     __tablename__ = "ad_reporting_imports"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -134,13 +148,19 @@ class AdReportingImport(Base):
 
 # ── F. Buffer Execution Truth ────────────────────────────────────────
 
+
 class BufferExecutionTruth(Base):
     """Per-job execution truth model tracking the full Buffer lifecycle."""
+
     __tablename__ = "buffer_execution_truth"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    buffer_publish_job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("buffer_publish_jobs.id"), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
+    buffer_publish_job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("buffer_publish_jobs.id"), nullable=False, index=True
+    )
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
     truth_state: Mapped[str] = mapped_column(String(40), default="queued_internally", index=True)
     previous_truth_state: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     is_duplicate: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -155,10 +175,13 @@ class BufferExecutionTruth(Base):
 
 class BufferExecutionEvent(Base):
     """An event in the Buffer job lifecycle (state transitions, retries, errors)."""
+
     __tablename__ = "buffer_execution_events"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    buffer_publish_job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("buffer_publish_jobs.id"), nullable=False, index=True)
+    buffer_publish_job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("buffer_publish_jobs.id"), nullable=False, index=True
+    )
     event_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     from_state: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     to_state: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
@@ -168,10 +191,13 @@ class BufferExecutionEvent(Base):
 
 class BufferRetryRecord(Base):
     """Tracks retry attempts and backoff for a Buffer publish job."""
+
     __tablename__ = "buffer_retry_records"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    buffer_publish_job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("buffer_publish_jobs.id"), nullable=False, index=True)
+    buffer_publish_job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("buffer_publish_jobs.id"), nullable=False, index=True
+    )
     attempt_number: Mapped[int] = mapped_column(Integer, default=1)
     retry_reason: Mapped[str] = mapped_column(String(120), nullable=False)
     backoff_seconds: Mapped[int] = mapped_column(Integer, default=60)
@@ -184,10 +210,13 @@ class BufferRetryRecord(Base):
 
 class BufferCapabilityCheck(Base):
     """Profile readiness and platform capability check for a Buffer profile."""
+
     __tablename__ = "buffer_capability_checks"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    buffer_profile_id_fk: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("buffer_profiles.id"), nullable=False, index=True)
+    buffer_profile_id_fk: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("buffer_profiles.id"), nullable=False, index=True
+    )
     profile_ready: Mapped[bool] = mapped_column(Boolean, default=False)
     credential_valid: Mapped[bool] = mapped_column(Boolean, default=False)
     missing_profile_mapping: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -1,4 +1,5 @@
 """Revenue Leak Detector — detect, cluster, estimate, correct."""
+
 import uuid
 from typing import Optional
 
@@ -23,7 +24,9 @@ class RevenueLeakReport(Base):
 class RevenueLeakEvent(Base):
     __tablename__ = "rld_events"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rld_reports.id"), nullable=False, index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rld_reports.id"), nullable=False, index=True
+    )
     leak_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     severity: Mapped[str] = mapped_column(String(20), default="medium")
     affected_scope: Mapped[str] = mapped_column(String(60), nullable=False)
@@ -51,7 +54,9 @@ class LeakCluster(Base):
 class LeakCorrectionAction(Base):
     __tablename__ = "rld_corrections"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    leak_event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rld_events.id"), nullable=False, index=True)
+    leak_event_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rld_events.id"), nullable=False, index=True
+    )
     action_type: Mapped[str] = mapped_column(String(60), nullable=False)
     action_detail: Mapped[str] = mapped_column(Text, nullable=False)
     target_system: Mapped[str] = mapped_column(String(60), nullable=False)

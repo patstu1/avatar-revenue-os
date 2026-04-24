@@ -1,4 +1,5 @@
 """Unit tests for bottleneck classifier and winner detection engines."""
+
 from packages.scoring.bottleneck import BottleneckInput, classify_bottleneck
 from packages.scoring.winner import ContentPerformance, detect_winners
 
@@ -42,9 +43,15 @@ class TestBottleneckClassifier:
         assert len(result.explanation) > 0
 
     def test_severity_critical_for_bad_metrics(self):
-        result = classify_bottleneck(BottleneckInput(
-            impressions=10000, clicks=5, ctr=0.0005, avg_watch_pct=0.1, views=500,
-        ))
+        result = classify_bottleneck(
+            BottleneckInput(
+                impressions=10000,
+                clicks=5,
+                ctr=0.0005,
+                avg_watch_pct=0.1,
+                views=500,
+            )
+        )
         assert result.severity in ("critical", "warning")
 
 
@@ -53,39 +60,70 @@ class TestWinnerDetection:
         assert detect_winners([]) == []
 
     def test_winner_detected(self):
-        items = [ContentPerformance(
-            content_id="1", title="Winner", impressions=10000,
-            revenue=150, profit=140, rpm=15.0, ctr=0.04,
-            engagement_rate=0.06, conversion_rate=0.04,
-        )]
+        items = [
+            ContentPerformance(
+                content_id="1",
+                title="Winner",
+                impressions=10000,
+                revenue=150,
+                profit=140,
+                rpm=15.0,
+                ctr=0.04,
+                engagement_rate=0.06,
+                conversion_rate=0.04,
+            )
+        ]
         results = detect_winners(items)
         assert results[0].is_winner
         assert results[0].win_score >= 0.5
 
     def test_loser_detected(self):
-        items = [ContentPerformance(
-            content_id="2", title="Loser", impressions=5000,
-            revenue=5, profit=-3, rpm=1.0, ctr=0.002,
-            engagement_rate=0.005,
-        )]
+        items = [
+            ContentPerformance(
+                content_id="2",
+                title="Loser",
+                impressions=5000,
+                revenue=5,
+                profit=-3,
+                rpm=1.0,
+                ctr=0.002,
+                engagement_rate=0.005,
+            )
+        ]
         results = detect_winners(items)
         assert results[0].is_loser
 
     def test_clone_recommended_for_winner(self):
-        items = [ContentPerformance(
-            content_id="3", title="Clone Me", impressions=20000,
-            revenue=300, profit=280, rpm=15, ctr=0.04,
-            engagement_rate=0.06, conversion_rate=0.05, platform="youtube",
-        )]
+        items = [
+            ContentPerformance(
+                content_id="3",
+                title="Clone Me",
+                impressions=20000,
+                revenue=300,
+                profit=280,
+                rpm=15,
+                ctr=0.04,
+                engagement_rate=0.06,
+                conversion_rate=0.05,
+                platform="youtube",
+            )
+        ]
         results = detect_winners(items, available_platforms=["youtube", "tiktok", "instagram"])
         assert results[0].clone_recommended
         assert "tiktok" in results[0].clone_targets
 
     def test_neutral_content(self):
-        items = [ContentPerformance(
-            content_id="4", title="Meh", impressions=500,
-            revenue=5, profit=2, rpm=10, ctr=0.02,
-        )]
+        items = [
+            ContentPerformance(
+                content_id="4",
+                title="Meh",
+                impressions=500,
+                revenue=5,
+                profit=2,
+                rpm=10,
+                ctr=0.02,
+            )
+        ]
         results = detect_winners(items)
         assert not results[0].is_winner
         assert not results[0].is_loser
@@ -93,7 +131,9 @@ class TestWinnerDetection:
     def test_sorted_by_win_score(self):
         items = [
             ContentPerformance(content_id="a", title="Low", rpm=5, ctr=0.01),
-            ContentPerformance(content_id="b", title="High", rpm=20, profit=100, engagement_rate=0.08, ctr=0.04, conversion_rate=0.04),
+            ContentPerformance(
+                content_id="b", title="High", rpm=20, profit=100, engagement_rate=0.08, ctr=0.04, conversion_rate=0.04
+            ),
         ]
         results = detect_winners(items)
         assert results[0].content_id == "b"

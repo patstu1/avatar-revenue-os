@@ -1,4 +1,5 @@
 """Pydantic schemas for Account Expansion Advisor."""
+
 from __future__ import annotations
 
 import uuid

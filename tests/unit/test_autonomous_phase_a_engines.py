@@ -1,4 +1,5 @@
 """Unit tests: Autonomous Phase A engines — signal scanning, warmup, maturity, output."""
+
 from __future__ import annotations
 
 import pytest
@@ -69,13 +70,21 @@ class TestNormalizeSignal:
 
     def test_returns_all_required_fields(self):
         result = normalize_signal(
-            "rising_topic", "trend_api",
+            "rising_topic",
+            "trend_api",
             {"title": "test", "age_hours": 1, "keywords": ["k"], "data_completeness": 0.5},
             {"niche": "tech", "niche_keywords": ["tech"], "active_offers": [], "monetization_modes": []},
         )
-        for key in ["normalized_title", "normalized_description", "freshness_score",
-                     "monetization_relevance", "urgency_score", "confidence",
-                     "is_actionable", "explanation"]:
+        for key in [
+            "normalized_title",
+            "normalized_description",
+            "freshness_score",
+            "monetization_relevance",
+            "urgency_score",
+            "confidence",
+            "is_actionable",
+            "explanation",
+        ]:
             assert key in result
 
 
@@ -85,7 +94,9 @@ class TestClassifySignalType:
         assert sig == "high_intent"
 
     def test_competitor_gap_classification(self):
-        sig = classify_signal_type("Competitor X missing feature", "vs analysis", {"gap_score": 0.8, "competitor_count": 5})
+        sig = classify_signal_type(
+            "Competitor X missing feature", "vs analysis", {"gap_score": 0.8, "competitor_count": 5}
+        )
         assert sig == "competitor_gap"
 
     def test_fatigue_classification(self):
@@ -207,6 +218,7 @@ class TestBuildAutoQueueItems:
 class TestComputeWarmupPlan:
     def _policy(self, platform="youtube"):
         from packages.scoring.growth_pack.platform_os import PLATFORM_SPECS
+
         spec = PLATFORM_SPECS.get(platform, PLATFORM_SPECS["youtube"])
         return {
             "platform": platform,
@@ -219,8 +231,15 @@ class TestComputeWarmupPlan:
 
     def test_new_account_gets_phase_1(self):
         plan = compute_warmup_plan(
-            {"account_id": "acc-1", "platform": "youtube", "account_age_days": 5,
-             "posts_published": 2, "engagement_rate": 0.01, "has_violations": False, "follower_count": 10},
+            {
+                "account_id": "acc-1",
+                "platform": "youtube",
+                "account_age_days": 5,
+                "posts_published": 2,
+                "engagement_rate": 0.01,
+                "has_violations": False,
+                "follower_count": 10,
+            },
             self._policy("youtube"),
             [],
         )
@@ -229,18 +248,31 @@ class TestComputeWarmupPlan:
 
     def test_mature_account_gets_max_output(self):
         plan = compute_warmup_plan(
-            {"account_id": "acc-2", "platform": "tiktok", "account_age_days": 60,
-             "posts_published": 30, "engagement_rate": 0.04, "has_violations": False, "follower_count": 5000},
+            {
+                "account_id": "acc-2",
+                "platform": "tiktok",
+                "account_age_days": 60,
+                "posts_published": 30,
+                "engagement_rate": 0.04,
+                "has_violations": False,
+                "follower_count": 5000,
+            },
             self._policy("tiktok"),
-            [{"week_number": i, "posts_count": 5, "engagement_rate": 0.04, "follower_delta": 50}
-             for i in range(1, 9)],
+            [{"week_number": i, "posts_count": 5, "engagement_rate": 0.04, "follower_delta": 50} for i in range(1, 9)],
         )
         assert plan["warmup_phase"] == "phase_3_max_output"
 
     def test_violation_forces_phase_1(self):
         plan = compute_warmup_plan(
-            {"account_id": "acc-3", "platform": "instagram", "account_age_days": 90,
-             "posts_published": 50, "engagement_rate": 0.03, "has_violations": True, "follower_count": 1000},
+            {
+                "account_id": "acc-3",
+                "platform": "instagram",
+                "account_age_days": 90,
+                "posts_published": 50,
+                "engagement_rate": 0.03,
+                "has_violations": True,
+                "follower_count": 1000,
+            },
             self._policy("instagram"),
             [],
         )
@@ -248,8 +280,15 @@ class TestComputeWarmupPlan:
 
     def test_returns_content_mix(self):
         plan = compute_warmup_plan(
-            {"account_id": "acc-1", "platform": "youtube", "account_age_days": 5,
-             "posts_published": 0, "engagement_rate": 0, "has_violations": False, "follower_count": 0},
+            {
+                "account_id": "acc-1",
+                "platform": "youtube",
+                "account_age_days": 5,
+                "posts_published": 0,
+                "engagement_rate": 0,
+                "has_violations": False,
+                "follower_count": 0,
+            },
             self._policy("youtube"),
             [],
         )
@@ -274,8 +313,13 @@ class TestComputeAccountOutput:
             {"account_id": "a1", "platform": "youtube"},
             self._plan(),
             self._policy(),
-            {"posts_last_7d": 5, "engagement_rate_7d": 0.04, "monetization_revenue_7d": 100,
-             "monetization_cost_7d": 0, "follower_delta_7d": 50},
+            {
+                "posts_last_7d": 5,
+                "engagement_rate_7d": 0.04,
+                "monetization_revenue_7d": 100,
+                "monetization_cost_7d": 0,
+                "follower_delta_7d": 50,
+            },
         )
         assert output["recommended_output_per_week"] >= output["current_output_per_week"]
         assert output["max_safe_output_per_week"] == 21
@@ -285,8 +329,13 @@ class TestComputeAccountOutput:
             {"account_id": "a2", "platform": "youtube", "has_violations": True},
             self._plan(),
             self._policy(),
-            {"posts_last_7d": 10, "engagement_rate_7d": 0.001, "monetization_revenue_7d": 0,
-             "monetization_cost_7d": 0, "follower_delta_7d": -100},
+            {
+                "posts_last_7d": 10,
+                "engagement_rate_7d": 0.001,
+                "monetization_revenue_7d": 0,
+                "monetization_cost_7d": 0,
+                "follower_delta_7d": -100,
+            },
         )
         assert output["recommended_output_per_week"] <= output["current_output_per_week"]
 
@@ -295,8 +344,13 @@ class TestComputeAccountOutput:
             {"account_id": "a3", "platform": "youtube"},
             {"warmup_phase": "phase_3_max_output", "current_posts_per_week": 50, "target_posts_per_week": 100},
             self._policy(),
-            {"posts_last_7d": 50, "engagement_rate_7d": 0.05, "monetization_revenue_7d": 1000,
-             "monetization_cost_7d": 100, "follower_delta_7d": 200},
+            {
+                "posts_last_7d": 50,
+                "engagement_rate_7d": 0.05,
+                "monetization_revenue_7d": 1000,
+                "monetization_cost_7d": 100,
+                "follower_delta_7d": 200,
+            },
         )
         assert output["recommended_output_per_week"] <= output["max_safe_output_per_week"]
 
@@ -307,29 +361,47 @@ class TestComputeMaturityState:
 
     def test_brand_new_account_is_newborn(self):
         result = compute_maturity_state(
-            {"account_id": "a1", "platform": "youtube", "account_age_days": 3,
-             "posts_published": 0, "engagement_rate": 0, "follower_count": 0,
-             "has_violations": False},
-            [], self._policy(),
+            {
+                "account_id": "a1",
+                "platform": "youtube",
+                "account_age_days": 3,
+                "posts_published": 0,
+                "engagement_rate": 0,
+                "follower_count": 0,
+                "has_violations": False,
+            },
+            [],
+            self._policy(),
         )
         assert result["maturity_state"] == "newborn"
 
     def test_established_account_is_stable(self):
         result = compute_maturity_state(
-            {"account_id": "a2", "platform": "youtube", "account_age_days": 60,
-             "posts_published": 25, "engagement_rate": 0.03, "follower_count": 500,
-             "has_violations": False},
-            [{"week_number": i, "posts_count": 3, "engagement_rate": 0.03, "follower_delta": 10}
-             for i in range(1, 9)],
+            {
+                "account_id": "a2",
+                "platform": "youtube",
+                "account_age_days": 60,
+                "posts_published": 25,
+                "engagement_rate": 0.03,
+                "follower_count": 500,
+                "has_violations": False,
+            },
+            [{"week_number": i, "posts_count": 3, "engagement_rate": 0.03, "follower_delta": 10} for i in range(1, 9)],
             self._policy(),
         )
         assert result["maturity_state"] in ("stable", "scaling")
 
     def test_violated_low_health_is_at_risk_or_cooling(self):
         result = compute_maturity_state(
-            {"account_id": "a3", "platform": "youtube", "account_age_days": 90,
-             "posts_published": 40, "engagement_rate": 0.001, "follower_count": 100,
-             "has_violations": True},
+            {
+                "account_id": "a3",
+                "platform": "youtube",
+                "account_age_days": 90,
+                "posts_published": 40,
+                "engagement_rate": 0.001,
+                "follower_count": 100,
+                "has_violations": True,
+            },
             [{"week_number": 1, "posts_count": 5, "engagement_rate": 0.001, "follower_delta": -50}],
             self._policy(),
         )
@@ -337,10 +409,17 @@ class TestComputeMaturityState:
 
     def test_warming_young_account(self):
         result = compute_maturity_state(
-            {"account_id": "a4", "platform": "youtube", "account_age_days": 15,
-             "posts_published": 3, "engagement_rate": 0.02, "follower_count": 20,
-             "has_violations": False},
-            [], self._policy(),
+            {
+                "account_id": "a4",
+                "platform": "youtube",
+                "account_age_days": 15,
+                "posts_published": 3,
+                "engagement_rate": 0.02,
+                "follower_count": 20,
+                "has_violations": False,
+            },
+            [],
+            self._policy(),
         )
         assert result["maturity_state"] == "warming"
 
@@ -447,16 +526,18 @@ class TestSignalToQueuePipeline:
         scored = score_signal_batch(signals, [{"name": "AI Toolkit", "keywords": ["ai", "tools"]}], "ai tools")
         assert len(scored) >= 1
 
-        accounts = [{
-            "account_id": "acc-lead",
-            "platform": "youtube",
-            "role": "authority",
-            "niche": "ai",
-            "sub_niche": "tools",
-            "maturity_state": "stable",
-            "health_score": 0.8,
-            "current_output_per_week": 5,
-        }]
+        accounts = [
+            {
+                "account_id": "acc-lead",
+                "platform": "youtube",
+                "role": "authority",
+                "niche": "ai",
+                "sub_niche": "tools",
+                "maturity_state": "stable",
+                "health_score": 0.8,
+                "current_output_per_week": 5,
+            }
+        ]
         policies = [{"platform": "youtube", "max_safe_output_per_day": 3}]
 
         queue_items = build_auto_queue_items(scored, accounts, policies)
@@ -466,10 +547,18 @@ class TestSignalToQueuePipeline:
 
     def test_warming_account_does_not_jump_to_max_output(self):
         from packages.scoring.growth_pack.platform_os import PLATFORM_SPECS
+
         spec = PLATFORM_SPECS["tiktok"]
         plan = compute_warmup_plan(
-            {"account_id": "new-acc", "platform": "tiktok", "account_age_days": 10,
-             "posts_published": 3, "engagement_rate": 0.01, "has_violations": False, "follower_count": 15},
+            {
+                "account_id": "new-acc",
+                "platform": "tiktok",
+                "account_age_days": 10,
+                "posts_published": 3,
+                "engagement_rate": 0.01,
+                "has_violations": False,
+                "follower_count": 15,
+            },
             {
                 "platform": "tiktok",
                 "warmup_cadence": spec["warmup_cadence"],
@@ -495,11 +584,16 @@ class TestSignalToQueuePipeline:
 
     def test_saturated_account_is_throttled(self):
         maturity = compute_maturity_state(
-            {"account_id": "sat-acc", "platform": "youtube", "account_age_days": 120,
-             "posts_published": 100, "engagement_rate": 0.01, "follower_count": 5000,
-             "has_violations": False},
-            [{"week_number": i, "posts_count": 21, "engagement_rate": 0.01, "follower_delta": 0}
-             for i in range(1, 5)],
+            {
+                "account_id": "sat-acc",
+                "platform": "youtube",
+                "account_age_days": 120,
+                "posts_published": 100,
+                "engagement_rate": 0.01,
+                "follower_count": 5000,
+                "has_violations": False,
+            },
+            [{"week_number": i, "posts_count": 21, "engagement_rate": 0.01, "follower_delta": 0} for i in range(1, 5)],
             {"max_safe_output_per_day": 3},
         )
         assert maturity["maturity_state"] in ("saturated", "max_output")

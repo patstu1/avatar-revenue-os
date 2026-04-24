@@ -7,6 +7,7 @@ When external credentials are missing, executors return success=False with a
 clear note explaining what is needed.  When the action is internal (queue
 throttling, spend cap, suppression), it executes directly.
 """
+
 from __future__ import annotations
 
 import os
@@ -21,6 +22,7 @@ logger = structlog.get_logger()
 # Protocol
 # ---------------------------------------------------------------------------
 
+
 class ActionExecutor(Protocol):
     def execute(self, record: dict[str, Any]) -> tuple[bool, str]:
         """Attempt to execute the action. Returns (success, notes)."""
@@ -30,6 +32,7 @@ class ActionExecutor(Protocol):
 # ---------------------------------------------------------------------------
 # Funnel executor
 # ---------------------------------------------------------------------------
+
 
 class FunnelExecutor:
     """Executes funnel actions — deploy landing page variants, trigger A/B
@@ -51,10 +54,13 @@ class FunnelExecutor:
         if action == "maintain_current_funnels":
             return True, "No funnel changes needed this cycle. Monitoring continues."
 
-        if action in ("diagnose_and_patch_leak", "route_high_intent_concierge",
-                       "activate_owned_audience_capture", "repair_email_sequence"):
-            logger.info("executor.funnel.dispatched", action=action,
-                        target=record.get("target_funnel_path"))
+        if action in (
+            "diagnose_and_patch_leak",
+            "route_high_intent_concierge",
+            "activate_owned_audience_capture",
+            "repair_email_sequence",
+        ):
+            logger.info("executor.funnel.dispatched", action=action, target=record.get("target_funnel_path"))
             return True, (
                 f"Funnel action '{action}' dispatched. "
                 f"Path: {record.get('target_funnel_path')}. "
@@ -67,6 +73,7 @@ class FunnelExecutor:
 # ---------------------------------------------------------------------------
 # Paid campaign executor
 # ---------------------------------------------------------------------------
+
 
 class PaidCampaignExecutor:
     """Executes paid operator decisions — create/pause/scale ad campaigns."""
@@ -94,8 +101,7 @@ class PaidCampaignExecutor:
             return True, f"Campaign paused. Budget band: {budget}."
 
         if decision == "scale":
-            logger.info("executor.paid.scale_campaign", run_id=record.get("paid_operator_run_id"),
-                        budget_band=budget)
+            logger.info("executor.paid.scale_campaign", run_id=record.get("paid_operator_run_id"), budget_band=budget)
             return True, f"Campaign scaled to band '{budget}'."
 
         if decision == "budget_adjust":
@@ -108,6 +114,7 @@ class PaidCampaignExecutor:
 # ---------------------------------------------------------------------------
 # Sponsor outreach executor
 # ---------------------------------------------------------------------------
+
 
 class SponsorOutreachExecutor:
     """Executes sponsor autonomy actions — inventory builds, outreach
@@ -145,10 +152,7 @@ class SponsorOutreachExecutor:
 
         if action == "surface_renewal_expansion":
             logger.info("executor.sponsor.renewal_surfaced", stage=stage)
-            return True, (
-                f"Renewal expansion surfaced. "
-                f"Deal value: ${record.get('expected_deal_value', 0):,.0f}."
-            )
+            return True, (f"Renewal expansion surfaced. Deal value: ${record.get('expected_deal_value', 0):,.0f}.")
 
         return True, f"Sponsor action '{action}' recorded."
 
@@ -156,6 +160,7 @@ class SponsorOutreachExecutor:
 # ---------------------------------------------------------------------------
 # Retention campaign executor
 # ---------------------------------------------------------------------------
+
 
 class RetentionCampaignExecutor:
     """Executes retention actions — trigger email flows, SMS nudges, referral
@@ -175,8 +180,7 @@ class RetentionCampaignExecutor:
             return True, "No retention action needed. Monitoring continues."
 
         # Actions that need ESP
-        needs_esp = action in ("reactivation_flow", "upsell_next_tier",
-                                "repeat_purchase_nudge", "referral_ask")
+        needs_esp = action in ("reactivation_flow", "upsell_next_tier", "repeat_purchase_nudge", "referral_ask")
 
         if needs_esp and not self.esp_configured:
             return True, (
@@ -187,8 +191,9 @@ class RetentionCampaignExecutor:
             )
 
         if needs_esp:
-            logger.info("executor.retention.esp_triggered", action=action,
-                        segment=segment, cohort=record.get("cohort_key"))
+            logger.info(
+                "executor.retention.esp_triggered", action=action, segment=segment, cohort=record.get("cohort_key")
+            )
             return True, (
                 f"Retention '{action}' triggered for segment '{segment}'. "
                 f"Cohort: {record.get('cohort_key', 'N/A')}. "
@@ -201,6 +206,7 @@ class RetentionCampaignExecutor:
 # ---------------------------------------------------------------------------
 # Self-healing executor
 # ---------------------------------------------------------------------------
+
 
 class SelfHealingExecutor:
     """Executes self-healing actions.  Internal system actions (throttle,
@@ -245,10 +251,7 @@ class SelfHealingExecutor:
         # External actions
         if action in ("reroute_provider", "retry_with_backoff"):
             logger.info("executor.self_healing.external", action=action)
-            return True, (
-                f"Self-healing '{action}' initiated. "
-                f"Mitigation: {record.get('expected_mitigation', 'N/A')}."
-            )
+            return True, (f"Self-healing '{action}' initiated. Mitigation: {record.get('expected_mitigation', 'N/A')}.")
 
         if action == "suppress_offer_queue_review":
             return True, "Offer suppressed pending operator economics review."

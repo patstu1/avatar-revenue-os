@@ -1,4 +1,5 @@
 """Portfolio Launch / Growth Pack APIs — persisted plans and reports."""
+
 from __future__ import annotations
 
 import uuid
@@ -42,10 +43,16 @@ async def get_portfolio_launch_plan(brand_id: uuid.UUID, current_user: CurrentUs
 
 
 @router.post("/{brand_id}/portfolio-launch-plan/recompute", response_model=RecomputeSummaryOut)
-async def post_portfolio_launch_recompute(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def post_portfolio_launch_recompute(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await gps.recompute_portfolio_launch_plan(db, brand_id)
-    return RecomputeSummaryOut(status="completed", detail="Portfolio launch plan recomputed", counts=result if isinstance(result, dict) else None)
+    return RecomputeSummaryOut(
+        status="completed",
+        detail="Portfolio launch plan recomputed",
+        counts=result if isinstance(result, dict) else None,
+    )
 
 
 # --- account launch blueprints ---
@@ -56,10 +63,14 @@ async def list_blueprints(brand_id: uuid.UUID, current_user: CurrentUser, db: DB
 
 
 @router.post("/{brand_id}/account-launch-blueprints/recompute", response_model=RecomputeSummaryOut)
-async def post_blueprints_recompute(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def post_blueprints_recompute(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await gps.recompute_account_blueprints(db, brand_id)
-    return RecomputeSummaryOut(status="completed", detail="Account blueprints recomputed", counts=result if isinstance(result, dict) else None)
+    return RecomputeSummaryOut(
+        status="completed", detail="Account blueprints recomputed", counts=result if isinstance(result, dict) else None
+    )
 
 
 # --- platform allocation ---
@@ -70,10 +81,14 @@ async def get_platform_allocation(brand_id: uuid.UUID, current_user: CurrentUser
 
 
 @router.post("/{brand_id}/platform-allocation/recompute", response_model=RecomputeSummaryOut)
-async def post_platform_allocation(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def post_platform_allocation(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await gps.recompute_platform_allocation(db, brand_id)
-    return RecomputeSummaryOut(status="completed", detail="Platform allocation recomputed", counts=result if isinstance(result, dict) else None)
+    return RecomputeSummaryOut(
+        status="completed", detail="Platform allocation recomputed", counts=result if isinstance(result, dict) else None
+    )
 
 
 # --- niche deployment ---
@@ -84,10 +99,14 @@ async def get_niche_deployment(brand_id: uuid.UUID, current_user: CurrentUser, d
 
 
 @router.post("/{brand_id}/niche-deployment/recompute", response_model=RecomputeSummaryOut)
-async def post_niche_deployment(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def post_niche_deployment(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await gps.recompute_niche_deployment(db, brand_id)
-    return RecomputeSummaryOut(status="completed", detail="Niche deployment recomputed", counts=result if isinstance(result, dict) else None)
+    return RecomputeSummaryOut(
+        status="completed", detail="Niche deployment recomputed", counts=result if isinstance(result, dict) else None
+    )
 
 
 # --- growth blockers (pack table) ---
@@ -98,10 +117,14 @@ async def get_growth_blockers_pack(brand_id: uuid.UUID, current_user: CurrentUse
 
 
 @router.post("/{brand_id}/growth-blockers/recompute", response_model=RecomputeSummaryOut)
-async def post_growth_blockers_pack(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def post_growth_blockers_pack(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await gps.recompute_growth_blockers_pack(db, brand_id)
-    return RecomputeSummaryOut(status="completed", detail="Growth blockers recomputed", counts=result if isinstance(result, dict) else None)
+    return RecomputeSummaryOut(
+        status="completed", detail="Growth blockers recomputed", counts=result if isinstance(result, dict) else None
+    )
 
 
 # --- capital deployment ---
@@ -112,10 +135,14 @@ async def get_capital_deployment(brand_id: uuid.UUID, current_user: CurrentUser,
 
 
 @router.post("/{brand_id}/capital-deployment/recompute", response_model=RecomputeSummaryOut)
-async def post_capital_deployment(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def post_capital_deployment(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await gps.recompute_capital_deployment(db, brand_id)
-    return RecomputeSummaryOut(status="completed", detail="Capital deployment recomputed", counts=result if isinstance(result, dict) else None)
+    return RecomputeSummaryOut(
+        status="completed", detail="Capital deployment recomputed", counts=result if isinstance(result, dict) else None
+    )
 
 
 # --- cross-account cannibalization ---
@@ -126,10 +153,16 @@ async def get_cross_cannibal(brand_id: uuid.UUID, current_user: CurrentUser, db:
 
 
 @router.post("/{brand_id}/cross-account-cannibalization/recompute", response_model=RecomputeSummaryOut)
-async def post_cross_cannibal(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def post_cross_cannibal(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await gps.recompute_cross_account_cannibalization(db, brand_id)
-    return RecomputeSummaryOut(status="completed", detail="Cannibalization analysis recomputed", counts=result if isinstance(result, dict) else None)
+    return RecomputeSummaryOut(
+        status="completed",
+        detail="Cannibalization analysis recomputed",
+        counts=result if isinstance(result, dict) else None,
+    )
 
 
 # --- portfolio output ---
@@ -140,10 +173,14 @@ async def get_portfolio_output(brand_id: uuid.UUID, current_user: CurrentUser, d
 
 
 @router.post("/{brand_id}/portfolio-output/recompute", response_model=RecomputeSummaryOut)
-async def post_portfolio_output(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def post_portfolio_output(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await gps.recompute_portfolio_output(db, brand_id)
-    return RecomputeSummaryOut(status="completed", detail="Portfolio output recomputed", counts=result if isinstance(result, dict) else None)
+    return RecomputeSummaryOut(
+        status="completed", detail="Portfolio output recomputed", counts=result if isinstance(result, dict) else None
+    )
 
 
 # --- Single blueprint (global path per spec) ---

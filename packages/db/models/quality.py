@@ -1,4 +1,5 @@
 """QA reports, similarity reports, approval workflow."""
+
 import uuid
 from typing import Optional
 
@@ -16,9 +17,7 @@ class QAReport(Base):
     content_item_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=False, index=True
     )
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     qa_status: Mapped[QAStatus] = mapped_column(Enum(QAStatus), nullable=False, index=True)
     originality_score: Mapped[float] = mapped_column(Float, default=0.0)
     compliance_score: Mapped[float] = mapped_column(Float, default=0.0)
@@ -39,9 +38,7 @@ class SimilarityReport(Base):
     content_item_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=False, index=True
     )
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     compared_against_count: Mapped[int] = mapped_column(Integer, default=0)
     max_similarity_score: Mapped[float] = mapped_column(Float, default=0.0)
     avg_similarity_score: Mapped[float] = mapped_column(Float, default=0.0)
@@ -58,28 +55,26 @@ class Approval(Base):
     content_item_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=False, index=True
     )
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     requested_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     reviewed_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
-    status: Mapped[ApprovalStatus] = mapped_column(
-        Enum(ApprovalStatus), default=ApprovalStatus.PENDING, index=True
-    )
+    status: Mapped[ApprovalStatus] = mapped_column(Enum(ApprovalStatus), default=ApprovalStatus.PENDING, index=True)
     decision_mode: Mapped[str] = mapped_column(String(50), default="guarded_auto")
     auto_approved: Mapped[bool] = mapped_column(Boolean, default=False)
     review_notes: Mapped[Optional[str]] = mapped_column(Text)
-    qa_report_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("qa_reports.id")
-    )
+    qa_report_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("qa_reports.id"))
     similarity_report_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("similarity_reports.id")
     )
     reviewed_at: Mapped[Optional[str]] = mapped_column(String(50))
     publish_policy_tier: Mapped[Optional[str]] = mapped_column(
-        String(30), nullable=True, index=True,
+        String(30),
+        nullable=True,
+        index=True,
         comment="Tier from publish policy engine: auto_publish, sample_review, manual_approval, block",
     )
-    sample_flagged: Mapped[bool] = mapped_column(Boolean, default=False,
+    sample_flagged: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
         comment="If sample_review tier, whether this item was selected for async post-publish review.",
     )

@@ -4,6 +4,7 @@ Revision ID: brain_phase_c_001
 Revises: brain_phase_b_001
 Create Date: 2026-03-31
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
@@ -55,7 +56,9 @@ def upgrade() -> None:
         "agent_messages_v2",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("agent_runs_v2.id"), nullable=False, index=True),
+        sa.Column(
+            "run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("agent_runs_v2.id"), nullable=False, index=True
+        ),
         sa.Column("agent_slug", sa.String(80), nullable=False, index=True),
         sa.Column("direction", sa.String(20), nullable=False, index=True),
         sa.Column("message_type", sa.String(60), nullable=False, index=True),
@@ -87,7 +90,13 @@ def upgrade() -> None:
         "coordination_decisions",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("workflow_run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("workflow_coordination_runs.id"), nullable=False, index=True),
+        sa.Column(
+            "workflow_run_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("workflow_coordination_runs.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("step_index", sa.Integer, nullable=False),
         sa.Column("from_agent", sa.String(80), nullable=False, index=True),
         sa.Column("to_agent", sa.String(80), nullable=False, index=True),

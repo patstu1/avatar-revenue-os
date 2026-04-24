@@ -3,6 +3,7 @@
 Scans trend data, combines with pattern memory and niche intelligence,
 auto-creates content briefs ready for generation. Zero human input.
 """
+
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -42,27 +43,60 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
         if not brand:
             return {"brand_id": str(brand_id), "briefs_created": 0, "error": "brand not found"}
 
-        accounts = list((await db.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == brand_id,
-                CreatorAccount.is_active.is_(True),
+        accounts = list(
+            (
+                await db.execute(
+                    select(CreatorAccount).where(
+                        CreatorAccount.brand_id == brand_id,
+                        CreatorAccount.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         if not accounts:
             return {"brand_id": str(brand_id), "briefs_created": 0, "error": "no active accounts"}
 
-        existing_briefs = list((await db.execute(
-            select(ContentBrief.title).where(
-                ContentBrief.brand_id == brand_id,
-                ContentBrief.status.in_(["draft", "ready", "pending_generation", "generating", "script_generated"]),
+        existing_briefs = list(
+            (
+                await db.execute(
+                    select(ContentBrief.title).where(
+                        ContentBrief.brand_id == brand_id,
+                        ContentBrief.status.in_(
+                            ["draft", "ready", "pending_generation", "generating", "script_generated"]
+                        ),
+                    )
+                )
             )
-        )).scalars().all())
-        all_recent_titles = list((await db.execute(
-            select(ContentBrief.title).where(
-                ContentBrief.status.in_(["draft", "ready", "pending_generation", "generating", "script_generated", "approved", "published"]),
-            ).order_by(ContentBrief.created_at.desc()).limit(500)
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
+        all_recent_titles = list(
+            (
+                await db.execute(
+                    select(ContentBrief.title)
+                    .where(
+                        ContentBrief.status.in_(
+                            [
+                                "draft",
+                                "ready",
+                                "pending_generation",
+                                "generating",
+                                "script_generated",
+                                "approved",
+                                "published",
+                            ]
+                        ),
+                    )
+                    .order_by(ContentBrief.created_at.desc())
+                    .limit(500)
+                )
+            )
+            .scalars()
+            .all()
+        )
         existing_titles = set(t.lower() for t in existing_briefs) | set(t.lower() for t in all_recent_titles)
 
         pending_count = len(existing_titles)
@@ -73,12 +107,21 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
         niche_data = next((n for n in NICHE_DATABASE if n["niche"] == niche), None)
         niche_keywords = niche_data["keywords"] if niche_data else [niche]
 
-        top_patterns = list((await db.execute(
-            select(WinningPatternMemory).where(
-                WinningPatternMemory.brand_id == brand_id,
-                WinningPatternMemory.is_active.is_(True),
-            ).order_by(WinningPatternMemory.win_score.desc()).limit(5)
-        )).scalars().all())
+        top_patterns = list(
+            (
+                await db.execute(
+                    select(WinningPatternMemory)
+                    .where(
+                        WinningPatternMemory.brand_id == brand_id,
+                        WinningPatternMemory.is_active.is_(True),
+                    )
+                    .order_by(WinningPatternMemory.win_score.desc())
+                    .limit(5)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         # Load YouTube API key from encrypted DB for trend fetching
         yt_api_key = ""
@@ -88,6 +131,7 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
 
                 from packages.clients.credential_loader import load_credential
                 from packages.db.session import get_sync_engine
+
                 _eng = get_sync_engine()
                 with SyncSession(_eng) as _ss:
                     yt_api_key = load_credential(_ss, brand.organization_id, "gemini_flash") or ""
@@ -119,6 +163,7 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
 
         try:
             from packages.scoring.niche_research_engine import get_niche_subreddits
+
             reddit = RedditTrendingClient()
             subs = get_niche_subreddits(niche)
             rd_result = await reddit.fetch_niche_trends(subs)
@@ -132,12 +177,17 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
         from packages.scoring.revenue_optimization_engine import rank_briefs_by_revenue
 
         # Select best active offer for this brand to attach to new briefs
-        best_offer = (await db.execute(
-            select(Offer).where(
-                Offer.brand_id == brand_id,
-                Offer.is_active.is_(True),
-            ).order_by(Offer.payout_amount.desc()).limit(1)
-        )).scalar_one_or_none()
+        best_offer = (
+            await db.execute(
+                select(Offer)
+                .where(
+                    Offer.brand_id == brand_id,
+                    Offer.is_active.is_(True),
+                )
+                .order_by(Offer.payout_amount.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         default_offer_id = best_offer.id if best_offer else None
 
         niche_info = next((n for n in _ND if n["niche"] == niche), None)
@@ -146,19 +196,25 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
 
         brief_candidates = []
         for acct in accounts:
-            platform = getattr(acct.platform, 'value', str(acct.platform)) if acct.platform else "youtube"
+            platform = getattr(acct.platform, "value", str(acct.platform)) if acct.platform else "youtube"
             content_types = PLATFORM_CONTENT_TYPES.get(platform, [ContentType.SHORT_VIDEO])
             for ct in content_types:
                 title = _generate_brief_title(niche_keywords, trend_signals, top_patterns, existing_titles)
                 if title and title.lower() not in existing_titles:
-                    ct_str = ct.value if hasattr(ct, 'value') else str(ct)
-                    brief_candidates.append({
-                        "title": title, "content_type": ct_str, "platform": platform,
-                        "account_id": acct.id, "ct_enum": ct,
-                        "offer_payout": offer_payout if affiliate_density > 0.7 else 0,
-                        "historical_cvr": 0.02, "estimated_impressions": 2000,
-                        "monetization_density": affiliate_density,
-                    })
+                    ct_str = ct.value if hasattr(ct, "value") else str(ct)
+                    brief_candidates.append(
+                        {
+                            "title": title,
+                            "content_type": ct_str,
+                            "platform": platform,
+                            "account_id": acct.id,
+                            "ct_enum": ct,
+                            "offer_payout": offer_payout if affiliate_density > 0.7 else 0,
+                            "historical_cvr": 0.02,
+                            "estimated_impressions": 2000,
+                            "monetization_density": affiliate_density,
+                        }
+                    )
                     existing_titles.add(title.lower())
 
         ranked = rank_briefs_by_revenue(brief_candidates, niche=niche)
@@ -190,7 +246,9 @@ async def _ideate_for_brand(brand_id: uuid.UUID):
                 angle=f"Data-driven {niche} content from trending signals",
                 key_points=[kw for kw in niche_keywords[:3]],
                 cta_strategy="Check the link in bio/description",
-                monetization_integration="affiliate" if niche_data and niche_data.get("affiliate_density", 0) > 0.7 else "organic",
+                monetization_integration="affiliate"
+                if niche_data and niche_data.get("affiliate_density", 0) > 0.7
+                else "organic",
                 target_duration_seconds=duration,
                 tone_guidance="Engaging, conversational, value-first",
                 seo_keywords=niche_keywords[:5],
@@ -221,7 +279,7 @@ def _generate_brief_title(keywords: list, trends: list, patterns: list, existing
 
     if patterns:
         for p in patterns:
-            name = p.pattern_name if hasattr(p, 'pattern_name') else p.get("pattern_name", "")
+            name = p.pattern_name if hasattr(p, "pattern_name") else p.get("pattern_name", "")
             if name:
                 title = f"Why {name} is changing everything in {keywords[0] if keywords else 'this space'}"
                 if title.lower() not in existing:
@@ -229,6 +287,7 @@ def _generate_brief_title(keywords: list, trends: list, patterns: list, existing
 
     if keywords:
         import random
+
         templates = [
             f"The truth about {keywords[0]} that nobody talks about",
             f"How to {keywords[0]} the right way in 2026",
@@ -248,9 +307,7 @@ def _generate_brief_title(keywords: list, trends: list, patterns: list, existing
 
 async def _run_ideation():
     async with get_async_session_factory()() as db:
-        brand_ids = list((await db.execute(
-            select(Brand.id).where(Brand.is_active.is_(True))
-        )).scalars().all())
+        brand_ids = list((await db.execute(select(Brand.id).where(Brand.is_active.is_(True)))).scalars().all())
 
     total_briefs = 0
     for bid in brand_ids:

@@ -19,24 +19,40 @@ class TestFunnel:
         assert all(APCE in r for r in rows)
 
     def test_high_intent_routes_concierge(self):
-        rows = compute_funnel_executions({
-            "funnel_leak_score": 0.2, "high_intent_share": 0.5, "default_execution_mode": "autonomous",
-        })
+        rows = compute_funnel_executions(
+            {
+                "funnel_leak_score": 0.2,
+                "high_intent_share": 0.5,
+                "default_execution_mode": "autonomous",
+            }
+        )
         assert any(r["funnel_action"] == "route_high_intent_concierge" for r in rows)
 
     def test_outputs_required_fields(self):
         rows = compute_funnel_executions({})
         for r in rows:
-            for k in ("funnel_action", "target_funnel_path", "execution_mode", "expected_upside", "confidence", "explanation"):
+            for k in (
+                "funnel_action",
+                "target_funnel_path",
+                "execution_mode",
+                "expected_upside",
+                "confidence",
+                "explanation",
+            ):
                 assert k in r
 
 
 class TestPaidOperator:
     def test_winner_enters_paid(self):
-        winners = [{
-            "content_item_id": "x", "autonomous_run_id": None,
-            "engagement_score": 0.88, "revenue_proxy": 300, "days_since_publish": 5,
-        }]
+        winners = [
+            {
+                "content_item_id": "x",
+                "autonomous_run_id": None,
+                "engagement_score": 0.88,
+                "revenue_proxy": 300,
+                "days_since_publish": 5,
+            }
+        ]
         runs = compute_paid_operator_runs(winners, {"default_execution_mode": "guarded"})
         assert len(runs) >= 1
         assert runs[0]["paid_action"] in ("start_paid_test", "scale_paid_test")
@@ -48,11 +64,15 @@ class TestPaidOperator:
         assert compute_paid_operator_runs(winners, {}) == []
 
     def test_decision_stop_on_bad_cpa(self):
-        d = compute_paid_operator_decision({}, {"cpa_actual": 120, "cpa_target": 50, "spend_7d": 250, "conversions_7d": 0, "roi_actual": 0})
+        d = compute_paid_operator_decision(
+            {}, {"cpa_actual": 120, "cpa_target": 50, "spend_7d": 250, "conversions_7d": 0, "roi_actual": 0}
+        )
         assert d["decision_type"] == "stop"
 
     def test_decision_scale_on_strong_roi(self):
-        d = compute_paid_operator_decision({}, {"cpa_actual": 40, "cpa_target": 50, "spend_7d": 200, "conversions_7d": 5, "roi_actual": 1.3})
+        d = compute_paid_operator_decision(
+            {}, {"cpa_actual": 40, "cpa_target": 50, "spend_7d": 200, "conversions_7d": 5, "roi_actual": 1.3}
+        )
         assert d["decision_type"] == "scale"
 
 

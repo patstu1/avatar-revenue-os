@@ -1,4 +1,5 @@
 """Autonomous Execution Phase D — agent orchestration, revenue pressure, overrides, blockers, escalations."""
+
 from __future__ import annotations
 
 import uuid
@@ -36,6 +37,7 @@ def _utc_now() -> datetime:
 # ---------------------------------------------------------------------------
 # Serializer helpers (sync — no await)
 # ---------------------------------------------------------------------------
+
 
 def _agent_run_out(r: AgentRun) -> dict[str, Any]:
     return {
@@ -176,29 +178,44 @@ def _command_out(c: OperatorCommand) -> dict[str, Any]:
 # Context builder (gathers signals across existing models)
 # ---------------------------------------------------------------------------
 
+
 async def _build_brand_context(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
-    accts_count = (await db.execute(
-        select(func.count()).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalar_one()
+    accts_count = (
+        await db.execute(
+            select(func.count()).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+        )
+    ).scalar_one()
 
-    offers_count = (await db.execute(
-        select(func.count()).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-    )).scalar_one()
+    offers_count = (
+        await db.execute(select(func.count()).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))
+    ).scalar_one()
 
-    supp_count = (await db.execute(
-        select(func.count()).where(SuppressionExecution.brand_id == brand_id, SuppressionExecution.is_active.is_(True))
-    )).scalar_one()
+    supp_count = (
+        await db.execute(
+            select(func.count()).where(
+                SuppressionExecution.brand_id == brand_id, SuppressionExecution.is_active.is_(True)
+            )
+        )
+    ).scalar_one()
 
-    accounts = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalars().all()
+    accounts = (
+        (
+            await db.execute(
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     _health_map = {"healthy": 1.0, "warning": 0.6, "degraded": 0.35, "critical": 0.15, "suspended": 0.05}
     avg_health = 0.5
     active_platforms: list[str] = []
     accounts_not_ready: list[str] = []
     if accounts:
-        healths = [_health_map.get(str(a.account_health.value).lower(), 0.5) if a.account_health else 0.5 for a in accounts]
+        healths = [
+            _health_map.get(str(a.account_health.value).lower(), 0.5) if a.account_health else 0.5 for a in accounts
+        ]
         avg_health = sum(healths) / len(healths)
         for a in accounts:
             plat = str(a.platform).lower() if a.platform else ""
@@ -209,9 +226,17 @@ async def _build_brand_context(db: AsyncSession, brand_id: uuid.UUID) -> dict[st
                 accounts_not_ready.append(str(a.id))
 
     active_mon: list[str] = []
-    routes = (await db.execute(
-        select(MonetizationRoute).where(MonetizationRoute.brand_id == brand_id, MonetizationRoute.is_active.is_(True))
-    )).scalars().all()
+    routes = (
+        (
+            await db.execute(
+                select(MonetizationRoute).where(
+                    MonetizationRoute.brand_id == brand_id, MonetizationRoute.is_active.is_(True)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
     for r in routes:
         rc = str(r.route_class or "")
         if rc and rc not in active_mon:
@@ -251,6 +276,7 @@ async def _build_brand_context(db: AsyncSession, brand_id: uuid.UUID) -> dict[st
 # ---------------------------------------------------------------------------
 # Agent orchestration
 # ---------------------------------------------------------------------------
+
 
 async def recompute_agent_orchestration(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     ctx = await _build_brand_context(db, brand_id)
@@ -295,18 +321,33 @@ async def recompute_agent_orchestration(db: AsyncSession, brand_id: uuid.UUID) -
 
 
 async def list_agent_runs(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 50) -> dict[str, Any]:
-    runs = (await db.execute(
-        select(AgentRun).where(AgentRun.brand_id == brand_id, AgentRun.is_active.is_(True))
-        .order_by(AgentRun.created_at.desc()).limit(limit)
-    )).scalars().all()
+    runs = (
+        (
+            await db.execute(
+                select(AgentRun)
+                .where(AgentRun.brand_id == brand_id, AgentRun.is_active.is_(True))
+                .order_by(AgentRun.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     run_ids = [r.id for r in runs]
     messages: list[AgentMessage] = []
     if run_ids:
-        messages = list((await db.execute(
-            select(AgentMessage).where(AgentMessage.agent_run_id.in_(run_ids), AgentMessage.is_active.is_(True))
-            .order_by(AgentMessage.created_at.desc())
-        )).scalars().all())
+        messages = list(
+            (
+                await db.execute(
+                    select(AgentMessage)
+                    .where(AgentMessage.agent_run_id.in_(run_ids), AgentMessage.is_active.is_(True))
+                    .order_by(AgentMessage.created_at.desc())
+                )
+            )
+            .scalars()
+            .all()
+        )
 
     return {
         "runs": [_agent_run_out(r) for r in runs],
@@ -318,14 +359,15 @@ async def list_agent_runs(db: AsyncSession, brand_id: uuid.UUID, *, limit: int =
 # Revenue pressure
 # ---------------------------------------------------------------------------
 
+
 async def recompute_revenue_pressure(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     ctx = await _build_brand_context(db, brand_id)
     result = compute_revenue_pressure(ctx)
 
     await db.execute(
-        update(RevenuePressureReport).where(
-            RevenuePressureReport.brand_id == brand_id, RevenuePressureReport.is_active.is_(True)
-        ).values(is_active=False)
+        update(RevenuePressureReport)
+        .where(RevenuePressureReport.brand_id == brand_id, RevenuePressureReport.is_active.is_(True))
+        .values(is_active=False)
     )
 
     rp = RevenuePressureReport(
@@ -349,11 +391,18 @@ async def recompute_revenue_pressure(db: AsyncSession, brand_id: uuid.UUID) -> d
 
 
 async def list_revenue_pressure(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 10) -> list[dict[str, Any]]:
-    rows = (await db.execute(
-        select(RevenuePressureReport).where(
-            RevenuePressureReport.brand_id == brand_id, RevenuePressureReport.is_active.is_(True)
-        ).order_by(RevenuePressureReport.created_at.desc()).limit(limit)
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(RevenuePressureReport)
+                .where(RevenuePressureReport.brand_id == brand_id, RevenuePressureReport.is_active.is_(True))
+                .order_by(RevenuePressureReport.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return [_pressure_out(r) for r in rows]
 
 
@@ -362,10 +411,18 @@ async def list_revenue_pressure(db: AsyncSession, brand_id: uuid.UUID, *, limit:
 # ---------------------------------------------------------------------------
 
 _DEFAULT_ACTION_REFS = [
-    "publish_content", "increase_paid_spend", "pause_account",
-    "launch_new_account", "approve_sponsor_deal", "send_outreach_email",
-    "change_pricing", "suppress_lane", "scale_winner",
-    "emergency_budget_cap", "create_content_brief", "trigger_reactivation",
+    "publish_content",
+    "increase_paid_spend",
+    "pause_account",
+    "launch_new_account",
+    "approve_sponsor_deal",
+    "send_outreach_email",
+    "change_pricing",
+    "suppress_lane",
+    "scale_winner",
+    "emergency_budget_cap",
+    "create_content_brief",
+    "trigger_reactivation",
 ]
 
 
@@ -374,9 +431,9 @@ async def recompute_override_policies(db: AsyncSession, brand_id: uuid.UUID) -> 
     policies = compute_override_policies(_DEFAULT_ACTION_REFS, ctx)
 
     await db.execute(
-        update(OverridePolicy).where(
-            OverridePolicy.brand_id == brand_id, OverridePolicy.is_active.is_(True)
-        ).values(is_active=False)
+        update(OverridePolicy)
+        .where(OverridePolicy.brand_id == brand_id, OverridePolicy.is_active.is_(True))
+        .values(is_active=False)
     )
 
     created = 0
@@ -400,11 +457,18 @@ async def recompute_override_policies(db: AsyncSession, brand_id: uuid.UUID) -> 
 
 
 async def list_override_policies(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 50) -> list[dict[str, Any]]:
-    rows = (await db.execute(
-        select(OverridePolicy).where(
-            OverridePolicy.brand_id == brand_id, OverridePolicy.is_active.is_(True)
-        ).order_by(OverridePolicy.created_at.desc()).limit(limit)
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(OverridePolicy)
+                .where(OverridePolicy.brand_id == brand_id, OverridePolicy.is_active.is_(True))
+                .order_by(OverridePolicy.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return [_override_out(p) for p in rows]
 
 
@@ -412,16 +476,19 @@ async def list_override_policies(db: AsyncSession, brand_id: uuid.UUID, *, limit
 # Blocker detection
 # ---------------------------------------------------------------------------
 
+
 async def recompute_blocker_detection(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     ctx = await _build_brand_context(db, brand_id)
     blockers = detect_blockers(ctx)
 
     await db.execute(
-        update(BlockerDetectionReport).where(
+        update(BlockerDetectionReport)
+        .where(
             BlockerDetectionReport.brand_id == brand_id,
             BlockerDetectionReport.is_active.is_(True),
             BlockerDetectionReport.status == "open",
-        ).values(is_active=False)
+        )
+        .values(is_active=False)
     )
 
     created = 0
@@ -443,17 +510,25 @@ async def recompute_blocker_detection(db: AsyncSession, brand_id: uuid.UUID) -> 
 
 
 async def list_blocker_detection(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 50) -> list[dict[str, Any]]:
-    rows = (await db.execute(
-        select(BlockerDetectionReport).where(
-            BlockerDetectionReport.brand_id == brand_id, BlockerDetectionReport.is_active.is_(True)
-        ).order_by(BlockerDetectionReport.created_at.desc()).limit(limit)
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(BlockerDetectionReport)
+                .where(BlockerDetectionReport.brand_id == brand_id, BlockerDetectionReport.is_active.is_(True))
+                .order_by(BlockerDetectionReport.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return [_blocker_out(b) for b in rows]
 
 
 # ---------------------------------------------------------------------------
 # Operator escalation
 # ---------------------------------------------------------------------------
+
 
 async def recompute_escalations(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     ctx = await _build_brand_context(db, brand_id)
@@ -462,11 +537,13 @@ async def recompute_escalations(db: AsyncSession, brand_id: uuid.UUID) -> dict[s
     escalation_dicts = generate_escalations(blockers, pressure)
 
     await db.execute(
-        update(EscalationEvent).where(
+        update(EscalationEvent)
+        .where(
             EscalationEvent.brand_id == brand_id,
             EscalationEvent.is_active.is_(True),
             EscalationEvent.status == "pending",
-        ).values(is_active=False)
+        )
+        .values(is_active=False)
     )
 
     esc_created = 0
@@ -505,18 +582,32 @@ async def recompute_escalations(db: AsyncSession, brand_id: uuid.UUID) -> dict[s
 
 
 async def list_escalations(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 50) -> list[dict[str, Any]]:
-    rows = (await db.execute(
-        select(EscalationEvent).where(
-            EscalationEvent.brand_id == brand_id, EscalationEvent.is_active.is_(True)
-        ).order_by(EscalationEvent.created_at.desc()).limit(limit)
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(EscalationEvent)
+                .where(EscalationEvent.brand_id == brand_id, EscalationEvent.is_active.is_(True))
+                .order_by(EscalationEvent.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return [_escalation_out(e) for e in rows]
 
 
 async def list_operator_commands(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 50) -> list[dict[str, Any]]:
-    rows = (await db.execute(
-        select(OperatorCommand).where(
-            OperatorCommand.brand_id == brand_id, OperatorCommand.is_active.is_(True)
-        ).order_by(OperatorCommand.created_at.desc()).limit(limit)
-    )).scalars().all()
+    rows = (
+        (
+            await db.execute(
+                select(OperatorCommand)
+                .where(OperatorCommand.brand_id == brand_id, OperatorCommand.is_active.is_(True))
+                .order_by(OperatorCommand.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
     return [_command_out(c) for c in rows]

@@ -21,6 +21,7 @@ Scope: HTMLResponse + Python f-strings, no JS, no SPA, no templating
 library. Every form POST uses the existing JSON-API services under the
 hood so state changes are identical across surfaces.
 """
+
 from __future__ import annotations
 
 import html
@@ -106,9 +107,7 @@ legend { font-weight: 600; font-size: 12px; color: #333; padding: 0 6px; }
 
 
 def _nav(user: User, flash: str | None = None) -> str:
-    flash_html = (
-        f'<div class="flash">{html.escape(flash)}</div>' if flash else ""
-    )
+    flash_html = f'<div class="flash">{html.escape(flash)}</div>' if flash else ""
     return (
         "<nav>"
         "  <a href='/api/v1/operator/'>Home</a>"
@@ -159,40 +158,67 @@ async def home(current_user: OperatorUser, db: DBSession, flash: str | None = No
     since = datetime.now(timezone.utc) - timedelta(hours=24)
 
     counts = {}
-    counts["pending_drafts"] = (await db.execute(
-        select(func.count()).select_from(EmailReplyDraft).where(
-            EmailReplyDraft.org_id == org,
-            EmailReplyDraft.status == "pending",
+    counts["pending_drafts"] = (
+        await db.execute(
+            select(func.count())
+            .select_from(EmailReplyDraft)
+            .where(
+                EmailReplyDraft.org_id == org,
+                EmailReplyDraft.status == "pending",
+            )
         )
-    )).scalar() or 0
-    counts["pending_approvals"] = (await db.execute(
-        select(func.count()).select_from(GMApproval).where(
-            GMApproval.org_id == org, GMApproval.status == "pending",
+    ).scalar() or 0
+    counts["pending_approvals"] = (
+        await db.execute(
+            select(func.count())
+            .select_from(GMApproval)
+            .where(
+                GMApproval.org_id == org,
+                GMApproval.status == "pending",
+            )
         )
-    )).scalar() or 0
-    counts["open_escalations"] = (await db.execute(
-        select(func.count()).select_from(GMEscalation).where(
-            GMEscalation.org_id == org,
-            GMEscalation.status.in_(("open", "acknowledged")),
+    ).scalar() or 0
+    counts["open_escalations"] = (
+        await db.execute(
+            select(func.count())
+            .select_from(GMEscalation)
+            .where(
+                GMEscalation.org_id == org,
+                GMEscalation.status.in_(("open", "acknowledged")),
+            )
         )
-    )).scalar() or 0
-    counts["clients_active"] = (await db.execute(
-        select(func.count()).select_from(Client).where(
-            Client.org_id == org, Client.status == "active",
+    ).scalar() or 0
+    counts["clients_active"] = (
+        await db.execute(
+            select(func.count())
+            .select_from(Client)
+            .where(
+                Client.org_id == org,
+                Client.status == "active",
+            )
         )
-    )).scalar() or 0
-    counts["projects_active"] = (await db.execute(
-        select(func.count()).select_from(ClientProject).where(
-            ClientProject.org_id == org, ClientProject.status == "active",
+    ).scalar() or 0
+    counts["projects_active"] = (
+        await db.execute(
+            select(func.count())
+            .select_from(ClientProject)
+            .where(
+                ClientProject.org_id == org,
+                ClientProject.status == "active",
+            )
         )
-    )).scalar() or 0
-    counts["payments_24h"] = (await db.execute(
-        select(func.count()).select_from(Payment).where(
-            Payment.org_id == org,
-            Payment.status == "succeeded",
-            Payment.created_at >= since,
+    ).scalar() or 0
+    counts["payments_24h"] = (
+        await db.execute(
+            select(func.count())
+            .select_from(Payment)
+            .where(
+                Payment.org_id == org,
+                Payment.status == "succeeded",
+                Payment.created_at >= since,
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     body = (
         "<div class='card'>"
@@ -219,24 +245,33 @@ async def home(current_user: OperatorUser, db: DBSession, flash: str | None = No
 @router.get("/settings/providers", response_class=HTMLResponse)
 async def providers_page(current_user: AdminUser, db: DBSession, flash: str | None = None):
     rows = (
-        await db.execute(
-            select(IntegrationProvider).where(
-                IntegrationProvider.organization_id == current_user.organization_id,
-            ).order_by(IntegrationProvider.provider_key)
+        (
+            await db.execute(
+                select(IntegrationProvider)
+                .where(
+                    IntegrationProvider.organization_id == current_user.organization_id,
+                )
+                .order_by(IntegrationProvider.provider_key)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
-    rows_html = "".join(
-        "<tr>"
-        f"<td><b>{html.escape(p.provider_key)}</b></td>"
-        f"<td>{html.escape(p.provider_name or '')}</td>"
-        f"<td>{html.escape(p.provider_category or '')}</td>"
-        f"<td>{_pill('enabled' if p.is_enabled else 'disabled', 'st-approved' if p.is_enabled else 'st-rejected')}</td>"
-        f"<td class='kv'>{'✓' if p.api_key_encrypted else '—'}</td>"
-        f"<td class='kv'>{html.escape(str(p.extra_config or {}))[:120]}</td>"
-        "</tr>"
-        for p in rows
-    ) or "<tr><td class='empty' colspan='6'>No providers configured.</td></tr>"
+    rows_html = (
+        "".join(
+            "<tr>"
+            f"<td><b>{html.escape(p.provider_key)}</b></td>"
+            f"<td>{html.escape(p.provider_name or '')}</td>"
+            f"<td>{html.escape(p.provider_category or '')}</td>"
+            f"<td>{_pill('enabled' if p.is_enabled else 'disabled', 'st-approved' if p.is_enabled else 'st-rejected')}</td>"
+            f"<td class='kv'>{'✓' if p.api_key_encrypted else '—'}</td>"
+            f"<td class='kv'>{html.escape(str(p.extra_config or {}))[:120]}</td>"
+            "</tr>"
+            for p in rows
+        )
+        or "<tr><td class='empty' colspan='6'>No providers configured.</td></tr>"
+    )
 
     body = (
         "<p class='sub'>Credentials are stored encrypted; the raw value is never returned.</p>"
@@ -329,7 +364,7 @@ async def providers_save(
     else:
         existing.provider_name = provider_name[:120] or existing.provider_name
         existing.provider_category = provider_category[:40] or existing.provider_category
-        existing.is_enabled = (is_enabled == "on")
+        existing.is_enabled = is_enabled == "on"
         if extra:
             existing.extra_config = extra
         if api_key:
@@ -349,23 +384,30 @@ async def providers_save(
 @router.get("/settings/inbound-route", response_class=HTMLResponse)
 async def inbound_route_page(current_user: AdminUser, db: DBSession, flash: str | None = None):
     rows = (
-        await db.execute(
-            select(IntegrationProvider).where(
-                IntegrationProvider.organization_id == current_user.organization_id,
-                IntegrationProvider.provider_key == "inbound_email_route",
+        (
+            await db.execute(
+                select(IntegrationProvider).where(
+                    IntegrationProvider.organization_id == current_user.organization_id,
+                    IntegrationProvider.provider_key == "inbound_email_route",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
-    rows_html = "".join(
-        "<tr>"
-        f"<td class='kv'>{html.escape((p.extra_config or {}).get('to_address','') or '')}</td>"
-        f"<td class='kv'>{html.escape((p.extra_config or {}).get('to_domain','') or '')}</td>"
-        f"<td class='kv'>{html.escape((p.extra_config or {}).get('plus_token','') or '')}</td>"
-        f"<td>{_pill('enabled' if p.is_enabled else 'disabled', 'st-approved' if p.is_enabled else 'st-rejected')}</td>"
-        "</tr>"
-        for p in rows
-    ) or "<tr><td class='empty' colspan='4'>No inbound routes.</td></tr>"
+    rows_html = (
+        "".join(
+            "<tr>"
+            f"<td class='kv'>{html.escape((p.extra_config or {}).get('to_address', '') or '')}</td>"
+            f"<td class='kv'>{html.escape((p.extra_config or {}).get('to_domain', '') or '')}</td>"
+            f"<td class='kv'>{html.escape((p.extra_config or {}).get('plus_token', '') or '')}</td>"
+            f"<td>{_pill('enabled' if p.is_enabled else 'disabled', 'st-approved' if p.is_enabled else 'st-rejected')}</td>"
+            "</tr>"
+            for p in rows
+        )
+        or "<tr><td class='empty' colspan='4'>No inbound routes.</td></tr>"
+    )
 
     body = (
         "<p class='sub'>Routes determine which organization owns an inbound email. "
@@ -403,10 +445,12 @@ async def inbound_route_save(
         )
     existing = (
         await db.execute(
-            select(IntegrationProvider).where(
+            select(IntegrationProvider)
+            .where(
                 IntegrationProvider.organization_id == current_user.organization_id,
                 IntegrationProvider.provider_key == "inbound_email_route",
-            ).limit(1)
+            )
+            .limit(1)
         )
     ).scalar_one_or_none()
     extra = {match_mode: match_value.strip().lower()}
@@ -422,7 +466,7 @@ async def inbound_route_save(
         db.add(row)
     else:
         existing.extra_config = extra
-        existing.is_enabled = (is_enabled == "on")
+        existing.is_enabled = is_enabled == "on"
     await db.commit()
     return RedirectResponse(
         f"/api/v1/operator/settings/inbound-route?flash=Inbound route saved ({html.escape(match_mode)} = {html.escape(match_value)})",
@@ -437,24 +481,21 @@ async def inbound_route_save(
 
 @router.get("/webhooks", response_class=HTMLResponse)
 async def webhooks_page(current_user: OperatorUser, db: DBSession, flash: str | None = None):
-    rows = (
-        await db.execute(
-            select(WebhookEvent)
-            .order_by(desc(WebhookEvent.created_at))
-            .limit(100)
-        )
-    ).scalars().all()
+    rows = (await db.execute(select(WebhookEvent).order_by(desc(WebhookEvent.created_at)).limit(100))).scalars().all()
 
-    rows_html = "".join(
-        "<tr>"
-        f"<td class='kv'>{html.escape(w.created_at.isoformat()[:19])}</td>"
-        f"<td>{html.escape(w.source or '')}</td>"
-        f"<td>{html.escape(w.event_type or '')}</td>"
-        f"<td class='kv'>{html.escape((w.external_event_id or '')[:32])}</td>"
-        f"<td>{_pill('processed' if w.processed else 'pending', 'st-approved' if w.processed else 'st-pending')}</td>"
-        "</tr>"
-        for w in rows
-    ) or "<tr><td class='empty' colspan='5'>No webhook deliveries yet.</td></tr>"
+    rows_html = (
+        "".join(
+            "<tr>"
+            f"<td class='kv'>{html.escape(w.created_at.isoformat()[:19])}</td>"
+            f"<td>{html.escape(w.source or '')}</td>"
+            f"<td>{html.escape(w.event_type or '')}</td>"
+            f"<td class='kv'>{html.escape((w.external_event_id or '')[:32])}</td>"
+            f"<td>{_pill('processed' if w.processed else 'pending', 'st-approved' if w.processed else 'st-pending')}</td>"
+            "</tr>"
+            for w in rows
+        )
+        or "<tr><td class='empty' colspan='5'>No webhook deliveries yet.</td></tr>"
+    )
 
     body = (
         "<p class='sub'>Last 100 deliveries across all sources.</p>"
@@ -476,53 +517,111 @@ async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: str | 
     org = current_user.organization_id
     limit = 25
 
-    drafts = (await db.execute(
-        select(EmailReplyDraft).where(
-            EmailReplyDraft.org_id == org,
-            EmailReplyDraft.status.in_(("pending", "approved", "sent")),
-            EmailReplyDraft.is_active.is_(True),
-        ).order_by(desc(EmailReplyDraft.created_at)).limit(limit)
-    )).scalars().all()
+    drafts = (
+        (
+            await db.execute(
+                select(EmailReplyDraft)
+                .where(
+                    EmailReplyDraft.org_id == org,
+                    EmailReplyDraft.status.in_(("pending", "approved", "sent")),
+                    EmailReplyDraft.is_active.is_(True),
+                )
+                .order_by(desc(EmailReplyDraft.created_at))
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    proposals = (await db.execute(
-        select(Proposal).where(
-            Proposal.org_id == org, Proposal.is_active.is_(True),
-        ).order_by(desc(Proposal.created_at)).limit(limit)
-    )).scalars().all()
+    proposals = (
+        (
+            await db.execute(
+                select(Proposal)
+                .where(
+                    Proposal.org_id == org,
+                    Proposal.is_active.is_(True),
+                )
+                .order_by(desc(Proposal.created_at))
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    payments = (await db.execute(
-        select(Payment).where(Payment.org_id == org)
-        .order_by(desc(Payment.created_at)).limit(limit)
-    )).scalars().all()
+    payments = (
+        (await db.execute(select(Payment).where(Payment.org_id == org).order_by(desc(Payment.created_at)).limit(limit)))
+        .scalars()
+        .all()
+    )
 
-    clients = (await db.execute(
-        select(Client).where(Client.org_id == org, Client.is_active.is_(True))
-        .order_by(desc(Client.created_at)).limit(limit)
-    )).scalars().all()
+    clients = (
+        (
+            await db.execute(
+                select(Client)
+                .where(Client.org_id == org, Client.is_active.is_(True))
+                .order_by(desc(Client.created_at))
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    intakes = (await db.execute(
-        select(IntakeRequest).where(IntakeRequest.org_id == org)
-        .order_by(desc(IntakeRequest.created_at)).limit(limit)
-    )).scalars().all()
+    intakes = (
+        (
+            await db.execute(
+                select(IntakeRequest)
+                .where(IntakeRequest.org_id == org)
+                .order_by(desc(IntakeRequest.created_at))
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    projects = (await db.execute(
-        select(ClientProject).where(ClientProject.org_id == org)
-        .order_by(desc(ClientProject.created_at)).limit(limit)
-    )).scalars().all()
+    projects = (
+        (
+            await db.execute(
+                select(ClientProject)
+                .where(ClientProject.org_id == org)
+                .order_by(desc(ClientProject.created_at))
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    prod_jobs = (await db.execute(
-        select(ProductionJob).where(ProductionJob.org_id == org)
-        .order_by(desc(ProductionJob.created_at)).limit(limit)
-    )).scalars().all()
+    prod_jobs = (
+        (
+            await db.execute(
+                select(ProductionJob)
+                .where(ProductionJob.org_id == org)
+                .order_by(desc(ProductionJob.created_at))
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    deliveries = (await db.execute(
-        select(Delivery).where(Delivery.org_id == org)
-        .order_by(desc(Delivery.created_at)).limit(limit)
-    )).scalars().all()
+    deliveries = (
+        (
+            await db.execute(
+                select(Delivery).where(Delivery.org_id == org).order_by(desc(Delivery.created_at)).limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     def _tbl(title, rows, headers, row_fn):
-        body_rows = "".join(row_fn(r) for r in rows) or \
-            f"<tr><td class='empty' colspan='{len(headers)}'>No rows.</td></tr>"
+        body_rows = (
+            "".join(row_fn(r) for r in rows) or f"<tr><td class='empty' colspan='{len(headers)}'>No rows.</td></tr>"
+        )
         ths = "".join(f"<th>{html.escape(h)}</th>" for h in headers)
         return (
             f"<h2>{html.escape(title)} ({len(rows)})</h2>"
@@ -543,8 +642,8 @@ async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: str | 
                 f"<td>{_pill(d.status or '', 'st-' + (d.status or ''))}</td>"
                 "</tr>"
             ),
-        ) +
-        _tbl(
+        )
+        + _tbl(
             "Proposals",
             proposals,
             ["Created", "Recipient", "Title", "Total", "Status"],
@@ -553,26 +652,26 @@ async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: str | 
                 f"<td class='kv'>{html.escape(p.created_at.isoformat()[:19])}</td>"
                 f"<td>{html.escape(p.recipient_email or '')}</td>"
                 f"<td>{html.escape((p.title or '')[:60])}</td>"
-                f"<td class='kv'>${p.total_amount_cents/100:.2f}</td>"
+                f"<td class='kv'>${p.total_amount_cents / 100:.2f}</td>"
                 f"<td>{_pill(p.status or '', 'st-' + (p.status or ''))}</td>"
                 "</tr>"
             ),
-        ) +
-        _tbl(
+        )
+        + _tbl(
             "Payments",
             payments,
             ["Created", "Amount", "Event", "Proposal", "Status"],
             lambda pmt: (
                 "<tr>"
                 f"<td class='kv'>{html.escape(pmt.created_at.isoformat()[:19])}</td>"
-                f"<td class='kv'>${pmt.amount_cents/100:.2f}</td>"
+                f"<td class='kv'>${pmt.amount_cents / 100:.2f}</td>"
                 f"<td class='kv'>{html.escape((pmt.provider_event_id or '')[:24])}</td>"
                 f"<td class='kv'>{html.escape(str(pmt.proposal_id or '')[:8])}</td>"
                 f"<td>{_pill(pmt.status or '', 'st-' + (pmt.status or ''))}</td>"
                 "</tr>"
             ),
-        ) +
-        _tbl(
+        )
+        + _tbl(
             "Clients",
             clients,
             ["Created", "Email", "Name", "Total paid", "Status"],
@@ -581,12 +680,12 @@ async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: str | 
                 f"<td class='kv'>{html.escape(c.created_at.isoformat()[:19])}</td>"
                 f"<td>{html.escape(c.primary_email)}</td>"
                 f"<td>{html.escape(c.display_name)}</td>"
-                f"<td class='kv'>${c.total_paid_cents/100:.2f}</td>"
+                f"<td class='kv'>${c.total_paid_cents / 100:.2f}</td>"
                 f"<td>{_pill(c.status or '', 'st-' + (c.status or ''))}</td>"
                 "</tr>"
             ),
-        ) +
-        _tbl(
+        )
+        + _tbl(
             "Intakes",
             intakes,
             ["Created", "Token", "Title", "Status", "Sent at"],
@@ -599,8 +698,8 @@ async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: str | 
                 f"<td class='kv'>{html.escape(i.sent_at.isoformat()[:19]) if i.sent_at else ''}</td>"
                 "</tr>"
             ),
-        ) +
-        _tbl(
+        )
+        + _tbl(
             "Projects",
             projects,
             ["Created", "Title", "Package", "Status", "Completed"],
@@ -613,8 +712,8 @@ async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: str | 
                 f"<td class='kv'>{html.escape(p.completed_at.isoformat()[:19]) if p.completed_at else ''}</td>"
                 "</tr>"
             ),
-        ) +
-        _tbl(
+        )
+        + _tbl(
             "Production jobs",
             prod_jobs,
             ["Created", "Type", "Title", "Attempt/Limit", "Status"],
@@ -627,8 +726,8 @@ async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: str | 
                 f"<td>{_pill(j.status or '', 'st-' + (j.status or ''))}</td>"
                 "</tr>"
             ),
-        ) +
-        _tbl(
+        )
+        + _tbl(
             "Deliveries",
             deliveries,
             ["Created", "Recipient", "Title", "Status", "Follow-up"],
@@ -654,23 +753,32 @@ async def pipeline_page(current_user: OperatorUser, db: DBSession, flash: str | 
 @router.get("/team", response_class=HTMLResponse)
 async def team_page(current_user: AdminUser, db: DBSession, flash: str | None = None):
     users = (
-        await db.execute(
-            select(User).where(
-                User.organization_id == current_user.organization_id,
-            ).order_by(desc(User.created_at))
+        (
+            await db.execute(
+                select(User)
+                .where(
+                    User.organization_id == current_user.organization_id,
+                )
+                .order_by(desc(User.created_at))
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
-    rows_html = "".join(
-        "<tr>"
-        f"<td>{html.escape(u.email or '')}</td>"
-        f"<td>{html.escape(u.full_name or '')}</td>"
-        f"<td>{_pill(u.role.value if hasattr(u.role, 'value') else str(u.role), 'sev-info')}</td>"
-        f"<td>{_pill('active' if u.is_active else 'inactive', 'st-approved' if u.is_active else 'st-rejected')}</td>"
-        f"<td class='kv'>{html.escape(u.created_at.isoformat()[:19])}</td>"
-        "</tr>"
-        for u in users
-    ) or "<tr><td class='empty' colspan='5'>No users yet.</td></tr>"
+    rows_html = (
+        "".join(
+            "<tr>"
+            f"<td>{html.escape(u.email or '')}</td>"
+            f"<td>{html.escape(u.full_name or '')}</td>"
+            f"<td>{_pill(u.role.value if hasattr(u.role, 'value') else str(u.role), 'sev-info')}</td>"
+            f"<td>{_pill('active' if u.is_active else 'inactive', 'st-approved' if u.is_active else 'st-rejected')}</td>"
+            f"<td class='kv'>{html.escape(u.created_at.isoformat()[:19])}</td>"
+            "</tr>"
+            for u in users
+        )
+        or "<tr><td class='empty' colspan='5'>No users yet.</td></tr>"
+    )
 
     body = (
         "<table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Status</th><th>Created</th></tr></thead>"
@@ -710,9 +818,7 @@ async def team_invite(
     }
     user_role = role_map.get(role, UserRole.OPERATOR)
 
-    existing = (
-        await db.execute(select(User).where(User.email == email))
-    ).scalar_one_or_none()
+    existing = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if existing is not None:
         return RedirectResponse(
             f"/api/v1/operator/team?flash={html.escape('User already exists: ' + email)}",
@@ -744,68 +850,106 @@ async def team_invite(
 async def gm_page(current_user: OperatorUser, db: DBSession, flash: str | None = None):
     org = current_user.organization_id
 
-    approvals = (await db.execute(
-        select(GMApproval).where(
-            GMApproval.org_id == org, GMApproval.is_active.is_(True),
-            GMApproval.status == "pending",
-        ).order_by(desc(GMApproval.created_at)).limit(50)
-    )).scalars().all()
+    approvals = (
+        (
+            await db.execute(
+                select(GMApproval)
+                .where(
+                    GMApproval.org_id == org,
+                    GMApproval.is_active.is_(True),
+                    GMApproval.status == "pending",
+                )
+                .order_by(desc(GMApproval.created_at))
+                .limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    escalations = (await db.execute(
-        select(GMEscalation).where(
-            GMEscalation.org_id == org, GMEscalation.is_active.is_(True),
-            GMEscalation.status.in_(("open", "acknowledged")),
-        ).order_by(desc(GMEscalation.last_seen_at)).limit(50)
-    )).scalars().all()
+    escalations = (
+        (
+            await db.execute(
+                select(GMEscalation)
+                .where(
+                    GMEscalation.org_id == org,
+                    GMEscalation.is_active.is_(True),
+                    GMEscalation.status.in_(("open", "acknowledged")),
+                )
+                .order_by(desc(GMEscalation.last_seen_at))
+                .limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    stuck = (await db.execute(
-        select(StageState).where(
-            StageState.org_id == org,
-            StageState.is_active.is_(True),
-            StageState.is_stuck.is_(True),
-        ).order_by(StageState.sla_deadline.asc()).limit(50)
-    )).scalars().all()
+    stuck = (
+        (
+            await db.execute(
+                select(StageState)
+                .where(
+                    StageState.org_id == org,
+                    StageState.is_active.is_(True),
+                    StageState.is_stuck.is_(True),
+                )
+                .order_by(StageState.sla_deadline.asc())
+                .limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    app_rows = "".join(
-        "<tr>"
-        f"<td>{html.escape(a.action_type)}</td>"
-        f"<td>{html.escape(a.entity_type)}</td>"
-        f"<td class='kv'>{html.escape(str(a.entity_id)[:12])}</td>"
-        f"<td>{html.escape((a.title or '')[:60])}</td>"
-        f"<td>{_pill(a.risk_level, 'sev-warning' if a.risk_level in ('high','critical') else 'sev-info')}</td>"
-        "<td>"
-        f"<form method='post' action='/api/v1/operator/gm/approvals/{a.id}/approve'>"
-        "<button class='ok' type='submit'>Approve</button></form> "
-        f"<form method='post' action='/api/v1/operator/gm/approvals/{a.id}/reject'>"
-        "<button class='danger' type='submit'>Reject</button></form>"
-        "</td></tr>"
-        for a in approvals
-    ) or "<tr><td class='empty' colspan='6'>No approvals pending.</td></tr>"
+    app_rows = (
+        "".join(
+            "<tr>"
+            f"<td>{html.escape(a.action_type)}</td>"
+            f"<td>{html.escape(a.entity_type)}</td>"
+            f"<td class='kv'>{html.escape(str(a.entity_id)[:12])}</td>"
+            f"<td>{html.escape((a.title or '')[:60])}</td>"
+            f"<td>{_pill(a.risk_level, 'sev-warning' if a.risk_level in ('high', 'critical') else 'sev-info')}</td>"
+            "<td>"
+            f"<form method='post' action='/api/v1/operator/gm/approvals/{a.id}/approve'>"
+            "<button class='ok' type='submit'>Approve</button></form> "
+            f"<form method='post' action='/api/v1/operator/gm/approvals/{a.id}/reject'>"
+            "<button class='danger' type='submit'>Reject</button></form>"
+            "</td></tr>"
+            for a in approvals
+        )
+        or "<tr><td class='empty' colspan='6'>No approvals pending.</td></tr>"
+    )
 
-    esc_rows = "".join(
-        "<tr>"
-        f"<td>{html.escape(e.reason_code)}</td>"
-        f"<td>{html.escape(e.entity_type)}</td>"
-        f"<td class='kv'>{html.escape(str(e.entity_id)[:12])}</td>"
-        f"<td>{html.escape((e.title or '')[:60])}</td>"
-        f"<td>{_pill(e.severity, 'sev-' + e.severity)}</td>"
-        f"<td class='kv'>{e.occurrence_count}</td>"
-        "<td>"
-        f"<form method='post' action='/api/v1/operator/gm/escalations/{e.id}/resolve'>"
-        "<button class='ok' type='submit'>Resolve</button></form>"
-        "</td></tr>"
-        for e in escalations
-    ) or "<tr><td class='empty' colspan='7'>No open escalations.</td></tr>"
+    esc_rows = (
+        "".join(
+            "<tr>"
+            f"<td>{html.escape(e.reason_code)}</td>"
+            f"<td>{html.escape(e.entity_type)}</td>"
+            f"<td class='kv'>{html.escape(str(e.entity_id)[:12])}</td>"
+            f"<td>{html.escape((e.title or '')[:60])}</td>"
+            f"<td>{_pill(e.severity, 'sev-' + e.severity)}</td>"
+            f"<td class='kv'>{e.occurrence_count}</td>"
+            "<td>"
+            f"<form method='post' action='/api/v1/operator/gm/escalations/{e.id}/resolve'>"
+            "<button class='ok' type='submit'>Resolve</button></form>"
+            "</td></tr>"
+            for e in escalations
+        )
+        or "<tr><td class='empty' colspan='7'>No open escalations.</td></tr>"
+    )
 
-    stuck_rows = "".join(
-        "<tr>"
-        f"<td>{html.escape(s.entity_type)}/{html.escape(s.stage)}</td>"
-        f"<td class='kv'>{html.escape(str(s.entity_id)[:12])}</td>"
-        f"<td class='kv'>{html.escape(s.sla_deadline.isoformat()[:19]) if s.sla_deadline else ''}</td>"
-        f"<td>{html.escape(s.stuck_reason or '')}</td>"
-        "</tr>"
-        for s in stuck
-    ) or "<tr><td class='empty' colspan='4'>Nothing stuck.</td></tr>"
+    stuck_rows = (
+        "".join(
+            "<tr>"
+            f"<td>{html.escape(s.entity_type)}/{html.escape(s.stage)}</td>"
+            f"<td class='kv'>{html.escape(str(s.entity_id)[:12])}</td>"
+            f"<td class='kv'>{html.escape(s.sla_deadline.isoformat()[:19]) if s.sla_deadline else ''}</td>"
+            f"<td>{html.escape(s.stuck_reason or '')}</td>"
+            "</tr>"
+            for s in stuck
+        )
+        or "<tr><td class='empty' colspan='4'>Nothing stuck.</td></tr>"
+    )
 
     body = (
         "<h2>Awaiting approval</h2>"
@@ -831,17 +975,23 @@ async def gm_page(current_user: OperatorUser, db: DBSession, flash: str | None =
 
 @router.post("/gm/approvals/{approval_id}/approve")
 async def gm_approve_form(
-    approval_id: str, current_user: OperatorUser, db: DBSession,
+    approval_id: str,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     approval = await _require_owned(db, GMApproval, approval_id, current_user.organization_id, "Approval")
     try:
         await resolve_approval(
-            db, approval=approval, decision="approved",
-            decided_by=current_user.email, notes=None,
+            db,
+            approval=approval,
+            decision="approved",
+            decided_by=current_user.email,
+            notes=None,
         )
     except ValueError as exc:
         return RedirectResponse(
-            f"/api/v1/operator/gm?flash={html.escape(str(exc))}", status_code=303,
+            f"/api/v1/operator/gm?flash={html.escape(str(exc))}",
+            status_code=303,
         )
     await db.commit()
     return RedirectResponse(
@@ -852,17 +1002,23 @@ async def gm_approve_form(
 
 @router.post("/gm/approvals/{approval_id}/reject")
 async def gm_reject_form(
-    approval_id: str, current_user: OperatorUser, db: DBSession,
+    approval_id: str,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     approval = await _require_owned(db, GMApproval, approval_id, current_user.organization_id, "Approval")
     try:
         await resolve_approval(
-            db, approval=approval, decision="rejected",
-            decided_by=current_user.email, notes=None,
+            db,
+            approval=approval,
+            decision="rejected",
+            decided_by=current_user.email,
+            notes=None,
         )
     except ValueError as exc:
         return RedirectResponse(
-            f"/api/v1/operator/gm?flash={html.escape(str(exc))}", status_code=303,
+            f"/api/v1/operator/gm?flash={html.escape(str(exc))}",
+            status_code=303,
         )
     await db.commit()
     return RedirectResponse(
@@ -873,11 +1029,16 @@ async def gm_reject_form(
 
 @router.post("/gm/escalations/{escalation_id}/resolve")
 async def gm_resolve_escalation_form(
-    escalation_id: str, current_user: OperatorUser, db: DBSession,
+    escalation_id: str,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     escalation = await _require_owned(db, GMEscalation, escalation_id, current_user.organization_id, "Escalation")
     await resolve_escalation(
-        db, escalation=escalation, resolved_by=current_user.email, notes=None,
+        db,
+        escalation=escalation,
+        resolved_by=current_user.email,
+        notes=None,
     )
     await db.commit()
     return RedirectResponse(
@@ -889,6 +1050,7 @@ async def gm_resolve_escalation_form(
 @router.post("/gm/watcher/run-now")
 async def gm_watcher_run_form(current_user: OperatorUser, db: DBSession):
     from apps.api.services.stage_controller import run_stuck_stage_watcher
+
     result = await run_stuck_stage_watcher(db, org_id=current_user.organization_id)
     await db.commit()
     msg = (
@@ -896,7 +1058,8 @@ async def gm_watcher_run_form(current_user: OperatorUser, db: DBSession):
         f"stuck={result.get('stuck')} opened={result.get('escalations_opened')}"
     )
     return RedirectResponse(
-        f"/api/v1/operator/gm?flash={html.escape(msg)}", status_code=303,
+        f"/api/v1/operator/gm?flash={html.escape(msg)}",
+        status_code=303,
     )
 
 
@@ -910,9 +1073,7 @@ async def _require_owned(db, model, row_id: str, org_id: uuid.UUID, label: str):
         rid = uuid.UUID(row_id)
     except (ValueError, TypeError):
         raise HTTPException(400, f"Invalid {label} id")
-    row = (
-        await db.execute(select(model).where(model.id == rid))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(model).where(model.id == rid))).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, f"{label} not found")
     if row.org_id != org_id:

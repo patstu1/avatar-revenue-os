@@ -1,4 +1,5 @@
 """Provider Registry — API endpoints for provider inventory, readiness, dependencies, blockers."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status

@@ -1,4 +1,5 @@
 """Pydantic schemas for MXP Contribution."""
+
 from __future__ import annotations
 
 from datetime import datetime

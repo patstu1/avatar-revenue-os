@@ -18,6 +18,7 @@ Exposed functions:
 
 Every mutation writes a canonical SystemEvent in domain='monetization'.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -63,9 +64,7 @@ async def create_invoice_from_proposal(
     """
     # Auto-generate an invoice number scoped to the org
     seq_count = (
-        await db.execute(
-            select(func.count(Invoice.id)).where(Invoice.org_id == proposal.org_id)
-        )
+        await db.execute(select(func.count(Invoice.id)).where(Invoice.org_id == proposal.org_id))
     ).scalar() or 0
     invoice_number = f"INV-{datetime.now(timezone.utc).year}-{seq_count + 1:05d}"
 
@@ -91,31 +90,37 @@ async def create_invoice_from_proposal(
 
     # Copy proposal line items onto the invoice
     from packages.db.models.proposals import ProposalLineItem
+
     proposal_lines = (
-        await db.execute(
-            select(ProposalLineItem).where(
-                ProposalLineItem.proposal_id == proposal.id,
-                ProposalLineItem.is_active.is_(True),
-            ).order_by(ProposalLineItem.position)
+        (
+            await db.execute(
+                select(ProposalLineItem)
+                .where(
+                    ProposalLineItem.proposal_id == proposal.id,
+                    ProposalLineItem.is_active.is_(True),
+                )
+                .order_by(ProposalLineItem.position)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     for pl in proposal_lines:
-        db.add(InvoiceLineItem(
-            invoice_id=invoice.id,
-            description=pl.description,
-            quantity=pl.quantity,
-            unit_amount_cents=pl.unit_amount_cents,
-            total_amount_cents=pl.total_amount_cents,
-            currency=pl.currency,
-            position=pl.position,
-        ))
+        db.add(
+            InvoiceLineItem(
+                invoice_id=invoice.id,
+                description=pl.description,
+                quantity=pl.quantity,
+                unit_amount_cents=pl.unit_amount_cents,
+                total_amount_cents=pl.total_amount_cents,
+                currency=pl.currency,
+                position=pl.position,
+            )
+        )
 
     # Add milestones (or one "full amount" milestone)
-    seeded_milestones = milestones or [
-        {"label": "Full amount", "amount_cents": invoice.total_cents,
-         "due_date": due}
-    ]
+    seeded_milestones = milestones or [{"label": "Full amount", "amount_cents": invoice.total_cents, "due_date": due}]
     total_ms = 0
     for i, m in enumerate(seeded_milestones):
         amt = int(m.get("amount_cents", 0))
@@ -123,14 +128,16 @@ async def create_invoice_from_proposal(
         ms_due = m.get("due_date")
         if isinstance(ms_due, str):
             ms_due = datetime.fromisoformat(ms_due.replace("Z", "+00:00"))
-        db.add(InvoiceMilestone(
-            invoice_id=invoice.id,
-            position=m.get("position", i),
-            label=str(m.get("label", f"Milestone {i+1}"))[:255],
-            amount_cents=amt,
-            due_date=ms_due or due,
-            status="pending",
-        ))
+        db.add(
+            InvoiceMilestone(
+                invoice_id=invoice.id,
+                position=m.get("position", i),
+                label=str(m.get("label", f"Milestone {i + 1}"))[:255],
+                amount_cents=amt,
+                due_date=ms_due or due,
+                status="pending",
+            )
+        )
 
     await db.flush()
 
@@ -146,10 +153,7 @@ async def create_invoice_from_proposal(
         db,
         domain="monetization",
         event_type="invoice.created",
-        summary=(
-            f"Invoice {invoice_number} created: "
-            f"${invoice.total_cents/100:,.2f} {invoice.currency.upper()}"
-        ),
+        summary=(f"Invoice {invoice_number} created: ${invoice.total_cents / 100:,.2f} {invoice.currency.upper()}"),
         org_id=invoice.org_id,
         brand_id=invoice.brand_id,
         entity_type="invoice",
@@ -192,9 +196,7 @@ async def send_invoice(
     as Batch 9 intake email).
     """
     if invoice.status in ("paid", "void"):
-        raise ValueError(
-            f"Cannot send invoice in status={invoice.status}"
-        )
+        raise ValueError(f"Cannot send invoice in status={invoice.status}")
     prior = invoice.status
     invoice.status = "sent"
     invoice.sent_at = datetime.now(timezone.utc)
@@ -203,18 +205,20 @@ async def send_invoice(
     send_result = {"success": False, "error": "no_smtp_configured"}
     try:
         from packages.clients.external_clients import SmtpEmailClient
+
         smtp = await SmtpEmailClient.from_db(db, invoice.org_id)
         if smtp is not None and invoice.recipient_email:
-            subject = f"Invoice {invoice.invoice_number} — ${invoice.total_cents/100:,.2f}"
+            subject = f"Invoice {invoice.invoice_number} — ${invoice.total_cents / 100:,.2f}"
             body = (
                 f"Invoice {invoice.invoice_number}\n"
-                f"Amount: ${invoice.total_cents/100:,.2f} {invoice.currency.upper()}\n"
+                f"Amount: ${invoice.total_cents / 100:,.2f} {invoice.currency.upper()}\n"
                 f"Due: {invoice.due_date.isoformat() if invoice.due_date else 'on receipt'}\n\n"
                 f"Payment via wire, ACH, or check. Reply here with questions."
             )
             send_result = await smtp.send_email(
                 to_email=invoice.recipient_email,
-                subject=subject, body_text=body,
+                subject=subject,
+                body_text=body,
                 body_html=f"<pre>{body}</pre>",
             )
     except Exception as smtp_exc:
@@ -279,9 +283,7 @@ async def mark_paid(
        "invoice_status", "milestone_status"?}
     """
     if payment_method not in VALID_PAYMENT_METHODS:
-        raise ValueError(
-            f"payment_method must be one of {VALID_PAYMENT_METHODS}"
-        )
+        raise ValueError(f"payment_method must be one of {VALID_PAYMENT_METHODS}")
     if amount_cents <= 0:
         raise ValueError("amount_cents must be positive")
     if invoice.status == "void":
@@ -328,9 +330,7 @@ async def mark_paid(
             )
         ).scalar_one_or_none()
         if target_ms is None:
-            raise ValueError(
-                f"Invoice has no milestone at position {milestone_position}"
-            )
+            raise ValueError(f"Invoice has no milestone at position {milestone_position}")
         if target_ms.status == "paid":
             return {
                 "triggered": False,
@@ -395,20 +395,14 @@ async def mark_paid(
         invoice.payment_method = payment_method
         invoice.payment_reference = payment_reference
         await db.execute(
-            InvoiceMilestone.__table__.update().where(
-                (InvoiceMilestone.invoice_id == invoice.id) &
-                (InvoiceMilestone.status == "pending")
-            ).values(status="paid", paid_at=now,
-                      payment_reference=payment_reference)
+            InvoiceMilestone.__table__.update()
+            .where((InvoiceMilestone.invoice_id == invoice.id) & (InvoiceMilestone.status == "pending"))
+            .values(status="paid", paid_at=now, payment_reference=payment_reference)
         )
 
     # Flip the proposal to paid (same as the Stripe path does)
     if invoice.proposal_id is not None:
-        prop = (
-            await db.execute(
-                select(Proposal).where(Proposal.id == invoice.proposal_id)
-            )
-        ).scalar_one_or_none()
+        prop = (await db.execute(select(Proposal).where(Proposal.id == invoice.proposal_id))).scalar_one_or_none()
         if prop is not None and prop.status not in ("paid", "accepted"):
             prop.status = "paid"
             prop.paid_at = now
@@ -423,6 +417,7 @@ async def mark_paid(
             from apps.api.services.client_activation import (
                 activate_client_from_payment,
             )
+
             client_tuple = await activate_client_from_payment(db, payment=payment)
             # Returns (client, is_new, intake_request)
             if client_tuple and client_tuple[0] is not None:
@@ -440,10 +435,7 @@ async def mark_paid(
         db,
         domain="monetization",
         event_type="invoice.paid",
-        summary=(
-            f"Invoice {invoice.invoice_number} paid: "
-            f"${amount_cents/100:,.2f} via {payment_method}"
-        ),
+        summary=(f"Invoice {invoice.invoice_number} paid: ${amount_cents / 100:,.2f} via {payment_method}"),
         org_id=invoice.org_id,
         brand_id=invoice.brand_id,
         entity_type="invoice",
@@ -499,10 +491,9 @@ async def void_invoice(
     invoice.status = "void"
     # Void all pending milestones too
     await db.execute(
-        InvoiceMilestone.__table__.update().where(
-            (InvoiceMilestone.invoice_id == invoice.id) &
-            (InvoiceMilestone.status == "pending")
-        ).values(status="void")
+        InvoiceMilestone.__table__.update()
+        .where((InvoiceMilestone.invoice_id == invoice.id) & (InvoiceMilestone.status == "pending"))
+        .values(status="void")
     )
     await db.flush()
 
@@ -544,15 +535,21 @@ async def scan_overdue_invoices(db: AsyncSession) -> dict:
 
     now = datetime.now(timezone.utc)
     rows = (
-        await db.execute(
-            select(Invoice).where(
-                Invoice.status == "sent",
-                Invoice.due_date.isnot(None),
-                Invoice.due_date < now,
-                Invoice.is_active.is_(True),
-            ).limit(200)
+        (
+            await db.execute(
+                select(Invoice)
+                .where(
+                    Invoice.status == "sent",
+                    Invoice.due_date.isnot(None),
+                    Invoice.due_date < now,
+                    Invoice.is_active.is_(True),
+                )
+                .limit(200)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     flipped = 0
     for inv in rows:
@@ -569,28 +566,30 @@ async def scan_overdue_invoices(db: AsyncSession) -> dict:
             )
         ).scalar_one_or_none()
         if existing is None:
-            db.add(GMEscalation(
-                org_id=inv.org_id,
-                reason_code="invoice_overdue",
-                entity_type="invoice",
-                entity_id=inv.id,
-                title=f"Invoice overdue: {inv.invoice_number} (${inv.total_cents/100:,.2f})",
-                description=(
-                    f"Invoice {inv.invoice_number} to "
-                    f"{inv.recipient_email} is past due date "
-                    f"({inv.due_date.isoformat() if inv.due_date else '?'}). "
-                    "Decide: chase / negotiate / void."
-                ),
-                severity="warning",
-                status="open",
-                details_json={
-                    "invoice_id": str(inv.id),
-                    "invoice_number": inv.invoice_number,
-                    "total_cents": inv.total_cents,
-                    "recipient_email": inv.recipient_email,
-                    "avenue_slug": inv.avenue_slug,
-                },
-            ))
+            db.add(
+                GMEscalation(
+                    org_id=inv.org_id,
+                    reason_code="invoice_overdue",
+                    entity_type="invoice",
+                    entity_id=inv.id,
+                    title=f"Invoice overdue: {inv.invoice_number} (${inv.total_cents / 100:,.2f})",
+                    description=(
+                        f"Invoice {inv.invoice_number} to "
+                        f"{inv.recipient_email} is past due date "
+                        f"({inv.due_date.isoformat() if inv.due_date else '?'}). "
+                        "Decide: chase / negotiate / void."
+                    ),
+                    severity="warning",
+                    status="open",
+                    details_json={
+                        "invoice_id": str(inv.id),
+                        "invoice_number": inv.invoice_number,
+                        "total_cents": inv.total_cents,
+                        "recipient_email": inv.recipient_email,
+                        "avenue_slug": inv.avenue_slug,
+                    },
+                )
+            )
         flipped += 1
 
     await db.commit()

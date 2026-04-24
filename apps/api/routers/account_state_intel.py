@@ -1,4 +1,5 @@
 """Account-State Intelligence API."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status

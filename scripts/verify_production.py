@@ -10,6 +10,7 @@ Exit codes:
     0 — all critical checks pass
     1 — one or more critical checks failed
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,6 +32,7 @@ except ImportError:
 # Terminal colors
 # ---------------------------------------------------------------------------
 
+
 class Color:
     GREEN = "\033[92m"
     RED = "\033[91m"
@@ -51,7 +53,7 @@ if not sys.stdout.isatty():
 
 CHECK_MARK = "\u2713"
 CROSS_MARK = "\u2717"
-WARN_MARK = "\u26A0"
+WARN_MARK = "\u26a0"
 
 
 def ok(label: str, detail: str = ""):
@@ -77,6 +79,7 @@ def section(title: str):
 # Check result tracking
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CheckResult:
     name: str
@@ -101,6 +104,7 @@ def record(name: str, passed: bool, critical: bool = True, detail: str = ""):
 # ---------------------------------------------------------------------------
 # Check implementations
 # ---------------------------------------------------------------------------
+
 
 def check_api_health(client: httpx.Client, base_url: str):
     """Check 1: Basic API health."""
@@ -214,7 +218,12 @@ def check_provider_connectivity(client: httpx.Client, base_url: str):
             if resp.status_code == 200:
                 break
         if not resp or resp.status_code != 200:
-            record("Provider status endpoint", False, critical=False, detail=f"HTTP {resp.status_code if resp else 'none'} (endpoint may not be deployed yet)")
+            record(
+                "Provider status endpoint",
+                False,
+                critical=False,
+                detail=f"HTTP {resp.status_code if resp else 'none'} (endpoint may not be deployed yet)",
+            )
             return
 
         data = resp.json()
@@ -344,7 +353,9 @@ def check_event_bus(client: httpx.Client, base_url: str):
         if resp and resp.status_code == 200:
             data = resp.json()
             db_val = data.get("checks", {}).get("database")
-            db_ok = db_val if isinstance(db_val, bool) else (db_val.get("ok", False) if isinstance(db_val, dict) else False)
+            db_ok = (
+                db_val if isinstance(db_val, bool) else (db_val.get("ok", False) if isinstance(db_val, dict) else False)
+            )
             record(
                 "Event bus (DB backing)",
                 db_ok,
@@ -360,6 +371,7 @@ def check_event_bus(client: httpx.Client, base_url: str):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -435,7 +447,9 @@ Examples:
     print()
 
     if failed_critical:
-        print(f"{Color.RED}{Color.BOLD}RESULT: FAILED — {len(failed_critical)} critical check(s) did not pass.{Color.RESET}\n")
+        print(
+            f"{Color.RED}{Color.BOLD}RESULT: FAILED — {len(failed_critical)} critical check(s) did not pass.{Color.RESET}\n"
+        )
         sys.exit(1)
     elif failed_non_critical:
         print(f"{Color.YELLOW}{Color.BOLD}RESULT: PASSED with {len(failed_non_critical)} warning(s).{Color.RESET}\n")

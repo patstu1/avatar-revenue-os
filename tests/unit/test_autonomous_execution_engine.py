@@ -1,4 +1,5 @@
 """Unit tests: autonomous execution gate engine."""
+
 from __future__ import annotations
 
 from packages.scoring.autonomous_execution_engine import evaluate_execution_gate

@@ -1,33 +1,65 @@
 """Integration tests for Phase 3 content pipeline: brief -> script -> QA -> approve -> publish."""
+
 import pytest
 
 
 async def _setup_pipeline(api_client, sample_org_data):
     """Register, create brand+offer+account, create brief, return headers+IDs."""
     await api_client.post("/api/v1/auth/register", json=sample_org_data)
-    login = await api_client.post("/api/v1/auth/login", json={
-        "email": sample_org_data["email"], "password": sample_org_data["password"],
-    })
+    login = await api_client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": sample_org_data["email"],
+            "password": sample_org_data["password"],
+        },
+    )
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
-    brand = await api_client.post("/api/v1/brands/", json={
-        "name": "Pipeline Brand", "slug": "pipe-brand", "niche": "finance",
-    }, headers=headers)
+    brand = await api_client.post(
+        "/api/v1/brands/",
+        json={
+            "name": "Pipeline Brand",
+            "slug": "pipe-brand",
+            "niche": "finance",
+        },
+        headers=headers,
+    )
     bid = brand.json()["id"]
 
-    await api_client.post("/api/v1/offers/", json={
-        "brand_id": bid, "name": "Pipe Offer", "monetization_method": "affiliate",
-        "payout_amount": 25.0, "epc": 1.5, "conversion_rate": 0.03,
-    }, headers=headers)
+    await api_client.post(
+        "/api/v1/offers/",
+        json={
+            "brand_id": bid,
+            "name": "Pipe Offer",
+            "monetization_method": "affiliate",
+            "payout_amount": 25.0,
+            "epc": 1.5,
+            "conversion_rate": 0.03,
+        },
+        headers=headers,
+    )
 
-    account = await api_client.post("/api/v1/accounts/", json={
-        "brand_id": bid, "platform": "youtube", "platform_username": "@pipetest",
-    }, headers=headers)
+    account = await api_client.post(
+        "/api/v1/accounts/",
+        json={
+            "brand_id": bid,
+            "platform": "youtube",
+            "platform_username": "@pipetest",
+        },
+        headers=headers,
+    )
 
-    brief = await api_client.post("/api/v1/content/briefs", json={
-        "brand_id": bid, "title": "Test Pipeline Brief", "content_type": "short_video",
-        "hook": "This changes everything", "angle": "Contrarian take",
-    }, headers=headers)
+    brief = await api_client.post(
+        "/api/v1/content/briefs",
+        json={
+            "brand_id": bid,
+            "title": "Test Pipeline Brief",
+            "content_type": "short_video",
+            "hook": "This changes everything",
+            "angle": "Contrarian take",
+        },
+        headers=headers,
+    )
     brief_id = brief.json()["id"]
 
     return headers, bid, brief_id, account.json()["id"]
@@ -91,9 +123,14 @@ async def test_qa_scoring_persistence(api_client, sample_org_data, db_session):
 
     from packages.db.enums import ContentType as CT
     from packages.db.models.content import ContentItem
+
     item = ContentItem(
-        brand_id=bid, brief_id=brief_id, title="QA Test Item",
-        content_type=CT.SHORT_VIDEO, status="draft", tags=["test"],
+        brand_id=bid,
+        brief_id=brief_id,
+        title="QA Test Item",
+        content_type=CT.SHORT_VIDEO,
+        status="draft",
+        tags=["test"],
     )
     db_session.add(item)
     await db_session.flush()
@@ -116,15 +153,20 @@ async def test_approval_flow(api_client, sample_org_data, db_session):
 
     from packages.db.enums import ContentType as CT
     from packages.db.models.content import ContentItem
+
     item = ContentItem(
-        brand_id=bid, title="Approval Test", content_type=CT.SHORT_VIDEO, status="draft",
+        brand_id=bid,
+        title="Approval Test",
+        content_type=CT.SHORT_VIDEO,
+        status="draft",
     )
     db_session.add(item)
     await db_session.flush()
 
     approve_resp = await api_client.post(
         f"/api/v1/pipeline/content/{item.id}/approve",
-        json={"notes": "LGTM"}, headers=headers,
+        json={"notes": "LGTM"},
+        headers=headers,
     )
     assert approve_resp.status_code == 200
     assert approve_resp.json()["status"] in ("approved", "revision_requested")
@@ -136,15 +178,20 @@ async def test_reject_flow(api_client, sample_org_data, db_session):
 
     from packages.db.enums import ContentType as CT
     from packages.db.models.content import ContentItem
+
     item = ContentItem(
-        brand_id=bid, title="Reject Test", content_type=CT.SHORT_VIDEO, status="draft",
+        brand_id=bid,
+        title="Reject Test",
+        content_type=CT.SHORT_VIDEO,
+        status="draft",
     )
     db_session.add(item)
     await db_session.flush()
 
     resp = await api_client.post(
         f"/api/v1/pipeline/content/{item.id}/reject",
-        json={"notes": "Not aligned"}, headers=headers,
+        json={"notes": "Not aligned"},
+        headers=headers,
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "rejected"
@@ -156,15 +203,20 @@ async def test_request_changes_flow(api_client, sample_org_data, db_session):
 
     from packages.db.enums import ContentType as CT
     from packages.db.models.content import ContentItem
+
     item = ContentItem(
-        brand_id=bid, title="Changes Test", content_type=CT.SHORT_VIDEO, status="draft",
+        brand_id=bid,
+        title="Changes Test",
+        content_type=CT.SHORT_VIDEO,
+        status="draft",
     )
     db_session.add(item)
     await db_session.flush()
 
     resp = await api_client.post(
         f"/api/v1/pipeline/content/{item.id}/request-changes",
-        json={"notes": "Fix CTA"}, headers=headers,
+        json={"notes": "Fix CTA"},
+        headers=headers,
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "revision_requested"
@@ -176,8 +228,12 @@ async def test_publish_requires_approved(api_client, sample_org_data, db_session
 
     from packages.db.enums import ContentType as CT
     from packages.db.models.content import ContentItem
+
     item = ContentItem(
-        brand_id=bid, title="Unapproved", content_type=CT.SHORT_VIDEO, status="draft",
+        brand_id=bid,
+        title="Unapproved",
+        content_type=CT.SHORT_VIDEO,
+        status="draft",
     )
     db_session.add(item)
     await db_session.flush()
@@ -196,8 +252,12 @@ async def test_publish_job_creation(api_client, sample_org_data, db_session):
 
     from packages.db.enums import ContentType as CT
     from packages.db.models.content import ContentItem
+
     item = ContentItem(
-        brand_id=bid, title="Publishable", content_type=CT.SHORT_VIDEO, status="approved",
+        brand_id=bid,
+        title="Publishable",
+        content_type=CT.SHORT_VIDEO,
+        status="approved",
     )
     db_session.add(item)
     await db_session.flush()
@@ -219,15 +279,20 @@ async def test_approval_action_audited(api_client, sample_org_data, db_session):
 
     from packages.db.enums import ContentType as CT
     from packages.db.models.content import ContentItem
+
     item = ContentItem(
-        brand_id=bid, title="Audit Me", content_type=CT.SHORT_VIDEO, status="draft",
+        brand_id=bid,
+        title="Audit Me",
+        content_type=CT.SHORT_VIDEO,
+        status="draft",
     )
     db_session.add(item)
     await db_session.flush()
 
     await api_client.post(
         f"/api/v1/pipeline/content/{item.id}/approve",
-        json={"notes": "Approved"}, headers=headers,
+        json={"notes": "Approved"},
+        headers=headers,
     )
 
     audit = await api_client.get("/api/v1/jobs/audit/logs", headers=headers)

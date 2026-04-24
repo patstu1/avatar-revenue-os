@@ -2,6 +2,7 @@
 
 Closes the loop: offer seed values → content published → performance measured → offer updated.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -51,12 +52,14 @@ def compute_learned_offer_params(
 
     confidence = min(0.95, 0.3 + (measured_clicks / 500) * 0.4 + (measured_conversions / 20) * 0.25)
 
-    result.update({
-        "updated": True,
-        "learned_epc": learned_epc,
-        "learned_cvr": learned_cvr,
-        "learned_aov": learned_aov,
-        "confidence": round(confidence, 3),
-        "reason": f"Updated from {measured_clicks} clicks, {measured_conversions} conversions, ${measured_revenue:.2f} revenue",
-    })
+    result.update(
+        {
+            "updated": True,
+            "learned_epc": learned_epc,
+            "learned_cvr": learned_cvr,
+            "learned_aov": learned_aov,
+            "confidence": round(confidence, 3),
+            "reason": f"Updated from {measured_clicks} clicks, {measured_conversions} conversions, ${measured_revenue:.2f} revenue",
+        }
+    )
     return result

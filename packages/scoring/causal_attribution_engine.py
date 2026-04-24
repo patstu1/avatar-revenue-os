@@ -1,9 +1,21 @@
 """Causal Attribution Engine — change-point, candidate cause, confidence, credit. Pure functions."""
+
 from __future__ import annotations
 
 from typing import Any
 
-DRIVER_TYPES = ["content_change", "offer_change", "campaign_change", "platform_shift", "seasonal_pattern", "experiment_result", "account_state_change", "provider_change", "external_event", "audience_shift"]
+DRIVER_TYPES = [
+    "content_change",
+    "offer_change",
+    "campaign_change",
+    "platform_shift",
+    "seasonal_pattern",
+    "experiment_result",
+    "account_state_change",
+    "provider_change",
+    "external_event",
+    "audience_shift",
+]
 NOISE_THRESHOLD = 0.10
 HIGH_CONFIDENCE = 0.70
 CAUTIOUS_THRESHOLD = 0.50
@@ -21,11 +33,21 @@ def detect_change_points(time_series: list[float], threshold_pct: float = 0.15) 
             continue
         change = (curr - prev) / abs(prev)
         if abs(change) >= threshold_pct:
-            changes.append({"index": i, "before": prev, "after": curr, "change_pct": round(change * 100, 2), "direction": "lift" if change > 0 else "drop"})
+            changes.append(
+                {
+                    "index": i,
+                    "before": prev,
+                    "after": curr,
+                    "change_pct": round(change * 100, 2),
+                    "direction": "lift" if change > 0 else "drop",
+                }
+            )
     return changes
 
 
-def extract_candidate_causes(changes: list[dict[str, Any]], system_events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def extract_candidate_causes(
+    changes: list[dict[str, Any]], system_events: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Match change points to potential causal events."""
     candidates = []
     for change in changes:
@@ -33,13 +55,15 @@ def extract_candidate_causes(changes: list[dict[str, Any]], system_events: list[
         for event in system_events:
             evt_idx = event.get("index", event.get("period", 0))
             if abs(evt_idx - idx) <= 1:
-                candidates.append({
-                    "change": change,
-                    "driver_type": event.get("driver_type", "unknown"),
-                    "driver_name": event.get("driver_name", "unknown event"),
-                    "temporal_proximity": abs(evt_idx - idx),
-                    "event_data": event,
-                })
+                candidates.append(
+                    {
+                        "change": change,
+                        "driver_type": event.get("driver_type", "unknown"),
+                        "driver_name": event.get("driver_name", "unknown event"),
+                        "temporal_proximity": abs(evt_idx - idx),
+                        "event_data": event,
+                    }
+                )
     return candidates
 
 
@@ -52,7 +76,18 @@ def score_causal_confidence(candidate: dict[str, Any]) -> dict[str, Any]:
     temporal_score = max(0, 1.0 - proximity * 0.3)
     magnitude_score = min(1.0, change_magnitude / 50)
 
-    directness_map = {"experiment_result": 0.9, "offer_change": 0.7, "content_change": 0.6, "campaign_change": 0.6, "platform_shift": 0.4, "account_state_change": 0.5, "provider_change": 0.5, "seasonal_pattern": 0.2, "external_event": 0.15, "audience_shift": 0.3}
+    directness_map = {
+        "experiment_result": 0.9,
+        "offer_change": 0.7,
+        "content_change": 0.6,
+        "campaign_change": 0.6,
+        "platform_shift": 0.4,
+        "account_state_change": 0.5,
+        "provider_change": 0.5,
+        "seasonal_pattern": 0.2,
+        "external_event": 0.15,
+        "audience_shift": 0.3,
+    }
     directness = directness_map.get(driver_type, 0.3)
 
     confidence = round(0.40 * temporal_score + 0.30 * directness + 0.30 * magnitude_score, 3)
@@ -89,12 +124,14 @@ def allocate_credit(hypotheses: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for h in hypotheses:
         share = h.get("confidence", 0) / total_conf
         cautious = h.get("confidence", 0) < CAUTIOUS_THRESHOLD or h.get("noise_flag", False)
-        allocations.append({
-            "driver_name": h.get("driver_name", ""),
-            "credit_pct": round(share * 100, 1),
-            "confidence": h.get("confidence", 0),
-            "promote_cautiously": cautious,
-        })
+        allocations.append(
+            {
+                "driver_name": h.get("driver_name", ""),
+                "credit_pct": round(share * 100, 1),
+                "confidence": h.get("confidence", 0),
+                "promote_cautiously": cautious,
+            }
+        )
     return sorted(allocations, key=lambda a: -a["credit_pct"])
 
 
@@ -113,7 +150,12 @@ def build_confidence_summary(hypotheses: list[dict[str, Any]]) -> dict[str, Any]
     else:
         rec = f"{high}/{total} high confidence — promote cautiously for the rest"
 
-    return {"hypothesis_count": total, "high_confidence_count": high, "noise_flagged_count": noise, "recommendation": rec}
+    return {
+        "hypothesis_count": total,
+        "high_confidence_count": high,
+        "noise_flagged_count": noise,
+        "recommendation": rec,
+    }
 
 
 def _recommend(driver_type: str, direction: str, confidence: float) -> str:

@@ -1,4 +1,5 @@
 """Pydantic schemas for Creator Revenue Avenues Phase A."""
+
 from __future__ import annotations
 
 import uuid
@@ -23,6 +24,7 @@ class CreatorRevenueOpportunityOut(BaseModel):
     explanation: str | None = None
     details_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -43,6 +45,7 @@ class UgcServiceActionOut(BaseModel):
     explanation: str | None = None
     blockers_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -62,6 +65,7 @@ class ServiceConsultingActionOut(BaseModel):
     explanation: str | None = None
     blockers_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -81,6 +85,7 @@ class PremiumAccessActionOut(BaseModel):
     explanation: str | None = None
     blockers_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -95,6 +100,7 @@ class CreatorRevenueBlockerOut(BaseModel):
     operator_action_needed: str
     resolved: bool
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -111,6 +117,7 @@ class CreatorRevenueEventOut(BaseModel):
     client_name: str | None = None
     description: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -131,6 +138,7 @@ class LicensingActionOut(BaseModel):
     explanation: str | None = None
     blockers_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -150,6 +158,7 @@ class SyndicationActionOut(BaseModel):
     explanation: str | None = None
     blockers_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -169,6 +178,7 @@ class DataProductActionOut(BaseModel):
     explanation: str | None = None
     blockers_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -188,6 +198,7 @@ class MerchActionOut(BaseModel):
     explanation: str | None = None
     blockers_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -208,6 +219,7 @@ class LiveEventActionOut(BaseModel):
     explanation: str | None = None
     blockers_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -228,6 +240,7 @@ class OwnedAffiliateProgramActionOut(BaseModel):
     explanation: str | None = None
     blockers_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -248,6 +261,7 @@ class AvenueExecutionTruthOut(BaseModel):
     missing_integrations: Any | None = None
     details_json: Any | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 

@@ -1,4 +1,5 @@
 """Unit tests for Content Form Selection + Mix Allocation engine."""
+
 from __future__ import annotations
 
 from packages.scoring.content_form_engine import (
@@ -50,12 +51,28 @@ def test_avatar_mode_none_when_no_avatar():
 
 def test_avatar_led_ranks_higher_with_avatar():
     low = _score_form(
-        "avatar_led_video", "youtube", "affiliate", "awareness",
-        0.0, 0.0, False, True, "new", "low",
+        "avatar_led_video",
+        "youtube",
+        "affiliate",
+        "awareness",
+        0.0,
+        0.0,
+        False,
+        True,
+        "new",
+        "low",
     )
     high = _score_form(
-        "avatar_led_video", "youtube", "affiliate", "awareness",
-        0.0, 0.0, True, True, "new", "low",
+        "avatar_led_video",
+        "youtube",
+        "affiliate",
+        "awareness",
+        0.0,
+        0.0,
+        True,
+        True,
+        "new",
+        "low",
     )
     assert high > low
 
@@ -114,34 +131,82 @@ def test_high_trust_boosts_proof():
 
 def test_saturation_boosts_expansion_forms():
     low_sat = _score_form(
-        "faceless_short_form", "youtube", "affiliate", "awareness",
-        0.0, 0.0, True, True, "mature", "low",
+        "faceless_short_form",
+        "youtube",
+        "affiliate",
+        "awareness",
+        0.0,
+        0.0,
+        True,
+        True,
+        "mature",
+        "low",
     )
     high_sat = _score_form(
-        "faceless_short_form", "youtube", "affiliate", "awareness",
-        0.75, 0.0, True, True, "mature", "low",
+        "faceless_short_form",
+        "youtube",
+        "affiliate",
+        "awareness",
+        0.75,
+        0.0,
+        True,
+        True,
+        "mature",
+        "low",
     )
     assert high_sat >= low_sat + 0.09
 
 
 def test_fatigue_penalizes_heavy_forms():
     calm = _score_form(
-        "avatar_led_video", "youtube", "sponsorship", "awareness",
-        0.0, 0.0, True, True, "mature", "low",
+        "avatar_led_video",
+        "youtube",
+        "sponsorship",
+        "awareness",
+        0.0,
+        0.0,
+        True,
+        True,
+        "mature",
+        "low",
     )
     tired = _score_form(
-        "avatar_led_video", "youtube", "sponsorship", "awareness",
-        0.0, 0.7, True, True, "mature", "low",
+        "avatar_led_video",
+        "youtube",
+        "sponsorship",
+        "awareness",
+        0.0,
+        0.7,
+        True,
+        True,
+        "mature",
+        "low",
     )
     assert tired < calm
 
     lf_calm = _score_form(
-        "long_form_video", "youtube", "sponsorship", "consideration",
-        0.0, 0.0, True, True, "mature", "low",
+        "long_form_video",
+        "youtube",
+        "sponsorship",
+        "consideration",
+        0.0,
+        0.0,
+        True,
+        True,
+        "mature",
+        "low",
     )
     lf_tired = _score_form(
-        "long_form_video", "youtube", "sponsorship", "consideration",
-        0.0, 0.7, True, True, "mature", "low",
+        "long_form_video",
+        "youtube",
+        "sponsorship",
+        "consideration",
+        0.0,
+        0.7,
+        True,
+        True,
+        "mature",
+        "low",
     )
     assert lf_tired < lf_calm
 

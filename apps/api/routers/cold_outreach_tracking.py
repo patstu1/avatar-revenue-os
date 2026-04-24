@@ -10,6 +10,7 @@ URL shape in cold emails:
 302 redirects to proofhook.com with UTMs preserved, which means analytics
 on proofhook.com still see the traffic and we get per-lead signal.
 """
+
 import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
@@ -34,28 +35,38 @@ async def click_redirector(target_id: str, request: Request, db: DBSession):
 
     # Insert click (best-effort — if target_id is malformed we still redirect)
     try:
-        await db.execute(text(
-            "INSERT INTO cold_outreach_clicks "
-            "(target_id, campaign, user_agent, ip_address, referer) "
-            "VALUES (CAST(:t AS uuid), :c, :ua, :ip, :ref)"
-        ), {"t": target_id, "c": campaign, "ua": ua, "ip": ip, "ref": ref})
+        await db.execute(
+            text(
+                "INSERT INTO cold_outreach_clicks "
+                "(target_id, campaign, user_agent, ip_address, referer) "
+                "VALUES (CAST(:t AS uuid), :c, :ua, :ip, :ref)"
+            ),
+            {"t": target_id, "c": campaign, "ua": ua, "ip": ip, "ref": ref},
+        )
         await db.commit()
         logger.info("click.logged", target_id=target_id, campaign=campaign, ip=ip)
         # Phase 3: emit to analytics_events for dashboard truth.
         try:
             from packages.clients.analytics_emitter import emit_analytics_event
             from sqlalchemy import text as _atxt
-            brand_row = (await db.execute(_atxt(
-                "SELECT brand_id FROM sponsor_targets WHERE id = CAST(:t AS uuid)"
-            ), {"t": target_id})).first()
+
+            brand_row = (
+                await db.execute(
+                    _atxt("SELECT brand_id FROM sponsor_targets WHERE id = CAST(:t AS uuid)"), {"t": target_id}
+                )
+            ).first()
             if brand_row and brand_row[0]:
                 await emit_analytics_event(
-                    db, brand_id=brand_row[0],
-                    source="cold_outreach", event_type="outreach.click",
-                    metric_value=1.0, truth_level="verified",
+                    db,
+                    brand_id=brand_row[0],
+                    source="cold_outreach",
+                    event_type="outreach.click",
+                    metric_value=1.0,
+                    truth_level="verified",
                     raw_json={
                         "target_id": str(target_id),
-                        "campaign": campaign, "ip": ip,
+                        "campaign": campaign,
+                        "ip": ip,
                         "user_agent": ua[:200],
                     },
                 )
@@ -66,10 +77,5 @@ async def click_redirector(target_id: str, request: Request, db: DBSession):
         # Never block the redirect on a logging failure
         logger.warning("click.log_failed", target_id=target_id, error=str(exc))
 
-    utm = (
-        f"?utm_source=cold_email"
-        f"&utm_medium=email"
-        f"&utm_campaign={campaign}"
-        f"&utm_content={target_id}"
-    )
+    utm = f"?utm_source=cold_email&utm_medium=email&utm_campaign={campaign}&utm_content={target_id}"
     return RedirectResponse(url=REDIRECT_BASE + utm, status_code=302)

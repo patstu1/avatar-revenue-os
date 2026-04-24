@@ -1,4 +1,5 @@
 """Unit tests for digital twin engine."""
+
 from packages.scoring.digital_twin_engine import (
     SCENARIO_TYPES,
     build_recommendation,

@@ -4,6 +4,7 @@ GET  /oauth/connect/{platform}   — Redirect user to platform consent screen
 GET  /oauth/callback/{platform}  — Handle callback, exchange code, store tokens
 POST /oauth/disconnect/{account_id} — Revoke + clear stored credentials
 """
+
 from __future__ import annotations
 
 import os
@@ -73,17 +74,14 @@ async def oauth_connect(
 
     # Verify brand access
     from packages.db.models.core import Brand
-    brand = (await db.execute(
-        select(Brand).where(Brand.id == brand_id)
-    )).scalar_one_or_none()
+
+    brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand or brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brand not accessible")
 
     # If reconnecting an existing account, verify it belongs to this brand
     if account_id:
-        acct = (await db.execute(
-            select(CreatorAccount).where(CreatorAccount.id == account_id)
-        )).scalar_one_or_none()
+        acct = (await db.execute(select(CreatorAccount).where(CreatorAccount.id == account_id))).scalar_one_or_none()
         if not acct or acct.brand_id != brand_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found for this brand")
 
@@ -198,9 +196,9 @@ async def oauth_callback(
     account_id = state_data.get("account_id")
     if account_id:
         # Re-connecting an existing account
-        acct = (await db.execute(
-            select(CreatorAccount).where(CreatorAccount.id == uuid.UUID(account_id))
-        )).scalar_one_or_none()
+        acct = (
+            await db.execute(select(CreatorAccount).where(CreatorAccount.id == uuid.UUID(account_id)))
+        ).scalar_one_or_none()
     else:
         acct = None
 
@@ -289,17 +287,14 @@ async def oauth_disconnect(
     db: DBSession,
 ):
     """Clear stored OAuth credentials for an account."""
-    acct = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.id == account_id)
-    )).scalar_one_or_none()
+    acct = (await db.execute(select(CreatorAccount).where(CreatorAccount.id == account_id))).scalar_one_or_none()
     if not acct:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
 
     # Verify brand access
     from packages.db.models.core import Brand
-    brand = (await db.execute(
-        select(Brand).where(Brand.id == acct.brand_id)
-    )).scalar_one_or_none()
+
+    brand = (await db.execute(select(Brand).where(Brand.id == acct.brand_id))).scalar_one_or_none()
     if not brand or brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Brand not accessible")
 

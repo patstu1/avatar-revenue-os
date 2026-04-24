@@ -1,4 +1,5 @@
 """Monetization Machine Models — Credits, meters, plans, packs, telemetry."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -12,9 +13,12 @@ from packages.db.base import Base
 
 class CreditLedger(Base):
     """Credit balance and transaction ledger per organization."""
+
     __tablename__ = "credit_ledgers"
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     total_credits: Mapped[int] = mapped_column(Integer, default=0)
     used_credits: Mapped[int] = mapped_column(Integer, default=0)
     remaining_credits: Mapped[int] = mapped_column(Integer, default=0)
@@ -28,10 +32,15 @@ class CreditLedger(Base):
 
 class CreditTransaction(Base):
     """Individual credit transaction (earn, spend, purchase, expire)."""
+
     __tablename__ = "credit_transactions"
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
+    )
     transaction_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     balance_after: Mapped[int] = mapped_column(Integer, default=0)
@@ -45,9 +54,12 @@ class CreditTransaction(Base):
 
 class UsageMeterSnapshot(Base):
     """Periodic usage meter snapshot for billing and analytics."""
+
     __tablename__ = "usage_meter_snapshots"
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     meter_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     period_start: Mapped[str] = mapped_column(String(10), nullable=False)
     period_end: Mapped[str] = mapped_column(String(10), nullable=False)
@@ -61,9 +73,12 @@ class UsageMeterSnapshot(Base):
 
 class PlanSubscription(Base):
     """Organization's active pricing plan."""
+
     __tablename__ = "plan_subscriptions"
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     plan_tier: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     plan_name: Mapped[str] = mapped_column(String(120), nullable=False)
     monthly_price: Mapped[float] = mapped_column(Float, default=0.0)
@@ -82,9 +97,12 @@ class PlanSubscription(Base):
 
 class PackPurchase(Base):
     """One-time pack purchase (credit pack or outcome pack)."""
+
     __tablename__ = "pack_purchases"
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     pack_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     pack_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
@@ -100,10 +118,15 @@ class PackPurchase(Base):
 
 class MultiplicationEvent(Base):
     """Revenue multiplication event (premium upgrade moments)."""
+
     __tablename__ = "multiplication_events"
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
+    )
     event_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     trigger_context: Mapped[Optional[str]] = mapped_column(Text)
     offered: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -116,10 +139,15 @@ class MultiplicationEvent(Base):
 
 class MonetizationTelemetryEvent(Base):
     """Fine-grained telemetry for monetization intelligence."""
+
     __tablename__ = "monetization_telemetry"
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
+    )
     event_name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     event_value: Mapped[float] = mapped_column(Float, default=0.0)
     event_properties: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)

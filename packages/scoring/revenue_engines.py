@@ -9,14 +9,21 @@ from __future__ import annotations
 REVENUE_INTEL_SOURCE = "revenue_intel_engine"
 
 MONETIZATION_LAYERS = [
-    "ad_revenue", "affiliate", "sponsor", "lead_capture",
-    "direct_product", "cross_sell", "upsell", "email_opt_in",
+    "ad_revenue",
+    "affiliate",
+    "sponsor",
+    "lead_capture",
+    "direct_product",
+    "cross_sell",
+    "upsell",
+    "email_opt_in",
 ]
 
 
 # ---------------------------------------------------------------------------
 # 1. Offer Stack Optimizer
 # ---------------------------------------------------------------------------
+
 
 def optimize_offer_stack(
     content: dict,
@@ -64,33 +71,42 @@ def optimize_offer_stack(
 
         seg_fit = 1.0
         if segment:
-            seg_tags = set(str(t).lower() for t in (segment.get("segment_criteria", {}).get("niche_focus", "").split() if isinstance(segment.get("segment_criteria"), dict) else []))
+            seg_tags = set(
+                str(t).lower()
+                for t in (
+                    segment.get("segment_criteria", {}).get("niche_focus", "").split()
+                    if isinstance(segment.get("segment_criteria"), dict)
+                    else []
+                )
+            )
             offer_tags = set(str(t).lower() for t in (primary.get("audience_fit_tags") or []))
             if seg_tags and offer_tags:
                 overlap = len(seg_tags & offer_tags)
                 seg_fit = min(1.5, 1.0 + overlap * 0.15)
 
-        scored.append({
-            "content_id": content.get("id"),
-            "content_title": content.get("title", ""),
-            "primary_offer_id": primary.get("id"),
-            "primary_offer_name": primary.get("name", ""),
-            "secondary_offer_id": secondary.get("id") if secondary else None,
-            "downsell_offer_id": downsell.get("id") if downsell else None,
-            "offer_stack": stack_ids,
-            "expected_revenue_per_impression": round(combined_rev * seg_fit / 1000, 4),
-            "expected_aov_uplift_pct": round(aov_uplift * 100, 1),
-            "combined_expected_revenue": round(combined_rev * seg_fit, 2),
-            "segment_fit_multiplier": round(seg_fit, 2),
-            "evidence": {
-                "primary_expected": round(primary_rev, 2),
-                "secondary_expected": round(secondary_rev, 2),
-                "downsell_expected": round(downsell_rev, 2),
-                "offers_considered": len(offers),
-                "primary_method": primary.get("monetization_method"),
-            },
-            REVENUE_INTEL_SOURCE: True,
-        })
+        scored.append(
+            {
+                "content_id": content.get("id"),
+                "content_title": content.get("title", ""),
+                "primary_offer_id": primary.get("id"),
+                "primary_offer_name": primary.get("name", ""),
+                "secondary_offer_id": secondary.get("id") if secondary else None,
+                "downsell_offer_id": downsell.get("id") if downsell else None,
+                "offer_stack": stack_ids,
+                "expected_revenue_per_impression": round(combined_rev * seg_fit / 1000, 4),
+                "expected_aov_uplift_pct": round(aov_uplift * 100, 1),
+                "combined_expected_revenue": round(combined_rev * seg_fit, 2),
+                "segment_fit_multiplier": round(seg_fit, 2),
+                "evidence": {
+                    "primary_expected": round(primary_rev, 2),
+                    "secondary_expected": round(secondary_rev, 2),
+                    "downsell_expected": round(downsell_rev, 2),
+                    "offers_considered": len(offers),
+                    "primary_method": primary.get("monetization_method"),
+                },
+                REVENUE_INTEL_SOURCE: True,
+            }
+        )
 
     return sorted(scored, key=lambda x: -x["combined_expected_revenue"])
 
@@ -98,6 +114,7 @@ def optimize_offer_stack(
 # ---------------------------------------------------------------------------
 # 2. Post-Click Funnel Scorer
 # ---------------------------------------------------------------------------
+
 
 def score_funnel_paths(
     paths: list[dict],
@@ -140,24 +157,26 @@ def score_funnel_paths(
             if drop_stage:
                 fix += f" Worst drop at '{drop_stage}' stage ({worst_drop * 100:.0f}% loss)."
 
-        results.append({
-            "content_id": p.get("content_id"),
-            "offer_id": p.get("offer_id"),
-            "total_clicks": clicks,
-            "total_conversions": conversions,
-            "conversion_rate": round(cvr, 4),
-            "efficiency_vs_brand_avg": round(efficiency, 2),
-            "drop_off_stage": drop_stage,
-            "drop_off_rate": round(worst_drop, 2),
-            "expected_recoverable_revenue": round(max(0, recoverable), 2),
-            "recommended_fix": fix,
-            "evidence": {
-                "stages": stages,
-                "brand_avg_cvr": round(brand_avg_conversion_rate, 4),
-                "revenue_on_path": round(revenue, 2),
-            },
-            REVENUE_INTEL_SOURCE: True,
-        })
+        results.append(
+            {
+                "content_id": p.get("content_id"),
+                "offer_id": p.get("offer_id"),
+                "total_clicks": clicks,
+                "total_conversions": conversions,
+                "conversion_rate": round(cvr, 4),
+                "efficiency_vs_brand_avg": round(efficiency, 2),
+                "drop_off_stage": drop_stage,
+                "drop_off_rate": round(worst_drop, 2),
+                "expected_recoverable_revenue": round(max(0, recoverable), 2),
+                "recommended_fix": fix,
+                "evidence": {
+                    "stages": stages,
+                    "brand_avg_cvr": round(brand_avg_conversion_rate, 4),
+                    "revenue_on_path": round(revenue, 2),
+                },
+                REVENUE_INTEL_SOURCE: True,
+            }
+        )
 
     return sorted(results, key=lambda x: -x["expected_recoverable_revenue"])
 
@@ -165,6 +184,7 @@ def score_funnel_paths(
 # ---------------------------------------------------------------------------
 # 3. Owned Audience Value Engine
 # ---------------------------------------------------------------------------
+
 
 def estimate_owned_audience_value(
     opt_in_count: int,
@@ -190,29 +210,43 @@ def estimate_owned_audience_value(
 
     actions: list[dict] = []
     if opt_in_count < max(subscriber_count * 2, 1):  # Relative to current subscriber base
-        actions.append({
-            "channel": "email",
-            "action": "Add lead magnet to top 5 performing content pieces.",
-            "expected_uplift": round(best_payout * 0.02 * 500, 2),
-        })
+        actions.append(
+            {
+                "channel": "email",
+                "action": "Add lead magnet to top 5 performing content pieces.",
+                "expected_uplift": round(best_payout * 0.02 * 500, 2),
+            }
+        )
     if repeat_purchase_rate < 0.1:
-        actions.append({
-            "channel": "email",
-            "action": "Build post-purchase email sequence targeting repeat conversions.",
-            "expected_uplift": round(total_email * 0.3, 2),
-        })
+        actions.append(
+            {
+                "channel": "email",
+                "action": "Build post-purchase email sequence targeting repeat conversions.",
+                "expected_uplift": round(total_email * 0.3, 2),
+            }
+        )
     if membership_count == 0 and subscriber_count >= 1000:
-        actions.append({
-            "channel": "membership",
-            "action": "Launch paid membership tier for top-engaged subscribers.",
-            "expected_uplift": round(subscriber_count * 0.02 * membership_value_per, 2),
-        })
+        actions.append(
+            {
+                "channel": "membership",
+                "action": "Launch paid membership tier for top-engaged subscribers.",
+                "expected_uplift": round(subscriber_count * 0.02 * membership_value_per, 2),
+            }
+        )
 
     return {
         "channels": {
             "email": {"size": opt_in_count, "value_per_contact": round(email_value_per, 2), "total_value": total_email},
-            "subscribers": {"size": subscriber_count, "value_per_contact": round(subscriber_value_per, 2), "total_value": total_subscriber},
-            "membership": {"size": membership_count, "value_per_contact": round(membership_value_per, 2), "total_value": total_membership},
+            "subscribers": {
+                "size": subscriber_count,
+                "value_per_contact": round(subscriber_value_per, 2),
+                "total_value": total_subscriber,
+            },
+            "membership": {
+                "size": membership_count,
+                "value_per_contact": round(membership_value_per, 2),
+                "total_value": total_membership,
+            },
         },
         "total_owned_audience_value": round(total, 2),
         "recommended_actions": actions,
@@ -228,6 +262,7 @@ def estimate_owned_audience_value(
 # ---------------------------------------------------------------------------
 # 4. Productization Recommender
 # ---------------------------------------------------------------------------
+
 
 def recommend_productization(
     winners: list[dict],
@@ -246,65 +281,73 @@ def recommend_productization(
         price_est = max(47.0, min(297.0, total_revenue * 0.05))
         seg_size = sum(s.get("estimated_size", 0) for s in segments) or 5000
         addressable = int(seg_size * 0.02)
-        recs.append({
-            "product_type": "course",
-            "title": f"Course: {best_winner.get('title', 'Proven topic')[:80]}",
-            "price_point": round(price_est, 0),
-            "expected_revenue": round(price_est * addressable * 0.3, 2),
-            "expected_cost": 2000.0,
-            "confidence": min(0.85, 0.4 + len(winners) * 0.05 + comment_purchase_signals * 0.02),
-            "addressable_segment_size": addressable,
-            "break_even_units": max(1, int(2000.0 / price_est)),
-            "evidence": {
-                "winner_count": len(winners),
-                "top_winner_title": best_winner.get("title"),
-                "comment_purchase_signals": comment_purchase_signals,
-            },
-            REVENUE_INTEL_SOURCE: True,
-        })
+        recs.append(
+            {
+                "product_type": "course",
+                "title": f"Course: {best_winner.get('title', 'Proven topic')[:80]}",
+                "price_point": round(price_est, 0),
+                "expected_revenue": round(price_est * addressable * 0.3, 2),
+                "expected_cost": 2000.0,
+                "confidence": min(0.85, 0.4 + len(winners) * 0.05 + comment_purchase_signals * 0.02),
+                "addressable_segment_size": addressable,
+                "break_even_units": max(1, int(2000.0 / price_est)),
+                "evidence": {
+                    "winner_count": len(winners),
+                    "top_winner_title": best_winner.get("title"),
+                    "comment_purchase_signals": comment_purchase_signals,
+                },
+                REVENUE_INTEL_SOURCE: True,
+            }
+        )
 
     if "membership" not in existing_methods and subscriber_count >= 500:
         monthly = max(9.0, min(49.0, total_revenue * 0.002))
-        recs.append({
-            "product_type": "membership",
-            "title": "Premium Membership Community",
-            "price_point": round(monthly, 0),
-            "expected_revenue": round(monthly * subscriber_count * 0.03 * 12, 2),
-            "expected_cost": 500.0,
-            "confidence": min(0.8, 0.35 + subscriber_count * 0.0001),
-            "addressable_segment_size": int(subscriber_count * 0.03),
-            "break_even_units": max(1, int(500.0 / monthly)),
-            "evidence": {"subscriber_count": subscriber_count},
-            REVENUE_INTEL_SOURCE: True,
-        })
+        recs.append(
+            {
+                "product_type": "membership",
+                "title": "Premium Membership Community",
+                "price_point": round(monthly, 0),
+                "expected_revenue": round(monthly * subscriber_count * 0.03 * 12, 2),
+                "expected_cost": 500.0,
+                "confidence": min(0.8, 0.35 + subscriber_count * 0.0001),
+                "addressable_segment_size": int(subscriber_count * 0.03),
+                "break_even_units": max(1, int(500.0 / monthly)),
+                "evidence": {"subscriber_count": subscriber_count},
+                REVENUE_INTEL_SOURCE: True,
+            }
+        )
 
     if "lead_gen" not in existing_methods and total_revenue >= 1000:
-        recs.append({
-            "product_type": "lead_magnet",
-            "title": "Free guide / checklist lead magnet",
-            "price_point": 0.0,
-            "expected_revenue": round(total_revenue * 0.08, 2),
-            "expected_cost": 200.0,
-            "confidence": 0.7,
-            "addressable_segment_size": sum(s.get("estimated_size", 0) for s in segments) or 5000,
-            "break_even_units": 0,
-            "evidence": {"total_revenue": total_revenue, "purpose": "list building for upsell"},
-            REVENUE_INTEL_SOURCE: True,
-        })
+        recs.append(
+            {
+                "product_type": "lead_magnet",
+                "title": "Free guide / checklist lead magnet",
+                "price_point": 0.0,
+                "expected_revenue": round(total_revenue * 0.08, 2),
+                "expected_cost": 200.0,
+                "confidence": 0.7,
+                "addressable_segment_size": sum(s.get("estimated_size", 0) for s in segments) or 5000,
+                "break_even_units": 0,
+                "evidence": {"total_revenue": total_revenue, "purpose": "list building for upsell"},
+                REVENUE_INTEL_SOURCE: True,
+            }
+        )
 
     if "consulting" not in existing_methods and total_revenue >= 5000 and len(winners) >= 3:
-        recs.append({
-            "product_type": "consulting",
-            "title": "1-on-1 consulting or coaching offer",
-            "price_point": max(197.0, total_revenue * 0.01),
-            "expected_revenue": round(max(197.0, total_revenue * 0.01) * 4, 2),
-            "expected_cost": 100.0,
-            "confidence": min(0.75, 0.3 + len(winners) * 0.05),
-            "addressable_segment_size": max(10, subscriber_count // 100),
-            "break_even_units": 1,
-            "evidence": {"winner_authority_signal": len(winners), "revenue_proof": total_revenue},
-            REVENUE_INTEL_SOURCE: True,
-        })
+        recs.append(
+            {
+                "product_type": "consulting",
+                "title": "1-on-1 consulting or coaching offer",
+                "price_point": max(197.0, total_revenue * 0.01),
+                "expected_revenue": round(max(197.0, total_revenue * 0.01) * 4, 2),
+                "expected_cost": 100.0,
+                "confidence": min(0.75, 0.3 + len(winners) * 0.05),
+                "addressable_segment_size": max(10, subscriber_count // 100),
+                "break_even_units": 1,
+                "evidence": {"winner_authority_signal": len(winners), "revenue_proof": total_revenue},
+                REVENUE_INTEL_SOURCE: True,
+            }
+        )
 
     return sorted(recs, key=lambda r: -(r["expected_revenue"] - r["expected_cost"]))
 
@@ -312,6 +355,7 @@ def recommend_productization(
 # ---------------------------------------------------------------------------
 # 5. Monetization Density Scorer
 # ---------------------------------------------------------------------------
+
 
 def score_monetization_density(
     content_id: str,
@@ -356,11 +400,13 @@ def score_monetization_density(
     ]
     for layer, reason, uplift_pct in priority_missing:
         if layer in missing:
-            additions.append({
-                "layer": layer,
-                "recommendation": reason,
-                "expected_revenue_uplift_pct": round(uplift_pct * 100, 1),
-            })
+            additions.append(
+                {
+                    "layer": layer,
+                    "recommendation": reason,
+                    "expected_revenue_uplift_pct": round(uplift_pct * 100, 1),
+                }
+            )
 
     return {
         "content_id": content_id,

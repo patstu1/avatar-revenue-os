@@ -1,4 +1,5 @@
 """Unit tests for Creator Revenue Avenues Phase B engines."""
+
 from __future__ import annotations
 
 from packages.scoring.creator_revenue_engine import (
@@ -12,6 +13,7 @@ from packages.scoring.creator_revenue_engine import (
 )
 
 # ── Licensing ──────────────────────────────────────────────────────────
+
 
 def _rich_ctx() -> dict:
     return {

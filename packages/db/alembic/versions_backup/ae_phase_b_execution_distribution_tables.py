@@ -4,6 +4,7 @@ Revision ID: ae02phase_b_001
 Revises: ae01phase_a_001
 Create Date: 2026-03-30
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
@@ -43,7 +44,9 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
         sa.Column("source_concept", sa.String(500), nullable=False),
-        sa.Column("source_content_item_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("content_items.id"), nullable=True),
+        sa.Column(
+            "source_content_item_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("content_items.id"), nullable=True
+        ),
         sa.Column("target_platforms_json", postgresql.JSONB, nullable=True),
         sa.Column("derivative_types_json", postgresql.JSONB, nullable=True),
         sa.Column("platform_priority_json", postgresql.JSONB, nullable=True),
@@ -62,7 +65,13 @@ def upgrade() -> None:
         "monetization_routes",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("content_item_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("content_items.id"), nullable=True, index=True),
+        sa.Column(
+            "content_item_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("content_items.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("queue_item_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("auto_queue_items.id"), nullable=True),
         sa.Column("route_class", sa.String(100), nullable=False),
         sa.Column("selected_route", sa.String(200), nullable=False),
@@ -81,8 +90,20 @@ def upgrade() -> None:
         "autonomous_runs",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("queue_item_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("auto_queue_items.id"), nullable=True, index=True),
-        sa.Column("target_account_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("creator_accounts.id"), nullable=True, index=True),
+        sa.Column(
+            "queue_item_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("auto_queue_items.id"),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
+            "target_account_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("creator_accounts.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("target_platform", sa.String(50), nullable=False),
         sa.Column("execution_mode", sa.String(50), server_default="guarded"),
         sa.Column("run_status", sa.String(50), server_default="pending"),
@@ -90,8 +111,15 @@ def upgrade() -> None:
         sa.Column("content_brief_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("content_briefs.id"), nullable=True),
         sa.Column("content_item_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("content_items.id"), nullable=True),
         sa.Column("publish_job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("publish_jobs.id"), nullable=True),
-        sa.Column("distribution_plan_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("distribution_plans.id"), nullable=True),
-        sa.Column("monetization_route_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("monetization_routes.id"), nullable=True),
+        sa.Column(
+            "distribution_plan_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("distribution_plans.id"), nullable=True
+        ),
+        sa.Column(
+            "monetization_route_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("monetization_routes.id"),
+            nullable=True,
+        ),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("error_message", sa.Text, nullable=True),
@@ -105,7 +133,9 @@ def upgrade() -> None:
     op.create_table(
         "autonomous_run_steps",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("autonomous_runs.id"), nullable=False, index=True),
+        sa.Column(
+            "run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("autonomous_runs.id"), nullable=False, index=True
+        ),
         sa.Column("step_name", sa.String(100), nullable=False),
         sa.Column("step_order", sa.Integer, nullable=False),
         sa.Column("step_status", sa.String(50), server_default="pending"),
@@ -142,7 +172,9 @@ def upgrade() -> None:
         "execution_failures",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("autonomous_runs.id"), nullable=True, index=True),
+        sa.Column(
+            "run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("autonomous_runs.id"), nullable=True, index=True
+        ),
         sa.Column("failure_type", sa.String(100), nullable=False),
         sa.Column("failure_step", sa.String(100), nullable=True),
         sa.Column("error_message", sa.Text, nullable=False),

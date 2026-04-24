@@ -1,4 +1,5 @@
 """Quality Governor API."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status

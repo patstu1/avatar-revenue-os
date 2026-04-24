@@ -1,4 +1,5 @@
 """Capacity service — production throughput analysis, bottleneck detection, queue allocation."""
+
 from __future__ import annotations
 
 import uuid
@@ -29,17 +30,13 @@ def _strip_meta(d: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def recompute_capacity(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_capacity(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     account_count = (
-        await db.execute(
-            select(func.count(CreatorAccount.id)).where(CreatorAccount.brand_id == brand_id)
-        )
+        await db.execute(select(func.count(CreatorAccount.id)).where(CreatorAccount.brand_id == brand_id))
     ).scalar() or 0
 
     job_counts_rows = (
@@ -52,9 +49,7 @@ async def recompute_capacity(
     job_counts: dict[str, int] = {row[0]: int(row[1]) for row in job_counts_rows}
 
     content_count = (
-        await db.execute(
-            select(func.count(ContentItem.id)).where(ContentItem.brand_id == brand_id)
-        )
+        await db.execute(select(func.count(ContentItem.id)).where(ContentItem.brand_id == brand_id))
     ).scalar() or 0
 
     posting_cap = max(account_count * 30, 50)
@@ -87,31 +82,33 @@ async def recompute_capacity(
             current = 50.0
             used = 0.0
 
-        capacity_data.append({
-            "capacity_type": cap_type,
-            "current_capacity": current,
-            "used_capacity": used,
-            "unit_cost": 1.0,
-            "revenue_per_unit": 2.0,
-        })
+        capacity_data.append(
+            {
+                "capacity_type": cap_type,
+                "current_capacity": current,
+                "used_capacity": used,
+                "unit_cost": 1.0,
+                "revenue_per_unit": 2.0,
+            }
+        )
 
     cost_ceilings: dict[str, Any] = {ct: 10000.0 for ct in CAPACITY_TYPES}
     reports = compute_capacity_reports(capacity_data, cost_ceilings)
 
     queue_priorities: list[dict[str, Any]] = []
     for cap_type in CAPACITY_TYPES:
-        queue_priorities.append({
-            "queue_name": f"{cap_type}_queue",
-            "capacity_type": cap_type,
-            "requested_capacity": 10.0,
-            "expected_roi": 0.5,
-            "priority_tier": 2,
-        })
+        queue_priorities.append(
+            {
+                "queue_name": f"{cap_type}_queue",
+                "capacity_type": cap_type,
+                "requested_capacity": 10.0,
+                "expected_roi": 0.5,
+                "priority_tier": 2,
+            }
+        )
     allocations = allocate_queues(reports, queue_priorities)
 
-    await db.execute(
-        delete(QueueAllocationDecision).where(QueueAllocationDecision.brand_id == brand_id)
-    )
+    await db.execute(delete(QueueAllocationDecision).where(QueueAllocationDecision.brand_id == brand_id))
     await db.execute(
         delete(CapacityReport).where(
             CapacityReport.brand_id == brand_id,
@@ -201,9 +198,7 @@ def _qa_dict(x: QueueAllocationDecision) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_capacity_reports(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_capacity_reports(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -222,9 +217,7 @@ async def get_capacity_reports(
     return [_cap_dict(r) for r in rows]
 
 
-async def get_queue_allocations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_queue_allocations(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

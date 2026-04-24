@@ -1,4 +1,5 @@
 """Deal Desk Engine — recommend deal strategy, pricing stance, and packaging."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -6,8 +7,14 @@ from typing import Any
 DEAL_DESK = "deal_desk_engine"
 
 STRATEGIES = [
-    "custom_quote", "package_standard", "bundle_discount", "hold_price",
-    "strategic_discount", "push_upsell", "nurture_sequence", "require_human_approval",
+    "custom_quote",
+    "package_standard",
+    "bundle_discount",
+    "hold_price",
+    "strategic_discount",
+    "push_upsell",
+    "nurture_sequence",
+    "require_human_approval",
 ]
 
 PRICING_STANCES = ["premium", "competitive", "penetration", "hold"]
@@ -52,9 +59,7 @@ def _select_strategy(scores: dict[str, float], authority: float) -> str:
     return "package_standard"
 
 
-def _select_pricing_stance(
-    strategy: str, competition: float, authority: float
-) -> str:
+def _select_pricing_stance(strategy: str, competition: float, authority: float) -> str:
     if strategy in ("custom_quote", "hold_price") and authority > 0.6:
         return "premium"
     if strategy == "strategic_discount" or competition > 0.7:
@@ -64,9 +69,7 @@ def _select_pricing_stance(
     return "hold"
 
 
-def _build_packaging(
-    strategy: str, deal_value: float, niche: str
-) -> dict[str, Any]:
+def _build_packaging(strategy: str, deal_value: float, niche: str) -> dict[str, Any]:
     """Construct packaging recommendation based on strategy."""
     if strategy == "custom_quote":
         return {
@@ -146,22 +149,24 @@ def recommend_deal_strategy(
     packaging = _build_packaging(strategy, deal_value, niche)
 
     margin_adj = {
-        "premium": 0.08, "competitive": -0.05,
-        "penetration": -0.12, "hold": 0.0,
+        "premium": 0.08,
+        "competitive": -0.05,
+        "penetration": -0.12,
+        "hold": 0.0,
     }
-    expected_margin = round(
-        min(0.95, max(0.05, avg_margin + margin_adj.get(pricing_stance, 0.0))), 3
-    )
+    expected_margin = round(min(0.95, max(0.05, avg_margin + margin_adj.get(pricing_stance, 0.0))), 3)
 
     close_adj = {
-        "custom_quote": 0.10, "strategic_discount": 0.12,
-        "bundle_discount": 0.08, "push_upsell": 0.05,
-        "hold_price": 0.0, "package_standard": 0.03,
-        "nurture_sequence": -0.05, "require_human_approval": -0.03,
+        "custom_quote": 0.10,
+        "strategic_discount": 0.12,
+        "bundle_discount": 0.08,
+        "push_upsell": 0.05,
+        "hold_price": 0.0,
+        "package_standard": 0.03,
+        "nurture_sequence": -0.05,
+        "require_human_approval": -0.03,
     }
-    expected_close = round(
-        min(0.95, max(0.05, avg_close + close_adj.get(strategy, 0.0))), 3
-    )
+    expected_close = round(min(0.95, max(0.05, avg_close + close_adj.get(strategy, 0.0))), 3)
 
     confidence = round(
         min(0.95, 0.40 + scores["lead_quality"] * 0.25 + authority * 0.15 + scores["value_score"] * 0.10),

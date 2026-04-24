@@ -1,4 +1,5 @@
 """Pydantic response schemas for the Growth Pack / Portfolio Launch APIs."""
+
 from __future__ import annotations
 
 from typing import Any

@@ -4,6 +4,7 @@ Revision ID: j0e5f6g7h8i9
 Revises: i9d4e5f6g7h8
 Create Date: 2026-03-29
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -18,7 +19,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table("growth_commands",
+    op.create_table(
+        "growth_commands",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),

@@ -9,6 +9,7 @@ No os.environ fallback — dashboard/provider config is the source of truth.
 When credentials are not configured, each client returns a structured
 `{"configured": False}` response so the system can fall back gracefully.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -32,7 +33,10 @@ class YouTubeAnalyticsClient:
         return bool(self.api_key or self.oauth_token)
 
     async def fetch_video_metrics(
-        self, channel_id: str, *, days: int = 7,
+        self,
+        channel_id: str,
+        *,
+        days: int = 7,
     ) -> dict:
         """Fetch views, watch time, likes, comments, shares, revenue for a channel."""
         if not self.is_configured():
@@ -69,8 +73,13 @@ class YouTubeAnalyticsClient:
                     entry = dict(zip(col_names, row))
                     results.append(entry)
 
-                return {"configured": True, "channel_id": channel_id, "period_days": days,
-                        "video_count": len(results), "metrics": results}
+                return {
+                    "configured": True,
+                    "channel_id": channel_id,
+                    "period_days": days,
+                    "video_count": len(results),
+                    "metrics": results,
+                }
 
         except Exception as e:
             logger.error("youtube_analytics.fetch_failed", channel_id=channel_id, error=str(e))
@@ -89,7 +98,10 @@ class TikTokAnalyticsClient:
         return bool(self.access_token)
 
     async def fetch_video_metrics(
-        self, username: str, *, days: int = 7,
+        self,
+        username: str,
+        *,
+        days: int = 7,
     ) -> dict:
         """Fetch views, likes, comments, shares for recent videos."""
         if not self.is_configured():
@@ -97,23 +109,36 @@ class TikTokAnalyticsClient:
 
         try:
             async with httpx.AsyncClient(timeout=30) as client:
-                headers = {"Authorization": f"Bearer {self.access_token}",
-                            "Content-Type": "application/json"}
+                headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
 
                 # Fetch user videos
                 resp = await client.post(
                     f"{self.BASE_URL}/video/list/",
                     headers=headers,
-                    json={"max_count": 20,
-                          "fields": ["id", "create_time", "like_count", "comment_count",
-                                     "share_count", "view_count", "duration"]},
+                    json={
+                        "max_count": 20,
+                        "fields": [
+                            "id",
+                            "create_time",
+                            "like_count",
+                            "comment_count",
+                            "share_count",
+                            "view_count",
+                            "duration",
+                        ],
+                    },
                 )
                 resp.raise_for_status()
                 data = resp.json()
                 videos = data.get("data", {}).get("videos", [])
 
-                return {"configured": True, "username": username, "period_days": days,
-                        "video_count": len(videos), "metrics": videos}
+                return {
+                    "configured": True,
+                    "username": username,
+                    "period_days": days,
+                    "video_count": len(videos),
+                    "metrics": videos,
+                }
 
         except Exception as e:
             logger.error("tiktok_analytics.fetch_failed", username=username, error=str(e))
@@ -132,7 +157,10 @@ class InstagramAnalyticsClient:
         return bool(self.access_token)
 
     async def fetch_media_insights(
-        self, ig_user_id: str, *, limit: int = 20,
+        self,
+        ig_user_id: str,
+        *,
+        limit: int = 20,
     ) -> dict:
         """Fetch impressions, reach, engagement for recent media."""
         if not self.is_configured():
@@ -142,16 +170,17 @@ class InstagramAnalyticsClient:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.get(
                     f"{self.BASE_URL}/{ig_user_id}/media",
-                    params={"access_token": self.access_token,
-                            "fields": "id,caption,media_type,timestamp,like_count,comments_count",
-                            "limit": limit},
+                    params={
+                        "access_token": self.access_token,
+                        "fields": "id,caption,media_type,timestamp,like_count,comments_count",
+                        "limit": limit,
+                    },
                 )
                 resp.raise_for_status()
                 data = resp.json()
                 media = data.get("data", [])
 
-                return {"configured": True, "user_id": ig_user_id,
-                        "media_count": len(media), "metrics": media}
+                return {"configured": True, "user_id": ig_user_id, "media_count": len(media), "metrics": media}
 
         except Exception as e:
             logger.error("instagram_analytics.fetch_failed", user_id=ig_user_id, error=str(e))
@@ -171,7 +200,10 @@ class TrendSignalClient:
         return bool(self.serp_key or self.rapid_key)
 
     async def fetch_trending_topics(
-        self, *, geo: str = "US", category: str = "all",
+        self,
+        *,
+        geo: str = "US",
+        category: str = "all",
     ) -> dict:
         """Fetch current trending topics from Google Trends."""
         if not self.is_configured():
@@ -180,15 +212,24 @@ class TrendSignalClient:
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 if self.serp_key:
-                    resp = await client.get(self.TRENDS_URL, params={
-                        "engine": "google_trends_trending_now",
-                        "geo": geo, "api_key": self.serp_key,
-                    })
+                    resp = await client.get(
+                        self.TRENDS_URL,
+                        params={
+                            "engine": "google_trends_trending_now",
+                            "geo": geo,
+                            "api_key": self.serp_key,
+                        },
+                    )
                     resp.raise_for_status()
                     data = resp.json()
                     trends = data.get("trending_searches", [])
-                    return {"configured": True, "source": "google_trends",
-                            "geo": geo, "trend_count": len(trends), "trends": trends[:50]}
+                    return {
+                        "configured": True,
+                        "source": "google_trends",
+                        "geo": geo,
+                        "trend_count": len(trends),
+                        "trends": trends[:50],
+                    }
 
             return {"configured": True, "trends": [], "error": "no supported API key"}
 
@@ -206,18 +247,26 @@ class TrendSignalClient:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.get(
                     "https://www.googleapis.com/youtube/v3/videos",
-                    params={"part": "snippet,statistics", "chart": "mostPopular",
-                            "regionCode": region, "maxResults": 50, "key": api_key},
+                    params={
+                        "part": "snippet,statistics",
+                        "chart": "mostPopular",
+                        "regionCode": region,
+                        "maxResults": 50,
+                        "key": api_key,
+                    },
                 )
                 resp.raise_for_status()
                 items = resp.json().get("items", [])
-                topics = [{"title": v["snippet"]["title"],
-                            "channel": v["snippet"]["channelTitle"],
-                            "views": int(v["statistics"].get("viewCount", 0)),
-                            "category": v["snippet"].get("categoryId")}
-                           for v in items]
-                return {"configured": True, "source": "youtube_trending",
-                        "video_count": len(topics), "topics": topics}
+                topics = [
+                    {
+                        "title": v["snippet"]["title"],
+                        "channel": v["snippet"]["channelTitle"],
+                        "views": int(v["statistics"].get("viewCount", 0)),
+                        "category": v["snippet"].get("categoryId"),
+                    }
+                    for v in items
+                ]
+                return {"configured": True, "source": "youtube_trending", "video_count": len(topics), "topics": topics}
 
         except Exception as e:
             logger.error("youtube_trending.fetch_failed", error=str(e))

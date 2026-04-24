@@ -10,6 +10,7 @@ create_reply_draft delegates all decision logic to the policy engine and
 only handles: template rendering, draft persistence, and returning the
 result dict to the caller.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,25 +37,28 @@ from packages.clients.email_templates import PACKAGES, package_checkout_url
 logger = logging.getLogger(__name__)
 
 
-async def _recent_auto_reply_exists(
-    db: AsyncSession, thread_id: uuid.UUID, cooldown_hours: int = 24
-) -> bool:
+async def _recent_auto_reply_exists(db: AsyncSession, thread_id: uuid.UUID, cooldown_hours: int = 24) -> bool:
     """True if thread already has an approved/sent auto-reply in the cooldown window."""
     from packages.db.models.email_pipeline import EmailReplyDraft
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)
-    existing = (await db.execute(
-        select(EmailReplyDraft.id).where(
-            EmailReplyDraft.thread_id == thread_id,
-            EmailReplyDraft.status.in_(["approved", "sent"]),
-            EmailReplyDraft.reply_mode == "auto_send",
-            EmailReplyDraft.created_at >= cutoff,
-        ).limit(1)
-    )).first()
+    existing = (
+        await db.execute(
+            select(EmailReplyDraft.id)
+            .where(
+                EmailReplyDraft.thread_id == thread_id,
+                EmailReplyDraft.status.in_(["approved", "sent"]),
+                EmailReplyDraft.reply_mode == "auto_send",
+                EmailReplyDraft.created_at >= cutoff,
+            )
+            .limit(1)
+        )
+    ).first()
     return existing is not None
 
 
 # ── Reply templates by intent ────────────────────────────────────────────
+
 
 def _build_reply_body(
     intent: str,
@@ -134,10 +138,7 @@ def _build_reply_body(
     # to True AND the intent is in the allowlist. Even when allowed, the
     # framing is "2 recommended angles" / "2 creative directions" — never
     # "samples" or "free work".
-    preview_allowed = (
-        settings.free_preview_enabled
-        and intent in settings.preview_fallback_allowed_intents
-    )
+    preview_allowed = settings.free_preview_enabled and intent in settings.preview_fallback_allowed_intents
     preview_used = False
     preview_framing = ""
 
@@ -145,9 +146,7 @@ def _build_reply_body(
     if recommendation and recommendation.rationale:
         rationale_short = _shorten_rationale(recommendation.rationale, company_ref)
     else:
-        rationale_short = (
-            f"based on what you're describing, the {pkg['name']} is the right fit for {company_ref}"
-        )
+        rationale_short = f"based on what you're describing, the {pkg['name']} is the right fit for {company_ref}"
 
     # ── Template set — EVERY default template is package-first ────────────
 
@@ -185,10 +184,7 @@ def _build_reply_body(
             "body": _compose_package_first_body(
                 greeting=greeting,
                 opener="Straight answer:",
-                rationale=(
-                    f"for {company_ref} the {pkg['name']} ({pkg['price']}) is the fit — "
-                    f"{rationale_short}"
-                ),
+                rationale=(f"for {company_ref} the {pkg['name']} ({pkg['price']}) is the fit — {rationale_short}"),
                 pkg=pkg,
                 checkout_url=checkout_url,
                 close=f"Secure link when you're ready: {checkout_url}",
@@ -285,11 +281,7 @@ def _build_reply_body(
             "package_offered": None,
         },
         "payment_question": {
-            "body": (
-                f"{greeting}\n\n"
-                f"Let me check on that and get back to you with the details.\n\n"
-                f"{sender_name}"
-            ),
+            "body": (f"{greeting}\n\nLet me check on that and get back to you with the details.\n\n{sender_name}"),
             "package_offered": None,
         },
         "referral": {
@@ -305,11 +297,7 @@ def _build_reply_body(
 
     # Fallback for unknown/escalation — no auto-reply
     default = {
-        "body": (
-            f"{greeting}\n\n"
-            f"Thanks for your message. I'll review this and get back to you.\n\n"
-            f"{sender_name}"
-        ),
+        "body": (f"{greeting}\n\nThanks for your message. I'll review this and get back to you.\n\n{sender_name}"),
         "package_offered": None,
     }
 
@@ -378,12 +366,7 @@ def _compose_package_first_body(
     secure link → signature. No bullet lists, no emojis, no HTML, no call
     language, no "24-48 hours", no "free samples".
     """
-    return (
-        f"{greeting}\n\n"
-        f"{opener} Short version — {rationale}.\n\n"
-        f"{close}\n\n"
-        f"{sender_name}"
-    )
+    return f"{greeting}\n\n{opener} Short version — {rationale}.\n\n{close}\n\n{sender_name}"
 
 
 def _shorten_rationale(rationale: str, company_ref: str) -> str:
@@ -414,7 +397,7 @@ def _shorten_rationale(rationale: str, company_ref: str) -> str:
         "lead needs ",
     ):
         if lowered.startswith(prefix):
-            text = text[len(prefix):]
+            text = text[len(prefix) :]
             break
     # Drop the "— " bridge if the recommender used it
     if "—" in text:
@@ -496,7 +479,9 @@ async def create_reply_draft(
     if package_slug and package_slug != recommendation.slug:
         logger.info(
             "package_override thread=%s recommender=%s forced=%s",
-            thread_id, recommendation.slug, package_slug,
+            thread_id,
+            recommendation.slug,
+            package_slug,
         )
         effective_recommendation = PackageRecommendation(
             slug=package_slug,
@@ -527,9 +512,7 @@ async def create_reply_draft(
     reply_is_standard = is_standard_template_intent(classification.intent)
 
     # 4. Thread cooldown check — one auto-reply per thread per window
-    cooldown_hit = await _recent_auto_reply_exists(
-        db, thread_id, settings.thread_cooldown_hours
-    )
+    cooldown_hit = await _recent_auto_reply_exists(db, thread_id, settings.thread_cooldown_hours)
 
     # 5. Decision engine — the single source of truth
     trace = decide_reply_mode(
@@ -551,10 +534,9 @@ async def create_reply_draft(
     trace.lead_signals_used = list(effective_recommendation.signals)
     trace.signal_confidence = float(effective_recommendation.confidence)
     trace.package_default_anchor_avoided = effective_recommendation.anchor_avoided
-    trace.call_path_suppressed = (not settings.calls_enabled)
+    trace.call_path_suppressed = not settings.calls_enabled
     trace.preview_fallback_allowed = (
-        settings.free_preview_enabled
-        and classification.intent in settings.preview_fallback_allowed_intents
+        settings.free_preview_enabled and classification.intent in settings.preview_fallback_allowed_intents
     )
     trace.preview_fallback_used = bool(reply.get("preview_fallback_used"))
     trace.preview_fallback_framing = reply.get("preview_fallback_framing", "") or ""
@@ -568,7 +550,10 @@ async def create_reply_draft(
     if trace.final_mode == "suppress":
         logger.info(
             "reply_suppressed thread=%s intent=%s source=%s reason=%s",
-            thread_id, classification.intent, trace.mode_source, trace.rationale,
+            thread_id,
+            classification.intent,
+            trace.mode_source,
+            trace.rationale,
         )
         return {
             "draft_id": None,
@@ -582,11 +567,11 @@ async def create_reply_draft(
 
     # 5b. Map final_mode → persisted status
     if trace.final_mode == "auto_send":
-        status = "approved"         # send on next beat fire
+        status = "approved"  # send on next beat fire
     elif trace.final_mode == "escalate":
-        status = "pending"          # flagged for human — reply_mode=escalate marks it
+        status = "pending"  # flagged for human — reply_mode=escalate marks it
     else:  # "draft"
-        status = "pending"          # sits in review queue
+        status = "pending"  # sits in review queue
 
     draft = EmailReplyDraft(
         thread_id=thread_id,
@@ -614,7 +599,11 @@ async def create_reply_draft(
 
     logger.info(
         "reply_draft_created thread=%s intent=%s mode=%s source=%s status=%s",
-        thread_id, classification.intent, trace.final_mode, trace.mode_source, status,
+        thread_id,
+        classification.intent,
+        trace.final_mode,
+        trace.mode_source,
+        status,
     )
 
     return {
@@ -656,13 +645,19 @@ async def send_approved_drafts(db: AsyncSession, org_id: uuid.UUID) -> dict:
         InboxConnection,
     )
 
-    drafts = (await db.execute(
-        select(EmailReplyDraft).where(
-            EmailReplyDraft.org_id == org_id,
-            EmailReplyDraft.status == "approved",
-            EmailReplyDraft.is_active.is_(True),
+    drafts = (
+        (
+            await db.execute(
+                select(EmailReplyDraft).where(
+                    EmailReplyDraft.org_id == org_id,
+                    EmailReplyDraft.status == "approved",
+                    EmailReplyDraft.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     sent = 0
     failed = 0
@@ -670,26 +665,24 @@ async def send_approved_drafts(db: AsyncSession, org_id: uuid.UUID) -> dict:
 
     for draft in drafts:
         # Resolve the mailbox this draft should send FROM
-        thread = (await db.execute(
-            select(EmailThread).where(EmailThread.id == draft.thread_id)
-        )).scalar_one_or_none()
+        thread = (await db.execute(select(EmailThread).where(EmailThread.id == draft.thread_id))).scalar_one_or_none()
         if not thread:
             draft.error_message = "thread not found"
             failed += 1
             continue
 
-        inbox = (await db.execute(
-            select(InboxConnection).where(InboxConnection.id == thread.inbox_connection_id)
-        )).scalar_one_or_none()
+        inbox = (
+            await db.execute(select(InboxConnection).where(InboxConnection.id == thread.inbox_connection_id))
+        ).scalar_one_or_none()
         if not inbox:
             draft.error_message = "inbox_connection not found"
             failed += 1
             continue
 
         # Look up inbound message to thread the reply (In-Reply-To + References)
-        inbound_msg = (await db.execute(
-            select(EmailMessage).where(EmailMessage.id == draft.message_id)
-        )).scalar_one_or_none()
+        inbound_msg = (
+            await db.execute(select(EmailMessage).where(EmailMessage.id == draft.message_id))
+        ).scalar_one_or_none()
         in_reply_to = inbound_msg.provider_message_id if inbound_msg else None
         refs_new = None
         if inbound_msg:
@@ -709,7 +702,8 @@ async def send_approved_drafts(db: AsyncSession, org_id: uuid.UUID) -> dict:
         try:
             if use_graph:
                 result = await send_via_graph_sendmail(
-                    db, inbox,
+                    db,
+                    inbox,
                     to_email=draft.to_email,
                     subject=draft.subject,
                     body_text=draft.body_text or "",
@@ -743,7 +737,9 @@ async def send_approved_drafts(db: AsyncSession, org_id: uuid.UUID) -> dict:
                 # Store the provider message-id for threading future replies
                 mid = result.get("message_id")
                 if mid:
-                    existing_trace = draft.decision_trace if hasattr(draft, "decision_trace") and draft.decision_trace else {}
+                    existing_trace = (
+                        draft.decision_trace if hasattr(draft, "decision_trace") and draft.decision_trace else {}
+                    )
                     if isinstance(existing_trace, dict):
                         existing_trace = {**existing_trace, "sent_via": result.get("provider"), "sent_message_id": mid}
                         if hasattr(draft, "decision_trace"):
@@ -754,7 +750,10 @@ async def send_approved_drafts(db: AsyncSession, org_id: uuid.UUID) -> dict:
                 sent += 1
                 logger.info(
                     "reply_draft_sent draft=%s mode=%s provider=%s to=%s",
-                    draft.id, draft.reply_mode, result.get("provider"), draft.to_email,
+                    draft.id,
+                    draft.reply_mode,
+                    result.get("provider"),
+                    draft.to_email,
                 )
                 await _emit_send_event(
                     db,
@@ -772,7 +771,8 @@ async def send_approved_drafts(db: AsyncSession, org_id: uuid.UUID) -> dict:
                 failed += 1
                 logger.warning(
                     "reply_draft_send_failed draft=%s error=%s",
-                    draft.id, draft.error_message,
+                    draft.id,
+                    draft.error_message,
                 )
                 await _emit_send_event(
                     db,
@@ -845,5 +845,6 @@ async def _emit_send_event(
     except Exception as evt_exc:
         logger.warning(
             "reply_draft.event_emit_failed draft=%s error=%s",
-            draft.id, str(evt_exc)[:200],
+            draft.id,
+            str(evt_exc)[:200],
         )

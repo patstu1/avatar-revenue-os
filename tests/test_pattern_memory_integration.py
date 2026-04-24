@@ -1,4 +1,5 @@
 """DB-backed integration tests for Winning-Pattern Memory."""
+
 from __future__ import annotations
 
 import uuid
@@ -59,7 +60,9 @@ async def brand_with_content(db_session: AsyncSession):
         ci = ContentItem(
             brand_id=brand.id,
             creator_account_id=acct_tt.id if is_tiktok else acct_ig.id,
-            title=f"Don't buy this gadget until you see item {i}" if i % 2 == 0 else f"Top {i} things I wish I knew about tech",
+            title=f"Don't buy this gadget until you see item {i}"
+            if i % 2 == 0
+            else f"Top {i} things I wish I knew about tech",
             content_type=ContentType.SHORT_VIDEO,
             platform="tiktok" if is_tiktok else "instagram",
         )
@@ -90,6 +93,7 @@ async def brand_with_content(db_session: AsyncSession):
 
 # ── recompute_patterns ──────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_recompute_patterns_creates_winners_and_losers(db_session, brand_with_content):
     brand = brand_with_content
@@ -99,13 +103,17 @@ async def test_recompute_patterns_creates_winners_and_losers(db_session, brand_w
     assert result["status"] == "completed"
     assert result["rows_processed"] > 0
 
-    winners = (await db_session.execute(
-        select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)
-    )).scalars().all()
+    winners = (
+        (await db_session.execute(select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
 
-    losers = (await db_session.execute(
-        select(LosingPatternMemory).where(LosingPatternMemory.brand_id == brand.id)
-    )).scalars().all()
+    losers = (
+        (await db_session.execute(select(LosingPatternMemory).where(LosingPatternMemory.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
 
     total = len(winners) + len(losers)
     assert total > 0, "Should create at least some winners or losers"
@@ -125,17 +133,22 @@ async def test_recompute_creates_evidence(db_session, brand_with_content):
     await recompute_patterns(db_session, brand.id)
     await db_session.commit()
 
-    evidence = (await db_session.execute(
-        select(WinningPatternEvidence).where(WinningPatternEvidence.brand_id == brand.id)
-    )).scalars().all()
+    evidence = (
+        (await db_session.execute(select(WinningPatternEvidence).where(WinningPatternEvidence.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
 
-    if (await db_session.execute(
-        select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)
-    )).scalars().first():
+    if (
+        (await db_session.execute(select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)))
+        .scalars()
+        .first()
+    ):
         assert len(evidence) > 0, "Winners should have evidence rows"
 
 
 # ── recompute_clusters ──────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_recompute_clusters(db_session, brand_with_content):
@@ -147,13 +160,17 @@ async def test_recompute_clusters(db_session, brand_with_content):
 
     assert result["status"] == "completed"
 
-    clusters = (await db_session.execute(
-        select(WinningPatternCluster).where(WinningPatternCluster.brand_id == brand.id)
-    )).scalars().all()
+    clusters = (
+        (await db_session.execute(select(WinningPatternCluster).where(WinningPatternCluster.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
 
-    winners = (await db_session.execute(
-        select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)
-    )).scalars().all()
+    winners = (
+        (await db_session.execute(select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
 
     if len(winners) > 0:
         assert len(clusters) > 0, "Should create clusters when winners exist"
@@ -163,6 +180,7 @@ async def test_recompute_clusters(db_session, brand_with_content):
 
 
 # ── recompute_decay ─────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_recompute_decay(db_session, brand_with_content):
@@ -174,18 +192,23 @@ async def test_recompute_decay(db_session, brand_with_content):
 
     assert result["status"] == "completed"
 
-    reports = (await db_session.execute(
-        select(PatternDecayReport).where(PatternDecayReport.brand_id == brand.id)
-    )).scalars().all()
+    reports = (
+        (await db_session.execute(select(PatternDecayReport).where(PatternDecayReport.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
 
-    winners = (await db_session.execute(
-        select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)
-    )).scalars().all()
+    winners = (
+        (await db_session.execute(select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
 
     assert len(reports) == len(winners), "One decay report per winning pattern"
 
 
 # ── recompute_reuse ─────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_recompute_reuse(db_session, brand_with_content):
@@ -197,13 +220,21 @@ async def test_recompute_reuse(db_session, brand_with_content):
 
     assert result["status"] == "completed"
 
-    recs = (await db_session.execute(
-        select(PatternReuseRecommendation).where(PatternReuseRecommendation.brand_id == brand.id)
-    )).scalars().all()
+    recs = (
+        (
+            await db_session.execute(
+                select(PatternReuseRecommendation).where(PatternReuseRecommendation.brand_id == brand.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    winners = (await db_session.execute(
-        select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)
-    )).scalars().all()
+    winners = (
+        (await db_session.execute(select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
 
     if len(winners) > 0:
         assert len(recs) > 0, "Should recommend reuse when winners exist"
@@ -213,6 +244,7 @@ async def test_recompute_reuse(db_session, brand_with_content):
 
 
 # ── list helpers ────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_list_patterns(db_session, brand_with_content):
@@ -264,13 +296,16 @@ async def test_list_decay(db_session, brand_with_content):
 
 # ── worker task registration ────────────────────────────────────────────
 
+
 def test_pattern_memory_worker_registered():
     import workers.pattern_memory_worker.tasks  # noqa: F401
     from workers.celery_app import app
+
     assert "workers.pattern_memory_worker.tasks.recompute_pattern_memory" in app.tasks
 
 
 # ── idempotency ─────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_recompute_idempotent(db_session, brand_with_content):
@@ -281,9 +316,11 @@ async def test_recompute_idempotent(db_session, brand_with_content):
     await db_session.commit()
     assert r1["rows_processed"] == r2["rows_processed"]
 
-    winners = (await db_session.execute(
-        select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)
-    )).scalars().all()
+    winners = (
+        (await db_session.execute(select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
 
     sigs = [w.pattern_signature for w in winners]
     assert len(sigs) == len(set(sigs)), "No duplicate patterns after double recompute"
@@ -291,13 +328,14 @@ async def test_recompute_idempotent(db_session, brand_with_content):
 
 # ── structured metadata patterns ────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_structured_metadata_extraction(db_session, brand_with_content):
     """Content items with explicit cta_type/offer_angle produce those pattern types."""
     brand = brand_with_content
-    items = (await db_session.execute(
-        select(ContentItem).where(ContentItem.brand_id == brand.id).limit(2)
-    )).scalars().all()
+    items = (
+        (await db_session.execute(select(ContentItem).where(ContentItem.brand_id == brand.id).limit(2))).scalars().all()
+    )
     if items:
         items[0].cta_type = "urgency"
         items[0].offer_angle = "premium"
@@ -306,17 +344,22 @@ async def test_structured_metadata_extraction(db_session, brand_with_content):
     await recompute_patterns(db_session, brand.id)
     await db_session.commit()
 
-    all_winners = (await db_session.execute(
-        select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)
-    )).scalars().all()
-    all_losers = (await db_session.execute(
-        select(LosingPatternMemory).where(LosingPatternMemory.brand_id == brand.id)
-    )).scalars().all()
+    all_winners = (
+        (await db_session.execute(select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
+    all_losers = (
+        (await db_session.execute(select(LosingPatternMemory).where(LosingPatternMemory.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     all_types = {w.pattern_type for w in all_winners} | {l.pattern_type for l in all_losers}
     assert "hook" in all_types or "content_form" in all_types
 
 
 # ── experiment suggestions ──────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_experiment_suggestions(db_session, brand_with_content):
@@ -329,6 +372,7 @@ async def test_experiment_suggestions(db_session, brand_with_content):
 
 # ── allocation weights ──────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_allocation_weights(db_session, brand_with_content):
     brand = brand_with_content
@@ -337,9 +381,11 @@ async def test_allocation_weights(db_session, brand_with_content):
     await db_session.commit()
     weights = await get_allocation_weights(db_session, brand.id, 1000.0)
     assert isinstance(weights, list)
-    winners = (await db_session.execute(
-        select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)
-    )).scalars().all()
+    winners = (
+        (await db_session.execute(select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     if winners:
         assert len(weights) > 0
         assert all("allocation_pct" in w for w in weights)

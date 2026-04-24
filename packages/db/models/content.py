@@ -1,4 +1,5 @@
 """Content pipeline: briefs, scripts, variants, assets, media jobs, content items."""
+
 import uuid
 from typing import Optional
 
@@ -19,9 +20,7 @@ class ContentBrief(Base):
     topic_candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("topic_candidates.id"), index=True
     )
-    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("offers.id"), index=True
-    )
+    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), index=True)
     creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), index=True
     )
@@ -80,9 +79,7 @@ class ScriptVariant(Base):
 class Asset(Base):
     __tablename__ = "assets"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_items.id"), index=True
     )
@@ -111,9 +108,7 @@ class ContentItem(Base):
     brief_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_briefs.id"), index=True
     )
-    script_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("scripts.id"), index=True
-    )
+    script_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("scripts.id"), index=True)
     creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), index=True
     )
@@ -127,9 +122,7 @@ class ContentItem(Base):
     video_asset_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     status: Mapped[str] = mapped_column(String(50), default="draft", index=True)
     monetization_method: Mapped[Optional[str]] = mapped_column(String(50))
-    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("offers.id")
-    )
+    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"))
     offer_stack: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
     cta_type: Mapped[Optional[str]] = mapped_column(String(60))
     offer_angle: Mapped[Optional[str]] = mapped_column(String(60))

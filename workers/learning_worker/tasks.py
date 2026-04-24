@@ -1,4 +1,5 @@
 """Learning worker tasks — memory consolidation, comment analysis, knowledge graph."""
+
 from workers.base_task import TrackedTask
 from workers.celery_app import app
 
@@ -25,58 +26,76 @@ def consolidate_memory(self) -> dict:
 
     with Session(engine) as session:
         since = datetime.now(timezone.utc) - timedelta(days=7)
-        total_existing = session.execute(
-            select(func.count()).select_from(MemoryEntry)
-        ).scalar() or 0
+        total_existing = session.execute(select(func.count()).select_from(MemoryEntry)).scalar() or 0
 
-        recent_winners = session.execute(
-            select(WinnerSignal).where(
-                WinnerSignal.clone_recommended.is_(True),
-                WinnerSignal.created_at >= since,
-            ).limit(50)
-        ).scalars().all()
+        recent_winners = (
+            session.execute(
+                select(WinnerSignal)
+                .where(
+                    WinnerSignal.clone_recommended.is_(True),
+                    WinnerSignal.created_at >= since,
+                )
+                .limit(50)
+            )
+            .scalars()
+            .all()
+        )
 
         for w in recent_winners:
             already = session.execute(
-                select(MemoryEntry.id).where(
+                select(MemoryEntry.id)
+                .where(
                     MemoryEntry.brand_id == w.brand_id,
                     MemoryEntry.key == f"winner_pattern:{w.content_id}",
-                ).limit(1)
+                )
+                .limit(1)
             ).scalar_one_or_none()
             if already:
                 continue
-            session.add(MemoryEntry(
-                brand_id=w.brand_id,
-                key=f"winner_pattern:{w.content_id}",
-                value={"title": w.title, "win_score": w.win_score, "explanation": w.explanation},
-                memory_type="winner_consolidation",
-                confidence=min(0.95, w.win_score),
-            ))
+            session.add(
+                MemoryEntry(
+                    brand_id=w.brand_id,
+                    key=f"winner_pattern:{w.content_id}",
+                    value={"title": w.title, "win_score": w.win_score, "explanation": w.explanation},
+                    memory_type="winner_consolidation",
+                    confidence=min(0.95, w.win_score),
+                )
+            )
             new_memories += 1
 
-        recent_suppressions = session.execute(
-            select(SuppressionAction).where(
-                SuppressionAction.created_at >= since,
-                SuppressionAction.is_lifted.is_(False),
-            ).limit(50)
-        ).scalars().all()
+        recent_suppressions = (
+            session.execute(
+                select(SuppressionAction)
+                .where(
+                    SuppressionAction.created_at >= since,
+                    SuppressionAction.is_lifted.is_(False),
+                )
+                .limit(50)
+            )
+            .scalars()
+            .all()
+        )
 
         for s in recent_suppressions:
             already = session.execute(
-                select(MemoryEntry.id).where(
+                select(MemoryEntry.id)
+                .where(
                     MemoryEntry.brand_id == s.brand_id,
                     MemoryEntry.key == f"suppression_pattern:{s.target_entity_id}",
-                ).limit(1)
+                )
+                .limit(1)
             ).scalar_one_or_none()
             if already:
                 continue
-            session.add(MemoryEntry(
-                brand_id=s.brand_id,
-                key=f"suppression_pattern:{s.target_entity_id}",
-                value={"reason": s.reason.value if s.reason else "unknown", "detail": s.reason_detail},
-                memory_type="suppression_consolidation",
-                confidence=0.7,
-            ))
+            session.add(
+                MemoryEntry(
+                    brand_id=s.brand_id,
+                    key=f"suppression_pattern:{s.target_entity_id}",
+                    value={"reason": s.reason.value if s.reason else "unknown", "detail": s.reason_detail},
+                    memory_type="suppression_consolidation",
+                    confidence=0.7,
+                )
+            )
             new_memories += 1
 
         session.commit()
@@ -99,14 +118,16 @@ def analyze_comments(self, brand_id: str) -> dict:
 
     engine = get_sync_engine()
     import uuid
+
     bid = uuid.UUID(brand_id)
 
     with Session(engine) as session:
-        comment_count = session.execute(
-            select(func.count()).select_from(CommentIngestion).where(
-                CommentIngestion.brand_id == bid
-            )
-        ).scalar() or 0
+        comment_count = (
+            session.execute(
+                select(func.count()).select_from(CommentIngestion).where(CommentIngestion.brand_id == bid)
+            ).scalar()
+            or 0
+        )
 
     return {
         "status": "completed",

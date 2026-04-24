@@ -2,6 +2,7 @@
 and operator-facing payment processing (payment links, invoices, checkout
 sessions, subscription links) for the operator's offers and proposals.
 """
+
 import os
 import uuid
 from typing import Optional
@@ -25,12 +26,14 @@ logger = structlog.get_logger()
 # STRIPE API KEY RESOLUTION
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def _get_stripe_api_key(db: Optional[AsyncSession] = None, org_id: Optional[uuid.UUID] = None) -> str:
     """Resolve Stripe API key: integration_manager DB credential first, then env/settings fallback."""
     # Try integration_manager for org-specific key
     if db and org_id:
         try:
             from apps.api.services.integration_manager import get_credential
+
             db_key = await get_credential(db, org_id, "stripe")
             if db_key:
                 return db_key
@@ -47,6 +50,7 @@ async def _get_stripe_api_key(db: Optional[AsyncSession] = None, org_id: Optiona
 def _init_stripe(api_key: str):
     """Set stripe.api_key and return the module."""
     import stripe
+
     stripe.api_key = api_key
     return stripe
 
@@ -54,6 +58,7 @@ def _init_stripe(api_key: str):
 # ══════════════════════════════════════════════════════════════════════
 # OPERATOR PAYMENT METHODS — for the operator's offers / proposals
 # ══════════════════════════════════════════════════════════════════════
+
 
 async def create_payment_link(
     amount_cents: int,
@@ -192,14 +197,16 @@ async def create_checkout_session_for_offer(
     try:
         session = stripe.checkout.Session.create(
             mode="payment",
-            line_items=[{
-                "price_data": {
-                    "currency": currency.lower(),
-                    "product_data": {"name": product_name},
-                    "unit_amount": amount_cents,
-                },
-                "quantity": 1,
-            }],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": currency.lower(),
+                        "product_data": {"name": product_name},
+                        "unit_amount": amount_cents,
+                    },
+                    "quantity": 1,
+                }
+            ],
             success_url=success_url,
             cancel_url=cancel_url,
             metadata=metadata,
@@ -254,6 +261,7 @@ async def create_subscription_link(
 # ══════════════════════════════════════════════════════════════════════
 # OUTREACH PIPELINE HELPER
 # ══════════════════════════════════════════════════════════════════════
+
 
 async def generate_payment_link_for_proposal(
     db: AsyncSession,
@@ -325,6 +333,7 @@ async def create_checkout_session(
         return {"error": "Stripe not configured", "checkout_url": None}
 
     import stripe
+
     stripe.api_key = settings.stripe_api_key
 
     price_map = {
@@ -381,6 +390,7 @@ async def create_credit_purchase_session(
         return {"error": "Stripe not configured", "checkout_url": None}
 
     import stripe
+
     stripe.api_key = settings.stripe_api_key
 
     ladder = design_pricing_ladder()
@@ -396,17 +406,19 @@ async def create_credit_purchase_session(
     try:
         session = stripe.checkout.Session.create(
             mode="payment",
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {
-                        "name": pack.name,
-                        "description": f"{pack.credits + pack.bonus_credits} credits",
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {
+                            "name": pack.name,
+                            "description": f"{pack.credits + pack.bonus_credits} credits",
+                        },
+                        "unit_amount": int(pack.price * 100),
                     },
-                    "unit_amount": int(pack.price * 100),
-                },
-                "quantity": 1,
-            }],
+                    "quantity": 1,
+                }
+            ],
             success_url=success_url or f"{settings.api_cors_origins[0]}/dashboard/monetization?credit_success=true",
             cancel_url=cancel_url or f"{settings.api_cors_origins[0]}/dashboard/monetization",
             metadata={
@@ -436,22 +448,31 @@ async def handle_subscription_created(db: AsyncSession, event_data: dict):
         return
 
     from packages.scoring.monetization_machine import design_pricing_ladder
+
     ladder = design_pricing_ladder()
     plan_config = ladder["plans"].get(plan_tier)
     if not plan_config:
         return
 
-    existing = (await db.execute(
-        select(PlanSubscription).where(
-            PlanSubscription.organization_id == uuid.UUID(org_id),
-            PlanSubscription.is_active.is_(True),
+    existing = (
+        (
+            await db.execute(
+                select(PlanSubscription).where(
+                    PlanSubscription.organization_id == uuid.UUID(org_id),
+                    PlanSubscription.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
     for e in existing:
         e.status = "superseded"
         e.is_active = False
 
-    monthly_price = plan_config.monthly_price if billing_interval == "monthly" else round(plan_config.annual_price / 12, 2)
+    monthly_price = (
+        plan_config.monthly_price if billing_interval == "monthly" else round(plan_config.annual_price / 12, 2)
+    )
 
     max_brands_map = {"free": 1, "starter": 1, "professional": 5, "business": 25, "enterprise": -1}
 
@@ -471,12 +492,14 @@ async def handle_subscription_created(db: AsyncSession, event_data: dict):
     )
     db.add(sub)
 
-    ledger = (await db.execute(
-        select(CreditLedger).where(
-            CreditLedger.organization_id == uuid.UUID(org_id),
-            CreditLedger.is_active.is_(True),
+    ledger = (
+        await db.execute(
+            select(CreditLedger).where(
+                CreditLedger.organization_id == uuid.UUID(org_id),
+                CreditLedger.is_active.is_(True),
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if ledger:
         ledger.total_credits += plan_config.included_credits
@@ -492,13 +515,15 @@ async def handle_subscription_created(db: AsyncSession, event_data: dict):
         )
         db.add(ledger)
 
-    db.add(CreditTransaction(
-        organization_id=uuid.UUID(org_id),
-        transaction_type="earn",
-        amount=plan_config.included_credits,
-        balance_after=ledger.remaining_credits,
-        description=f"Plan activation: {plan_config.name}",
-    ))
+    db.add(
+        CreditTransaction(
+            organization_id=uuid.UUID(org_id),
+            transaction_type="earn",
+            amount=plan_config.included_credits,
+            balance_after=ledger.remaining_credits,
+            description=f"Plan activation: {plan_config.name}",
+        )
+    )
 
     await db.flush()
     logger.info("stripe.subscription_activated", org_id=org_id, plan=plan_tier)
@@ -515,24 +540,28 @@ async def handle_credit_purchase(db: AsyncSession, event_data: dict):
     if not org_id or not credits:
         return
 
-    db.add(PackPurchase(
-        organization_id=uuid.UUID(org_id),
-        user_id=uuid.UUID(user_id) if user_id else uuid.UUID(org_id),
-        pack_type="credit_pack",
-        pack_id=pack_id,
-        pack_name=f"Credit Pack: {credits} credits",
-        price=float(event_data.get("amount_total", 0)) / 100.0,
-        credits_awarded=credits,
-        stripe_payment_id=event_data.get("payment_intent", ""),
-        status="completed",
-    ))
-
-    ledger = (await db.execute(
-        select(CreditLedger).where(
-            CreditLedger.organization_id == uuid.UUID(org_id),
-            CreditLedger.is_active.is_(True),
+    db.add(
+        PackPurchase(
+            organization_id=uuid.UUID(org_id),
+            user_id=uuid.UUID(user_id) if user_id else uuid.UUID(org_id),
+            pack_type="credit_pack",
+            pack_id=pack_id,
+            pack_name=f"Credit Pack: {credits} credits",
+            price=float(event_data.get("amount_total", 0)) / 100.0,
+            credits_awarded=credits,
+            stripe_payment_id=event_data.get("payment_intent", ""),
+            status="completed",
         )
-    )).scalar_one_or_none()
+    )
+
+    ledger = (
+        await db.execute(
+            select(CreditLedger).where(
+                CreditLedger.organization_id == uuid.UUID(org_id),
+                CreditLedger.is_active.is_(True),
+            )
+        )
+    ).scalar_one_or_none()
 
     if ledger:
         ledger.total_credits += credits
@@ -545,15 +574,17 @@ async def handle_credit_purchase(db: AsyncSession, event_data: dict):
         )
         db.add(ledger)
 
-    db.add(CreditTransaction(
-        organization_id=uuid.UUID(org_id),
-        user_id=uuid.UUID(user_id) if user_id else None,
-        transaction_type="purchase",
-        amount=credits,
-        balance_after=ledger.remaining_credits,
-        reference_id=pack_id,
-        description=f"Credit pack purchase: {credits} credits",
-    ))
+    db.add(
+        CreditTransaction(
+            organization_id=uuid.UUID(org_id),
+            user_id=uuid.UUID(user_id) if user_id else None,
+            transaction_type="purchase",
+            amount=credits,
+            balance_after=ledger.remaining_credits,
+            reference_id=pack_id,
+            description=f"Credit pack purchase: {credits} credits",
+        )
+    )
 
     await db.flush()
     logger.info("stripe.credits_purchased", org_id=org_id, credits=credits)
@@ -565,17 +596,20 @@ async def handle_subscription_cancelled(db: AsyncSession, event_data: dict):
     if not stripe_sub_id:
         return
 
-    sub = (await db.execute(
-        select(PlanSubscription).where(
-            PlanSubscription.stripe_subscription_id == stripe_sub_id,
+    sub = (
+        await db.execute(
+            select(PlanSubscription).where(
+                PlanSubscription.stripe_subscription_id == stripe_sub_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if sub:
         sub.status = "cancelled"
         sub.is_active = False
 
         from packages.scoring.monetization_machine import design_pricing_ladder
+
         free_plan = design_pricing_ladder()["plans"].get("free")
         free_credits = free_plan.included_credits if free_plan else 50
 
@@ -592,12 +626,14 @@ async def handle_subscription_cancelled(db: AsyncSession, event_data: dict):
         )
         db.add(free_sub)
 
-        ledger = (await db.execute(
-            select(CreditLedger).where(
-                CreditLedger.organization_id == sub.organization_id,
-                CreditLedger.is_active.is_(True),
+        ledger = (
+            await db.execute(
+                select(CreditLedger).where(
+                    CreditLedger.organization_id == sub.organization_id,
+                    CreditLedger.is_active.is_(True),
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
         if ledger:
             ledger.replenishment_rate = free_credits
 

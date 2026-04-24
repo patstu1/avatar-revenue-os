@@ -103,7 +103,9 @@ async def operator_user(async_session, brand_with_offer):
 
 
 @pytest.mark.asyncio
-async def test_recompute_referral_program_recommendations(client: AsyncClient, operator_user, brand_with_offer, async_session):
+async def test_recompute_referral_program_recommendations(
+    client: AsyncClient, operator_user, brand_with_offer, async_session
+):
     brand, _ = brand_with_offer
     token = create_access_token_for_user(operator_user)
     response = await client.post(
@@ -113,7 +115,15 @@ async def test_recompute_referral_program_recommendations(client: AsyncClient, o
     assert response.status_code == 200
     assert response.json()["referral_recommendations_count"] == 1
 
-    recommendations = (await async_session.execute(select(ReferralProgramRecommendation).where(ReferralProgramRecommendation.brand_id == brand.id))).scalars().all()
+    recommendations = (
+        (
+            await async_session.execute(
+                select(ReferralProgramRecommendation).where(ReferralProgramRecommendation.brand_id == brand.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(recommendations) == 1
     assert recommendations[0].brand_id == brand.id
     assert recommendations[0].customer_segment is not None
@@ -170,7 +180,12 @@ async def test_list_competitive_gap_reports(client: AsyncClient, operator_user, 
     data = response.json()
     assert len(data) == 1
     assert data[0]["brand_id"] == str(brand.id)
-    assert data[0]["gap_type"] in ("pricing_disadvantage", "feature_disadvantage", "customer_satisfaction_gap", "no_significant_gap")
+    assert data[0]["gap_type"] in (
+        "pricing_disadvantage",
+        "feature_disadvantage",
+        "customer_satisfaction_gap",
+        "no_significant_gap",
+    )
     assert data[0]["severity"] in ("low", "medium", "high", "critical")
     assert data[0]["estimated_impact"] >= 0
     assert data[0]["confidence"] > 0
@@ -231,7 +246,9 @@ async def test_list_sponsor_outreach_sequences(client: AsyncClient, operator_use
 
 
 @pytest.mark.asyncio
-async def test_profitable_buyer_segment_gets_referral_recommendation(client: AsyncClient, operator_user, brand_with_offer):
+async def test_profitable_buyer_segment_gets_referral_recommendation(
+    client: AsyncClient, operator_user, brand_with_offer
+):
     brand, _ = brand_with_offer
     token = create_access_token_for_user(operator_user)
     headers = {"Authorization": f"Bearer {token}"}
@@ -275,7 +292,11 @@ async def test_recompute_profit_guardrail_reports(client: AsyncClient, operator_
     assert response.status_code == 200
     assert response.json()["profit_guardrail_reports_count"] >= 1
 
-    reports = (await async_session.execute(select(ProfitGuardrailReport).where(ProfitGuardrailReport.brand_id == brand.id))).scalars().all()
+    reports = (
+        (await async_session.execute(select(ProfitGuardrailReport).where(ProfitGuardrailReport.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(reports) >= 1
     for r in reports:
         assert r.brand_id == brand.id

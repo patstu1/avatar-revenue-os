@@ -1,4 +1,5 @@
 """Hyper-Scale Execution OS — capacity, queues, bursts, ceilings, degradation."""
+
 import uuid
 from typing import Optional
 
@@ -11,7 +12,9 @@ from packages.db.base import Base
 
 class ExecutionCapacityReport(Base):
     __tablename__ = "hs_capacity_reports"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     total_queued: Mapped[int] = mapped_column(Integer, default=0)
     total_running: Mapped[int] = mapped_column(Integer, default=0)
     total_completed_24h: Mapped[int] = mapped_column(Integer, default=0)
@@ -26,7 +29,9 @@ class ExecutionCapacityReport(Base):
 
 class ExecutionQueueSegment(Base):
     __tablename__ = "hs_queue_segments"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     segment_key: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     segment_type: Mapped[str] = mapped_column(String(40), nullable=False)
     brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True)
@@ -39,8 +44,12 @@ class ExecutionQueueSegment(Base):
 
 class WorkloadAllocation(Base):
     __tablename__ = "hs_workload_allocations"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True
+    )
     allocation_type: Mapped[str] = mapped_column(String(40), nullable=False)
     allocated_capacity: Mapped[int] = mapped_column(Integer, default=0)
     used_capacity: Mapped[int] = mapped_column(Integer, default=0)
@@ -51,7 +60,9 @@ class WorkloadAllocation(Base):
 
 class ThroughputEvent(Base):
     __tablename__ = "hs_throughput_events"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     period: Mapped[str] = mapped_column(String(30), nullable=False)
     tasks_completed: Mapped[int] = mapped_column(Integer, default=0)
     tasks_failed: Mapped[int] = mapped_column(Integer, default=0)
@@ -62,7 +73,9 @@ class ThroughputEvent(Base):
 
 class BurstEvent(Base):
     __tablename__ = "hs_burst_events"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     burst_type: Mapped[str] = mapped_column(String(40), nullable=False)
     peak_qps: Mapped[float] = mapped_column(Float, default=0.0)
     duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
@@ -74,7 +87,9 @@ class BurstEvent(Base):
 
 class UsageCeilingRule(Base):
     __tablename__ = "hs_usage_ceilings"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True)
     ceiling_type: Mapped[str] = mapped_column(String(40), nullable=False)
     max_value: Mapped[float] = mapped_column(Float, default=0.0)
@@ -86,7 +101,9 @@ class UsageCeilingRule(Base):
 
 class DegradationEvent(Base):
     __tablename__ = "hs_degradation_events"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     degradation_type: Mapped[str] = mapped_column(String(40), nullable=False)
     trigger_reason: Mapped[str] = mapped_column(Text, nullable=False)
     action_taken: Mapped[str] = mapped_column(Text, nullable=False)
@@ -96,7 +113,9 @@ class DegradationEvent(Base):
 
 class ScaleHealthReport(Base):
     __tablename__ = "hs_scale_health"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     health_status: Mapped[str] = mapped_column(String(20), default="healthy")
     queue_depth_total: Mapped[int] = mapped_column(Integer, default=0)
     ceiling_utilization_pct: Mapped[float] = mapped_column(Float, default=0.0)

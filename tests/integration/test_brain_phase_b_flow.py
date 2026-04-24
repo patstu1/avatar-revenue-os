@@ -1,4 +1,5 @@
 """Integration tests for Brain Architecture Phase B — DB-backed API tests."""
+
 from __future__ import annotations
 
 import pytest
@@ -24,7 +25,21 @@ async def test_brain_decisions_recompute_and_list(api_client, sample_org_data):
     assert isinstance(rows, list)
     assert len(rows) >= 1
     d = rows[0]
-    assert d["decision_class"] in ["launch", "hold", "scale", "suppress", "monetize", "reroute", "recover", "escalate", "throttle", "split_account", "merge_lane", "test", "kill"]
+    assert d["decision_class"] in [
+        "launch",
+        "hold",
+        "scale",
+        "suppress",
+        "monetize",
+        "reroute",
+        "recover",
+        "escalate",
+        "throttle",
+        "split_account",
+        "merge_lane",
+        "test",
+        "kill",
+    ]
     assert d["policy_mode"] in ["autonomous", "guarded", "manual"]
 
 
@@ -95,7 +110,9 @@ async def test_low_confidence_forces_guarded_mode(api_client, sample_org_data):
     policies = resp.json()
     assert len(policies) >= 1
     for p in policies:
-        assert p["policy_mode"] in ("guarded", "manual"), f"Expected guarded/manual for low-data brand, got {p['policy_mode']}"
+        assert p["policy_mode"] in ("guarded", "manual"), (
+            f"Expected guarded/manual for low-data brand, got {p['policy_mode']}"
+        )
 
 
 async def test_idempotency(api_client, sample_org_data):

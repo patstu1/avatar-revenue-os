@@ -3,6 +3,7 @@
 Revision ID: expansion_adv_001
 Revises: gatekeeper_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -44,7 +45,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_account_expansion_advisories_brand_id", "account_expansion_advisories", ["brand_id"])
-    op.create_index("ix_account_expansion_advisories_should_add", "account_expansion_advisories", ["should_add_account_now"])
+    op.create_index(
+        "ix_account_expansion_advisories_should_add", "account_expansion_advisories", ["should_add_account_now"]
+    )
 
 
 def downgrade() -> None:

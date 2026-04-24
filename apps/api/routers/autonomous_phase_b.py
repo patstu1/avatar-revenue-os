@@ -1,4 +1,5 @@
 """Autonomous execution Phase B — policies, content runner, distribution, monetization, suppression."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -28,9 +29,12 @@ async def _require_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
 
 # --- Execution Policies ---
 
+
 @router.get("/{brand_id}/execution-policies", response_model=list[ExecutionPolicyOut])
 async def list_execution_policies(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -42,7 +46,9 @@ async def list_execution_policies(
 
 @router.post("/{brand_id}/execution-policies/recompute", response_model=RecomputeSummaryOut)
 async def recompute_execution_policies(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -59,9 +65,12 @@ async def recompute_execution_policies(
 
 # --- Autonomous Runs ---
 
+
 @router.get("/{brand_id}/autonomous-runs", response_model=list[AutonomousRunOut])
 async def list_autonomous_runs(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -73,7 +82,9 @@ async def list_autonomous_runs(
 
 @router.post("/{brand_id}/autonomous-runs/start", response_model=RecomputeSummaryOut)
 async def start_autonomous_runs(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -90,9 +101,12 @@ async def start_autonomous_runs(
 
 # --- Distribution Plans ---
 
+
 @router.get("/{brand_id}/distribution-plans", response_model=list[DistributionPlanOut])
 async def list_distribution_plans(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -104,7 +118,9 @@ async def list_distribution_plans(
 
 @router.post("/{brand_id}/distribution-plans/recompute", response_model=RecomputeSummaryOut)
 async def recompute_distribution_plans(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -121,9 +137,12 @@ async def recompute_distribution_plans(
 
 # --- Monetization Routes ---
 
+
 @router.get("/{brand_id}/monetization-routes", response_model=list[MonetizationRouteOut])
 async def list_monetization_routes(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -135,7 +154,9 @@ async def list_monetization_routes(
 
 @router.post("/{brand_id}/monetization-routes/recompute", response_model=RecomputeSummaryOut)
 async def recompute_monetization_routes(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -152,9 +173,12 @@ async def recompute_monetization_routes(
 
 # --- Suppression Executions ---
 
+
 @router.get("/{brand_id}/suppression-executions", response_model=list[SuppressionExecutionOut])
 async def list_suppression_executions(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -166,7 +190,9 @@ async def list_suppression_executions(
 
 @router.post("/{brand_id}/suppression-executions/recompute", response_model=RecomputeSummaryOut)
 async def recompute_suppression_executions(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)

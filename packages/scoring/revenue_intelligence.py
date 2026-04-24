@@ -6,6 +6,7 @@ and opportunity scoring into a unified intelligence layer.
 All functions are pure/deterministic — no DB access. Service layer handles persistence.
 Uses only stdlib (math, statistics, itertools, collections). No numpy/sklearn.
 """
+
 from __future__ import annotations
 
 import math
@@ -189,10 +190,7 @@ def _least_squares_exp_decay(
         intercept = (sum_y - slope * sum_x) / n
         a_fit = math.exp(intercept)
 
-        sse = sum(
-            (y - (a_fit * math.exp(-lam_candidate * x) + floor_estimate)) ** 2
-            for x, y in zip(xs, ys)
-        )
+        sse = sum((y - (a_fit * math.exp(-lam_candidate * x) + floor_estimate)) ** 2 for x, y in zip(xs, ys))
         if sse < best_sse:
             best_sse = sse
             best_a = a_fit
@@ -240,9 +238,7 @@ def compute_offer_score(
     else:
         audience_mult = _clamp(offer.audience_fit_score, 0.1, 1.0)
 
-    segment_cr_ratio = _safe_div(
-        segment.avg_conversion_rate, offer.conversion_rate, 1.0
-    )
+    segment_cr_ratio = _safe_div(segment.avg_conversion_rate, offer.conversion_rate, 1.0)
     audience_mult *= _clamp(0.5 + 0.5 * segment_cr_ratio, 0.3, 1.5)
 
     freshness_mult = 0.3 + 0.7 * _clamp(offer.freshness_score)
@@ -311,15 +307,11 @@ def rank_offers_for_content(
             "freshness": round(offer.freshness_score, 4),
             "competition_density": round(offer.competition_density, 4),
             "seasonal_multiplier": round(offer.seasonal_multiplier, 4),
-            "platform_affinity": round(
-                offer.platform_affinity.get(platform, 0.5), 4
-            ),
+            "platform_affinity": round(offer.platform_affinity.get(platform, 0.5), 4),
             "price_sensitivity_penalty": round(
                 max(
                     0.4,
-                    1.0
-                    - segment.price_sensitivity
-                    * _clamp((offer.avg_order_value - 100) / 200),
+                    1.0 - segment.price_sensitivity * _clamp((offer.avg_order_value - 100) / 200),
                 )
                 if segment.price_sensitivity > 0.6 and offer.avg_order_value > 100
                 else 1.0,
@@ -508,9 +500,7 @@ def attribute_time_decay(
             "channel": tp.channel,
             "credit": round(conversion_value * w / total_weight, 6),
             "model": "time_decay",
-            "hours_before_conversion": round(
-                (conversion_time - tp.timestamp).total_seconds() / 3600.0, 2
-            ),
+            "hours_before_conversion": round((conversion_time - tp.timestamp).total_seconds() / 3600.0, 2),
         }
         for tp, w in zip(ts_sorted, raw_weights)
     ]
@@ -551,8 +541,7 @@ def attribute_position_based(
     if n == 1:
         weights = [1.0]
     elif n == 2:
-        weights = [first_weight / (first_weight + last_weight),
-                    last_weight / (first_weight + last_weight)]
+        weights = [first_weight / (first_weight + last_weight), last_weight / (first_weight + last_weight)]
     else:
         mid_count = n - 2
         mid_each = middle_weight / mid_count if mid_count > 0 else 0.0
@@ -635,11 +624,7 @@ def attribute_shapley(
                     coalition_set = frozenset(coalition)
                     with_i = coalition_set | {i}
                     marginal = model(with_i) - model(coalition_set)
-                    weight = (
-                        math.factorial(size)
-                        * math.factorial(n - size - 1)
-                        / math.factorial(n)
-                    )
+                    weight = math.factorial(size) * math.factorial(n - size - 1) / math.factorial(n)
                     shapley_values[i] += weight * marginal
     else:
         import random as _rand
@@ -816,9 +801,7 @@ def forecast_revenue(
         else:
             trend_label = "steady"
     else:
-        trend_label = "steady" if abs(trend) < 0.01 * abs(level) else (
-            "accelerating" if trend > 0 else "decelerating"
-        )
+        trend_label = "steady" if abs(trend) < 0.01 * abs(level) else ("accelerating" if trend > 0 else "decelerating")
 
     sum(values)
     growth_rate = _safe_div(values[-1] - values[0], abs(values[0]), 0.0) if n >= 2 else 0.0
@@ -916,8 +899,7 @@ def detect_revenue_anomalies(
                 )
             else:
                 action = (
-                    f"Revenue up {pct_change:.0f}% vs expected. "
-                    "Monitor for sustainability over 48h before scaling."
+                    f"Revenue up {pct_change:.0f}% vs expected. Monitor for sustainability over 48h before scaling."
                 )
         elif anomaly_type == "drop":
             if severity > 0.7:
@@ -926,10 +908,7 @@ def detect_revenue_anomalies(
                     "Check for broken links, offer pauses, or platform penalties."
                 )
             else:
-                action = (
-                    f"Revenue down {abs(pct_change):.0f}%. "
-                    "Review recent content/offer changes; may need A/B test."
-                )
+                action = f"Revenue down {abs(pct_change):.0f}%. Review recent content/offer changes; may need A/B test."
         elif anomaly_type == "trend_break":
             direction = "upward" if z > 0 else "downward"
             action = (
@@ -938,10 +917,7 @@ def detect_revenue_anomalies(
                 "Check for algorithm changes or audience shifts."
             )
         else:
-            action = (
-                f"Statistical outlier ({pct_change:+.0f}%). "
-                "Likely a one-off event. Exclude from trend analysis."
-            )
+            action = f"Statistical outlier ({pct_change:+.0f}%). Likely a one-off event. Exclude from trend analysis."
 
         explanation = (
             f"Expected ${expected:.2f}, got ${actual:.2f} "
@@ -1018,9 +994,7 @@ def predict_content_ltv(
         """Integrate A·e^{−λt} + B from t_start to t_end."""
         if lam < _EPS:
             return (A + B) * (t_end - t_start)
-        integral_exp = (A / lam) * (
-            math.exp(-lam * t_start) - math.exp(-lam * t_end)
-        )
+        integral_exp = (A / lam) * (math.exp(-lam * t_start) - math.exp(-lam * t_end))
         integral_const = B * (t_end - t_start)
         return max(integral_exp + integral_const, 0.0)
 
@@ -1174,10 +1148,7 @@ def compute_revenue_ceiling(
 
         epc_gap = best_epc - avg_epc
         if epc_gap > avg_epc * 0.5:
-            total_clicks_est = sum(
-                a.get("monthly_impressions", 0) * a.get("engagement_rate", 0.02)
-                for a in accounts
-            )
+            total_clicks_est = sum(a.get("monthly_impressions", 0) * a.get("engagement_rate", 0.02) for a in accounts)
             epc_opportunity = total_clicks_est * epc_gap
             opportunities.append(
                 {
@@ -1190,10 +1161,7 @@ def compute_revenue_ceiling(
 
         if best_aov > avg_aov * 1.5:
             (best_aov - avg_aov) * avg_conversion_rate
-            click_est = sum(
-                a.get("monthly_impressions", 0) * a.get("engagement_rate", 0.02)
-                for a in accounts
-            )
+            click_est = sum(a.get("monthly_impressions", 0) * a.get("engagement_rate", 0.02) for a in accounts)
             opportunities.append(
                 {
                     "opportunity": "Promote higher-AOV offers to warm segments",
@@ -1206,7 +1174,9 @@ def compute_revenue_ceiling(
     # ── Content velocity ceiling ───────────────────────────────────────
     total_audience = sum(a.get("followers", 0) for a in accounts)
     # Dynamic: optimal velocity scales with audience, no fixed divisor
-    optimal_velocity = max(1, int(total_audience / max(total_audience * 0.1, 1)))  # At least 10 pieces per 10% of audience
+    optimal_velocity = max(
+        1, int(total_audience / max(total_audience * 0.1, 1))
+    )  # At least 10 pieces per 10% of audience
     if content_velocity < optimal_velocity:
         velocity_gap = optimal_velocity - content_velocity
         per_piece_rev = _safe_div(current_monthly, max(content_velocity, 1))
@@ -1216,7 +1186,7 @@ def compute_revenue_ceiling(
                 "bottleneck": "Content velocity below optimal",
                 "impact": round(velocity_opportunity, 2),
                 "fix": f"Increase from {content_velocity} to {optimal_velocity} pieces/month "
-                       f"(+{velocity_gap} pieces, ~${velocity_opportunity:.0f}/mo uplift).",
+                f"(+{velocity_gap} pieces, ~${velocity_opportunity:.0f}/mo uplift).",
                 "severity": round(_clamp(velocity_gap / max(optimal_velocity, 1)), 4),
             }
         )
@@ -1231,7 +1201,7 @@ def compute_revenue_ceiling(
                 "bottleneck": "Conversion rate below industry benchmark",
                 "impact": round(cr_opportunity, 2),
                 "fix": f"Improve CR from {avg_conversion_rate:.2%} toward {industry_best_cr:.2%} "
-                       "via better CTAs, landing pages, and audience pre-qualification.",
+                "via better CTAs, landing pages, and audience pre-qualification.",
                 "severity": round(_clamp(1.0 - avg_conversion_rate / industry_best_cr), 4),
             }
         )
@@ -1388,10 +1358,7 @@ def compute_revenue_health_score(
     target_score = 50.0
     if targets and len(targets) >= len(recent):
         recent_targets = targets[-7:]
-        attainment = [
-            _safe_div(actual, target, 1.0)
-            for actual, target in zip(recent, recent_targets)
-        ]
+        attainment = [_safe_div(actual, target, 1.0) for actual, target in zip(recent, recent_targets)]
         target_score = _clamp(statistics.mean(attainment) * 100, 0, 100)
 
     momentum_score = 50.0

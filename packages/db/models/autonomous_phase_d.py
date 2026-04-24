@@ -1,4 +1,5 @@
 """Autonomous Execution Phase D: agent orchestration, revenue pressure, overrides, blockers, escalations."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -13,9 +14,7 @@ from packages.db.base import Base
 class AgentRun(Base):
     __tablename__ = "agent_runs"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     agent_type: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     run_status: Mapped[str] = mapped_column(String(50), default="running")
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -44,9 +43,7 @@ class AgentMessage(Base):
 class RevenuePressureReport(Base):
     __tablename__ = "revenue_pressure_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     next_commands_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     next_launches_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     biggest_blocker: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -66,9 +63,7 @@ class RevenuePressureReport(Base):
 class OverridePolicy(Base):
     __tablename__ = "override_policies"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     action_ref: Mapped[str] = mapped_column(String(200), nullable=False)
     override_mode: Mapped[str] = mapped_column(String(50), default="guarded")
     confidence_threshold: Mapped[float] = mapped_column(Float, default=0.7)
@@ -84,9 +79,7 @@ class OverridePolicy(Base):
 class EscalationEvent(Base):
     __tablename__ = "escalation_events"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     command: Mapped[str] = mapped_column(Text, nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     supporting_data_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
@@ -107,9 +100,7 @@ class EscalationEvent(Base):
 class BlockerDetectionReport(Base):
     __tablename__ = "blocker_detection_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     blocker: Mapped[str] = mapped_column(String(200), nullable=False)
     severity: Mapped[str] = mapped_column(String(50), default="medium")
     affected_scope: Mapped[str] = mapped_column(String(300), nullable=False)
@@ -125,9 +116,7 @@ class BlockerDetectionReport(Base):
 class OperatorCommand(Base):
     __tablename__ = "operator_commands"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     escalation_event_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("escalation_events.id"), nullable=True, index=True
     )

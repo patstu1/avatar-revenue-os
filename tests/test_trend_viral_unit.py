@@ -1,4 +1,5 @@
 """Unit tests for trend/viral engine."""
+
 from packages.scoring.trend_viral_engine import (
     OPPORTUNITY_TYPES,
     check_duplicate,
@@ -93,7 +94,11 @@ class TestSuppression:
         assert r is not None
 
     def test_rule_match_suppressed(self):
-        r = should_suppress({"topic": "gambling tips"}, {"composite_score": 0.5, "saturation_risk": 0.2}, [{"pattern": "gambling", "reason": "off-brand"}])
+        r = should_suppress(
+            {"topic": "gambling tips"},
+            {"composite_score": 0.5, "saturation_risk": 0.2},
+            [{"pattern": "gambling", "reason": "off-brand"}],
+        )
         assert r is not None
 
     def test_passes(self):

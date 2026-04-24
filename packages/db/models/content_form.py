@@ -1,4 +1,5 @@
 """Content Form Selection + Mix Allocation models."""
+
 import uuid
 from typing import Optional
 
@@ -13,7 +14,9 @@ class ContentFormRecommendation(Base):
     __tablename__ = "content_form_recommendations"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    account_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=True, index=True)
+    account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=True, index=True
+    )
     platform: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     recommended_content_form: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     secondary_content_form: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)

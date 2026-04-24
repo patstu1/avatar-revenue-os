@@ -1,4 +1,5 @@
 """Autonomous Execution Phase A: signal scanning, queue, warm-up, output & maturity."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -13,9 +14,7 @@ from packages.db.base import Base
 class SignalScanRun(Base):
     __tablename__ = "signal_scan_runs"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     scan_type: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="running")
     signals_detected: Mapped[int] = mapped_column(Integer, default=0)
@@ -28,9 +27,7 @@ class SignalScanRun(Base):
 class NormalizedSignalEvent(Base):
     __tablename__ = "normalized_signal_events"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     scan_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("signal_scan_runs.id"), nullable=True, index=True
     )
@@ -51,9 +48,7 @@ class NormalizedSignalEvent(Base):
 class AutoQueueItem(Base):
     __tablename__ = "auto_queue_items"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     signal_event_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("normalized_signal_events.id"), nullable=True, index=True
     )
@@ -79,9 +74,7 @@ class AutoQueueItem(Base):
 class AccountWarmupPlan(Base):
     __tablename__ = "account_warmup_plans"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     account_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True
     )
@@ -90,12 +83,8 @@ class AccountWarmupPlan(Base):
     initial_posts_per_week: Mapped[int] = mapped_column(Integer, default=1)
     current_posts_per_week: Mapped[int] = mapped_column(Integer, default=1)
     target_posts_per_week: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    warmup_start_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    warmup_end_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    warmup_start_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    warmup_end_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     engagement_target: Mapped[float] = mapped_column(Float, default=0.02)
     trust_target: Mapped[float] = mapped_column(Float, default=0.5)
     content_mix_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
@@ -109,9 +98,7 @@ class AccountWarmupPlan(Base):
 class AccountOutputReport(Base):
     __tablename__ = "account_output_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     account_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True
     )
@@ -121,9 +108,7 @@ class AccountOutputReport(Base):
     max_safe_output_per_week: Mapped[float] = mapped_column(Float, default=0.0)
     max_profitable_output_per_week: Mapped[float] = mapped_column(Float, default=0.0)
     throttle_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    next_increase_date: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    next_increase_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     quality_score: Mapped[float] = mapped_column(Float, default=0.0)
     monetization_response_score: Mapped[float] = mapped_column(Float, default=0.0)
     account_health_score: Mapped[float] = mapped_column(Float, default=0.0)
@@ -136,9 +121,7 @@ class AccountOutputReport(Base):
 class AccountMaturityReport(Base):
     __tablename__ = "account_maturity_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     account_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True
     )
@@ -180,9 +163,7 @@ class PlatformWarmupPolicy(Base):
 class OutputRampEvent(Base):
     __tablename__ = "output_ramp_events"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     account_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True
     )

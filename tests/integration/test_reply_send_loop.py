@@ -16,6 +16,7 @@ Covers:
                                           reply.draft.send_failed event.
   7. Operator HTML page renders 200 with the pending draft.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -141,16 +142,12 @@ async def _org_id_from_auth(api_client, headers, db_session) -> uuid.UUID:
     # Fall back to DB lookup by email
     headers.get("Authorization", "")
     # Can't pull email from token — use a direct query for the most recent user
-    user = (
-        await db_session.execute(select(User).order_by(User.created_at.desc()).limit(1))
-    ).scalar_one()
+    user = (await db_session.execute(select(User).order_by(User.created_at.desc()).limit(1))).scalar_one()
     return user.organization_id
 
 
 @pytest.mark.asyncio
-async def test_approve_draft_emits_event_and_writes_action(
-    api_client, db_session, auth_headers
-):
+async def test_approve_draft_emits_event_and_writes_action(api_client, db_session, auth_headers):
     org_id = await _org_id_from_auth(api_client, auth_headers, db_session)
     ids = await _seed_chain(db_session, org_id=org_id, draft_status="pending")
 
@@ -165,9 +162,7 @@ async def test_approve_draft_emits_event_and_writes_action(
     assert payload["approved_at"]
 
     draft = (
-        await db_session.execute(
-            select(EmailReplyDraft).where(EmailReplyDraft.id == ids["draft_id"])
-        )
+        await db_session.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == ids["draft_id"]))
     ).scalar_one()
     assert draft.status == "approved"
     assert draft.approved_by
@@ -201,9 +196,7 @@ async def test_approve_draft_emits_event_and_writes_action(
 
 
 @pytest.mark.asyncio
-async def test_reject_draft_updates_trace_and_emits_event(
-    api_client, db_session, auth_headers
-):
+async def test_reject_draft_updates_trace_and_emits_event(api_client, db_session, auth_headers):
     org_id = await _org_id_from_auth(api_client, auth_headers, db_session)
     ids = await _seed_chain(db_session, org_id=org_id, draft_status="pending")
 
@@ -216,9 +209,7 @@ async def test_reject_draft_updates_trace_and_emits_event(
     assert resp.json()["status"] == "rejected"
 
     draft = (
-        await db_session.execute(
-            select(EmailReplyDraft).where(EmailReplyDraft.id == ids["draft_id"])
-        )
+        await db_session.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == ids["draft_id"]))
     ).scalar_one()
     assert draft.status == "rejected"
     assert isinstance(draft.decision_trace, dict)
@@ -249,9 +240,7 @@ async def test_reject_draft_updates_trace_and_emits_event(
 
 
 @pytest.mark.asyncio
-async def test_reject_already_sent_draft_returns_400(
-    api_client, db_session, auth_headers
-):
+async def test_reject_already_sent_draft_returns_400(api_client, db_session, auth_headers):
     org_id = await _org_id_from_auth(api_client, auth_headers, db_session)
     ids = await _seed_chain(db_session, org_id=org_id, draft_status="sent")
 
@@ -263,9 +252,7 @@ async def test_reject_already_sent_draft_returns_400(
 
 
 @pytest.mark.asyncio
-async def test_list_drafts_surfaces_intent_from_classification(
-    api_client, db_session, auth_headers
-):
+async def test_list_drafts_surfaces_intent_from_classification(api_client, db_session, auth_headers):
     """The list_drafts endpoint previously returned d.reasoning (decision trace
     JSON) as 'intent'. It must now pull the real intent from the linked
     EmailClassification row."""
@@ -293,9 +280,7 @@ async def test_list_drafts_surfaces_intent_from_classification(
 
 
 @pytest.mark.asyncio
-async def test_scheduled_send_worker_marks_approved_drafts_sent(
-    api_client, db_session, auth_headers, monkeypatch
-):
+async def test_scheduled_send_worker_marks_approved_drafts_sent(api_client, db_session, auth_headers, monkeypatch):
     """Happy path: monkeypatch the SMTP client to return success, then call the
     worker impl directly. Draft must flip to status=sent, sent_at set,
     reply.draft.sent event emitted."""
@@ -313,12 +298,8 @@ async def test_scheduled_send_worker_marks_approved_drafts_sent(
             "message_id": "<stub-id@test>",
         }
 
-    monkeypatch.setattr(
-        SmtpEmailClient, "_is_configured", lambda self: True, raising=False
-    )
-    monkeypatch.setattr(
-        SmtpEmailClient, "send_email", _fake_send_email, raising=False
-    )
+    monkeypatch.setattr(SmtpEmailClient, "_is_configured", lambda self: True, raising=False)
+    monkeypatch.setattr(SmtpEmailClient, "send_email", _fake_send_email, raising=False)
 
     result = await reply_engine.send_approved_drafts(db_session, org_id)
     await db_session.commit()
@@ -327,9 +308,7 @@ async def test_scheduled_send_worker_marks_approved_drafts_sent(
     assert result["failed"] == 0
 
     draft = (
-        await db_session.execute(
-            select(EmailReplyDraft).where(EmailReplyDraft.id == ids["draft_id"])
-        )
+        await db_session.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == ids["draft_id"]))
     ).scalar_one()
     assert draft.status == "sent"
     assert draft.sent_at is not None
@@ -347,9 +326,7 @@ async def test_scheduled_send_worker_marks_approved_drafts_sent(
 
 
 @pytest.mark.asyncio
-async def test_scheduled_send_worker_records_send_failure(
-    api_client, db_session, auth_headers, monkeypatch
-):
+async def test_scheduled_send_worker_records_send_failure(api_client, db_session, auth_headers, monkeypatch):
     """Failure path: SMTP reports not configured, Graph not applicable.
     Draft stays approved, error_message populated, send_failed event emitted."""
     from apps.api.services import reply_engine
@@ -360,18 +337,14 @@ async def test_scheduled_send_worker_records_send_failure(
 
     # Force SMTP to report unconfigured → send_approved_drafts writes
     # draft.error_message and marks failed.
-    monkeypatch.setattr(
-        SmtpEmailClient, "_is_configured", lambda self: False, raising=False
-    )
+    monkeypatch.setattr(SmtpEmailClient, "_is_configured", lambda self: False, raising=False)
 
     result = await reply_engine.send_approved_drafts(db_session, org_id)
     await db_session.commit()
 
     assert result["failed"] >= 1
     draft = (
-        await db_session.execute(
-            select(EmailReplyDraft).where(EmailReplyDraft.id == ids["draft_id"])
-        )
+        await db_session.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == ids["draft_id"]))
     ).scalar_one()
     assert draft.status == "approved"  # still needs to retry later
     assert draft.error_message
@@ -389,15 +362,11 @@ async def test_scheduled_send_worker_records_send_failure(
 
 
 @pytest.mark.asyncio
-async def test_operator_pending_drafts_page_renders(
-    api_client, db_session, auth_headers
-):
+async def test_operator_pending_drafts_page_renders(api_client, db_session, auth_headers):
     org_id = await _org_id_from_auth(api_client, auth_headers, db_session)
     ids = await _seed_chain(db_session, org_id=org_id, draft_status="pending")
 
-    resp = await api_client.get(
-        "/api/v1/operator/pending-drafts", headers=auth_headers
-    )
+    resp = await api_client.get("/api/v1/operator/pending-drafts", headers=auth_headers)
     assert resp.status_code == 200, resp.text
     assert resp.headers["content-type"].startswith("text/html")
     body = resp.text

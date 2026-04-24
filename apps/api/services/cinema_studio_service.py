@@ -28,6 +28,7 @@ from packages.db.models.content import MediaJob
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 async def _log_activity(
     db: AsyncSession,
     brand_id: uuid.UUID,
@@ -77,8 +78,12 @@ async def _get_or_404(
 # Projects
 # ---------------------------------------------------------------------------
 
+
 async def list_projects(
-    db: AsyncSession, brand_id: uuid.UUID, status: str | None = None, page: int = 1,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    status: str | None = None,
+    page: int = 1,
 ) -> list[StudioProject]:
     q = select(StudioProject).where(StudioProject.brand_id == brand_id)
     if status:
@@ -121,8 +126,12 @@ async def delete_project(db: AsyncSession, project_id: uuid.UUID, brand_id: uuid
 # Scenes
 # ---------------------------------------------------------------------------
 
+
 async def list_scenes(
-    db: AsyncSession, brand_id: uuid.UUID, project_id: uuid.UUID | None = None, page: int = 1,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    project_id: uuid.UUID | None = None,
+    page: int = 1,
 ) -> list[StudioScene]:
     q = select(StudioScene).where(StudioScene.brand_id == brand_id)
     if project_id:
@@ -164,6 +173,7 @@ async def delete_scene(db: AsyncSession, scene_id: uuid.UUID, brand_id: uuid.UUI
 # ---------------------------------------------------------------------------
 # Characters
 # ---------------------------------------------------------------------------
+
 
 async def list_characters(db: AsyncSession, brand_id: uuid.UUID, page: int = 1) -> list[CharacterBible]:
     q = (
@@ -210,12 +220,13 @@ async def delete_character(db: AsyncSession, character_id: uuid.UUID, brand_id: 
 # Style Presets
 # ---------------------------------------------------------------------------
 
+
 async def list_styles(
-    db: AsyncSession, brand_id: uuid.UUID, category: str | None = None,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    category: str | None = None,
 ) -> list[StylePreset]:
-    q = select(StylePreset).where(
-        (StylePreset.brand_id == brand_id) | (StylePreset.brand_id.is_(None))
-    )
+    q = select(StylePreset).where((StylePreset.brand_id == brand_id) | (StylePreset.brand_id.is_(None)))
     if category:
         q = q.where(StylePreset.category == category)
     q = q.order_by(desc(StylePreset.is_popular), StylePreset.name)
@@ -256,6 +267,7 @@ async def delete_style(db: AsyncSession, style_id: uuid.UUID, brand_id: uuid.UUI
 # Generations — the bridge to MediaJob
 # ---------------------------------------------------------------------------
 
+
 async def list_generations(
     db: AsyncSession,
     brand_id: uuid.UUID,
@@ -273,7 +285,9 @@ async def list_generations(
     return list(result.scalars().all())
 
 
-async def get_generation(db: AsyncSession, generation_id: uuid.UUID, brand_id: uuid.UUID | None = None) -> StudioGeneration:
+async def get_generation(
+    db: AsyncSession, generation_id: uuid.UUID, brand_id: uuid.UUID | None = None
+) -> StudioGeneration:
     return await _get_or_404(db, StudioGeneration, generation_id, "Generation", brand_id=brand_id)
 
 
@@ -332,17 +346,15 @@ async def trigger_generation(
     characters: list[CharacterBible] = []
     char_ids = scene.character_ids or []
     if char_ids:
-        result = await db.execute(
-            select(CharacterBible).where(CharacterBible.id.in_(char_ids))
-        )
+        result = await db.execute(select(CharacterBible).where(CharacterBible.id.in_(char_ids)))
         characters = list(result.scalars().all())
 
     # Resolve style preset
     style: StylePreset | None = None
     if scene.style_preset_id:
-        style = (await db.execute(
-            select(StylePreset).where(StylePreset.id == scene.style_preset_id)
-        )).scalar_one_or_none()
+        style = (
+            await db.execute(select(StylePreset).where(StylePreset.id == scene.style_preset_id))
+        ).scalar_one_or_none()
 
     input_config = _build_input_config(scene, characters, style)
 
@@ -377,12 +389,17 @@ async def trigger_generation(
     await db.refresh(generation)
 
     await _log_activity(
-        db, brand_id, "generation_started", generation.id, scene.title,
+        db,
+        brand_id,
+        "generation_started",
+        generation.id,
+        scene.title,
         metadata={"scene_id": str(scene_id), "model": model},
     )
 
     try:
         from workers.cinema_studio_worker.tasks import process_studio_generation
+
         process_studio_generation.delay(str(generation.id), str(brand_id))
     except Exception:
         logger.warning("studio_generation_task_dispatch_failed", exc_info=True)
@@ -394,44 +411,62 @@ async def trigger_generation(
 # Dashboard stats
 # ---------------------------------------------------------------------------
 
+
 async def dashboard_stats(db: AsyncSession, brand_id: uuid.UUID) -> dict:
-    total_projects = (await db.execute(
-        select(func.count()).select_from(StudioProject).where(StudioProject.brand_id == brand_id)
-    )).scalar() or 0
+    total_projects = (
+        await db.execute(select(func.count()).select_from(StudioProject).where(StudioProject.brand_id == brand_id))
+    ).scalar() or 0
 
-    total_scenes = (await db.execute(
-        select(func.count()).select_from(StudioScene).where(StudioScene.brand_id == brand_id)
-    )).scalar() or 0
+    total_scenes = (
+        await db.execute(select(func.count()).select_from(StudioScene).where(StudioScene.brand_id == brand_id))
+    ).scalar() or 0
 
-    total_characters = (await db.execute(
-        select(func.count()).select_from(CharacterBible).where(CharacterBible.brand_id == brand_id)
-    )).scalar() or 0
+    total_characters = (
+        await db.execute(select(func.count()).select_from(CharacterBible).where(CharacterBible.brand_id == brand_id))
+    ).scalar() or 0
 
-    total_generations = (await db.execute(
-        select(func.count()).select_from(StudioGeneration).where(StudioGeneration.brand_id == brand_id)
-    )).scalar() or 0
+    total_generations = (
+        await db.execute(
+            select(func.count()).select_from(StudioGeneration).where(StudioGeneration.brand_id == brand_id)
+        )
+    ).scalar() or 0
 
-    completed_generations = (await db.execute(
-        select(func.count()).select_from(StudioGeneration)
-        .where(StudioGeneration.brand_id == brand_id, StudioGeneration.status == "completed")
-    )).scalar() or 0
+    completed_generations = (
+        await db.execute(
+            select(func.count())
+            .select_from(StudioGeneration)
+            .where(StudioGeneration.brand_id == brand_id, StudioGeneration.status == "completed")
+        )
+    ).scalar() or 0
 
-    processing_generations = (await db.execute(
-        select(func.count()).select_from(StudioGeneration)
-        .where(StudioGeneration.brand_id == brand_id, StudioGeneration.status == "processing")
-    )).scalar() or 0
+    processing_generations = (
+        await db.execute(
+            select(func.count())
+            .select_from(StudioGeneration)
+            .where(StudioGeneration.brand_id == brand_id, StudioGeneration.status == "processing")
+        )
+    ).scalar() or 0
 
-    failed_generations = (await db.execute(
-        select(func.count()).select_from(StudioGeneration)
-        .where(StudioGeneration.brand_id == brand_id, StudioGeneration.status == "failed")
-    )).scalar() or 0
+    failed_generations = (
+        await db.execute(
+            select(func.count())
+            .select_from(StudioGeneration)
+            .where(StudioGeneration.brand_id == brand_id, StudioGeneration.status == "failed")
+        )
+    ).scalar() or 0
 
-    recent = (await db.execute(
-        select(StudioActivity)
-        .where(StudioActivity.brand_id == brand_id)
-        .order_by(desc(StudioActivity.created_at))
-        .limit(20)
-    )).scalars().all()
+    recent = (
+        (
+            await db.execute(
+                select(StudioActivity)
+                .where(StudioActivity.brand_id == brand_id)
+                .order_by(desc(StudioActivity.created_at))
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return {
         "total_projects": total_projects,

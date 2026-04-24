@@ -3,6 +3,7 @@
 Builds network-specific links (ClickBank hop, Amazon tag+ASIN, Semrush ref, ShareASale deep, etc.)
 with per-content tracking IDs for attribution.
 """
+
 from __future__ import annotations
 
 import hashlib

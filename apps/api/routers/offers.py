@@ -1,4 +1,5 @@
 """Offer catalog endpoints."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -21,7 +22,16 @@ async def create_offer(body: OfferCreate, current_user: CurrentUser, db: DBSessi
     if not brand or brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     offer = await offer_service.create(db, **body.model_dump())
-    await log_action(db, "offer.created", organization_id=current_user.organization_id, brand_id=body.brand_id, user_id=current_user.id, actor_type="human", entity_type="offer", entity_id=offer.id)
+    await log_action(
+        db,
+        "offer.created",
+        organization_id=current_user.organization_id,
+        brand_id=body.brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="offer",
+        entity_id=offer.id,
+    )
     return offer
 
 
@@ -56,4 +66,12 @@ async def delete_offer(offer_id: uuid.UUID, current_user: CurrentUser, db: DBSes
     if not brand or brand.organization_id != current_user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Offer not accessible")
     await offer_service.delete(db, offer_id)
-    await log_action(db, "offer.deleted", organization_id=current_user.organization_id, user_id=current_user.id, actor_type="human", entity_type="offer", entity_id=offer_id)
+    await log_action(
+        db,
+        "offer.deleted",
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="offer",
+        entity_id=offer_id,
+    )

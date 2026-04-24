@@ -1,4 +1,5 @@
 """Unit tests for Brain Architecture Phase C — agent mesh, workflows, context bus, memory binding."""
+
 import pytest
 
 from packages.scoring.brain_phase_c_engine import (
@@ -11,6 +12,7 @@ from packages.scoring.brain_phase_c_engine import (
 )
 
 # ── Agent Registry ────────────────────────────────────────────────────
+
 
 class TestBuildAgentRegistry:
     def test_returns_12_agents(self):
@@ -30,6 +32,7 @@ class TestBuildAgentRegistry:
 
 
 # ── Agent Runs ────────────────────────────────────────────────────────
+
 
 class TestRunAgent:
     @pytest.mark.parametrize("slug", [a["slug"] for a in AGENT_CATALOG])
@@ -103,6 +106,7 @@ class TestMemoryBinding:
 
 # ── Workflow Coordination ─────────────────────────────────────────────
 
+
 class TestRunWorkflow:
     def test_opportunity_to_launch(self):
         r = run_workflow("opportunity_to_launch", {"account_state": "newborn"}, [])
@@ -150,6 +154,7 @@ class TestRunWorkflow:
 
 # ── Context Bus Events ────────────────────────────────────────────────
 
+
 class TestDeriveContextEvents:
     def test_trend_scout_scale_emits_winner(self):
         events = derive_context_events("trend_scout", {"recommendation": "scale"}, {})
@@ -162,12 +167,16 @@ class TestDeriveContextEvents:
         assert events[0]["event_type"] == "launch_blocked"
 
     def test_funnel_optimizer_leak(self):
-        events = derive_context_events("funnel_optimizer", {"leak_stage": "checkout", "fix_action": "optimize_checkout"}, {})
+        events = derive_context_events(
+            "funnel_optimizer", {"leak_stage": "checkout", "fix_action": "optimize_checkout"}, {}
+        )
         assert len(events) >= 1
         assert events[0]["event_type"] == "funnel_leaking"
 
     def test_retention_reactivation(self):
-        events = derive_context_events("retention_strategist", {"action": "reactivation_campaign", "target_segment": "churn_risk"}, {})
+        events = derive_context_events(
+            "retention_strategist", {"action": "reactivation_campaign", "target_segment": "churn_risk"}, {}
+        )
         assert len(events) >= 1
         assert events[0]["event_type"] == "retention_action_triggered"
 

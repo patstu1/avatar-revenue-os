@@ -1,4 +1,5 @@
 """Request-scoped middleware: correlation IDs, structured logging, security headers, global error handling."""
+
 from __future__ import annotations
 
 import time
@@ -38,6 +39,7 @@ class RedirectHostFixMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         if response.status_code in (307, 308) and "location" in response.headers:
             from urllib.parse import urlparse, urlunparse
+
             loc = response.headers["location"]
             parsed = urlparse(loc)
             client_host = request.headers.get("host", "")

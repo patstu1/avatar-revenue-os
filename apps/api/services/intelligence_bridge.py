@@ -12,6 +12,7 @@ families, discovery) already computes rich outputs. This bridge service:
 This is the missing horizontal connection that makes intelligence
 influence action rather than just exist as reports.
 """
+
 import uuid
 from typing import Optional
 
@@ -45,6 +46,7 @@ logger = structlog.get_logger()
 
 
 # ── Intelligence Summary for Control Layer ──────────────────────────────
+
 
 async def get_intelligence_summary(
     db: AsyncSession,
@@ -291,15 +293,25 @@ def _empty_summary() -> dict:
         "kill_ledger": [],
         "top_opportunities": [],
         "account_health": [],
-        "counts": {k: 0 for k in [
-            "active_decisions", "winning_patterns", "decaying_patterns",
-            "active_experiments", "promoted_rules", "active_suppressions",
-            "failure_families", "kill_ledger_entries", "top_opportunities",
-        ]},
+        "counts": {
+            k: 0
+            for k in [
+                "active_decisions",
+                "winning_patterns",
+                "decaying_patterns",
+                "active_experiments",
+                "promoted_rules",
+                "active_suppressions",
+                "failure_families",
+                "kill_ledger_entries",
+                "top_opportunities",
+            ]
+        },
     }
 
 
 # ── Translate Intelligence into Operator Actions ──────────────────────
+
 
 async def surface_intelligence_actions(
     db: AsyncSession,
@@ -324,11 +336,12 @@ async def surface_intelligence_actions(
     )
     for d in scale_decisions.scalars().all():
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="scale_account",
             title=f"Scale opportunity: {d.objective[:60]}",
             description=f"Brain decision recommends scaling. Action: {d.selected_action}. "
-                       f"Expected upside: ${d.expected_upside:.0f}. Confidence: {d.confidence:.0%}.",
+            f"Expected upside: ${d.expected_upside:.0f}. Confidence: {d.confidence:.0%}.",
             category="opportunity",
             priority="high" if d.expected_upside and d.expected_upside > 100 else "medium",
             brand_id=brand_id,
@@ -353,11 +366,12 @@ async def surface_intelligence_actions(
     )
     for d in recovery_decisions.scalars().all():
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="recover_account",
             title=f"Recovery needed: {d.objective[:60]}",
             description=f"Brain decision flagged recovery. Action: {d.selected_action}. "
-                       f"Explanation: {d.explanation[:200] if d.explanation else 'N/A'}",
+            f"Explanation: {d.explanation[:200] if d.explanation else 'N/A'}",
             category="failure",
             priority="high",
             brand_id=brand_id,
@@ -377,15 +391,22 @@ async def surface_intelligence_actions(
     )
     for d in suppress_decisions.scalars().all():
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="suppress_losing_offer",
             title=f"Brain: {d.decision_class} — {d.objective[:60]}",
             description=f"Action: {d.selected_action}. {d.explanation[:200] if d.explanation else ''}",
-            category="monetization", priority="high",
-            brand_id=brand_id, entity_type="brain_decision", entity_id=d.id,
+            category="monetization",
+            priority="high",
+            brand_id=brand_id,
+            entity_type="brain_decision",
+            entity_id=d.id,
             source_module="brain_phase_b",
-            action_payload={"autonomy_level": "autonomous", "confidence": d.confidence or 0.7,
-                            "decision_class": d.decision_class},
+            action_payload={
+                "autonomy_level": "autonomous",
+                "confidence": d.confidence or 0.7,
+                "decision_class": d.decision_class,
+            },
         )
         actions_created.append({"type": d.decision_class, "action_id": str(action.id)})
 
@@ -400,16 +421,24 @@ async def surface_intelligence_actions(
     )
     for d in monetize_decisions.scalars().all():
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="attach_offer_to_content",
             title=f"Monetize: {d.objective[:60]}",
             description=f"Brain recommends monetization. Action: {d.selected_action}. "
-                       f"Expected upside: ${d.expected_upside:.0f}." if d.expected_upside else f"Brain: monetize {d.objective[:60]}",
-            category="monetization", priority="medium",
-            brand_id=brand_id, entity_type="brain_decision", entity_id=d.id,
+            f"Expected upside: ${d.expected_upside:.0f}."
+            if d.expected_upside
+            else f"Brain: monetize {d.objective[:60]}",
+            category="monetization",
+            priority="medium",
+            brand_id=brand_id,
+            entity_type="brain_decision",
+            entity_id=d.id,
             source_module="brain_phase_b",
-            action_payload={"autonomy_level": "autonomous" if (d.confidence or 0) >= 0.7 else "assisted",
-                            "confidence": d.confidence or 0.5},
+            action_payload={
+                "autonomy_level": "autonomous" if (d.confidence or 0) >= 0.7 else "assisted",
+                "confidence": d.confidence or 0.5,
+            },
         )
         actions_created.append({"type": "monetize", "action_id": str(action.id)})
 
@@ -423,12 +452,16 @@ async def surface_intelligence_actions(
     )
     for d in test_decisions.scalars().all():
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="launch_offer_test",
             title=f"Test: {d.objective[:60]}",
             description=f"Brain recommends testing. {d.explanation[:200] if d.explanation else ''}",
-            category="monetization", priority="medium",
-            brand_id=brand_id, entity_type="brain_decision", entity_id=d.id,
+            category="monetization",
+            priority="medium",
+            brand_id=brand_id,
+            entity_type="brain_decision",
+            entity_id=d.id,
             source_module="brain_phase_b",
             action_payload={"autonomy_level": "assisted", "confidence": d.confidence or 0.5},
         )
@@ -436,18 +469,25 @@ async def surface_intelligence_actions(
 
     # 6. Decaying patterns → "Pattern losing effectiveness" alert
     decay_reports = await db.execute(
-        select(PatternDecayReport).where(
+        select(PatternDecayReport)
+        .where(
             PatternDecayReport.brand_id == brand_id,
             PatternDecayReport.decay_rate > 0.2,  # Significant decay
-        ).order_by(PatternDecayReport.created_at.desc()).limit(3)
+        )
+        .order_by(PatternDecayReport.created_at.desc())
+        .limit(3)
     )
     for d in decay_reports.scalars().all():
         await emit_event(
-            db, domain="intelligence", event_type="pattern.decaying",
+            db,
+            domain="intelligence",
+            event_type="pattern.decaying",
             summary=f"Pattern losing effectiveness: {d.decay_reason[:80] if d.decay_reason else 'unknown'} "
-                   f"(score: {d.previous_win_score:.2f} → {d.current_win_score:.2f})",
-            org_id=org_id, brand_id=brand_id,
-            entity_type="pattern_decay_report", entity_id=d.id,
+            f"(score: {d.previous_win_score:.2f} → {d.current_win_score:.2f})",
+            org_id=org_id,
+            brand_id=brand_id,
+            entity_type="pattern_decay_report",
+            entity_id=d.id,
             severity="warning",
             details={
                 "decay_rate": d.decay_rate,
@@ -459,20 +499,24 @@ async def surface_intelligence_actions(
 
     # 4. Experiment winners → "Promote winning experiment" action
     recent_winners = await db.execute(
-        select(PWExperimentWinner).where(
+        select(PWExperimentWinner)
+        .where(
             PWExperimentWinner.brand_id.in_(
                 select(ActiveExperiment.brand_id).where(ActiveExperiment.brand_id == brand_id)
             ),
             PWExperimentWinner.promoted.is_(False),
-        ).order_by(PWExperimentWinner.created_at.desc()).limit(3)
+        )
+        .order_by(PWExperimentWinner.created_at.desc())
+        .limit(3)
     )
     for w in recent_winners.scalars().all():
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="promote_experiment_winner",
             title=f"Experiment winner detected (margin: {w.win_margin:.1%})",
             description=f"Experiment produced a winner with {w.confidence:.0%} confidence. "
-                       f"Review and promote to production rules.",
+            f"Review and promote to production rules.",
             category="opportunity",
             priority="medium",
             brand_id=brand_id,
@@ -484,18 +528,22 @@ async def surface_intelligence_actions(
 
     # 5. High-failure families → "Address failure pattern" action
     high_failures = await db.execute(
-        select(FailureFamilyReport).where(
+        select(FailureFamilyReport)
+        .where(
             FailureFamilyReport.brand_id == brand_id,
             FailureFamilyReport.failure_count >= 3,
-        ).order_by(FailureFamilyReport.failure_count.desc()).limit(3)
+        )
+        .order_by(FailureFamilyReport.failure_count.desc())
+        .limit(3)
     )
     for f in high_failures.scalars().all():
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="address_failure_pattern",
             title=f"Recurring failure: {f.family_type} '{f.family_key[:40]}'",
             description=f"This pattern has failed {f.failure_count} times. "
-                       f"Recommended alternative: {f.recommended_alternative or 'none suggested'}.",
+            f"Recommended alternative: {f.recommended_alternative or 'none suggested'}.",
             category="failure",
             priority="high" if f.failure_count >= 5 else "medium",
             brand_id=brand_id,
@@ -517,6 +565,7 @@ async def surface_intelligence_actions(
 
 
 # ── Kill Ledger Enforcement ──────────────────────────────────────────
+
 
 async def check_kill_ledger(
     db: AsyncSession,
@@ -579,6 +628,7 @@ async def check_kill_ledger(
 
 # ── Pattern Intelligence for Content Generation ─────────────────────
 
+
 async def get_generation_intelligence(
     db: AsyncSession,
     brand_id: uuid.UUID,
@@ -593,34 +643,53 @@ async def get_generation_intelligence(
     This is called by the content lifecycle service before generation.
     """
     # Winning patterns (boost these)
-    win_query = select(WinningPatternMemory).where(
-        WinningPatternMemory.brand_id == brand_id,
-        WinningPatternMemory.is_active.is_(True),
-    ).order_by(WinningPatternMemory.win_score.desc()).limit(8)
+    win_query = (
+        select(WinningPatternMemory)
+        .where(
+            WinningPatternMemory.brand_id == brand_id,
+            WinningPatternMemory.is_active.is_(True),
+        )
+        .order_by(WinningPatternMemory.win_score.desc())
+        .limit(8)
+    )
     if platform:
         win_query = win_query.where(WinningPatternMemory.platform == platform)
 
     winners = (await db.execute(win_query)).scalars().all()
 
     # Losing patterns (avoid these)
-    lose_query = select(LosingPatternMemory).where(
-        LosingPatternMemory.brand_id == brand_id,
-        LosingPatternMemory.is_active.is_(True),
-    ).order_by(LosingPatternMemory.fail_score.desc()).limit(5)
+    lose_query = (
+        select(LosingPatternMemory)
+        .where(
+            LosingPatternMemory.brand_id == brand_id,
+            LosingPatternMemory.is_active.is_(True),
+        )
+        .order_by(LosingPatternMemory.fail_score.desc())
+        .limit(5)
+    )
     losers = (await db.execute(lose_query)).scalars().all()
 
     # Suppression rules (block these)
-    supp_query = select(SuppressionRule).where(
-        SuppressionRule.brand_id == brand_id,
-        SuppressionRule.is_active.is_(True),
-    ).limit(10)
+    supp_query = (
+        select(SuppressionRule)
+        .where(
+            SuppressionRule.brand_id == brand_id,
+            SuppressionRule.is_active.is_(True),
+        )
+        .limit(10)
+    )
     suppressions = (await db.execute(supp_query)).scalars().all()
 
     # Promoted winner rules (highest priority)
-    rules_query = select(PromotedWinnerRule).where(
-        PromotedWinnerRule.brand_id == brand_id,
-        PromotedWinnerRule.is_active.is_(True),
-    ).order_by(PromotedWinnerRule.weight_boost.desc()).limit(5)
+    rules_query = (
+        select(PromotedWinnerRule)
+        .where(
+            PromotedWinnerRule.brand_id == brand_id,
+            PromotedWinnerRule.is_active.is_(True),
+        )
+        .order_by(PromotedWinnerRule.weight_boost.desc())
+        .limit(5)
+    )
     if platform:
         rules_query = rules_query.where(PromotedWinnerRule.target_platform == platform)
     promoted = (await db.execute(rules_query)).scalars().all()
@@ -668,7 +737,5 @@ async def get_generation_intelligence(
         ],
         "kill_ledger_blocked": kill_check["blocked"],
         "kill_entries": kill_check.get("kill_entries", []),
-        "total_intelligence_signals": (
-            len(winners) + len(losers) + len(suppressions) + len(promoted)
-        ),
+        "total_intelligence_signals": (len(winners) + len(losers) + len(suppressions) + len(promoted)),
     }

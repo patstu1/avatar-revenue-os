@@ -1,4 +1,5 @@
 """Operator Copilot — chat sessions, grounded messages, operator snapshots."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
@@ -145,6 +146,7 @@ async def copilot_autonomous_readiness(brand_id: uuid.UUID, current_user: Curren
     await _require_brand(brand_id, current_user, db)
     try:
         from packages.scoring.autonomous_readiness_engine import evaluate_autonomous_readiness
+
         return evaluate_autonomous_readiness()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -157,6 +159,7 @@ async def copilot_activation_checklist(brand_id: uuid.UUID, current_user: Curren
     await _require_brand(brand_id, current_user, db)
     try:
         from packages.scoring.autonomous_readiness_engine import get_activation_checklist
+
         return get_activation_checklist()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

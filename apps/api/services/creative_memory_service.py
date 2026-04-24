@@ -1,4 +1,5 @@
 """Creative memory service — index reusable content atoms, persist and retrieve."""
+
 from __future__ import annotations
 
 import uuid
@@ -28,9 +29,7 @@ def _strip_meta(d: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def recompute_creative_memory(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_creative_memory(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -49,11 +48,7 @@ async def recompute_creative_memory(
     )
 
     perf_rows = list(
-        (
-            await db.execute(
-                select(PerformanceMetric).where(PerformanceMetric.brand_id == brand_id).limit(500)
-            )
-        )
+        (await db.execute(select(PerformanceMetric).where(PerformanceMetric.brand_id == brand_id).limit(500)))
         .scalars()
         .all()
     )
@@ -74,23 +69,21 @@ async def recompute_creative_memory(
         else:
             platform_str = str(platform_val) if platform_val else None
 
-        ci_dicts.append({
-            "id": str(ci.id),
-            "title": ci.title or "",
-            "body": getattr(ci, "body", None) or getattr(ci, "text", None) or "",
-            "platform": platform_str,
-            "niche": brand.niche,
-            "monetization_type": None,
-            "funnel_stage": None,
-            "reuse_count": 0,
-        })
+        ci_dicts.append(
+            {
+                "id": str(ci.id),
+                "title": ci.title or "",
+                "body": getattr(ci, "body", None) or getattr(ci, "text", None) or "",
+                "platform": platform_str,
+                "niche": brand.niche,
+                "monetization_type": None,
+                "funnel_stage": None,
+                "reuse_count": 0,
+            }
+        )
 
     outcome_types = list(
-        (
-            await db.execute(
-                select(ExperimentOutcome.outcome_type).where(ExperimentOutcome.brand_id == brand_id)
-            )
-        )
+        (await db.execute(select(ExperimentOutcome.outcome_type).where(ExperimentOutcome.brand_id == brand_id)))
         .scalars()
         .all()
     )
@@ -107,32 +100,36 @@ async def recompute_creative_memory(
     atoms = index_creative_atoms(ci_dicts, performance_data, brand_context)
 
     if oc_counts:
-        atoms.append({
-            "content_item_id": None,
-            "atom_type": "experiment_learned_signal",
-            "content_json": {
-                "source": "experiment_outcomes",
-                "counts": dict(oc_counts),
-                "note": "Signals from persisted experiment outcomes influence atom confidence boost.",
-            },
-            "niche": brand.niche or "general",
-            "platform": brand_context.get("default_platform", "youtube"),
-            "monetization_type": brand_context.get("default_monetization_type", "affiliate"),
-            "funnel_stage": "experimentation",
-            "performance_summary": {"avg_engagement": 0.0, "avg_conversion": 0.0, "sample_size": sum(oc_counts.values())},
-            "reuse_recommendations": [
-                "Reuse winning angles from promoted variants.",
-                "Deprioritize hooks tied to suppressed experiments.",
-            ],
-            "originality_caution_score": 0.15,
-            "confidence": min(0.92, 0.45 + promote_boost * 3),
-            "explanation": f"Experiment outcome memory: {dict(oc_counts)}",
-            CREATIVE_MEMORY: True,
-        })
+        atoms.append(
+            {
+                "content_item_id": None,
+                "atom_type": "experiment_learned_signal",
+                "content_json": {
+                    "source": "experiment_outcomes",
+                    "counts": dict(oc_counts),
+                    "note": "Signals from persisted experiment outcomes influence atom confidence boost.",
+                },
+                "niche": brand.niche or "general",
+                "platform": brand_context.get("default_platform", "youtube"),
+                "monetization_type": brand_context.get("default_monetization_type", "affiliate"),
+                "funnel_stage": "experimentation",
+                "performance_summary": {
+                    "avg_engagement": 0.0,
+                    "avg_conversion": 0.0,
+                    "sample_size": sum(oc_counts.values()),
+                },
+                "reuse_recommendations": [
+                    "Reuse winning angles from promoted variants.",
+                    "Deprioritize hooks tied to suppressed experiments.",
+                ],
+                "originality_caution_score": 0.15,
+                "confidence": min(0.92, 0.45 + promote_boost * 3),
+                "explanation": f"Experiment outcome memory: {dict(oc_counts)}",
+                CREATIVE_MEMORY: True,
+            }
+        )
 
-    await db.execute(
-        delete(CreativeMemoryLink).where(CreativeMemoryLink.brand_id == brand_id)
-    )
+    await db.execute(delete(CreativeMemoryLink).where(CreativeMemoryLink.brand_id == brand_id))
     await db.execute(
         delete(CreativeMemoryAtom).where(
             CreativeMemoryAtom.brand_id == brand_id,
@@ -227,9 +224,7 @@ def _link_dict(x: CreativeMemoryLink) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_creative_memory(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_creative_memory(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -248,9 +243,7 @@ async def get_creative_memory(
     return [_atom_dict(r) for r in rows]
 
 
-async def get_creative_memory_links(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_creative_memory_links(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

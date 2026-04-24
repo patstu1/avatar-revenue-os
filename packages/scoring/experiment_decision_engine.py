@@ -1,4 +1,5 @@
 """Experiment decision engine — prioritise A/B tests, evaluate outcomes, promote or suppress."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -78,7 +79,9 @@ def apply_prior_scope_signals(
                 exp["expected_upside"] = round(_clamp(base - 0.12 + min(0.0, uplift) * 0.1), 4)
             elif ot in ("continue", "inconclusive"):
                 exp["expected_upside"] = round(_clamp(base + 0.02), 4)
-            applied.append({"scope": f"{st}:{sid}", "outcome_type": ot, "delta_expected_upside": exp["expected_upside"] - base})
+            applied.append(
+                {"scope": f"{st}:{sid}", "outcome_type": ot, "delta_expected_upside": exp["expected_upside"] - base}
+            )
             count += 1
             break
 
@@ -133,26 +136,28 @@ def prioritize_experiment_candidates(
 
         conf = _clamp(0.50 + expected_upside * 0.25 + (1 - confidence_gap) * 0.20)
 
-        scored.append({
-            "experiment_type": exp.get("experiment_type", "unknown"),
-            "target_scope_type": exp.get("target_scope_type", "unknown"),
-            "target_scope_id": exp.get("target_scope_id"),
-            "hypothesis": exp.get("hypothesis", ""),
-            "expected_upside": round(expected_upside, 4),
-            "confidence_gap": round(confidence_gap, 4),
-            "priority_score": round(priority, 4),
-            "recommended_allocation": allocation,
-            "promotion_rule": promotion_rule,
-            "suppression_rule": suppression_rule,
-            "explanation": (
-                f"Priority {priority:.3f} from upside {expected_upside:.2f} "
-                f"(wt 0.55) + gap weight {gap_w:.2f} (wt 0.35) + "
-                f"risk tolerance {risk_tolerance:.2f} (wt 0.10). "
-                f"Allocating {allocation:.1%} of {total_traffic} traffic."
-            ),
-            "confidence": round(conf, 4),
-            EXP_DEC: True,
-        })
+        scored.append(
+            {
+                "experiment_type": exp.get("experiment_type", "unknown"),
+                "target_scope_type": exp.get("target_scope_type", "unknown"),
+                "target_scope_id": exp.get("target_scope_id"),
+                "hypothesis": exp.get("hypothesis", ""),
+                "expected_upside": round(expected_upside, 4),
+                "confidence_gap": round(confidence_gap, 4),
+                "priority_score": round(priority, 4),
+                "recommended_allocation": allocation,
+                "promotion_rule": promotion_rule,
+                "suppression_rule": suppression_rule,
+                "explanation": (
+                    f"Priority {priority:.3f} from upside {expected_upside:.2f} "
+                    f"(wt 0.55) + gap weight {gap_w:.2f} (wt 0.35) + "
+                    f"risk tolerance {risk_tolerance:.2f} (wt 0.10). "
+                    f"Allocating {allocation:.1%} of {total_traffic} traffic."
+                ),
+                "confidence": round(conf, 4),
+                EXP_DEC: True,
+            }
+        )
 
     scored.sort(key=lambda r: r["priority_score"], reverse=True)
     return scored
@@ -210,10 +215,7 @@ def evaluate_experiment_outcome(
     spread = abs(best_cr - worst_cr) / max(best_cr, 0.001)
     raw_conf = _clamp(0.50 + spread * 0.35 + sample_factor * 0.15)
 
-    losers = [
-        v.get("variant_id") for v in variants
-        if v.get("variant_id") != best.get("variant_id")
-    ]
+    losers = [v.get("variant_id") for v in variants if v.get("variant_id") != best.get("variant_id")]
 
     if uplift >= _PROMOTION_UPLIFT_THRESHOLD and raw_conf >= _PROMOTION_CONFIDENCE_THRESHOLD:
         outcome = "promote"

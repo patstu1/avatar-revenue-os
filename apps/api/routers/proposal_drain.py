@@ -14,6 +14,7 @@ Auth: both endpoints require an authenticated operator/admin via JWT
 (``OperatorUser`` dep). The previous ``X-Ops-Token`` env-token path is
 removed — operator/admin accounts are the system-owned primary path.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -96,18 +97,22 @@ async def drain_pending_proposals(
     they do not roll back already-completed work.
     """
     actions = (
-        await db.execute(
-            select(OperatorAction)
-            .where(
-                OperatorAction.organization_id == current_user.organization_id,
-                OperatorAction.status == "pending",
-                OperatorAction.source_module == "reply_ingestion",
-                OperatorAction.action_type.in_(PROPOSAL_ACTION_TYPES),
+        (
+            await db.execute(
+                select(OperatorAction)
+                .where(
+                    OperatorAction.organization_id == current_user.organization_id,
+                    OperatorAction.status == "pending",
+                    OperatorAction.source_module == "reply_ingestion",
+                    OperatorAction.action_type.in_(PROPOSAL_ACTION_TYPES),
+                )
+                .order_by(OperatorAction.created_at)
+                .limit(limit)
             )
-            .order_by(OperatorAction.created_at)
-            .limit(limit)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     processed: list[dict] = []
 

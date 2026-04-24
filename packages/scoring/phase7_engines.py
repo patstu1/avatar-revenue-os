@@ -8,21 +8,47 @@ from __future__ import annotations
 PHASE7_SOURCE = "phase7_engine"
 
 SPONSOR_SAFE_CATEGORIES = {
-    "personal finance", "finance", "investing", "business", "saas",
-    "health", "wellness", "fitness", "education", "technology",
-    "productivity", "marketing", "real estate", "career", "parenting",
-    "travel", "food", "lifestyle", "gaming", "entertainment",
+    "personal finance",
+    "finance",
+    "investing",
+    "business",
+    "saas",
+    "health",
+    "wellness",
+    "fitness",
+    "education",
+    "technology",
+    "productivity",
+    "marketing",
+    "real estate",
+    "career",
+    "parenting",
+    "travel",
+    "food",
+    "lifestyle",
+    "gaming",
+    "entertainment",
 }
 
 SPONSOR_UNSAFE_KEYWORDS = {
-    "gambling", "adult", "weapons", "tobacco", "drugs", "crypto scam",
-    "mlm", "pyramid", "hate", "violence", "extremism",
+    "gambling",
+    "adult",
+    "weapons",
+    "tobacco",
+    "drugs",
+    "crypto scam",
+    "mlm",
+    "pyramid",
+    "hate",
+    "violence",
+    "extremism",
 }
 
 
 # ---------------------------------------------------------------------------
 # 1. Sponsor Sales Engine
 # ---------------------------------------------------------------------------
+
 
 def is_sponsor_safe(niche: str | None, content_tags: list | None = None) -> tuple[bool, str]:
     """Check if brand niche is sponsor-safe."""
@@ -53,45 +79,53 @@ def recommend_sponsor_packages(
     platforms = list({a.get("platform", "youtube") for a in accounts})
 
     if follower_total >= 10000:
-        packages.append({
-            "package": "sponsored_integration",
-            "title": "Sponsored Content Integration",
-            "suggested_rate": round(max(500.0, follower_total * 0.02), 2),
-            "rationale": f"Audience of {follower_total:,} supports integration deals.",
-            "platforms": platforms,
-            "priority_score": min(100.0, follower_total / 1000),
-        })
+        packages.append(
+            {
+                "package": "sponsored_integration",
+                "title": "Sponsored Content Integration",
+                "suggested_rate": round(max(500.0, follower_total * 0.02), 2),
+                "rationale": f"Audience of {follower_total:,} supports integration deals.",
+                "platforms": platforms,
+                "priority_score": min(100.0, follower_total / 1000),
+            }
+        )
 
     if total_impressions >= 50000:
         cpm = round(total_revenue / max(1, total_impressions) * 1000, 2) if total_revenue > 0 else 5.0
-        packages.append({
-            "package": "brand_awareness",
-            "title": "Brand Awareness Campaign",
-            "suggested_rate": round(max(300.0, cpm * total_impressions / 1000 * 0.1), 2),
-            "rationale": f"CPM track record of ${cpm} over {total_impressions:,} impressions.",
-            "platforms": platforms,
-            "priority_score": 80.0 if total_impressions > 0 else 30.0,  # Any impressions = high priority
-        })
+        packages.append(
+            {
+                "package": "brand_awareness",
+                "title": "Brand Awareness Campaign",
+                "suggested_rate": round(max(300.0, cpm * total_impressions / 1000 * 0.1), 2),
+                "rationale": f"CPM track record of ${cpm} over {total_impressions:,} impressions.",
+                "platforms": platforms,
+                "priority_score": 80.0 if total_impressions > 0 else 30.0,  # Any impressions = high priority
+            }
+        )
 
     if len(accounts) >= 2:
-        packages.append({
-            "package": "multi_platform_bundle",
-            "title": "Multi-Platform Sponsor Bundle",
-            "suggested_rate": round(max(800.0, follower_total * 0.03), 2),
-            "rationale": f"Cross-platform presence ({', '.join(platforms)}) enables bundle pricing.",
-            "platforms": platforms,
-            "priority_score": 70.0 + len(accounts) * 5,
-        })
+        packages.append(
+            {
+                "package": "multi_platform_bundle",
+                "title": "Multi-Platform Sponsor Bundle",
+                "suggested_rate": round(max(800.0, follower_total * 0.03), 2),
+                "rationale": f"Cross-platform presence ({', '.join(platforms)}) enables bundle pricing.",
+                "platforms": platforms,
+                "priority_score": 70.0 + len(accounts) * 5,
+            }
+        )
 
     if not packages:
-        packages.append({
-            "package": "growth_milestone",
-            "title": "Growth Milestone Package",
-            "suggested_rate": 250.0,
-            "rationale": "Pre-threshold — build audience proof before sponsor outreach.",
-            "platforms": platforms,
-            "priority_score": 30.0,
-        })
+        packages.append(
+            {
+                "package": "growth_milestone",
+                "title": "Growth Milestone Package",
+                "suggested_rate": 250.0,
+                "rationale": "Pre-threshold — build audience proof before sponsor outreach.",
+                "platforms": platforms,
+                "priority_score": 30.0,
+            }
+        )
 
     return sorted(packages, key=lambda p: -p["priority_score"])
 
@@ -101,17 +135,41 @@ def recommend_sponsor_packages(
 # ---------------------------------------------------------------------------
 
 PURCHASE_INTENT_PHRASES = [
-    "where can i buy", "how do i get", "link please", "drop the link",
-    "what's the price", "how much", "is it worth", "should i buy",
-    "take my money", "shut up and take", "need this", "want this",
-    "sign me up", "how to sign up", "where to sign up", "can i get",
-    "do you have a code", "discount code", "promo code", "coupon",
+    "where can i buy",
+    "how do i get",
+    "link please",
+    "drop the link",
+    "what's the price",
+    "how much",
+    "is it worth",
+    "should i buy",
+    "take my money",
+    "shut up and take",
+    "need this",
+    "want this",
+    "sign me up",
+    "how to sign up",
+    "where to sign up",
+    "can i get",
+    "do you have a code",
+    "discount code",
+    "promo code",
+    "coupon",
 ]
 
 OBJECTION_PHRASES = [
-    "too expensive", "not worth it", "scam", "doesn't work",
-    "waste of money", "better alternative", "overpriced", "rip off",
-    "already tried", "didn't work for me", "snake oil", "clickbait",
+    "too expensive",
+    "not worth it",
+    "scam",
+    "doesn't work",
+    "waste of money",
+    "better alternative",
+    "overpriced",
+    "rip off",
+    "already tried",
+    "didn't work for me",
+    "snake oil",
+    "clickbait",
 ]
 
 
@@ -121,7 +179,11 @@ def classify_comment_intent(text: str) -> dict:
     is_purchase = any(p in lower for p in PURCHASE_INTENT_PHRASES)
     is_objection = any(p in lower for p in OBJECTION_PHRASES)
     is_question = "?" in text
-    intent = "purchase_intent" if is_purchase else ("objection" if is_objection else ("question" if is_question else "neutral"))
+    intent = (
+        "purchase_intent"
+        if is_purchase
+        else ("objection" if is_objection else ("question" if is_question else "neutral"))
+    )
     return {
         "intent": intent,
         "is_purchase_intent": is_purchase,
@@ -142,38 +204,49 @@ def extract_comment_cash_signals(
 
     if purchase_comments:
         best_offer = max(offers, key=lambda o: float(o.get("epc", 0))) if offers else None
-        signals.append({
-            "signal_type": "purchase_intent_cluster",
-            "signal_strength": min(1.0, len(purchase_comments) / 10.0),
-            "estimated_revenue_potential": round(len(purchase_comments) * float(best_offer.get("payout_amount", 10)) * 0.15 if best_offer else len(purchase_comments) * 1.5, 2),
-            "suggested_offer_id": best_offer.get("id") if best_offer else None,
-            "suggested_content_angle": "Create dedicated conversion content addressing the buying questions from comments.",
-            "explanation": f"{len(purchase_comments)} comments with purchase intent detected.",
-            PHASE7_SOURCE: True,
-        })
+        signals.append(
+            {
+                "signal_type": "purchase_intent_cluster",
+                "signal_strength": min(1.0, len(purchase_comments) / 10.0),
+                "estimated_revenue_potential": round(
+                    len(purchase_comments) * float(best_offer.get("payout_amount", 10)) * 0.15
+                    if best_offer
+                    else len(purchase_comments) * 1.5,
+                    2,
+                ),
+                "suggested_offer_id": best_offer.get("id") if best_offer else None,
+                "suggested_content_angle": "Create dedicated conversion content addressing the buying questions from comments.",
+                "explanation": f"{len(purchase_comments)} comments with purchase intent detected.",
+                PHASE7_SOURCE: True,
+            }
+        )
 
     if objection_comments:
-        signals.append({
-            "signal_type": "objection_pattern",
-            "signal_strength": min(1.0, len(objection_comments) / 8.0),
-            "estimated_revenue_potential": round(len(objection_comments) * 5.0, 2),
-            "suggested_offer_id": None,
-            "suggested_content_angle": "Create objection-handling content or FAQ video addressing repeated concerns.",
-            "explanation": f"{len(objection_comments)} objection-pattern comments detected.",
-            PHASE7_SOURCE: True,
-        })
+        signals.append(
+            {
+                "signal_type": "objection_pattern",
+                "signal_strength": min(1.0, len(objection_comments) / 8.0),
+                "estimated_revenue_potential": round(len(objection_comments) * 5.0, 2),
+                "suggested_offer_id": None,
+                "suggested_content_angle": "Create objection-handling content or FAQ video addressing repeated concerns.",
+                "explanation": f"{len(objection_comments)} objection-pattern comments detected.",
+                PHASE7_SOURCE: True,
+            }
+        )
 
     question_comments = [c for c in comments if c.get("is_question")]
     if len(question_comments) >= 3:
-        signals.append({
-            "signal_type": "question_cluster",
-            "signal_strength": min(1.0, len(question_comments) / 15.0),
-            "estimated_revenue_potential": round(len(question_comments) * 2.0, 2),
-            "suggested_offer_id": None,
-            "suggested_content_angle": "Address top questions in a dedicated Q&A or explainer piece.",
-            "explanation": f"{len(question_comments)} question comments — potential content gap.",
-            PHASE7_SOURCE: True,
-        })
+        signals.append(
+            {
+                "signal_type": "question_cluster",
+                "signal_strength": min(1.0, len(question_comments) / 15.0),
+                "estimated_revenue_potential": round(len(question_comments) * 2.0, 2),
+                "suggested_offer_id": None,
+                "suggested_content_angle": "Address top questions in a dedicated Q&A or explainer piece.",
+                "explanation": f"{len(question_comments)} question comments — potential content gap.",
+                PHASE7_SOURCE: True,
+            }
+        )
 
     return signals
 
@@ -181,6 +254,7 @@ def extract_comment_cash_signals(
 # ---------------------------------------------------------------------------
 # 3. Knowledge Graph Builder
 # ---------------------------------------------------------------------------
+
 
 def build_knowledge_graph_entries(
     brand_niche: str | None,
@@ -205,7 +279,16 @@ def build_knowledge_graph_entries(
         return idx
 
     def _add_edge(src: int, tgt: int, etype: str, weight: float = 1.0, props: dict | None = None):
-        edges.append({"source_idx": src, "target_idx": tgt, "edge_type": etype, "weight": weight, "properties": props or {}, PHASE7_SOURCE: True})
+        edges.append(
+            {
+                "source_idx": src,
+                "target_idx": tgt,
+                "edge_type": etype,
+                "weight": weight,
+                "properties": props or {},
+                PHASE7_SOURCE: True,
+            }
+        )
 
     niche_label = (brand_niche or "general")[:120]
     niche_idx = _add_node("niche", niche_label)
@@ -241,6 +324,7 @@ def build_knowledge_graph_entries(
 # 4. Roadmap Engine
 # ---------------------------------------------------------------------------
 
+
 def generate_roadmap(
     brand_niche: str | None,
     accounts: list[dict],
@@ -258,79 +342,91 @@ def generate_roadmap(
     if winners:
         top = winners[:3]
         for w in top:
-            items.append({
-                "category": "content",
-                "title": f"Clone winner: {(w.get('title') or 'top post')[:80]}",
-                "description": "Repurpose winning format/hook with fresh angle.",
-                "priority_score": min(100.0, 60.0 + float(w.get("win_score", 0.5)) * 40),
-                "estimated_impact_revenue": round(float(w.get("revenue", 0)) * 0.3, 2),
-                "estimated_effort": "low",
-                "rationale": f"Win score {w.get('win_score', '?')} — proven format.",
-                PHASE7_SOURCE: True,
-            })
+            items.append(
+                {
+                    "category": "content",
+                    "title": f"Clone winner: {(w.get('title') or 'top post')[:80]}",
+                    "description": "Repurpose winning format/hook with fresh angle.",
+                    "priority_score": min(100.0, 60.0 + float(w.get("win_score", 0.5)) * 40),
+                    "estimated_impact_revenue": round(float(w.get("revenue", 0)) * 0.3, 2),
+                    "estimated_effort": "low",
+                    "rationale": f"Win score {w.get('win_score', '?')} — proven format.",
+                    PHASE7_SOURCE: True,
+                }
+            )
 
     if len(accounts) < 3 and scale_rec_key and "add_" in (scale_rec_key or ""):
-        items.append({
-            "category": "account_launch",
-            "title": f"Launch account per scale engine: {scale_rec_key}",
-            "description": "Scale engine recommends adding a new account.",
-            "priority_score": 75.0,
-            "estimated_impact_revenue": 500.0,
-            "estimated_effort": "high",
-            "rationale": "Phase 5 scale engine recommends expansion.",
-            PHASE7_SOURCE: True,
-        })
+        items.append(
+            {
+                "category": "account_launch",
+                "title": f"Launch account per scale engine: {scale_rec_key}",
+                "description": "Scale engine recommends adding a new account.",
+                "priority_score": 75.0,
+                "estimated_impact_revenue": 500.0,
+                "estimated_effort": "high",
+                "rationale": "Phase 5 scale engine recommends expansion.",
+                PHASE7_SOURCE: True,
+            }
+        )
 
     if len(offers) < 3:
-        items.append({
-            "category": "offer",
-            "title": "Add offer to diversify monetization",
-            "description": "Offer catalog is thin — test a new payout model.",
-            "priority_score": 65.0,
-            "estimated_impact_revenue": 300.0,
-            "estimated_effort": "medium",
-            "rationale": f"Only {len(offers)} active offer(s).",
-            PHASE7_SOURCE: True,
-        })
+        items.append(
+            {
+                "category": "offer",
+                "title": "Add offer to diversify monetization",
+                "description": "Offer catalog is thin — test a new payout model.",
+                "priority_score": 65.0,
+                "estimated_impact_revenue": 300.0,
+                "estimated_effort": "medium",
+                "rationale": f"Only {len(offers)} active offer(s).",
+                PHASE7_SOURCE: True,
+            }
+        )
 
     if geo_recs:
         best = geo_recs[0]
-        items.append({
-            "category": "niche_expansion",
-            "title": f"Expand to {best.get('target_geography', '?')}/{best.get('target_language', '?')}",
-            "description": "Geo/language expansion opportunity from Phase 6.",
-            "priority_score": 60.0,
-            "estimated_impact_revenue": float(best.get("estimated_revenue_potential", 0)),
-            "estimated_effort": "high",
-            "rationale": best.get("rationale", ""),
-            PHASE7_SOURCE: True,
-        })
+        items.append(
+            {
+                "category": "niche_expansion",
+                "title": f"Expand to {best.get('target_geography', '?')}/{best.get('target_language', '?')}",
+                "description": "Geo/language expansion opportunity from Phase 6.",
+                "priority_score": 60.0,
+                "estimated_impact_revenue": float(best.get("estimated_revenue_potential", 0)),
+                "estimated_effort": "high",
+                "rationale": best.get("rationale", ""),
+                PHASE7_SOURCE: True,
+            }
+        )
 
     if leaks:
         worst = sorted(leaks, key=lambda l: -float(l.get("estimated_leaked_revenue", 0)))[:2]
         for lk in worst:
-            items.append({
-                "category": "experiment",
-                "title": f"Fix leak: {lk.get('leak_type', 'unknown')}",
-                "description": lk.get("recommended_fix", "Address revenue leak."),
-                "priority_score": min(90.0, 50.0 + float(lk.get("estimated_leaked_revenue", 0)) * 0.05),
-                "estimated_impact_revenue": float(lk.get("estimated_recoverable", 0)),
-                "estimated_effort": "medium",
-                "rationale": lk.get("root_cause", ""),
-                PHASE7_SOURCE: True,
-            })
+            items.append(
+                {
+                    "category": "experiment",
+                    "title": f"Fix leak: {lk.get('leak_type', 'unknown')}",
+                    "description": lk.get("recommended_fix", "Address revenue leak."),
+                    "priority_score": min(90.0, 50.0 + float(lk.get("estimated_leaked_revenue", 0)) * 0.05),
+                    "estimated_impact_revenue": float(lk.get("estimated_recoverable", 0)),
+                    "estimated_effort": "medium",
+                    "rationale": lk.get("root_cause", ""),
+                    PHASE7_SOURCE: True,
+                }
+            )
 
     if trust_avg < 50:
-        items.append({
-            "category": "suppression",
-            "title": "Audit low-trust accounts before scaling",
-            "description": "Trust scores are low — stabilize before adding volume.",
-            "priority_score": 55.0,
-            "estimated_impact_revenue": 0.0,
-            "estimated_effort": "low",
-            "rationale": f"Average trust score {trust_avg:.0f}/100.",
-            PHASE7_SOURCE: True,
-        })
+        items.append(
+            {
+                "category": "suppression",
+                "title": "Audit low-trust accounts before scaling",
+                "description": "Trust scores are low — stabilize before adding volume.",
+                "priority_score": 55.0,
+                "estimated_impact_revenue": 0.0,
+                "estimated_effort": "low",
+                "rationale": f"Average trust score {trust_avg:.0f}/100.",
+                PHASE7_SOURCE: True,
+            }
+        )
 
     return sorted(items, key=lambda x: -x["priority_score"])[:10]
 
@@ -338,6 +434,7 @@ def generate_roadmap(
 # ---------------------------------------------------------------------------
 # 5. Capital Allocation Engine
 # ---------------------------------------------------------------------------
+
 
 def compute_capital_allocation(
     total_budget: float,
@@ -417,14 +514,18 @@ def compute_capital_allocation(
             "owned_audience_nurture": 3.5,
             "reserve": 0.0,
         }.get(target, 1.0)
-        allocations.append({
-            "allocation_target_type": target,
-            "recommended_allocation_pct": pct,
-            "dollar_amount": dollar,
-            "expected_marginal_roi": round(roi_mult, 2),
-            "rationale": _alloc_rationale(target, pct, leak_count, paid_candidate_count, geo_rec_count, scale_rec_key),
-            PHASE7_SOURCE: True,
-        })
+        allocations.append(
+            {
+                "allocation_target_type": target,
+                "recommended_allocation_pct": pct,
+                "dollar_amount": dollar,
+                "expected_marginal_roi": round(roi_mult, 2),
+                "rationale": _alloc_rationale(
+                    target, pct, leak_count, paid_candidate_count, geo_rec_count, scale_rec_key
+                ),
+                PHASE7_SOURCE: True,
+            }
+        )
 
     return sorted(allocations, key=lambda a: -a["recommended_allocation_pct"])
 

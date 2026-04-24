@@ -4,6 +4,7 @@ Revision ID: cra_phase_b_001
 Revises: cra_phase_a_001
 Create Date: 2025-01-01 00:00:00.000000
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -19,7 +20,13 @@ def upgrade() -> None:
         "licensing_actions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("opportunity_id", UUID(as_uuid=True), sa.ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True),
+        sa.Column(
+            "opportunity_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("creator_revenue_opportunities.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("asset_type", sa.String(80), nullable=False, index=True),
         sa.Column("licensing_tier", sa.String(40), server_default="standard", index=True),
         sa.Column("target_buyer_type", sa.String(120), nullable=False),
@@ -40,7 +47,13 @@ def upgrade() -> None:
         "syndication_actions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("opportunity_id", UUID(as_uuid=True), sa.ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True),
+        sa.Column(
+            "opportunity_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("creator_revenue_opportunities.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("syndication_format", sa.String(80), nullable=False, index=True),
         sa.Column("target_partner", sa.String(120), nullable=False),
         sa.Column("revenue_model", sa.String(30), server_default="recurring", index=True),
@@ -60,7 +73,13 @@ def upgrade() -> None:
         "data_product_actions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("opportunity_id", UUID(as_uuid=True), sa.ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True),
+        sa.Column(
+            "opportunity_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("creator_revenue_opportunities.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("product_type", sa.String(80), nullable=False, index=True),
         sa.Column("target_segment", sa.String(120), nullable=False),
         sa.Column("revenue_model", sa.String(30), server_default="recurring", index=True),

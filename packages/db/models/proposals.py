@@ -19,6 +19,7 @@ Relationships:
 All four tables are org-scoped and Brand-scoped (brand_id nullable for
 org-only payments). Stripe is the only payment provider modelled here.
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -40,27 +41,27 @@ from packages.db.base import Base
 # ── Proposal status enum ─────────────────────────────────────────────────────
 
 PROPOSAL_STATUSES = [
-    "draft",       # created, not sent
-    "sent",        # outbound email dispatched
-    "viewed",      # recipient opened the proposal (future: tracking pixel)
-    "accepted",    # recipient clicked the payment link but not yet paid
-    "paid",        # payment.completed fired, full amount captured
-    "expired",     # past expiry without payment
-    "withdrawn",   # operator withdrew
+    "draft",  # created, not sent
+    "sent",  # outbound email dispatched
+    "viewed",  # recipient opened the proposal (future: tracking pixel)
+    "accepted",  # recipient clicked the payment link but not yet paid
+    "paid",  # payment.completed fired, full amount captured
+    "expired",  # past expiry without payment
+    "withdrawn",  # operator withdrew
 ]
 
 PAYMENT_LINK_STATUSES = [
-    "active",      # live and accepting payment
-    "expired",     # past expiry
-    "completed",   # payment succeeded at least once
-    "revoked",     # operator revoked
+    "active",  # live and accepting payment
+    "expired",  # past expiry
+    "completed",  # payment succeeded at least once
+    "revoked",  # operator revoked
 ]
 
 PAYMENT_STATUSES = [
-    "pending",     # created but not yet confirmed (unusual for Stripe)
-    "succeeded",   # Stripe confirmed capture
-    "failed",      # Stripe reported failure
-    "refunded",    # refund webhook recorded
+    "pending",  # created but not yet confirmed (unusual for Stripe)
+    "succeeded",  # Stripe confirmed capture
+    "failed",  # Stripe reported failure
+    "refunded",  # refund webhook recorded
 ]
 
 
@@ -75,6 +76,7 @@ class Proposal(Base):
       - implicitly by proposal_drain when draining a ``send_proposal``
         OperatorAction (auto path).
     """
+
     __tablename__ = "proposals"
 
     org_id: Mapped[uuid.UUID] = mapped_column(
@@ -95,9 +97,7 @@ class Proposal(Base):
     draft_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("email_reply_drafts.id"), nullable=True, index=True
     )
-    operator_action_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True, index=True
-    )
+    operator_action_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
     # Recipient
     recipient_email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -115,9 +115,7 @@ class Proposal(Base):
     avenue_slug: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
 
     # State machine
-    status: Mapped[str] = mapped_column(
-        String(30), default="draft", nullable=False, index=True
-    )
+    status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False, index=True)
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     viewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -125,16 +123,10 @@ class Proposal(Base):
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Batch 9: proposal dunning (automatic reminders for unpaid proposals).
-    dunning_reminders_sent: Mapped[int] = mapped_column(
-        Integer, default=0, nullable=False
-    )
-    dunning_last_sent_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    dunning_reminders_sent: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    dunning_last_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     # "none" | "in_progress" | "max_reached" | "paid" | "cancelled"
-    dunning_status: Mapped[str] = mapped_column(
-        String(30), default="none", nullable=False, index=True
-    )
+    dunning_status: Mapped[str] = mapped_column(String(30), default="none", nullable=False, index=True)
 
     # Money (cents, to avoid float)
     total_amount_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -159,6 +151,7 @@ class ProposalLineItem(Base):
     Stores its own denormalised unit_amount + total so historical
     proposals stay stable even if the linked Offer price changes later.
     """
+
     __tablename__ = "proposal_line_items"
 
     proposal_id: Mapped[uuid.UUID] = mapped_column(
@@ -188,6 +181,7 @@ class PaymentLink(Base):
     to a proposal. We persist the provider IDs so an incoming Stripe
     webhook can match back to the originating proposal.
     """
+
     __tablename__ = "payment_links"
 
     org_id: Mapped[uuid.UUID] = mapped_column(
@@ -207,9 +201,7 @@ class PaymentLink(Base):
     provider_product_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     url: Mapped[str] = mapped_column(String(2000), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(30), default="active", nullable=False, index=True
-    )
+    status: Mapped[str] = mapped_column(String(30), default="active", nullable=False, index=True)
 
     amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="usd", nullable=False)
@@ -235,12 +227,9 @@ class Payment(Base):
     event can never produce two Payment rows even if the webhook is
     redelivered.
     """
+
     __tablename__ = "payments"
-    __table_args__ = (
-        UniqueConstraint(
-            "provider", "provider_event_id", name="uq_payments_provider_event"
-        ),
-    )
+    __table_args__ = (UniqueConstraint("provider", "provider_event_id", name="uq_payments_provider_event"),)
 
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
@@ -270,9 +259,7 @@ class Payment(Base):
     amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(10), default="usd", nullable=False)
 
-    status: Mapped[str] = mapped_column(
-        String(30), default="pending", nullable=False, index=True
-    )
+    status: Mapped[str] = mapped_column(String(30), default="pending", nullable=False, index=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     customer_email: Mapped[str] = mapped_column(String(255), default="", index=True)

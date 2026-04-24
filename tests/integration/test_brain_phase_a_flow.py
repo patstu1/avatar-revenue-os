@@ -1,4 +1,5 @@
 """Integration tests for Brain Architecture Phase A — DB-backed API tests."""
+
 from __future__ import annotations
 
 import pytest
@@ -41,7 +42,16 @@ async def test_account_states_recompute_and_list(api_client, sample_org_data):
     rows = resp2.json()
     assert isinstance(rows, list)
     assert len(rows) >= 1
-    assert rows[0]["current_state"] in ["newborn", "warming", "stable", "scaling", "max_output", "saturated", "cooling", "at_risk"]
+    assert rows[0]["current_state"] in [
+        "newborn",
+        "warming",
+        "stable",
+        "scaling",
+        "max_output",
+        "saturated",
+        "cooling",
+        "at_risk",
+    ]
 
 
 async def test_opportunity_states_recompute_and_list(api_client, sample_org_data):

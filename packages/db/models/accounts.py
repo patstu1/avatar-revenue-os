@@ -1,4 +1,5 @@
 """Creator account and portfolio models."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -17,9 +18,7 @@ class CreatorAccount(Base):
     brand_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    avatar_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("avatars.id"), index=True
-    )
+    avatar_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("avatars.id"), index=True)
     platform: Mapped[Platform] = mapped_column(Enum(Platform), nullable=False, index=True)
     account_type: Mapped[AccountType] = mapped_column(Enum(AccountType), default=AccountType.ORGANIC)
     platform_username: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -31,12 +30,12 @@ class CreatorAccount(Base):
     monetization_focus: Mapped[Optional[str]] = mapped_column(String(100))
 
     posting_capacity_per_day: Mapped[int] = mapped_column(Integer, default=1)
-    hourly_post_limit: Mapped[int] = mapped_column(Integer, default=5,
+    hourly_post_limit: Mapped[int] = mapped_column(
+        Integer,
+        default=5,
         comment="Max posts per hour for this account. Platform-specific rate limiting.",
     )
-    account_health: Mapped[HealthStatus] = mapped_column(
-        Enum(HealthStatus), default=HealthStatus.HEALTHY
-    )
+    account_health: Mapped[HealthStatus] = mapped_column(Enum(HealthStatus), default=HealthStatus.HEALTHY)
     originality_drift_score: Mapped[float] = mapped_column(Float, default=0.0)
     fatigue_score: Mapped[float] = mapped_column(Float, default=0.0)
     saturation_score: Mapped[float] = mapped_column(Float, default=0.0)
@@ -66,17 +65,13 @@ class CreatorAccount(Base):
 class AccountPortfolio(Base):
     __tablename__ = "account_portfolios"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     strategy: Mapped[Optional[str]] = mapped_column(Text)
     total_accounts: Mapped[int] = mapped_column(Integer, default=0)
     total_revenue: Mapped[float] = mapped_column(Float, default=0.0)
     total_profit: Mapped[float] = mapped_column(Float, default=0.0)
-    portfolio_health: Mapped[HealthStatus] = mapped_column(
-        Enum(HealthStatus), default=HealthStatus.HEALTHY
-    )
+    portfolio_health: Mapped[HealthStatus] = mapped_column(Enum(HealthStatus), default=HealthStatus.HEALTHY)
     allocation_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

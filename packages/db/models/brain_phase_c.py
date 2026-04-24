@@ -1,4 +1,5 @@
 """Brain Architecture Pack — Phase C tables: agent mesh, workflows, context bus, memory binding."""
+
 import uuid
 from typing import Optional
 
@@ -45,7 +46,9 @@ class AgentMessageV2(Base):
     __tablename__ = "agent_messages_v2"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("agent_runs_v2.id"), nullable=False, index=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agent_runs_v2.id"), nullable=False, index=True
+    )
     agent_slug: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     direction: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     message_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
@@ -73,7 +76,9 @@ class CoordinationDecision(Base):
     __tablename__ = "coordination_decisions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    workflow_run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workflow_coordination_runs.id"), nullable=False, index=True)
+    workflow_run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workflow_coordination_runs.id"), nullable=False, index=True
+    )
     step_index: Mapped[int] = mapped_column(Integer, nullable=False)
     from_agent: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     to_agent: Mapped[str] = mapped_column(String(80), nullable=False, index=True)

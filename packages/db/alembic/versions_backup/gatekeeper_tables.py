@@ -4,6 +4,7 @@ Revision ID: gatekeeper_001
 Revises: copilot_claude_001
 Create Date: 2026-03-31
 """
+
 from collections.abc import Sequence
 from typing import Union
 

@@ -1,8 +1,15 @@
 """Hashtag Optimization Engine — score and select hashtags from trend data + niche keywords."""
+
 from __future__ import annotations
 
 PLATFORM_HASHTAG_LIMITS = {
-    "instagram": 10, "tiktok": 8, "youtube": 5, "x": 3, "linkedin": 5, "reddit": 0, "pinterest": 5,
+    "instagram": 10,
+    "tiktok": 8,
+    "youtube": 5,
+    "x": 3,
+    "linkedin": 5,
+    "reddit": 0,
+    "pinterest": 5,
 }
 
 EVERGREEN_HASHTAGS: dict[str, list[str]] = {

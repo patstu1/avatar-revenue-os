@@ -2,11 +2,21 @@
 
 Pure functions. No I/O.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
-TARGET_TYPES = ["account", "platform", "offer", "content_form", "monetization_path", "experiment", "creator_revenue_avenue", "brand"]
+TARGET_TYPES = [
+    "account",
+    "platform",
+    "offer",
+    "content_form",
+    "monetization_path",
+    "experiment",
+    "creator_revenue_avenue",
+    "brand",
+]
 
 EXPERIMENT_RESERVE_PCT = 0.10
 STARVATION_THRESHOLD = 0.15
@@ -102,23 +112,27 @@ def solve_allocation(
 
         volume = max(1, int(budget_alloc / max(float(s.get("expected_cost", 1) or 1), 0.01)))
 
-        decisions.append({
-            "target_type": s.get("target_type", ""),
-            "target_key": s.get("target_key", ""),
-            "target_id": s.get("target_id"),
-            "return_score": s["_return_score"],
-            "allocated_budget": budget_alloc,
-            "allocated_volume": volume,
-            "provider_tier": tier,
-            "allocation_pct": round(share * 100, 1),
-            "starved": is_starved,
-            "explanation": _build_explanation(s, share, is_starved, tier),
-        })
+        decisions.append(
+            {
+                "target_type": s.get("target_type", ""),
+                "target_key": s.get("target_key", ""),
+                "target_id": s.get("target_id"),
+                "return_score": s["_return_score"],
+                "allocated_budget": budget_alloc,
+                "allocated_volume": volume,
+                "provider_tier": tier,
+                "allocation_pct": round(share * 100, 1),
+                "starved": is_starved,
+                "explanation": _build_explanation(s, share, is_starved, tier),
+            }
+        )
 
     for exp_t in [s for s in scored if s.get("target_type") == "experiment"]:
         for d in decisions:
             if d["target_key"] == exp_t.get("target_key"):
-                bonus = round(experiment_reserve / max(1, sum(1 for s in scored if s.get("target_type") == "experiment")), 2)
+                bonus = round(
+                    experiment_reserve / max(1, sum(1 for s in scored if s.get("target_type") == "experiment")), 2
+                )
                 d["allocated_budget"] = round(d["allocated_budget"] + bonus, 2)
                 break
 
@@ -185,7 +199,7 @@ def _build_constraint_map(constraints: list[dict[str, Any]]) -> dict[str, dict[s
 def _build_explanation(s: dict, share: float, starved: bool, tier: str) -> str:
     parts = [f"{s.get('target_type', '')}:{s.get('target_key', '')}"]
     parts.append(f"return={s['_return_score']:.2f}")
-    parts.append(f"share={share*100:.1f}%")
+    parts.append(f"share={share * 100:.1f}%")
     parts.append(f"tier={tier}")
     if starved:
         parts.append("STARVED")
@@ -193,4 +207,12 @@ def _build_explanation(s: dict, share: float, starved: bool, tier: str) -> str:
 
 
 def _empty_report(total_budget: float) -> dict[str, Any]:
-    return {"total_budget": total_budget, "allocated_budget": 0, "experiment_reserve": 0, "hero_spend": 0, "bulk_spend": 0, "target_count": 0, "starved_count": 0}
+    return {
+        "total_budget": total_budget,
+        "allocated_budget": 0,
+        "experiment_reserve": 0,
+        "hero_spend": 0,
+        "bulk_spend": 0,
+        "target_count": 0,
+        "starved_count": 0,
+    }

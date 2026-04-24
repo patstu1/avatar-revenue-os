@@ -10,6 +10,7 @@ When money arrives (webhook, manual entry, ledger write), this service:
 
 Money arriving should change the machine everywhere it should.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -29,7 +30,8 @@ logger = structlog.get_logger()
 
 
 async def handle_payment_received(
-    db: AsyncSession, ledger_entry: RevenueLedgerEntry,
+    db: AsyncSession,
+    ledger_entry: RevenueLedgerEntry,
 ) -> dict:
     """Handle all downstream consequences of a payment arriving.
 
@@ -45,22 +47,28 @@ async def handle_payment_received(
 
     # ── 1. Update deal stage if applicable ──
     if source == "sponsor_payment" and ledger_entry.sponsor_id:
-        deals = (await db.execute(
-            select(SponsorOpportunity).where(
-                SponsorOpportunity.sponsor_id == ledger_entry.sponsor_id,
-                SponsorOpportunity.brand_id == brand_id,
-                SponsorOpportunity.status.notin_(["completed", "lost"]),
+        deals = (
+            (
+                await db.execute(
+                    select(SponsorOpportunity).where(
+                        SponsorOpportunity.sponsor_id == ledger_entry.sponsor_id,
+                        SponsorOpportunity.brand_id == brand_id,
+                        SponsorOpportunity.status.notin_(["completed", "lost"]),
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
         for deal in deals:
             old_status = deal.status
             deal.status = "completed"
             changes.append(f"sponsor deal '{deal.title}': {old_status} → completed")
 
     elif source in ("service_fee", "consulting_fee") and ledger_entry.source_object_id:
-        htd = (await db.execute(
-            select(HighTicketDeal).where(HighTicketDeal.id == ledger_entry.source_object_id)
-        )).scalar_one_or_none()
+        htd = (
+            await db.execute(select(HighTicketDeal).where(HighTicketDeal.id == ledger_entry.source_object_id))
+        ).scalar_one_or_none()
         if htd and htd.stage not in ("closed_won", "closed_lost"):
             old_stage = htd.stage
             htd.stage = "closed_won"
@@ -71,7 +79,8 @@ async def handle_payment_received(
         brand_id=brand_id,
         memory_type="revenue_success",
         key=f"ledger_{ledger_entry.id}",
-        value=f"${amount:.2f} received from {source}" + (f" via {ledger_entry.payment_processor}" if ledger_entry.payment_processor else ""),
+        value=f"${amount:.2f} received from {source}"
+        + (f" via {ledger_entry.payment_processor}" if ledger_entry.payment_processor else ""),
         confidence=0.95,
         source_type="pipeline_closer",
         source_content_id=ledger_entry.content_item_id,
@@ -90,13 +99,17 @@ async def handle_payment_received(
     if amount > 0:  # ANY payment triggers expansion — no fixed threshold
         # High-value payment → create expansion action
         await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="create_content_for_offer",
             title=f"Post-close: create more content for ${amount:.0f} revenue path ({source})",
             description=f"This {source} generated ${amount:.2f}. Create more content/offers in this path.",
-            category="opportunity", priority="high",
-            brand_id=brand_id, source_module="pipeline_closer",
-            entity_type="revenue_ledger", entity_id=ledger_entry.id,
+            category="opportunity",
+            priority="high",
+            brand_id=brand_id,
+            source_module="pipeline_closer",
+            entity_type="revenue_ledger",
+            entity_id=ledger_entry.id,
             action_payload={"autonomy_level": "assisted", "confidence": 0.8},
         )
         changes.append("post-close expansion action created")
@@ -104,22 +117,29 @@ async def handle_payment_received(
     if source == "sponsor_payment":
         # After sponsor payment, queue repeat deal outreach
         await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="escalate_sponsor_opportunity",
             title=f"Re-engage: propose follow-up deal after ${amount:.0f} sponsor success",
             description="Previous sponsor deal completed successfully. Propose a renewal or expanded partnership.",
-            category="monetization", priority="medium",
-            brand_id=brand_id, source_module="pipeline_closer",
+            category="monetization",
+            priority="medium",
+            brand_id=brand_id,
+            source_module="pipeline_closer",
             action_payload={"autonomy_level": "assisted", "confidence": 0.7},
         )
         changes.append("sponsor re-engagement action created")
 
     # ── 4. Emit learning event ──
     await emit_event(
-        db, domain="monetization", event_type="pipeline.payment_handled",
+        db,
+        domain="monetization",
+        event_type="pipeline.payment_handled",
         summary=f"Payment handled: ${amount:.2f} from {source} → {len(changes)} downstream changes",
-        org_id=org_id, brand_id=brand_id,
-        entity_type="revenue_ledger", entity_id=ledger_entry.id,
+        org_id=org_id,
+        brand_id=brand_id,
+        entity_type="revenue_ledger",
+        entity_id=ledger_entry.id,
         details={"amount": amount, "source": source, "changes": changes},
     )
 
@@ -128,8 +148,12 @@ async def handle_payment_received(
 
 
 async def auto_create_brief_from_decision(
-    db: AsyncSession, brand_id: uuid.UUID,
-    *, decision_class: str, objective: str, target_platform: str | None = None,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    *,
+    decision_class: str,
+    objective: str,
+    target_platform: str | None = None,
 ) -> dict:
     """Auto-generate a content brief from a brain decision or revenue opportunity.
 
@@ -141,10 +165,14 @@ async def auto_create_brief_from_decision(
     from packages.db.models.offers import Offer
 
     # Find the best offer to monetize with
-    best_offer = (await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-        .order_by(Offer.epc.desc().nullslast()).limit(1)
-    )).scalar_one_or_none()
+    best_offer = (
+        await db.execute(
+            select(Offer)
+            .where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
+            .order_by(Offer.epc.desc().nullslast())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
     # Determine content type based on platform
     content_type = ContentType.SHORT_VIDEO
@@ -169,10 +197,14 @@ async def auto_create_brief_from_decision(
 
     org_id = (await db.execute(select(Brand.organization_id).where(Brand.id == brand_id))).scalar()
     await emit_event(
-        db, domain="content", event_type="brief.auto_created",
+        db,
+        domain="content",
+        event_type="brief.auto_created",
         summary=f"Auto-brief: {brief.title[:60]}",
-        org_id=org_id, brand_id=brand_id,
-        entity_type="content_brief", entity_id=brief.id,
+        org_id=org_id,
+        brand_id=brand_id,
+        entity_type="content_brief",
+        entity_id=brief.id,
         details={"decision_class": decision_class, "offer_id": str(best_offer.id) if best_offer else None},
     )
 

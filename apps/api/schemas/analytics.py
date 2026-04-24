@@ -1,4 +1,5 @@
 """Pydantic schemas for Phase 4 analytics, attribution, and dashboards."""
+
 import uuid
 from datetime import datetime
 from typing import Optional

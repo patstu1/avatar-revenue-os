@@ -10,6 +10,7 @@ Usage:
     result = parse_webhook_payload("heygen", raw_payload)
     # result.job_id, result.status, result.output_url, result.error
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,8 +24,9 @@ logger = structlog.get_logger()
 @dataclass(frozen=True)
 class WebhookParseResult:
     """Standardized output from any provider webhook parser."""
+
     job_id: str | None
-    status: str          # "completed" | "failed" | "processing"
+    status: str  # "completed" | "failed" | "processing"
     output_url: str | None
     error: str | None
 
@@ -38,9 +40,11 @@ _PARSERS: dict[str, ParserFn] = {}
 
 def register_parser(provider_key: str):
     """Decorator to register a webhook payload parser for a provider."""
+
     def decorator(fn: ParserFn) -> ParserFn:
         _PARSERS[provider_key] = fn
         return fn
+
     return decorator
 
 
@@ -63,6 +67,7 @@ def registered_providers() -> list[str]:
 # =====================================================================
 # Provider-specific parsers
 # =====================================================================
+
 
 def _normalize_status(raw: str) -> str:
     """Map provider-specific status strings to our canonical set."""

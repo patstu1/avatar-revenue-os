@@ -1,4 +1,5 @@
 """Schemas for dashboard overview API."""
+
 from pydantic import BaseModel
 
 

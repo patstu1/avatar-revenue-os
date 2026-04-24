@@ -1,4 +1,5 @@
 """Pydantic schemas for Expansion Pack 2 Phase A."""
+
 from __future__ import annotations
 
 from pydantic import BaseModel

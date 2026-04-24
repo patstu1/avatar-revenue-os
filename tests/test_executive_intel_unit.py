@@ -1,4 +1,5 @@
 """Unit tests for executive intelligence engine."""
+
 from packages.scoring.executive_intel_engine import (
     compute_uptime,
     compute_usage_cost,
@@ -11,7 +12,13 @@ from packages.scoring.executive_intel_engine import (
 
 class TestKPIRollup:
     def test_rollup(self):
-        r = rollup_kpis({"total_revenue": 5000, "total_profit": 2000, "total_spend": 500}, {"produced": 100, "published": 80}, {"total_impressions": 500000, "avg_engagement_rate": 0.06, "avg_conversion_rate": 0.03}, {"active_count": 10}, {"active_count": 5})
+        r = rollup_kpis(
+            {"total_revenue": 5000, "total_profit": 2000, "total_spend": 500},
+            {"produced": 100, "published": 80},
+            {"total_impressions": 500000, "avg_engagement_rate": 0.06, "avg_conversion_rate": 0.03},
+            {"active_count": 10},
+            {"active_count": 5},
+        )
         assert r["total_revenue"] == 5000
         assert r["content_produced"] == 100
         assert r["active_campaigns"] == 5
@@ -94,11 +101,15 @@ class TestAlerts:
         assert any(a["alert_type"] == "declining_forecast" for a in alerts)
 
     def test_provider_reliability(self):
-        alerts = generate_executive_alerts({}, [], [{"provider_key": "claude", "reliability_grade": "F", "uptime_pct": 70, "failed_requests": 30}], {})
+        alerts = generate_executive_alerts(
+            {}, [], [{"provider_key": "claude", "reliability_grade": "F", "uptime_pct": 70, "failed_requests": 30}], {}
+        )
         assert any(a["alert_type"] == "provider_reliability" for a in alerts)
 
     def test_low_ai_accuracy(self):
-        alerts = generate_executive_alerts({}, [], [], {"ai_accuracy_estimate": 0.6, "recommendation": "Switch to human"})
+        alerts = generate_executive_alerts(
+            {}, [], [], {"ai_accuracy_estimate": 0.6, "recommendation": "Switch to human"}
+        )
         assert any(a["alert_type"] == "ai_accuracy_low" for a in alerts)
 
     def test_no_alerts_when_healthy(self):

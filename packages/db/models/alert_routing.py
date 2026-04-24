@@ -3,6 +3,7 @@
 OperatorNotificationPreference stores per-org channel routing rules.
 AlertDeliveryLog tracks every alert delivery attempt for audit.
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -20,6 +21,7 @@ class OperatorNotificationPreference(Base):
     Operators can configure which severities go to which channels,
     or disable alerts entirely. One row per org; upserted on change.
     """
+
     __tablename__ = "operator_notification_preferences"
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
@@ -29,16 +31,13 @@ class OperatorNotificationPreference(Base):
     # --- Channel routing by severity ---
     # Each is a list of channel names: ["slack", "email", "in_app"]
     critical_channels: Mapped[Optional[dict]] = mapped_column(
-        JSONB, default=lambda: ["slack", "email", "in_app"],
-        comment="Channels for critical alerts (default: all)"
+        JSONB, default=lambda: ["slack", "email", "in_app"], comment="Channels for critical alerts (default: all)"
     )
     warning_channels: Mapped[Optional[dict]] = mapped_column(
-        JSONB, default=lambda: ["slack", "in_app"],
-        comment="Channels for warning alerts (default: slack + in_app)"
+        JSONB, default=lambda: ["slack", "in_app"], comment="Channels for warning alerts (default: slack + in_app)"
     )
     info_channels: Mapped[Optional[dict]] = mapped_column(
-        JSONB, default=lambda: ["in_app"],
-        comment="Channels for info alerts (default: in_app only)"
+        JSONB, default=lambda: ["in_app"], comment="Channels for info alerts (default: in_app only)"
     )
 
     # --- Global toggle ---
@@ -49,8 +48,7 @@ class OperatorNotificationPreference(Base):
         String(500), comment="Override org-level Slack webhook (falls back to env SLACK_WEBHOOK_URL)"
     )
     email_recipients: Mapped[Optional[dict]] = mapped_column(
-        JSONB, default=list,
-        comment="List of email addresses for alert delivery"
+        JSONB, default=list, comment="List of email addresses for alert delivery"
     )
 
     # --- Quiet hours (optional) ---
@@ -70,19 +68,20 @@ class AlertDeliveryLog(Base):
 
     Used for audit, dedup, and delivery status tracking.
     """
+
     __tablename__ = "alert_delivery_log"
 
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), index=True
     )
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), index=True
-    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), index=True)
 
     # --- Source ---
     source_event_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("system_events.id"), index=True,
-        comment="The SystemEvent that triggered this alert"
+        UUID(as_uuid=True),
+        ForeignKey("system_events.id"),
+        index=True,
+        comment="The SystemEvent that triggered this alert",
     )
 
     # --- Alert content ---
@@ -92,14 +91,10 @@ class AlertDeliveryLog(Base):
     alert_metadata: Mapped[Optional[dict]] = mapped_column("metadata", JSONB, default=dict)
 
     # --- Delivery ---
-    channel: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True,
-        comment="slack, email, in_app"
-    )
+    channel: Mapped[str] = mapped_column(String(50), nullable=False, index=True, comment="slack, email, in_app")
     recipient: Mapped[Optional[str]] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(
-        String(30), default="pending", index=True,
-        comment="pending, delivered, failed, skipped"
+        String(30), default="pending", index=True, comment="pending, delivered, failed, skipped"
     )
     error_message: Mapped[Optional[str]] = mapped_column(Text)
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

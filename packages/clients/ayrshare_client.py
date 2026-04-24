@@ -3,6 +3,7 @@
 Ayrshare supports: YouTube, TikTok, Instagram, X, LinkedIn, Reddit, Pinterest, Facebook, Telegram.
 API docs: https://docs.ayrshare.com
 """
+
 from __future__ import annotations
 
 import logging
@@ -87,7 +88,13 @@ class AyrshareClient:
                 resp = await client.post(f"{self.BASE_URL}/post", json=payload, headers=self._headers())
             if resp.status_code not in (200, 201):
                 return _fail(f"Ayrshare post HTTP {resp.status_code}: {resp.text[:200]}", resp.status_code)
-            return {"success": True, "blocked": False, "data": resp.json(), "status_code": resp.status_code, "error": None}
+            return {
+                "success": True,
+                "blocked": False,
+                "data": resp.json(),
+                "status_code": resp.status_code,
+                "error": None,
+            }
         except httpx.HTTPError as e:
             logger.error("ayrshare.create_post_error", error=str(e))
             return _fail(f"Ayrshare network error: {e}")
@@ -101,7 +108,13 @@ class AyrshareClient:
                 resp = await client.get(f"{self.BASE_URL}/post/{post_id}", headers=self._headers())
             if resp.status_code != 200:
                 return _fail(f"Ayrshare get_post HTTP {resp.status_code}", resp.status_code)
-            return {"success": True, "blocked": False, "data": resp.json(), "status_code": resp.status_code, "error": None}
+            return {
+                "success": True,
+                "blocked": False,
+                "data": resp.json(),
+                "status_code": resp.status_code,
+                "error": None,
+            }
         except httpx.HTTPError as e:
             return _fail(f"Ayrshare network error: {e}")
 
@@ -112,7 +125,13 @@ class AyrshareClient:
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
                 resp = await client.delete(f"{self.BASE_URL}/post/{post_id}", headers=self._headers())
-            return {"success": resp.status_code in (200, 204), "blocked": False, "data": None, "status_code": resp.status_code, "error": None}
+            return {
+                "success": resp.status_code in (200, 204),
+                "blocked": False,
+                "data": None,
+                "status_code": resp.status_code,
+                "error": None,
+            }
         except httpx.HTTPError as e:
             return _fail(f"Ayrshare network error: {e}")
 
@@ -129,6 +148,12 @@ class AyrshareClient:
                 )
             if resp.status_code != 200:
                 return _fail(f"Ayrshare analytics HTTP {resp.status_code}", resp.status_code)
-            return {"success": True, "blocked": False, "data": resp.json(), "status_code": resp.status_code, "error": None}
+            return {
+                "success": True,
+                "blocked": False,
+                "data": resp.json(),
+                "status_code": resp.status_code,
+                "error": None,
+            }
         except httpx.HTTPError as e:
             return _fail(f"Ayrshare network error: {e}")

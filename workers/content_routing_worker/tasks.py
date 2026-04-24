@@ -1,4 +1,5 @@
 """Content Routing workers — daily cost rollup."""
+
 import logging
 
 from celery import shared_task
@@ -23,6 +24,7 @@ async def _run_all(coro_factory):
 
 async def _daily_cost_rollup(bid):
     from apps.api.services.content_routing_service import recompute_cost_report
+
     async with get_async_session_factory()() as db:
         await recompute_cost_report(db, bid)
         await db.commit()

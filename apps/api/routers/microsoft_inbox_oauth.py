@@ -9,6 +9,7 @@ Endpoints:
 These endpoints are PUBLIC (no auth required) because the operator needs to complete
 the OAuth flow in a browser. State token in the URL binds the session.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -93,12 +94,14 @@ async def microsoft_callback(
     display_name = result["display_name"] or email
 
     # Upsert InboxConnection
-    existing = (await db.execute(
-        select(InboxConnection).where(
-            InboxConnection.org_id == uuid.UUID(org_id),
-            InboxConnection.email_address == email,
+    existing = (
+        await db.execute(
+            select(InboxConnection).where(
+                InboxConnection.org_id == uuid.UUID(org_id),
+                InboxConnection.email_address == email,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if existing:
         existing.display_name = display_name

@@ -3,6 +3,7 @@
 Scans for approved content items, checks readiness and warmup constraints,
 publishes via the distributor router (native API first, then Buffer/Publer/Ayrshare failover).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -34,6 +35,7 @@ async def _auto_publish_for_brand(brand_id):
             try:
                 from apps.api.services import secrets_service
                 from apps.api.services.integration_manager import get_credential
+
                 for prov_key in ("buffer", "publer", "ayrshare"):
                     # Check integration_providers first, then provider_secrets
                     key = await get_credential(db, org_id, prov_key)
@@ -45,10 +47,15 @@ async def _auto_publish_for_brand(brand_id):
                 logger.warning("auto_publish_cred_load_failed", error=str(e))
 
         if not any_distributor_configured(creds=agg_creds):
-            return {"brand_id": str(brand_id), "skipped": True, "reason": "No publishing service configured - add API keys in Settings > Integrations"}
+            return {
+                "brand_id": str(brand_id),
+                "skipped": True,
+                "reason": "No publishing service configured - add API keys in Settings > Integrations",
+            }
 
         try:
             from apps.api.services.permission_enforcement import PermissionDenied, enforce_permission
+
             if org_id:
                 await enforce_permission(db, org_id, "auto_publish")
         except PermissionDenied as e:
@@ -56,38 +63,66 @@ async def _auto_publish_for_brand(brand_id):
         except Exception:
             pass
 
-        profiles = list((await db.execute(
-            select(BufferProfile).where(
-                BufferProfile.brand_id == brand_id,
-                BufferProfile.is_active.is_(True),
+        profiles = list(
+            (
+                await db.execute(
+                    select(BufferProfile).where(
+                        BufferProfile.brand_id == brand_id,
+                        BufferProfile.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         connected = [p for p in profiles if p.credential_status == "connected"] or profiles
 
-        approved_items = list((await db.execute(
-            select(ContentItem).where(
-                ContentItem.brand_id == brand_id,
-                ContentItem.status == "approved",
-            ).order_by(ContentItem.created_at.desc()).limit(50)
-        )).scalars().all())
+        approved_items = list(
+            (
+                await db.execute(
+                    select(ContentItem)
+                    .where(
+                        ContentItem.brand_id == brand_id,
+                        ContentItem.status == "approved",
+                    )
+                    .order_by(ContentItem.created_at.desc())
+                    .limit(50)
+                )
+            )
+            .scalars()
+            .all()
+        )
         # NOTE: auto_publish worker picks up ALL approved items including
         # auto_approved ones from the publish policy engine. The Approval
         # record tracks whether it was auto or manual.
 
-        existing_ids = set(r[0] for r in (await db.execute(
-            select(BufferPublishJob.content_item_id).where(
-                BufferPublishJob.brand_id == brand_id,
-                BufferPublishJob.is_active.is_(True),
-            )
-        )).all() if r[0])
+        existing_ids = set(
+            r[0]
+            for r in (
+                await db.execute(
+                    select(BufferPublishJob.content_item_id).where(
+                        BufferPublishJob.brand_id == brand_id,
+                        BufferPublishJob.is_active.is_(True),
+                    )
+                )
+            ).all()
+            if r[0]
+        )
 
-        accounts = {str(a.id): a for a in (await db.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == brand_id,
-                CreatorAccount.is_active.is_(True),
+        accounts = {
+            str(a.id): a
+            for a in (
+                await db.execute(
+                    select(CreatorAccount).where(
+                        CreatorAccount.brand_id == brand_id,
+                        CreatorAccount.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all()}
+            .scalars()
+            .all()
+        }
 
         created = 0
         published_direct = 0
@@ -125,7 +160,11 @@ async def _auto_publish_for_brand(brand_id):
 
             acct = accounts.get(str(ci.creator_account_id)) if ci.creator_account_id else None
             if acct:
-                health = getattr(acct.account_health, "value", str(acct.account_health)) if acct.account_health else "healthy"
+                health = (
+                    getattr(acct.account_health, "value", str(acct.account_health))
+                    if acct.account_health
+                    else "healthy"
+                )
                 if health in ("critical", "suspended"):
                     skipped_health += 1
                     continue
@@ -138,26 +177,32 @@ async def _auto_publish_for_brand(brand_id):
                     from datetime import datetime, timezone
 
                     from packages.scoring.warmup_engine import can_post_now
+
                     created_at = acct.created_at if acct.created_at else datetime.now(timezone.utc)
-                    posts_today_count = (await db.execute(
-                        select(func.count(BufferPublishJob.id)).where(
-                            BufferPublishJob.brand_id == brand_id,
-                            BufferPublishJob.is_active.is_(True),
-                            func.date(BufferPublishJob.created_at) == func.current_date(),
+                    posts_today_count = (
+                        await db.execute(
+                            select(func.count(BufferPublishJob.id)).where(
+                                BufferPublishJob.brand_id == brand_id,
+                                BufferPublishJob.is_active.is_(True),
+                                func.date(BufferPublishJob.created_at) == func.current_date(),
+                            )
                         )
-                    )).scalar() or 0
-                    platform_str = getattr(acct.platform, 'value', str(acct.platform)) if acct.platform else "youtube"
+                    ).scalar() or 0
+                    platform_str = getattr(acct.platform, "value", str(acct.platform)) if acct.platform else "youtube"
                     warmup_check = can_post_now(created_at, platform_str, posts_today_count)
                     if not warmup_check.get("allowed"):
                         skipped_warmup += 1
                         continue
                 except Exception as warmup_err:
-                    logger.warning("Warmup check failed for account %s, BLOCKING post as safety measure: %s", acct.id, warmup_err)
+                    logger.warning(
+                        "Warmup check failed for account %s, BLOCKING post as safety measure: %s", acct.id, warmup_err
+                    )
                     skipped_warmup += 1
                     continue
 
             try:
                 from apps.api.services.disclosure_injection_service import check_and_inject_disclosure
+
                 disc_result = await check_and_inject_disclosure(db, ci.id)
                 if disc_result.get("injected"):
                     logger.info("disclosure injected for content %s: %s", ci.id, disc_result.get("disclosure_type"))
@@ -169,6 +214,7 @@ async def _auto_publish_for_brand(brand_id):
             offer_link = None
             if ci.offer_id:
                 from packages.db.models.core import Offer
+
                 offer = (await db.execute(select(Offer).where(Offer.id == ci.offer_id))).scalar_one_or_none()
                 if offer:
                     offer_link = getattr(offer, "offer_url", None) or getattr(offer, "landing_url", None) or None
@@ -176,6 +222,7 @@ async def _auto_publish_for_brand(brand_id):
             if not offer_link:
                 try:
                     from packages.scoring.affiliate_link_engine import generate_tracking_id, select_best_product
+
                     acct = accounts.get(str(ci.creator_account_id)) if ci.creator_account_id else None
                     niche = acct.niche_focus if acct and acct.niche_focus else "general"
                     tid = generate_tracking_id(str(ci.id), str(ci.creator_account_id or ""), platform)
@@ -198,19 +245,26 @@ async def _auto_publish_for_brand(brand_id):
 
             media_urls = []
             from packages.db.models.content import Asset
+
             if ci.video_asset_id:
-                video_asset = (await db.execute(select(Asset).where(Asset.id == ci.video_asset_id))).scalar_one_or_none()
+                video_asset = (
+                    await db.execute(select(Asset).where(Asset.id == ci.video_asset_id))
+                ).scalar_one_or_none()
                 if video_asset and video_asset.file_path and video_asset.file_path.startswith("http"):
                     media_urls.append(video_asset.file_path)
             if ci.thumbnail_asset_id and not media_urls:
-                thumb_asset = (await db.execute(select(Asset).where(Asset.id == ci.thumbnail_asset_id))).scalar_one_or_none()
+                thumb_asset = (
+                    await db.execute(select(Asset).where(Asset.id == ci.thumbnail_asset_id))
+                ).scalar_one_or_none()
                 if thumb_asset and thumb_asset.file_path and thumb_asset.file_path.startswith("http"):
                     media_urls.append(thumb_asset.file_path)
 
             request = PublishRequest(
-                text=text, platform=platform,
+                text=text,
+                platform=platform,
                 profile_ids=profile_ids,
-                media_urls=media_urls or None, link_url=offer_link,
+                media_urls=media_urls or None,
+                link_url=offer_link,
             )
 
             result = await publish_with_failover(request, creds=agg_creds)
@@ -221,23 +275,25 @@ async def _auto_publish_for_brand(brand_id):
             mode = determine_publish_mode(content_ctx, profile_ctx)
 
             if connected:
-                db.add(BufferPublishJob(
-                    brand_id=brand_id,
-                    buffer_profile_id_fk=connected[0].id,
-                    content_item_id=ci.id,
-                    platform=connected[0].platform,
-                    publish_mode=mode,
-                    status="published" if result.success else "failed",
-                    distributor_name=result.method or "unknown",
-                    distributor_post_id=result.post_id if result.success else None,
-                    buffer_post_id=result.post_id if result.success else None,
-                    error_message=result.error if not result.success else None,
-                    payload_json={
-                        **payload,
-                        "publish_method": result.method,
-                        "methods_tried": result.methods_tried,
-                    },
-                ))
+                db.add(
+                    BufferPublishJob(
+                        brand_id=brand_id,
+                        buffer_profile_id_fk=connected[0].id,
+                        content_item_id=ci.id,
+                        platform=connected[0].platform,
+                        publish_mode=mode,
+                        status="published" if result.success else "failed",
+                        distributor_name=result.method or "unknown",
+                        distributor_post_id=result.post_id if result.success else None,
+                        buffer_post_id=result.post_id if result.success else None,
+                        error_message=result.error if not result.success else None,
+                        payload_json={
+                            **payload,
+                            "publish_method": result.method,
+                            "methods_tried": result.methods_tried,
+                        },
+                    )
+                )
 
             if result.success:
                 ci.status = "published"
@@ -248,6 +304,7 @@ async def _auto_publish_for_brand(brand_id):
                 # task chains to causal attribution on success.
                 try:
                     from workers.analytics_ingestion_worker.tasks import ingest_metrics_for_content_item
+
                     acct_id = str(ci.creator_account_id) if ci.creator_account_id else str(acct.id) if acct else ""
                     if acct_id:
                         ingest_metrics_for_content_item.apply_async(
@@ -259,7 +316,9 @@ async def _auto_publish_for_brand(brand_id):
                     logger.debug("event_chain.schedule_failed content_id=%s", ci.id, exc_info=True)
             else:
                 failed += 1
-                logger.warning("publish failed for content %s: %s (tried: %s)", ci.id, result.error, result.methods_tried)
+                logger.warning(
+                    "publish failed for content %s: %s (tried: %s)", ci.id, result.error, result.methods_tried
+                )
 
             created += 1
 
@@ -288,9 +347,13 @@ async def _run_auto_publish():
             total_created += result.get("jobs_created", 0)
             total_published += result.get("published_direct", 0)
             if result.get("jobs_created"):
-                logger.info("auto_publish.completed brand=%s published=%s failed=%s warmup_skipped=%s",
-                            result["brand_id"], result.get("published_direct", 0),
-                            result.get("failed", 0), result.get("skipped_warmup", 0))
+                logger.info(
+                    "auto_publish.completed brand=%s published=%s failed=%s warmup_skipped=%s",
+                    result["brand_id"],
+                    result.get("published_direct", 0),
+                    result.get("failed", 0),
+                    result.get("skipped_warmup", 0),
+                )
         except Exception:
             logger.exception("auto_publish.failed brand_id=%s", str(bid))
 

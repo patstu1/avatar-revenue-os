@@ -1,4 +1,5 @@
 """Discovery, scoring, and recommendation endpoints — Phase 2 core."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -31,13 +32,22 @@ router = APIRouter()
 
 
 @router.post("/{brand_id}/signals/ingest")
-async def ingest_signals(brand_id: uuid.UUID, body: SignalIngestRequest, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def ingest_signals(
+    brand_id: uuid.UUID,
+    body: SignalIngestRequest,
+    current_user: OperatorUser,
+    db: DBSession,
+    _rl=Depends(recompute_rate_limit),
+):
     result = await ds.ingest_signals(db, brand_id, body.source_type, body.topics)
     await log_action(
-        db, "signals.ingested",
+        db,
+        "signals.ingested",
         organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="signal_ingestion",
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="signal_ingestion",
         details=result,
     )
     return result
@@ -56,19 +66,26 @@ async def get_signals(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSess
 @router.get("/{brand_id}/niches", response_model=list[NicheClusterResponse])
 async def get_niches(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     result = await db.execute(
-        select(NicheCluster).where(NicheCluster.brand_id == brand_id).order_by(NicheCluster.monetization_potential.desc())
+        select(NicheCluster)
+        .where(NicheCluster.brand_id == brand_id)
+        .order_by(NicheCluster.monetization_potential.desc())
     )
     return result.scalars().all()
 
 
 @router.post("/{brand_id}/niches/recompute", response_model=list[NicheClusterResponse])
-async def recompute_niches(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_niches(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     clusters = await ds.compute_niches(db, brand_id)
     await log_action(
-        db, "niches.recomputed",
+        db,
+        "niches.recomputed",
         organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="niche_cluster",
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="niche_cluster",
         details={"clusters_created": len(clusters)},
     )
     return clusters
@@ -86,14 +103,19 @@ async def get_opportunities(brand_id: uuid.UUID, current_user: CurrentUser, db: 
 
 
 @router.post("/{brand_id}/opportunities/recompute")
-async def recompute_opportunities(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_opportunities(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     results = await ds.compute_opportunities(db, brand_id)
     recs = await ds.build_recommendation_queue(db, brand_id)
     await log_action(
-        db, "opportunities.recomputed",
+        db,
+        "opportunities.recomputed",
         organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="opportunity_score",
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="opportunity_score",
         details={"topics_scored": len(results), "recommendations_built": len(recs)},
     )
     return {"topics_scored": results, "recommendations_queued": len(recs)}
@@ -111,7 +133,13 @@ async def get_opportunity_queue(brand_id: uuid.UUID, current_user: CurrentUser, 
 
 
 @router.post("/{brand_id}/opportunities/{topic_id}/forecast", response_model=ForecastResponse)
-async def forecast_topic(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user: CurrentUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def forecast_topic(
+    brand_id: uuid.UUID,
+    topic_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+    _rl=Depends(recompute_rate_limit),
+):
     try:
         result = await ds.compute_forecast_for_topic(db, brand_id, topic_id)
     except ValueError as e:
@@ -120,7 +148,13 @@ async def forecast_topic(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user:
 
 
 @router.post("/{brand_id}/opportunities/{topic_id}/offer-fit")
-async def compute_offer_fit(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user: CurrentUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def compute_offer_fit(
+    brand_id: uuid.UUID,
+    topic_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
+    _rl=Depends(recompute_rate_limit),
+):
     try:
         results = await ds.compute_offer_fit_for_topic(db, brand_id, topic_id)
     except ValueError as e:
@@ -129,16 +163,25 @@ async def compute_offer_fit(brand_id: uuid.UUID, topic_id: uuid.UUID, current_us
 
 
 @router.post("/{brand_id}/opportunities/{topic_id}/trigger-brief")
-async def trigger_brief(brand_id: uuid.UUID, topic_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def trigger_brief(
+    brand_id: uuid.UUID,
+    topic_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
+    _rl=Depends(recompute_rate_limit),
+):
     try:
         result = await ds.trigger_brief_for_topic(db, brand_id, topic_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     await log_action(
-        db, "brief.triggered",
+        db,
+        "brief.triggered",
         organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="content_brief",
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="content_brief",
         entity_id=uuid.UUID(result["brief_id"]),
         details=result,
     )
@@ -154,14 +197,22 @@ async def get_trends(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSessi
 
 
 @router.post("/{brand_id}/trends/recompute")
-async def recompute_trends(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_trends(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     # Trend recompute re-classifies existing signals
-    trends = (await db.execute(
-        select(TrendSignal).where(TrendSignal.brand_id == brand_id)
-    )).scalars().all()
+    trends = (await db.execute(select(TrendSignal).where(TrendSignal.brand_id == brand_id))).scalars().all()
     updated = 0
     for t in trends:
-        new_strength = "strong" if t.velocity > 0.7 else "moderate" if t.velocity > 0.4 else "weak" if t.velocity > 0.1 else "insufficient"
+        new_strength = (
+            "strong"
+            if t.velocity > 0.7
+            else "moderate"
+            if t.velocity > 0.4
+            else "weak"
+            if t.velocity > 0.1
+            else "insufficient"
+        )
         t.strength = new_strength
         t.is_actionable = t.velocity > 0.3
         updated += 1
@@ -174,7 +225,9 @@ async def get_saturation(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
     if recompute:
         await ds.compute_saturation_report(db, brand_id)
     result = await db.execute(
-        select(SaturationReport).where(SaturationReport.brand_id == brand_id).order_by(SaturationReport.saturation_score.desc())
+        select(SaturationReport)
+        .where(SaturationReport.brand_id == brand_id)
+        .order_by(SaturationReport.saturation_score.desc())
     )
     return result.scalars().all()
 
@@ -182,7 +235,9 @@ async def get_saturation(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
 @router.get("/{brand_id}/profit-forecasts", response_model=list[ProfitForecastResponse])
 async def get_profit_forecasts(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     result = await db.execute(
-        select(ProfitForecast).where(ProfitForecast.brand_id == brand_id).order_by(ProfitForecast.estimated_profit.desc())
+        select(ProfitForecast)
+        .where(ProfitForecast.brand_id == brand_id)
+        .order_by(ProfitForecast.estimated_profit.desc())
     )
     return result.scalars().all()
 

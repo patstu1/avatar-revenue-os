@@ -1,4 +1,5 @@
 """Pydantic schemas for Expansion Pack 2 Phase C."""
+
 from __future__ import annotations
 
 from datetime import datetime

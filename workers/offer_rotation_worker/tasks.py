@@ -1,4 +1,5 @@
 """Offer rotation worker — detect fatigued offers, auto-swap to best alternative, track trends."""
+
 from __future__ import annotations
 
 import logging
@@ -37,12 +38,16 @@ def rotate_offers(self) -> dict:
         for brand in brands:
             try:
                 niche = brand.niche or "general"
-                offers = session.execute(
-                    select(Offer).where(
-                        Offer.brand_id == brand.id,
-                        Offer.is_active.is_(True),
+                offers = (
+                    session.execute(
+                        select(Offer).where(
+                            Offer.brand_id == brand.id,
+                            Offer.is_active.is_(True),
+                        )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
 
                 active_offers = [o for o in offers if o.monetization_method == MonetizationMethod.AFFILIATE]
 
@@ -54,12 +59,19 @@ def rotate_offers(self) -> dict:
                         is_fatigued = True
                         reason = f"Low performance: CVR={offer.conversion_rate:.4f}, EPC={offer.epc:.2f}"
 
-                    brief_count = session.execute(
-                        select(func.count()).select_from(ContentBrief).where(
-                            ContentBrief.offer_id == offer.id,
-                            ContentBrief.status.in_(["draft", "ready", "script_generated", "approved", "published"]),
-                        )
-                    ).scalar() or 0
+                    brief_count = (
+                        session.execute(
+                            select(func.count())
+                            .select_from(ContentBrief)
+                            .where(
+                                ContentBrief.offer_id == offer.id,
+                                ContentBrief.status.in_(
+                                    ["draft", "ready", "script_generated", "approved", "published"]
+                                ),
+                            )
+                        ).scalar()
+                        or 0
+                    )
                     if brief_count > 20 and offer.conversion_rate < 0.02:
                         is_fatigued = True
                         reason = f"Overused ({brief_count} briefs) with low CVR={offer.conversion_rate:.4f}"
@@ -71,7 +83,9 @@ def rotate_offers(self) -> dict:
                         replacement = None
                         for p in niche_products:
                             existing = session.execute(
-                                select(Offer).where(Offer.brand_id == brand.id, Offer.name == p["name"], Offer.is_active.is_(True))
+                                select(Offer).where(
+                                    Offer.brand_id == brand.id, Offer.name == p["name"], Offer.is_active.is_(True)
+                                )
                             ).scalar_one_or_none()
                             if not existing and p.get("payout", 0) > offer.payout_amount * 0.5:
                                 replacement = p
@@ -79,7 +93,8 @@ def rotate_offers(self) -> dict:
 
                         if replacement:
                             new_offer = Offer(
-                                brand_id=brand.id, name=replacement["name"],
+                                brand_id=brand.id,
+                                name=replacement["name"],
                                 monetization_method="affiliate",
                                 payout_amount=replacement.get("payout", 0),
                                 epc=replacement.get("payout", 0) * 0.02,
@@ -88,12 +103,16 @@ def rotate_offers(self) -> dict:
                             session.add(new_offer)
                             session.flush()
 
-                            pending_briefs = session.execute(
-                                select(ContentBrief).where(
-                                    ContentBrief.offer_id == offer.id,
-                                    ContentBrief.status.in_(["draft", "ready"]),
+                            pending_briefs = (
+                                session.execute(
+                                    select(ContentBrief).where(
+                                        ContentBrief.offer_id == offer.id,
+                                        ContentBrief.status.in_(["draft", "ready"]),
+                                    )
                                 )
-                            ).scalars().all()
+                                .scalars()
+                                .all()
+                            )
                             for brief in pending_briefs:
                                 brief.offer_id = new_offer.id
 

@@ -1,4 +1,5 @@
 """Revenue Intelligence API — elite-tier revenue optimization endpoints."""
+
 import uuid
 
 from fastapi import APIRouter, Query
@@ -102,6 +103,4 @@ async def get_optimal_schedule(
 ):
     """Bayesian-optimized posting schedule with Thompson sampling for exploration."""
     await require_brand_access(brand_id, current_user, db)
-    return await ris.get_optimal_schedule(
-        db, brand_id, platform, timezone, posts_per_day
-    )
+    return await ris.get_optimal_schedule(db, brand_id, platform, timezone, posts_per_day)

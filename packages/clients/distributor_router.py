@@ -9,6 +9,7 @@ Strategy:
 
 No artificial caps. No rate limits. No retry ceilings imposed by the router.
 """
+
 from __future__ import annotations
 
 import logging
@@ -19,34 +20,46 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 PLATFORM_MAP_AYRSHARE = {
-    "youtube": "youtube", "tiktok": "tiktok", "instagram": "instagram",
-    "x": "twitter", "twitter": "twitter", "linkedin": "linkedin",
-    "reddit": "reddit", "pinterest": "pinterest", "facebook": "facebook",
+    "youtube": "youtube",
+    "tiktok": "tiktok",
+    "instagram": "instagram",
+    "x": "twitter",
+    "twitter": "twitter",
+    "linkedin": "linkedin",
+    "reddit": "reddit",
+    "pinterest": "pinterest",
+    "facebook": "facebook",
 }
 
 
 # ── Error classification ──────────────────────────────────────────────────
 
+
 class PublishError(Exception):
     """Base publishing error."""
+
     pass
 
 
 class TransientError(PublishError):
     """Retryable: 429, 5xx, network timeouts. Falls through to aggregator."""
+
     pass
 
 
 class PermanentError(PublishError):
     """Non-retryable: bad content, invalid format, auth permanently revoked."""
+
     pass
 
 
 # ── Data contracts ─────────────────────────────────────────────────────────
 
+
 @dataclass
 class PublishRequest:
     """Unified publish request across all methods."""
+
     text: str
     platform: str
     profile_ids: list[str] = field(default_factory=list)
@@ -58,6 +71,7 @@ class PublishRequest:
 @dataclass
 class PublishResult:
     """Unified result from any publish method."""
+
     success: bool
     method: str  # "native", "buffer", "publer", "ayrshare", "all_failed", "none"
     post_id: str | None = None
@@ -68,6 +82,7 @@ class PublishResult:
 
 
 # ── Native platform adapters ──────────────────────────────────────────────
+
 
 async def _try_native_youtube(credentials: dict, content_text: str, content: Any, job: Any) -> PublishResult:
     """Publish directly to YouTube via OAuth tokens."""
@@ -102,6 +117,7 @@ async def _try_native_youtube(credentials: dict, content_text: str, content: Any
 
                 from packages.db.models.content import Asset
                 from packages.db.session import get_sync_engine
+
                 engine = get_sync_engine()
                 with Session(engine) as sess:
                     asset = sess.get(Asset, content.video_asset_id)
@@ -159,6 +175,7 @@ async def _try_native_tiktok(credentials: dict, content_text: str, content: Any,
 
                 from packages.db.models.content import Asset
                 from packages.db.session import get_sync_engine
+
                 engine = get_sync_engine()
                 with Session(engine) as sess:
                     asset = sess.get(Asset, content.video_asset_id)
@@ -228,6 +245,7 @@ async def _try_native_instagram(credentials: dict, content_text: str, content: A
 
                 from packages.db.models.content import Asset
                 from packages.db.session import get_sync_engine
+
                 engine = get_sync_engine()
                 with Session(engine) as sess:
                     asset = sess.get(Asset, content.video_asset_id)
@@ -260,7 +278,9 @@ async def _try_native_instagram(credentials: dict, content_text: str, content: A
             if create_resp.status_code == 429 or create_resp.status_code >= 500:
                 raise TransientError(f"Instagram HTTP {create_resp.status_code}")
             if create_resp.status_code != 200:
-                raise PermanentError(f"Instagram container failed: HTTP {create_resp.status_code}: {create_resp.text[:300]}")
+                raise PermanentError(
+                    f"Instagram container failed: HTTP {create_resp.status_code}: {create_resp.text[:300]}"
+                )
 
             container_id = create_resp.json().get("id")
             if not container_id:
@@ -314,6 +334,7 @@ async def _try_native_x(credentials: dict, content_text: str, content: Any, job:
 
             from packages.db.models.content import Asset
             from packages.db.session import get_sync_engine
+
             engine = get_sync_engine()
             with Session(engine) as sess:
                 asset = sess.get(Asset, content.video_asset_id)
@@ -367,8 +388,10 @@ NATIVE_ADAPTERS = {
 
 # ── Aggregator adapters ───────────────────────────────────────────────────
 
+
 class DistributorAdapter:
     """Base interface for aggregator distribution adapters."""
+
     name: str = "base"
 
     def is_configured(self) -> bool:
@@ -397,9 +420,12 @@ class BufferAdapter(DistributorAdapter):
 
     async def publish(self, request: PublishRequest, api_key: str | None = None) -> PublishResult:
         from packages.clients.external_clients import BufferClient
+
         client = BufferClient(api_key=api_key)
         if not client._is_configured():
-            return PublishResult(success=False, method=self.name, error="Buffer not configured — add API key in Settings > Integrations")
+            return PublishResult(
+                success=False, method=self.name, error="Buffer not configured — add API key in Settings > Integrations"
+            )
 
         # Append CTA link to post text if present
         post_text = request.text
@@ -429,12 +455,19 @@ class BufferAdapter(DistributorAdapter):
             scheduled_at=request.scheduled_at,
         )
         if result.get("success"):
-            post_id = result.get("data", {}).get("updates", [{}])[0].get("id", "") if isinstance(result.get("data"), dict) else ""
+            post_id = (
+                result.get("data", {}).get("updates", [{}])[0].get("id", "")
+                if isinstance(result.get("data"), dict)
+                else ""
+            )
             return PublishResult(success=True, method=self.name, post_id=str(post_id), raw_response=result)
-        return PublishResult(success=False, method=self.name, error=result.get("error", "Buffer publish failed"), raw_response=result)
+        return PublishResult(
+            success=False, method=self.name, error=result.get("error", "Buffer publish failed"), raw_response=result
+        )
 
     async def get_profiles(self) -> dict[str, Any]:
         from packages.clients.external_clients import BufferClient
+
         return await BufferClient().get_profiles()
 
 
@@ -448,9 +481,12 @@ class PublerAdapter(DistributorAdapter):
 
     async def publish(self, request: PublishRequest, api_key: str | None = None) -> PublishResult:
         from packages.clients.publer_client import PublerClient
+
         client = PublerClient(api_key=api_key)
         if not client._is_configured():
-            return PublishResult(success=False, method=self.name, error="Publer not configured — add API key in Settings > Integrations")
+            return PublishResult(
+                success=False, method=self.name, error="Publer not configured — add API key in Settings > Integrations"
+            )
 
         account_ids = request.profile_ids or []
         result = await client.create_post(
@@ -463,10 +499,13 @@ class PublerAdapter(DistributorAdapter):
         if result.get("success"):
             post_id = result.get("data", {}).get("id", "") if isinstance(result.get("data"), dict) else ""
             return PublishResult(success=True, method=self.name, post_id=str(post_id), raw_response=result)
-        return PublishResult(success=False, method=self.name, error=result.get("error", "Publer publish failed"), raw_response=result)
+        return PublishResult(
+            success=False, method=self.name, error=result.get("error", "Publer publish failed"), raw_response=result
+        )
 
     async def get_profiles(self) -> dict[str, Any]:
         from packages.clients.publer_client import PublerClient
+
         return await PublerClient().get_profiles()
 
 
@@ -480,9 +519,14 @@ class AyrshareAdapter(DistributorAdapter):
 
     async def publish(self, request: PublishRequest, api_key: str | None = None) -> PublishResult:
         from packages.clients.ayrshare_client import AyrshareClient
+
         client = AyrshareClient(api_key=api_key)
         if not client._is_configured():
-            return PublishResult(success=False, method=self.name, error="Ayrshare not configured — add API key in Settings > Integrations")
+            return PublishResult(
+                success=False,
+                method=self.name,
+                error="Ayrshare not configured — add API key in Settings > Integrations",
+            )
 
         platform_key = PLATFORM_MAP_AYRSHARE.get(request.platform.lower(), request.platform.lower())
         result = await client.create_post(
@@ -495,10 +539,13 @@ class AyrshareAdapter(DistributorAdapter):
         if result.get("success"):
             post_id = result.get("data", {}).get("id", "") if isinstance(result.get("data"), dict) else ""
             return PublishResult(success=True, method=self.name, post_id=str(post_id), raw_response=result)
-        return PublishResult(success=False, method=self.name, error=result.get("error", "Ayrshare publish failed"), raw_response=result)
+        return PublishResult(
+            success=False, method=self.name, error=result.get("error", "Ayrshare publish failed"), raw_response=result
+        )
 
     async def get_profiles(self) -> dict[str, Any]:
         from packages.clients.ayrshare_client import AyrshareClient
+
         return await AyrshareClient().get_profiles()
 
 
@@ -515,6 +562,7 @@ _failure_count: dict[str, int] = {}
 
 
 # ── Credential resolution ─────────────────────────────────────────────────
+
 
 def _load_native_credentials(session, account, org_id) -> dict | None:
     """Load OAuth credentials for a native platform account.
@@ -589,6 +637,7 @@ def _load_native_credentials(session, account, org_id) -> dict | None:
 
 # ── Aggregator credential loading ─────────────────────────────────────────
 
+
 def _load_aggregator_credentials(session, org_id) -> dict[str, str | None]:
     """Load credentials for aggregator providers from encrypted DB.
 
@@ -599,15 +648,14 @@ def _load_aggregator_credentials(session, org_id) -> dict[str, str | None]:
         return {}
     try:
         from packages.clients.credential_loader import load_credential
-        return {
-            key: load_credential(session, org_id, key)
-            for key in ("buffer", "publer", "ayrshare")
-        }
+
+        return {key: load_credential(session, org_id, key) for key in ("buffer", "publer", "ayrshare")}
     except Exception:
         return {}
 
 
 # ── Core routing function ─────────────────────────────────────────────────
+
 
 async def route_and_publish(db_session, publish_job, content_item, account, org_id) -> PublishResult:
     """Native-first, aggregator-fallback publish dispatch.
@@ -654,7 +702,9 @@ async def route_and_publish(db_session, publish_job, content_item, account, org_
             )
         except TransientError as e:
             _failure_count[f"native_{platform_lower}"] = _failure_count.get(f"native_{platform_lower}", 0) + 1
-            logger.warning("publish.native_transient platform=%s error=%s — falling through to aggregators", platform_lower, str(e))
+            logger.warning(
+                "publish.native_transient platform=%s error=%s — falling through to aggregators", platform_lower, str(e)
+            )
         except Exception:
             logger.exception("publish.native_unexpected platform=%s", platform_lower)
 
@@ -692,24 +742,32 @@ async def route_and_publish(db_session, publish_job, content_item, account, org_
     return PublishResult(
         success=False,
         method="all_failed",
-        error=f"All publish methods failed. Last error: {last_error}" if last_error else "No publishing method available.",
+        error=f"All publish methods failed. Last error: {last_error}"
+        if last_error
+        else "No publishing method available.",
         methods_tried=methods_tried,
     )
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
+
 def _resolve_profile_ids(session, job, distributor_name: str) -> list[str]:
     """Resolve aggregator-specific profile/account IDs for the publish job."""
     if distributor_name == "buffer":
         try:
             from packages.db.models.buffer_distribution import BufferProfile
-            profile = session.query(BufferProfile).filter(
-                BufferProfile.brand_id == job.brand_id,
-                BufferProfile.platform == job.platform,
-                BufferProfile.is_active.is_(True),
-                BufferProfile.credential_status == "connected",
-            ).first()
+
+            profile = (
+                session.query(BufferProfile)
+                .filter(
+                    BufferProfile.brand_id == job.brand_id,
+                    BufferProfile.platform == job.platform,
+                    BufferProfile.is_active.is_(True),
+                    BufferProfile.credential_status == "connected",
+                )
+                .first()
+            )
             if profile and profile.buffer_profile_id:
                 return [profile.buffer_profile_id]
         except Exception:
@@ -727,6 +785,7 @@ def _resolve_media_urls(content_item) -> list[str] | None:
 
             from packages.db.models.content import Asset
             from packages.db.session import get_sync_engine
+
             engine = get_sync_engine()
             with Session(engine) as sess:
                 asset = sess.get(Asset, content_item.video_asset_id)
@@ -739,12 +798,10 @@ def _resolve_media_urls(content_item) -> list[str] | None:
 
 # ── Aggregator ordering with DB credentials ──────────────────────────────
 
+
 def _get_aggregator_order_with_creds(platform: str, creds: dict) -> list[DistributorAdapter]:
     """Return aggregators ordered by reliability, considering DB credentials."""
-    available = [
-        a for a in _AGGREGATOR_REGISTRY
-        if a.is_configured(creds=creds) and a.supports_platform(platform)
-    ]
+    available = [a for a in _AGGREGATOR_REGISTRY if a.is_configured(creds=creds) and a.supports_platform(platform)]
     if not available:
         return []
 
@@ -760,6 +817,7 @@ def _get_aggregator_order_with_creds(platform: str, creds: dict) -> list[Distrib
 
 
 # ── Legacy-compatible functions (used by auto_publish.py and others) ──────
+
 
 def get_configured_distributors() -> list[DistributorAdapter]:
     """Return all aggregators that have credentials configured."""
@@ -801,7 +859,8 @@ async def publish_with_failover(request: PublishRequest, creds: dict | None = No
 
     if not ordered:
         return PublishResult(
-            success=False, method="none",
+            success=False,
+            method="none",
             error="No publishing service configured. Add API keys in Settings > Integrations.",
         )
 
@@ -827,7 +886,8 @@ async def publish_with_failover(request: PublishRequest, creds: dict | None = No
             logger.exception("publish.exception distributor=%s", adapter.name)
 
     return PublishResult(
-        success=False, method="none",
+        success=False,
+        method="none",
         error=f"All distributors failed. Last error: {last_error}",
         methods_tried=tried,
     )

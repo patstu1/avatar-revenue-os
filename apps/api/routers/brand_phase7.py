@@ -2,6 +2,7 @@
 
 POST recompute writes. All GETs are read-only.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -34,10 +35,21 @@ async def _require_brand(brand_id: uuid.UUID, user, db: DBSession) -> Brand:
 
 
 @router.post("/{brand_id}/phase7/recompute")
-async def recompute_phase7(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_phase7(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await p7.recompute_phase7(db, brand_id, user_id=current_user.id)
-    await log_action(db, "phase7.recomputed", organization_id=current_user.organization_id, brand_id=brand_id, user_id=current_user.id, actor_type="human", entity_type="phase7", details=result)
+    await log_action(
+        db,
+        "phase7.recomputed",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="phase7",
+        details=result,
+    )
     return result
 
 

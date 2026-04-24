@@ -12,39 +12,79 @@ from packages.scoring.scale import RK_ADD_NICHE_SPINOFF, RK_ADD_PLATFORM_SPECIFI
 
 
 def _scale_rec(**kw):
-    base = {"recommendation_key": "add_experimental_account", "scale_readiness_score": 72,
-            "incremental_profit_new_account": 180, "incremental_profit_existing_push": 22,
-            "explanation": "Expansion profitable.", "best_next_account": {}, "id": "rec1"}
+    base = {
+        "recommendation_key": "add_experimental_account",
+        "scale_readiness_score": 72,
+        "incremental_profit_new_account": 180,
+        "incremental_profit_existing_push": 22,
+        "explanation": "Expansion profitable.",
+        "best_next_account": {},
+        "id": "rec1",
+    }
     base.update(kw)
     return base
 
 
 def _candidate(**kw):
-    base = {"id": "cand1", "candidate_type": "experimental_account",
-            "primary_platform": "tiktok", "niche": "finance", "sub_niche": "budget",
-            "language": "en", "geography": "US", "monetization_path": "affiliate",
-            "posting_strategy": "2/day", "expected_monthly_revenue_min": 100,
-            "expected_monthly_revenue_max": 300, "expected_launch_cost": 150,
-            "expected_time_to_signal_days": 21, "expected_time_to_profit_days": 60,
-            "cannibalization_risk": 0.15, "audience_separation_score": 0.85,
-            "confidence": 0.7, "urgency": 65, "supporting_reasons": ["Scale engine says expand"],
-            "launch_blockers": []}
+    base = {
+        "id": "cand1",
+        "candidate_type": "experimental_account",
+        "primary_platform": "tiktok",
+        "niche": "finance",
+        "sub_niche": "budget",
+        "language": "en",
+        "geography": "US",
+        "monetization_path": "affiliate",
+        "posting_strategy": "2/day",
+        "expected_monthly_revenue_min": 100,
+        "expected_monthly_revenue_max": 300,
+        "expected_launch_cost": 150,
+        "expected_time_to_signal_days": 21,
+        "expected_time_to_profit_days": 60,
+        "cannibalization_risk": 0.15,
+        "audience_separation_score": 0.85,
+        "confidence": 0.7,
+        "urgency": 65,
+        "supporting_reasons": ["Scale engine says expand"],
+        "launch_blockers": [],
+    }
     base.update(kw)
     return base
 
 
 def _accounts():
-    return [{"id": "a1", "platform": "youtube", "geography": "US", "language": "en",
-             "niche_focus": "finance", "username": "@flagship", "follower_count": 10000,
-             "fatigue_score": 0.2, "saturation_score": 0.15, "originality_drift_score": 0.1,
-             "account_health": "healthy", "profit_per_post": 20, "revenue_per_mille": 10,
-             "posting_capacity_per_day": 2}]
+    return [
+        {
+            "id": "a1",
+            "platform": "youtube",
+            "geography": "US",
+            "language": "en",
+            "niche_focus": "finance",
+            "username": "@flagship",
+            "follower_count": 10000,
+            "fatigue_score": 0.2,
+            "saturation_score": 0.15,
+            "originality_drift_score": 0.1,
+            "account_health": "healthy",
+            "profit_per_post": 20,
+            "revenue_per_mille": 10,
+            "posting_capacity_per_day": 2,
+        }
+    ]
 
 
 def test_launch_command_generated_from_candidate():
     cmds = generate_growth_commands(
-        _scale_rec(), [_candidate()], [], {"launch_readiness_score": 75, "recommended_action": "launch_now"},
-        _accounts(), [{"id": "o1", "name": "Offer"}], "finance", 70, 2, [],
+        _scale_rec(),
+        [_candidate()],
+        [],
+        {"launch_readiness_score": 75, "recommended_action": "launch_now"},
+        _accounts(),
+        [{"id": "o1", "name": "Offer"}],
+        "finance",
+        70,
+        2,
+        [],
     )
     launch_cmds = [c for c in cmds if c["command_type"] == "launch_account"]
     assert len(launch_cmds) == 1
@@ -61,10 +101,16 @@ def test_launch_command_generated_from_candidate():
 
 def test_funnel_fix_before_launch():
     cmds = generate_growth_commands(
-        _scale_rec(), [_candidate()],
+        _scale_rec(),
+        [_candidate()],
         [{"blocker_type": "weak_funnel", "severity": "high", "title": "Leaking funnel"}],
         {"launch_readiness_score": 75, "recommended_action": "launch_now"},
-        _accounts(), [{"id": "o1", "name": "Offer"}], "finance", 70, 8, [],
+        _accounts(),
+        [{"id": "o1", "name": "Offer"}],
+        "finance",
+        70,
+        8,
+        [],
     )
     assert cmds[0]["command_type"] == "fix_funnel_first"
     assert cmds[0]["priority"] > 80
@@ -73,7 +119,15 @@ def test_funnel_fix_before_launch():
 def test_increase_output_when_exploitation_wins():
     cmds = generate_growth_commands(
         _scale_rec(incremental_profit_new_account=10, incremental_profit_existing_push=50),
-        [], [], None, _accounts(), [{"id": "o1", "name": "Offer"}], "finance", 70, 0, [],
+        [],
+        [],
+        None,
+        _accounts(),
+        [{"id": "o1", "name": "Offer"}],
+        "finance",
+        70,
+        0,
+        [],
     )
     types = {c["command_type"] for c in cmds}
     assert "increase_output" in types
@@ -85,7 +139,16 @@ def test_suppress_unhealthy_account():
     accts = _accounts()
     accts[0]["account_health"] = "critical"
     cmds = generate_growth_commands(
-        _scale_rec(), [], [], None, accts, [], "finance", 70, 0, [],
+        _scale_rec(),
+        [],
+        [],
+        None,
+        accts,
+        [],
+        "finance",
+        70,
+        0,
+        [],
     )
     types = {c["command_type"] for c in cmds}
     assert "suppress_account" in types
@@ -94,8 +157,15 @@ def test_suppress_unhealthy_account():
 def test_do_nothing_when_no_candidates_or_issues():
     cmds = generate_growth_commands(
         _scale_rec(recommendation_key="monitor", incremental_profit_new_account=0, incremental_profit_existing_push=0),
-        [], [], {"launch_readiness_score": 60, "recommended_action": "monitor"},
-        [], [{"id": "o1"}, {"id": "o2"}], "finance", 70, 0, [],
+        [],
+        [],
+        {"launch_readiness_score": 60, "recommended_action": "monitor"},
+        [],
+        [{"id": "o1"}, {"id": "o2"}],
+        "finance",
+        70,
+        0,
+        [],
     )
     assert any(c["command_type"] == "do_nothing" for c in cmds)
 
@@ -103,7 +173,15 @@ def test_do_nothing_when_no_candidates_or_issues():
 def test_add_offer_first():
     cmds = generate_growth_commands(
         _scale_rec(recommendation_key="add_new_offer_before_adding_account"),
-        [], [], None, _accounts(), [{"id": "o1", "name": "Single"}], "finance", 70, 0, [],
+        [],
+        [],
+        None,
+        _accounts(),
+        [{"id": "o1", "name": "Single"}],
+        "finance",
+        70,
+        0,
+        [],
     )
     types = {c["command_type"] for c in cmds}
     assert "add_offer_first" in types
@@ -111,8 +189,16 @@ def test_add_offer_first():
 
 def test_comparison_mandatory_on_launch():
     cmds = generate_growth_commands(
-        _scale_rec(), [_candidate()], [], {"launch_readiness_score": 75},
-        _accounts(), [{"id": "o1"}], "finance", 70, 2, [],
+        _scale_rec(),
+        [_candidate()],
+        [],
+        {"launch_readiness_score": 75},
+        _accounts(),
+        [{"id": "o1"}],
+        "finance",
+        70,
+        2,
+        [],
     )
     for c in cmds:
         if c["command_type"] == "launch_account":
@@ -123,12 +209,23 @@ def test_comparison_mandatory_on_launch():
 
 def test_cannibalization_analysis_on_launch():
     cmds = generate_growth_commands(
-        _scale_rec(), [_candidate(cannibalization_risk=0.7)], [],
-        {"launch_readiness_score": 75}, _accounts(), [], "finance", 70, 0, [],
+        _scale_rec(),
+        [_candidate(cannibalization_risk=0.7)],
+        [],
+        {"launch_readiness_score": 75},
+        _accounts(),
+        [],
+        "finance",
+        70,
+        0,
+        [],
     )
     lc = next(c for c in cmds if c["command_type"] == "launch_account")
     assert lc["cannibalization_analysis"]["risk"] == 0.7
-    assert "overlap" in lc["cannibalization_analysis"]["mitigation"].lower() or "niche" in lc["cannibalization_analysis"]["mitigation"].lower()
+    assert (
+        "overlap" in lc["cannibalization_analysis"]["mitigation"].lower()
+        or "niche" in lc["cannibalization_analysis"]["mitigation"].lower()
+    )
 
 
 def test_rank_commands_fixes_before_launches():
@@ -174,11 +271,22 @@ def test_whitespace_includes_geo_expansion():
 
 
 def _acct_row(**kw):
-    base = {"id": "a1", "platform": "youtube", "geography": "US", "language": "en",
-            "niche_focus": "finance", "username": "@flagship", "follower_count": 10000,
-            "fatigue_score": 0.2, "saturation_score": 0.15, "originality_drift_score": 0.1,
-            "account_health": "healthy", "profit_per_post": 20, "revenue_per_mille": 10,
-            "posting_capacity_per_day": 2}
+    base = {
+        "id": "a1",
+        "platform": "youtube",
+        "geography": "US",
+        "language": "en",
+        "niche_focus": "finance",
+        "username": "@flagship",
+        "follower_count": 10000,
+        "fatigue_score": 0.2,
+        "saturation_score": 0.15,
+        "originality_drift_score": 0.1,
+        "account_health": "healthy",
+        "profit_per_post": 20,
+        "revenue_per_mille": 10,
+        "posting_capacity_per_day": 2,
+    }
     base.update(kw)
     return base
 
@@ -191,7 +299,15 @@ def test_shift_platform_from_scale_key():
             incremental_profit_existing_push=40,
             best_next_account={"platform_suggestion": "tiktok", "rationale": "Diversify platforms."},
         ),
-        [], [], None, [_acct_row()], [{"id": "o1"}, {"id": "o2"}], "finance", 70, 0, [],
+        [],
+        [],
+        None,
+        [_acct_row()],
+        [{"id": "o1"}, {"id": "o2"}],
+        "finance",
+        70,
+        0,
+        [],
     )
     assert any(c["command_type"] == "shift_platform" for c in cmds)
 
@@ -208,7 +324,15 @@ def test_shift_niche_when_no_launch_candidates():
                 "rationale": "Split sub-audience.",
             },
         ),
-        [], [], None, [_acct_row()], [{"id": "o1"}, {"id": "o2"}], "finance", 70, 0, [],
+        [],
+        [],
+        None,
+        [_acct_row()],
+        [{"id": "o1"}, {"id": "o2"}],
+        "finance",
+        70,
+        0,
+        [],
     )
     assert any(c["command_type"] == "shift_niche" for c in cmds)
 
@@ -245,6 +369,15 @@ def test_merge_accounts_when_high_niche_overlap():
         _acct_row(id="a2", username="@two", niche_focus="finance tips personal"),
     ]
     cmds = generate_growth_commands(
-        _scale_rec(), [], [], None, accts, [{"id": "o1"}, {"id": "o2"}], "finance", 70, 0, [],
+        _scale_rec(),
+        [],
+        [],
+        None,
+        accts,
+        [{"id": "o1"}, {"id": "o2"}],
+        "finance",
+        70,
+        0,
+        [],
     )
     assert any(c["command_type"] == "merge_accounts" for c in cmds)

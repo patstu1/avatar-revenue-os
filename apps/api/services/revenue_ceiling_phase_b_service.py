@@ -1,4 +1,5 @@
 """Revenue Ceiling Phase B — high-ticket, productization, revenue density, upsell."""
+
 from __future__ import annotations
 
 import uuid
@@ -38,7 +39,9 @@ async def recompute_high_ticket_opportunities(db: AsyncSession, brand_id: uuid.U
     offers = list(
         (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
-    items = list((await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(50))).scalars().all())
+    items = list(
+        (await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(50))).scalars().all()
+    )
     offer_dicts = [
         {
             "id": str(o.id),
@@ -61,7 +64,9 @@ async def recompute_high_ticket_opportunities(db: AsyncSession, brand_id: uuid.U
                 brand_id=brand_id,
                 opportunity_key=r["opportunity_key"],
                 source_offer_id=uuid.UUID(r["source_offer_id"]) if r.get("source_offer_id") else None,
-                source_content_item_id=uuid.UUID(r["source_content_item_id"]) if r.get("source_content_item_id") else None,
+                source_content_item_id=uuid.UUID(r["source_content_item_id"])
+                if r.get("source_content_item_id")
+                else None,
                 eligibility_score=float(r.get("eligibility_score", 0)),
                 recommended_offer_path=r.get("recommended_offer_path"),
                 recommended_cta=r.get("recommended_cta"),
@@ -132,7 +137,9 @@ async def recompute_revenue_density(db: AsyncSession, brand_id: uuid.UUID) -> di
 
     perf_map: dict[uuid.UUID, tuple[float, int]] = {row[0]: (float(row[1]), int(row[2] or 0)) for row in agg}
 
-    items = list((await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(200))).scalars().all())
+    items = list(
+        (await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(200))).scalars().all()
+    )
     await db.execute(delete(RevenueDensityReport).where(RevenueDensityReport.brand_id == brand_id))
     n = 0
     for ci in items:
@@ -196,7 +203,9 @@ async def recompute_upsell_recommendations(db: AsyncSession, brand_id: uuid.UUID
                 brand_id=brand_id,
                 opportunity_key=r["opportunity_key"],
                 anchor_offer_id=uuid.UUID(r["anchor_offer_id"]) if r.get("anchor_offer_id") else None,
-                anchor_content_item_id=uuid.UUID(r["anchor_content_item_id"]) if r.get("anchor_content_item_id") else None,
+                anchor_content_item_id=uuid.UUID(r["anchor_content_item_id"])
+                if r.get("anchor_content_item_id")
+                else None,
                 best_next_offer=r.get("best_next_offer"),
                 best_timing=r.get("best_timing", ""),
                 best_channel=r.get("best_channel", ""),
@@ -322,9 +331,7 @@ async def get_revenue_density(db: AsyncSession, brand_id: uuid.UUID) -> list[dic
     if not rows:
         return []
     ids = [r.content_item_id for r in rows]
-    title_rows = (
-        await db.execute(select(ContentItem.id, ContentItem.title).where(ContentItem.id.in_(ids)))
-    ).all()
+    title_rows = (await db.execute(select(ContentItem.id, ContentItem.title).where(ContentItem.id.in_(ids)))).all()
     titles = {str(i): t for i, t in title_rows}
     out: list[dict[str, Any]] = []
     for r in rows:

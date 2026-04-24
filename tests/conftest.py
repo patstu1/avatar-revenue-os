@@ -1,4 +1,5 @@
 """Shared test fixtures for the Avatar Revenue OS test suite."""
+
 from __future__ import annotations
 
 import os

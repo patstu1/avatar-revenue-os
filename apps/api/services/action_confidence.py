@@ -15,6 +15,7 @@ With computed confidence, even new brands will get ~0.55-0.65 from neutral
 priors, and as data accumulates, well-performing actions naturally rise above
 the threshold.
 """
+
 from __future__ import annotations
 
 import math
@@ -34,8 +35,8 @@ W_EV_NORM = 0.25
 W_RISK_INV = 0.15
 
 # Neutral priors for when data is missing
-NEUTRAL_HISTORY = 0.6   # Assume 60% success when no history exists
-NEUTRAL_RISK = 0.3      # Assume moderate risk when not specified
+NEUTRAL_HISTORY = 0.6  # Assume 60% success when no history exists
+NEUTRAL_RISK = 0.3  # Assume moderate risk when not specified
 
 
 async def compute_action_confidence(
@@ -52,17 +53,20 @@ async def compute_action_confidence(
     """
     # --- Signal 1: Data completeness (0.0–1.0) ---
     from packages.db.models.publishing import PerformanceMetric
+
     cutoff = datetime.now(timezone.utc) - timedelta(days=30)
 
-    row = (await db.execute(
-        select(
-            func.min(PerformanceMetric.measured_at),
-            func.count(PerformanceMetric.id),
-        ).where(
-            PerformanceMetric.brand_id == brand_id,
-            PerformanceMetric.measured_at >= cutoff,
+    row = (
+        await db.execute(
+            select(
+                func.min(PerformanceMetric.measured_at),
+                func.count(PerformanceMetric.id),
+            ).where(
+                PerformanceMetric.brand_id == brand_id,
+                PerformanceMetric.measured_at >= cutoff,
+            )
         )
-    )).one_or_none()
+    ).one_or_none()
 
     oldest_metric = row[0] if row else None
     metric_count = row[1] if row else 0
@@ -76,18 +80,19 @@ async def compute_action_confidence(
 
     # --- Signal 2: Action history accuracy (0.0–1.0) ---
     from packages.db.models.system_events import OperatorAction
-    history = (await db.execute(
-        select(
-            func.count(OperatorAction.id),
-            func.count(OperatorAction.id).filter(
-                OperatorAction.outcome_score > 0
-            ),
-        ).where(
-            OperatorAction.brand_id == brand_id,
-            OperatorAction.action_type == action_type,
-            OperatorAction.status == "completed",
+
+    history = (
+        await db.execute(
+            select(
+                func.count(OperatorAction.id),
+                func.count(OperatorAction.id).filter(OperatorAction.outcome_score > 0),
+            ).where(
+                OperatorAction.brand_id == brand_id,
+                OperatorAction.action_type == action_type,
+                OperatorAction.status == "completed",
+            )
         )
-    )).one_or_none()
+    ).one_or_none()
 
     total_completed = history[0] if history else 0
     total_succeeded = history[1] if history else 0
@@ -109,12 +114,7 @@ async def compute_action_confidence(
     risk_inv = 1.0 - min(1.0, max(0.0, risk))
 
     # --- Compose ---
-    confidence = (
-        W_COMPLETENESS * completeness
-        + W_HISTORY * accuracy
-        + W_EV_NORM * ev_norm
-        + W_RISK_INV * risk_inv
-    )
+    confidence = W_COMPLETENESS * completeness + W_HISTORY * accuracy + W_EV_NORM * ev_norm + W_RISK_INV * risk_inv
 
     # Clamp to [0.0, 1.0]
     confidence = round(min(1.0, max(0.0, confidence)), 4)

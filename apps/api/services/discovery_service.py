@@ -2,6 +2,7 @@
 
 This is the core Phase 2 service. All engines compose here. No business logic in routers.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -94,29 +95,62 @@ async def ingest_signals(
 
 async def get_signals(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     """Get all signal data for a brand."""
-    topics = (await db.execute(
-        select(TopicCandidate).where(TopicCandidate.brand_id == brand_id).order_by(TopicCandidate.created_at.desc()).limit(100)
-    )).scalars().all()
+    topics = (
+        (
+            await db.execute(
+                select(TopicCandidate)
+                .where(TopicCandidate.brand_id == brand_id)
+                .order_by(TopicCandidate.created_at.desc())
+                .limit(100)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    trends = (await db.execute(
-        select(TrendSignal).where(TrendSignal.brand_id == brand_id).order_by(TrendSignal.created_at.desc()).limit(100)
-    )).scalars().all()
+    trends = (
+        (
+            await db.execute(
+                select(TrendSignal)
+                .where(TrendSignal.brand_id == brand_id)
+                .order_by(TrendSignal.created_at.desc())
+                .limit(100)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    runs = (await db.execute(
-        select(SignalIngestionRun).where(SignalIngestionRun.brand_id == brand_id).order_by(SignalIngestionRun.created_at.desc()).limit(20)
-    )).scalars().all()
+    runs = (
+        (
+            await db.execute(
+                select(SignalIngestionRun)
+                .where(SignalIngestionRun.brand_id == brand_id)
+                .order_by(SignalIngestionRun.created_at.desc())
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return {"topic_candidates": topics, "trend_signals": trends, "ingestion_runs": runs}
 
 
 async def compute_niches(db: AsyncSession, brand_id: uuid.UUID) -> list:
     """Compute niche clusters from topic candidates."""
-    topics = (await db.execute(
-        select(TopicCandidate).where(
-            TopicCandidate.brand_id == brand_id,
-            TopicCandidate.is_rejected.is_(False),
+    topics = (
+        (
+            await db.execute(
+                select(TopicCandidate).where(
+                    TopicCandidate.brand_id == brand_id,
+                    TopicCandidate.is_rejected.is_(False),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     category_groups: dict[str, list] = {}
     for t in topics:
@@ -146,7 +180,9 @@ async def compute_niches(db: AsyncSession, brand_id: uuid.UUID) -> list:
             competition_density=round(1.0 - content_gap, 3),
             content_gap_score=round(content_gap, 3),
             saturation_level=round(min(len(cat_topics) / 15.0, 1.0), 3),
-            recommended_entry_angle=f"Focus on underserved angles in {cat}" if content_gap > 0.5 else f"Differentiate through unique perspective in {cat}",
+            recommended_entry_angle=f"Focus on underserved angles in {cat}"
+            if content_gap > 0.5
+            else f"Differentiate through unique perspective in {cat}",
         )
         db.add(cluster)
         clusters.append(cluster)
@@ -157,22 +193,34 @@ async def compute_niches(db: AsyncSession, brand_id: uuid.UUID) -> list:
 
 async def compute_opportunities(db: AsyncSession, brand_id: uuid.UUID) -> list:
     """Score all unprocessed topic candidates and build opportunity queue."""
-    topics = (await db.execute(
-        select(TopicCandidate).where(
-            TopicCandidate.brand_id == brand_id,
-            TopicCandidate.is_rejected.is_(False),
+    topics = (
+        (
+            await db.execute(
+                select(TopicCandidate).where(
+                    TopicCandidate.brand_id == brand_id,
+                    TopicCandidate.is_rejected.is_(False),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
 
-    offers = (await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-    )).scalars().all()
+    offers = (
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
+    )
 
-    accounts = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalars().all()
+    accounts = (
+        (
+            await db.execute(
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     best_offer_epc = max((o.epc for o in offers), default=0.0)
     best_offer_cr = max((o.conversion_rate for o in offers), default=0.0)
@@ -189,7 +237,9 @@ async def compute_opportunities(db: AsyncSession, brand_id: uuid.UUID) -> list:
             offer_fit=min(best_offer_epc / 3.0, 1.0) if has_offers else 0.0,
             expected_profit_score=min(best_offer_cr * 10, 1.0) if has_offers else 0.0,
             platform_suitability=0.6 if accounts else 0.3,
-            brand_fit_boost=0.05 if brand and brand.niche and topic.category and brand.niche.lower() in (topic.category or "").lower() else 0.0,
+            brand_fit_boost=0.05
+            if brand and brand.niche and topic.category and brand.niche.lower() in (topic.category or "").lower()
+            else 0.0,
         )
 
         result = compute_opportunity_score(inp)
@@ -206,7 +256,9 @@ async def compute_opportunities(db: AsyncSession, brand_id: uuid.UUID) -> list:
             saturation_penalty=result.penalties.get("saturation_penalty", 0),
             fatigue_penalty=result.penalties.get("audience_fatigue_penalty", 0),
             score_components=result.weighted_components,
-            confidence=ConfidenceLevel(result.confidence) if result.confidence in [e.value for e in ConfidenceLevel] else ConfidenceLevel.MEDIUM,
+            confidence=ConfidenceLevel(result.confidence)
+            if result.confidence in [e.value for e in ConfidenceLevel]
+            else ConfidenceLevel.MEDIUM,
             explanation=result.explanation,
         )
         db.add(score)
@@ -224,33 +276,42 @@ async def compute_opportunities(db: AsyncSession, brand_id: uuid.UUID) -> list:
             score_components=result.weighted_components,
             penalties=result.penalties,
             composite_score=result.composite_score,
-            confidence=ConfidenceLevel(result.confidence) if result.confidence in [e.value for e in ConfidenceLevel] else ConfidenceLevel.MEDIUM,
+            confidence=ConfidenceLevel(result.confidence)
+            if result.confidence in [e.value for e in ConfidenceLevel]
+            else ConfidenceLevel.MEDIUM,
             recommended_action=_score_to_action(result.composite_score, result.confidence),
             explanation=result.explanation,
         )
         db.add(decision)
 
         topic.is_processed = True
-        results.append({"topic_id": str(topic.id), "title": topic.title, "score": result.composite_score, "confidence": result.confidence})
+        results.append(
+            {
+                "topic_id": str(topic.id),
+                "title": topic.title,
+                "score": result.composite_score,
+                "confidence": result.confidence,
+            }
+        )
 
     await db.flush()
     return results
 
 
 async def compute_offer_fit_for_topic(
-    db: AsyncSession, brand_id: uuid.UUID, topic_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    topic_id: uuid.UUID,
 ) -> list:
     """Score all active offers against a specific topic."""
-    topic = (await db.execute(
-        select(TopicCandidate).where(TopicCandidate.id == topic_id)
-    )).scalar_one_or_none()
+    topic = (await db.execute(select(TopicCandidate).where(TopicCandidate.id == topic_id))).scalar_one_or_none()
     if not topic:
         raise ValueError(f"Topic {topic_id} not found")
 
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
-    offers = (await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-    )).scalars().all()
+    offers = (
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
+    )
 
     results = []
     for offer in offers:
@@ -276,39 +337,58 @@ async def compute_offer_fit_for_topic(
             friction_score=result.friction_score,
             repeatability_score=result.repeatability_score,
             revenue_potential=result.revenue_potential,
-            confidence=ConfidenceLevel(result.confidence) if result.confidence in [e.value for e in ConfidenceLevel] else ConfidenceLevel.MEDIUM,
+            confidence=ConfidenceLevel(result.confidence)
+            if result.confidence in [e.value for e in ConfidenceLevel]
+            else ConfidenceLevel.MEDIUM,
             explanation=result.explanation,
         )
         db.add(fit)
 
-        results.append({
-            "offer_id": str(offer.id),
-            "offer_name": offer.name,
-            "fit_score": result.fit_score,
-            "confidence": result.confidence,
-            "explanation": result.explanation,
-        })
+        results.append(
+            {
+                "offer_id": str(offer.id),
+                "offer_name": offer.name,
+                "fit_score": result.fit_score,
+                "confidence": result.confidence,
+                "explanation": result.explanation,
+            }
+        )
 
     await db.flush()
     return sorted(results, key=lambda x: -x["fit_score"])
 
 
 async def compute_forecast_for_topic(
-    db: AsyncSession, brand_id: uuid.UUID, topic_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    topic_id: uuid.UUID,
 ) -> dict:
     """Compute profit forecast for a topic using best available offer and account data."""
     topic = (await db.execute(select(TopicCandidate).where(TopicCandidate.id == topic_id))).scalar_one_or_none()
     if not topic:
         raise ValueError(f"Topic {topic_id} not found")
 
-    best_offer = (await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)).order_by(Offer.epc.desc())
-    )).scalars().first()
+    best_offer = (
+        (
+            await db.execute(
+                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)).order_by(Offer.epc.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
 
-    best_account = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-        .order_by(CreatorAccount.total_revenue.desc())
-    )).scalars().first()
+    best_account = (
+        (
+            await db.execute(
+                select(CreatorAccount)
+                .where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+                .order_by(CreatorAccount.total_revenue.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
 
     impressions = topic.estimated_search_volume if topic.estimated_search_volume > 0 else 5000
     ctr = best_account.ctr if best_account and best_account.ctr > 0 else 0.025
@@ -340,7 +420,9 @@ async def compute_forecast_for_topic(
         estimated_profit=result.expected_profit,
         estimated_rpm=result.expected_rpm,
         estimated_epc=result.expected_epc,
-        confidence=ConfidenceLevel(result.confidence) if result.confidence in [e.value for e in ConfidenceLevel] else ConfidenceLevel.MEDIUM,
+        confidence=ConfidenceLevel(result.confidence)
+        if result.confidence in [e.value for e in ConfidenceLevel]
+        else ConfidenceLevel.MEDIUM,
         assumptions=result.assumptions,
         explanation=result.explanation,
     )
@@ -362,13 +444,17 @@ async def compute_forecast_for_topic(
 
 async def compute_saturation_report(db: AsyncSession, brand_id: uuid.UUID) -> list:
     """Compute saturation reports for all active accounts and niches."""
-    accounts = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalars().all()
+    accounts = (
+        (
+            await db.execute(
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    clusters = (await db.execute(
-        select(NicheCluster).where(NicheCluster.brand_id == brand_id)
-    )).scalars().all()
+    clusters = (await db.execute(select(NicheCluster).where(NicheCluster.brand_id == brand_id))).scalars().all()
 
     results = []
     for acct in accounts:
@@ -380,7 +466,9 @@ async def compute_saturation_report(db: AsyncSession, brand_id: uuid.UUID) -> li
             total_topics_available=max(len(clusters) * 3, 10),
             avg_engagement_last_7d=acct.ctr * 100,
             avg_engagement_last_30d=acct.ctr * 100 * 1.1,
-            audience_overlap_pct=acct.cannibalization_risk.get("overlap", 0.0) if isinstance(acct.cannibalization_risk, dict) else 0.0,
+            audience_overlap_pct=acct.cannibalization_risk.get("overlap", 0.0)
+            if isinstance(acct.cannibalization_risk, dict)
+            else 0.0,
             account_follower_growth_rate=acct.follower_growth_rate,
         )
         result = compute_saturation(inp)
@@ -393,18 +481,22 @@ async def compute_saturation_report(db: AsyncSession, brand_id: uuid.UUID) -> li
             originality_score=result.originality_score,
             topic_overlap_pct=result.topic_overlap_pct,
             audience_overlap_pct=result.audience_overlap_pct,
-            recommended_action=RecommendedAction(result.recommended_action) if result.recommended_action in [e.value for e in RecommendedAction] else RecommendedAction.MONITOR,
+            recommended_action=RecommendedAction(result.recommended_action)
+            if result.recommended_action in [e.value for e in RecommendedAction]
+            else RecommendedAction.MONITOR,
             explanation=result.explanation,
             details={"account_username": acct.platform_username, "platform": acct.platform.value},
         )
         db.add(report)
-        results.append({
-            "account_id": str(acct.id),
-            "username": acct.platform_username,
-            "saturation": result.saturation_score,
-            "fatigue": result.fatigue_score,
-            "action": result.recommended_action,
-        })
+        results.append(
+            {
+                "account_id": str(acct.id),
+                "username": acct.platform_username,
+                "saturation": result.saturation_score,
+                "fatigue": result.fatigue_score,
+                "action": result.recommended_action,
+            }
+        )
 
     await db.flush()
     return results
@@ -412,27 +504,50 @@ async def compute_saturation_report(db: AsyncSession, brand_id: uuid.UUID) -> li
 
 async def build_recommendation_queue(db: AsyncSession, brand_id: uuid.UUID) -> list:
     """Build ranked recommendation queue from scored opportunities."""
-    scores = (await db.execute(
-        select(OpportunityScore)
-        .where(OpportunityScore.brand_id == brand_id)
-        .order_by(OpportunityScore.composite_score.desc())
-        .limit(50)
-    )).scalars().all()
+    scores = (
+        (
+            await db.execute(
+                select(OpportunityScore)
+                .where(OpportunityScore.brand_id == brand_id)
+                .order_by(OpportunityScore.composite_score.desc())
+                .limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     await db.execute(delete(RecommendationQueue).where(RecommendationQueue.brand_id == brand_id))
 
-    offers = (await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)).order_by(Offer.epc.desc())
-    )).scalars().all()
+    offers = (
+        (
+            await db.execute(
+                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)).order_by(Offer.epc.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
     best_offer = offers[0] if offers else None
 
-    account = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True)).order_by(CreatorAccount.total_revenue.desc())
-    )).scalars().first()
+    account = (
+        (
+            await db.execute(
+                select(CreatorAccount)
+                .where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+                .order_by(CreatorAccount.total_revenue.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
 
     recs = []
     for rank, score in enumerate(scores, 1):
-        action = _score_to_action(score.composite_score, score.confidence.value if hasattr(score.confidence, 'value') else str(score.confidence))
+        action = _score_to_action(
+            score.composite_score,
+            score.confidence.value if hasattr(score.confidence, "value") else str(score.confidence),
+        )
         classification = _action_to_classification(action)
 
         rec = RecommendationQueue(
@@ -454,7 +569,9 @@ async def build_recommendation_queue(db: AsyncSession, brand_id: uuid.UUID) -> l
 
 
 async def trigger_brief_for_topic(
-    db: AsyncSession, brand_id: uuid.UUID, topic_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    topic_id: uuid.UUID,
 ) -> dict:
     """Prepare a brief trigger from a recommended topic. Creates the content_brief stub."""
     from packages.db.enums import ContentType
@@ -464,15 +581,27 @@ async def trigger_brief_for_topic(
     if not topic:
         raise ValueError(f"Topic {topic_id} not found")
 
-    score = (await db.execute(
-        select(OpportunityScore)
-        .where(OpportunityScore.topic_candidate_id == topic_id)
-        .order_by(OpportunityScore.composite_score.desc())
-    )).scalars().first()
+    score = (
+        (
+            await db.execute(
+                select(OpportunityScore)
+                .where(OpportunityScore.topic_candidate_id == topic_id)
+                .order_by(OpportunityScore.composite_score.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
 
-    best_offer = (await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)).order_by(Offer.epc.desc())
-    )).scalars().first()
+    best_offer = (
+        (
+            await db.execute(
+                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)).order_by(Offer.epc.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
 
     brief = ContentBrief(
         brand_id=brand_id,

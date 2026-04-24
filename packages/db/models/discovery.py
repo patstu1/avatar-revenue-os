@@ -1,4 +1,5 @@
 """Topic discovery, niche clusters, trend signals."""
+
 import uuid
 from typing import Optional
 
@@ -13,9 +14,7 @@ from packages.db.enums import SignalStrength
 class TopicSource(Base):
     __tablename__ = "topic_sources"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     source_type: Mapped[str] = mapped_column(String(100), nullable=False)
     source_url: Mapped[Optional[str]] = mapped_column(String(1024))
     source_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
@@ -27,9 +26,7 @@ class TopicSource(Base):
 class TopicCandidate(Base):
     __tablename__ = "topic_candidates"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     source_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("topic_sources.id"), index=True
     )
@@ -49,9 +46,7 @@ class TopicCandidate(Base):
 class NicheCluster(Base):
     __tablename__ = "niche_clusters"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     cluster_name: Mapped[str] = mapped_column(String(255), nullable=False)
     parent_niche: Mapped[Optional[str]] = mapped_column(String(255))
     keywords: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
@@ -67,17 +62,13 @@ class NicheCluster(Base):
 class TrendSignal(Base):
     __tablename__ = "trend_signals"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     platform: Mapped[Optional[str]] = mapped_column(String(50), index=True)
     signal_type: Mapped[str] = mapped_column(String(100), nullable=False)
     keyword: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
     volume: Mapped[int] = mapped_column(Integer, default=0)
     velocity: Mapped[float] = mapped_column(Float, default=0.0)
-    strength: Mapped[SignalStrength] = mapped_column(
-        Enum(SignalStrength), default=SignalStrength.WEAK
-    )
+    strength: Mapped[SignalStrength] = mapped_column(Enum(SignalStrength), default=SignalStrength.WEAK)
     peak_predicted_at: Mapped[Optional[str]] = mapped_column(String(50))
     metadata_blob: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     is_actionable: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -1,4 +1,5 @@
 """GM Strategic Chat — Portfolio-level conversational AI endpoints."""
+
 from __future__ import annotations
 
 import uuid
@@ -18,6 +19,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
+
 
 class GMSessionCreate(BaseModel):
     title: str = "GM Strategy Session"
@@ -53,6 +55,7 @@ class GMMessageOut(BaseModel):
 # Machine State & Startup
 # ---------------------------------------------------------------------------
 
+
 @router.get("/gm/machine-state")
 async def get_machine_state(current_user: CurrentUser, db: DBSession):
     """Scan full machine state — the GM's eyes."""
@@ -68,6 +71,7 @@ async def startup_prompt(current_user: CurrentUser, db: DBSession):
 # ---------------------------------------------------------------------------
 # Sessions
 # ---------------------------------------------------------------------------
+
 
 @router.post("/gm/sessions")
 async def create_session(
@@ -91,7 +95,9 @@ async def create_session(
 
     # Generate initial blueprint
     result = await gm_startup.generate_launch_blueprint(
-        db, current_user.organization_id, state,
+        db,
+        current_user.organization_id,
+        state,
     )
 
     # Save GM's opening message
@@ -151,10 +157,13 @@ async def create_session(
 async def list_sessions(current_user: CurrentUser, db: DBSession):
     """List all GM sessions for the organization."""
     result = await db.execute(
-        select(GMSession).where(
+        select(GMSession)
+        .where(
             GMSession.organization_id == current_user.organization_id,
             GMSession.is_active == True,  # noqa: E712
-        ).order_by(desc(GMSession.created_at)).limit(20)
+        )
+        .order_by(desc(GMSession.created_at))
+        .limit(20)
     )
     sessions = result.scalars().all()
     return [
@@ -174,6 +183,7 @@ async def list_sessions(current_user: CurrentUser, db: DBSession):
 # Messages
 # ---------------------------------------------------------------------------
 
+
 @router.get("/gm/sessions/{session_id}/messages")
 async def get_messages(
     session_id: uuid.UUID,
@@ -183,10 +193,12 @@ async def get_messages(
     """Get all messages in a GM session."""
     session = await _get_session(db, session_id, current_user.organization_id)
     result = await db.execute(
-        select(GMMessage).where(
+        select(GMMessage)
+        .where(
             GMMessage.session_id == session.id,
             GMMessage.is_active == True,  # noqa: E712
-        ).order_by(GMMessage.created_at)
+        )
+        .order_by(GMMessage.created_at)
     )
     messages = result.scalars().all()
     return [
@@ -226,10 +238,12 @@ async def send_message(
     state = await gm_startup.get_machine_state(db, current_user.organization_id)
 
     history_result = await db.execute(
-        select(GMMessage).where(
+        select(GMMessage)
+        .where(
             GMMessage.session_id == session.id,
             GMMessage.is_active == True,  # noqa: E712
-        ).order_by(GMMessage.created_at)
+        )
+        .order_by(GMMessage.created_at)
     )
     history = [
         {"role": m.role if m.role != "gm" else "assistant", "content": m.content}
@@ -239,19 +253,31 @@ async def send_message(
     # Get current blueprint content if exists
     blueprint_content = None
     if session.active_blueprint_id:
-        bp_result = await db.execute(
-            select(GMBlueprint).where(GMBlueprint.id == session.active_blueprint_id)
-        )
+        bp_result = await db.execute(select(GMBlueprint).where(GMBlueprint.id == session.active_blueprint_id))
         bp = bp_result.scalar_one_or_none()
         if bp:
             # Check if this is a revision request
-            revision_keywords = ["change", "revise", "update", "adjust", "swap", "replace", "drop", "add more", "instead"]
+            revision_keywords = [
+                "change",
+                "revise",
+                "update",
+                "adjust",
+                "swap",
+                "replace",
+                "drop",
+                "add more",
+                "instead",
+            ]
             is_revision = any(kw in body.content.lower() for kw in revision_keywords)
 
             if is_revision:
                 result = await gm_startup.revise_blueprint(
-                    db, current_user.organization_id, state,
-                    blueprint_content or "", body.content, history,
+                    db,
+                    current_user.organization_id,
+                    state,
+                    blueprint_content or "",
+                    body.content,
+                    history,
                 )
                 message_type = "blueprint_revision"
 
@@ -278,20 +304,32 @@ async def send_message(
                     session.active_blueprint_id = new_bp.id
             else:
                 result = await gm_startup.gm_conversation(
-                    db, current_user.organization_id, state,
-                    blueprint_content, history, body.content,
+                    db,
+                    current_user.organization_id,
+                    state,
+                    blueprint_content,
+                    history,
+                    body.content,
                 )
                 message_type = "conversation"
         else:
             result = await gm_startup.gm_conversation(
-                db, current_user.organization_id, state,
-                None, history, body.content,
+                db,
+                current_user.organization_id,
+                state,
+                None,
+                history,
+                body.content,
             )
             message_type = "conversation"
     else:
         result = await gm_startup.gm_conversation(
-            db, current_user.organization_id, state,
-            None, history, body.content,
+            db,
+            current_user.organization_id,
+            state,
+            None,
+            history,
+            body.content,
         )
         message_type = "conversation"
 
@@ -332,15 +370,19 @@ async def send_message(
 # Blueprint Operations
 # ---------------------------------------------------------------------------
 
+
 @router.get("/gm/blueprint")
 async def get_active_blueprint(current_user: CurrentUser, db: DBSession):
     """Get the most recent active blueprint."""
     result = await db.execute(
-        select(GMBlueprint).where(
+        select(GMBlueprint)
+        .where(
             GMBlueprint.organization_id == current_user.organization_id,
             GMBlueprint.status.in_(["proposed", "approved", "executing"]),
             GMBlueprint.is_active == True,  # noqa: E712
-        ).order_by(desc(GMBlueprint.created_at)).limit(1)
+        )
+        .order_by(desc(GMBlueprint.created_at))
+        .limit(1)
     )
     bp = result.scalar_one_or_none()
     if not bp:
@@ -368,11 +410,14 @@ async def get_active_blueprint(current_user: CurrentUser, db: DBSession):
 async def approve_blueprint(current_user: CurrentUser, db: DBSession):
     """Approve the current proposed blueprint for execution."""
     result = await db.execute(
-        select(GMBlueprint).where(
+        select(GMBlueprint)
+        .where(
             GMBlueprint.organization_id == current_user.organization_id,
             GMBlueprint.status == "proposed",
             GMBlueprint.is_active == True,  # noqa: E712
-        ).order_by(desc(GMBlueprint.created_at)).limit(1)
+        )
+        .order_by(desc(GMBlueprint.created_at))
+        .limit(1)
     )
     bp = result.scalar_one_or_none()
     if not bp:
@@ -394,11 +439,14 @@ async def execute_step(
 ):
     """Execute a specific step from the approved blueprint."""
     result = await db.execute(
-        select(GMBlueprint).where(
+        select(GMBlueprint)
+        .where(
             GMBlueprint.organization_id == current_user.organization_id,
             GMBlueprint.status.in_(["approved", "executing"]),
             GMBlueprint.is_active == True,  # noqa: E712
-        ).order_by(desc(GMBlueprint.created_at)).limit(1)
+        )
+        .order_by(desc(GMBlueprint.created_at))
+        .limit(1)
     )
     bp = result.scalar_one_or_none()
     if not bp:
@@ -406,7 +454,10 @@ async def execute_step(
 
     bp.status = "executing"
     exec_result = await gm_startup.execute_blueprint_step(
-        db, current_user.organization_id, bp, step_key,
+        db,
+        current_user.organization_id,
+        bp,
+        step_key,
     )
 
     progress = bp.execution_progress or {}
@@ -419,10 +470,7 @@ async def execute_step(
 
     # Check if all steps completed
     expected_steps = ["create_brands", "create_accounts", "create_offers"]
-    all_done = all(
-        progress.get(s, {}).get("status") == "completed"
-        for s in expected_steps
-    )
+    all_done = all(progress.get(s, {}).get("status") == "completed" for s in expected_steps)
     if all_done:
         bp.status = "completed"
         bp.completed_at = datetime.now(timezone.utc)
@@ -435,9 +483,8 @@ async def execute_step(
 # Helpers
 # ---------------------------------------------------------------------------
 
-async def _get_session(
-    db: DBSession, session_id: uuid.UUID, org_id: uuid.UUID
-) -> GMSession:
+
+async def _get_session(db: DBSession, session_id: uuid.UUID, org_id: uuid.UUID) -> GMSession:
     result = await db.execute(
         select(GMSession).where(
             GMSession.id == session_id,

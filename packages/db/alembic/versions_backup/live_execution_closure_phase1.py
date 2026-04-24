@@ -4,6 +4,7 @@ Revision ID: lec_phase1_001
 Revises: buffer_dist_001
 Create Date: 2025-01-01 00:00:00.000000
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -40,7 +41,9 @@ def upgrade() -> None:
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
         sa.Column("import_id", UUID(as_uuid=True), sa.ForeignKey("analytics_imports.id"), nullable=True, index=True),
         sa.Column("content_item_id", UUID(as_uuid=True), sa.ForeignKey("content_items.id"), nullable=True, index=True),
-        sa.Column("creator_account_id", UUID(as_uuid=True), sa.ForeignKey("creator_accounts.id"), nullable=True, index=True),
+        sa.Column(
+            "creator_account_id", UUID(as_uuid=True), sa.ForeignKey("creator_accounts.id"), nullable=True, index=True
+        ),
         sa.Column("source", sa.String(80), nullable=False, index=True),
         sa.Column("event_type", sa.String(60), nullable=False, index=True),
         sa.Column("platform", sa.String(50), nullable=True, index=True),
@@ -111,7 +114,13 @@ def upgrade() -> None:
         "experiment_live_results",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("import_id", UUID(as_uuid=True), sa.ForeignKey("experiment_observation_imports.id"), nullable=True, index=True),
+        sa.Column(
+            "import_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("experiment_observation_imports.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("experiment_id", UUID(as_uuid=True), sa.ForeignKey("experiments.id"), nullable=True, index=True),
         sa.Column("variant_id", UUID(as_uuid=True), sa.ForeignKey("experiment_variants.id"), nullable=True, index=True),
         sa.Column("source", sa.String(80), nullable=False, index=True),

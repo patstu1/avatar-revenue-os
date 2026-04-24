@@ -5,6 +5,7 @@ happen automatically when an intake completes; these routes exist so
 the operator can inspect state and manually retrigger/regenerate when
 needed.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -61,19 +62,25 @@ async def get_project(
     project = await _require_owned_project(db, pid, current_user.organization_id)
 
     briefs = (
-        await db.execute(
-            select(ProjectBrief)
-            .where(ProjectBrief.project_id == project.id)
-            .order_by(desc(ProjectBrief.version))
+        (
+            await db.execute(
+                select(ProjectBrief).where(ProjectBrief.project_id == project.id).order_by(desc(ProjectBrief.version))
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     jobs = (
-        await db.execute(
-            select(ProductionJob)
-            .where(ProductionJob.project_id == project.id)
-            .order_by(desc(ProductionJob.created_at))
+        (
+            await db.execute(
+                select(ProductionJob)
+                .where(ProductionJob.project_id == project.id)
+                .order_by(desc(ProductionJob.created_at))
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     return {
         **_project_summary(project),
@@ -115,9 +122,7 @@ async def get_brief(
     db: DBSession,
 ):
     bid = _parse_uuid(brief_id)
-    brief = (
-        await db.execute(select(ProjectBrief).where(ProjectBrief.id == bid))
-    ).scalar_one_or_none()
+    brief = (await db.execute(select(ProjectBrief).where(ProjectBrief.id == bid))).scalar_one_or_none()
     if brief is None or brief.org_id != current_user.organization_id:
         raise HTTPException(404, "Brief not found")
     return {
@@ -129,7 +134,9 @@ async def get_brief(
         "tone_and_voice": brief.tone_and_voice,
         "deliverables": brief.deliverables_json,
         "assets": brief.assets_json,
-        "source_intake_submission_id": str(brief.source_intake_submission_id) if brief.source_intake_submission_id else None,
+        "source_intake_submission_id": str(brief.source_intake_submission_id)
+        if brief.source_intake_submission_id
+        else None,
     }
 
 
@@ -146,14 +153,10 @@ async def launch_production(
     db: DBSession,
 ):
     bid = _parse_uuid(brief_id)
-    brief = (
-        await db.execute(select(ProjectBrief).where(ProjectBrief.id == bid))
-    ).scalar_one_or_none()
+    brief = (await db.execute(select(ProjectBrief).where(ProjectBrief.id == bid))).scalar_one_or_none()
     if brief is None or brief.org_id != current_user.organization_id:
         raise HTTPException(404, "Brief not found")
-    job = await launch_production_for_brief(
-        db, brief=brief, job_type=body.job_type, title=body.title
-    )
+    job = await launch_production_for_brief(db, brief=brief, job_type=body.job_type, title=body.title)
     await db.commit()
     return _job_summary(job)
 
@@ -186,9 +189,7 @@ async def get_production_job(
     db: DBSession,
 ):
     jid = _parse_uuid(job_id)
-    job = (
-        await db.execute(select(ProductionJob).where(ProductionJob.id == jid))
-    ).scalar_one_or_none()
+    job = (await db.execute(select(ProductionJob).where(ProductionJob.id == jid))).scalar_one_or_none()
     if job is None or job.org_id != current_user.organization_id:
         raise HTTPException(404, "Production job not found")
     return {

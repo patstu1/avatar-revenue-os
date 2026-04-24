@@ -1,6 +1,7 @@
 """Growth Commander: exact portfolio-expansion commands.
 POST recompute writes. All GETs are read-only.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -30,12 +31,21 @@ async def _require_brand(brand_id: uuid.UUID, user, db: DBSession) -> Brand:
 
 
 @router.post("/{brand_id}/growth-commands/recompute")
-async def recompute_growth_commands(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_growth_commands(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await gcs.recompute_growth_commands(db, brand_id, user_id=current_user.id)
-    await log_action(db, "growth_commander.recomputed", organization_id=current_user.organization_id,
-                     brand_id=brand_id, user_id=current_user.id, actor_type="human",
-                     entity_type="growth_command", details=result)
+    await log_action(
+        db,
+        "growth_commander.recomputed",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="growth_command",
+        details=result,
+    )
     return result
 
 

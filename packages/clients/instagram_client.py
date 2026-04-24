@@ -7,6 +7,7 @@ Uses the Instagram Content Publishing API (Graph API v21.0):
 
 API docs: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/content-publishing
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -23,8 +24,10 @@ _POLL_INTERVAL = 5  # seconds between status polls
 
 # ── Exceptions ──────────────────────────────────────────────────────────────
 
+
 class InstagramError(Exception):
     """Base exception for Instagram client errors."""
+
     def __init__(self, message: str, status_code: int = 0, response_body: Any = None):
         super().__init__(message)
         self.status_code = status_code
@@ -33,16 +36,19 @@ class InstagramError(Exception):
 
 class AuthError(InstagramError):
     """401/403 — credentials invalid or expired."""
+
     pass
 
 
 class PermanentError(InstagramError):
     """4xx (non-auth) — bad request, not found, etc."""
+
     pass
 
 
 class TransientError(InstagramError):
     """429 or 5xx — retryable server/rate-limit errors."""
+
     pass
 
 
@@ -74,6 +80,7 @@ def _check_graph_error(data: dict, http_status: int) -> None:
 
 
 # ── Client ──────────────────────────────────────────────────────────────────
+
 
 class InstagramClient:
     """Direct Instagram Graph API client for content publishing."""
@@ -225,7 +232,9 @@ class InstagramClient:
 
         if resp.status_code != 200:
             body = _safe_json(resp)
-            raise _classify_error(resp.status_code, f"Instagram carousel container failed: HTTP {resp.status_code}", body)
+            raise _classify_error(
+                resp.status_code, f"Instagram carousel container failed: HTTP {resp.status_code}", body
+            )
 
         data = resp.json()
         _check_graph_error(data, resp.status_code)
@@ -254,11 +263,17 @@ class InstagramClient:
         for item in media_items:
             if item["type"] == "image":
                 cid = await self.create_image_container(
-                    access_token, ig_user_id, item["url"], is_carousel_item=True,
+                    access_token,
+                    ig_user_id,
+                    item["url"],
+                    is_carousel_item=True,
                 )
             else:
                 cid = await self.create_reel_container(
-                    access_token, ig_user_id, item["url"], is_carousel_item=True,
+                    access_token,
+                    ig_user_id,
+                    item["url"],
+                    is_carousel_item=True,
                 )
             children_ids.append(cid)
 
@@ -270,7 +285,10 @@ class InstagramClient:
 
         # Create the carousel container
         carousel_id = await self.create_carousel_container(
-            access_token, ig_user_id, children_ids, caption,
+            access_token,
+            ig_user_id,
+            children_ids,
+            caption,
         )
 
         # Wait for carousel to finish processing
@@ -380,6 +398,7 @@ class InstagramClient:
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
+
 
 def _safe_json(resp: httpx.Response) -> Any:
     try:

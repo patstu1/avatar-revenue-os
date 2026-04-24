@@ -1,4 +1,5 @@
 """Contribution engine — multi-touch attribution models and cross-model comparison."""
+
 from __future__ import annotations
 
 import math
@@ -37,12 +38,14 @@ def _score_touchpoints_first_touch(
         is_first = tp is first
         val = total_value if is_first else 0.0
         score = 1.0 if is_first else 0.0
-        results.append({
-            "scope_type": tp.get("scope_type", "unknown"),
-            "scope_id": tp.get("scope_id"),
-            "estimated_contribution_value": round(val, 2),
-            "contribution_score": round(score, 4),
-        })
+        results.append(
+            {
+                "scope_type": tp.get("scope_type", "unknown"),
+                "scope_id": tp.get("scope_id"),
+                "estimated_contribution_value": round(val, 2),
+                "contribution_score": round(score, 4),
+            }
+        )
     return results
 
 
@@ -58,12 +61,14 @@ def _score_touchpoints_last_touch(
         is_last = tp is last
         val = total_value if is_last else 0.0
         score = 1.0 if is_last else 0.0
-        results.append({
-            "scope_type": tp.get("scope_type", "unknown"),
-            "scope_id": tp.get("scope_id"),
-            "estimated_contribution_value": round(val, 2),
-            "contribution_score": round(score, 4),
-        })
+        results.append(
+            {
+                "scope_type": tp.get("scope_type", "unknown"),
+                "scope_id": tp.get("scope_id"),
+                "estimated_contribution_value": round(val, 2),
+                "contribution_score": round(score, 4),
+            }
+        )
     return results
 
 
@@ -101,12 +106,14 @@ def _score_touchpoints_time_decay(
     results = []
     for tp, w in zip(touchpoints, weights):
         normed = w / w_sum
-        results.append({
-            "scope_type": tp.get("scope_type", "unknown"),
-            "scope_id": tp.get("scope_id"),
-            "estimated_contribution_value": round(total_value * normed, 2),
-            "contribution_score": round(normed, 4),
-        })
+        results.append(
+            {
+                "scope_type": tp.get("scope_type", "unknown"),
+                "scope_id": tp.get("scope_id"),
+                "estimated_contribution_value": round(total_value * normed, 2),
+                "contribution_score": round(normed, 4),
+            }
+        )
     return results
 
 
@@ -118,12 +125,14 @@ def _score_touchpoints_position_based(
     if n == 0:
         return []
     if n == 1:
-        return [{
-            "scope_type": touchpoints[0].get("scope_type", "unknown"),
-            "scope_id": touchpoints[0].get("scope_id"),
-            "estimated_contribution_value": round(total_value, 2),
-            "contribution_score": 1.0,
-        }]
+        return [
+            {
+                "scope_type": touchpoints[0].get("scope_type", "unknown"),
+                "scope_id": touchpoints[0].get("scope_id"),
+                "estimated_contribution_value": round(total_value, 2),
+                "contribution_score": 1.0,
+            }
+        ]
     mid_count = max(n - 2, 1)
     mid_each = _POSITION_MID_WEIGHT_SHARE / mid_count
     results = []
@@ -134,12 +143,14 @@ def _score_touchpoints_position_based(
             w = _POSITION_LAST_WEIGHT
         else:
             w = mid_each
-        results.append({
-            "scope_type": tp.get("scope_type", "unknown"),
-            "scope_id": tp.get("scope_id"),
-            "estimated_contribution_value": round(total_value * w, 2),
-            "contribution_score": round(w, 4),
-        })
+        results.append(
+            {
+                "scope_type": tp.get("scope_type", "unknown"),
+                "scope_id": tp.get("scope_id"),
+                "estimated_contribution_value": round(total_value * w, 2),
+                "contribution_score": round(w, 4),
+            }
+        )
     return results
 
 
@@ -188,31 +199,30 @@ def compute_contribution_reports(
         if n < 3:
             caveats.append("Fewer than 3 touchpoints — attribution unreliable.")
         if model_name in ("first_touch", "last_touch") and n > 5:
-            caveats.append(
-                f"{model_name} ignores {n - 1} of {n} touchpoints. "
-                "Consider multi-touch models."
-            )
+            caveats.append(f"{model_name} ignores {n - 1} of {n} touchpoints. Consider multi-touch models.")
 
         base_conf = 0.55 + min(0.30, n * 0.03)
         if caveats:
             base_conf -= 0.10
 
         for row in scored:
-            reports.append({
-                "attribution_model": model_name,
-                "scope_type": row["scope_type"],
-                "scope_id": row["scope_id"],
-                "estimated_contribution_value": row["estimated_contribution_value"],
-                "contribution_score": row["contribution_score"],
-                "confidence": round(_clamp(base_conf), 4),
-                "caveats": caveats,
-                "explanation": (
-                    f"Model {model_name}: scope {row['scope_type']}:{row['scope_id']} "
-                    f"attributed {row['contribution_score']:.2%} of ${total_value:.2f} "
-                    f"({n} touchpoints)."
-                ),
-                CONTRIB: True,
-            })
+            reports.append(
+                {
+                    "attribution_model": model_name,
+                    "scope_type": row["scope_type"],
+                    "scope_id": row["scope_id"],
+                    "estimated_contribution_value": row["estimated_contribution_value"],
+                    "contribution_score": row["contribution_score"],
+                    "confidence": round(_clamp(base_conf), 4),
+                    "caveats": caveats,
+                    "explanation": (
+                        f"Model {model_name}: scope {row['scope_type']}:{row['scope_id']} "
+                        f"attributed {row['contribution_score']:.2%} of ${total_value:.2f} "
+                        f"({n} touchpoints)."
+                    ),
+                    CONTRIB: True,
+                }
+            )
 
     return reports
 
@@ -254,13 +264,15 @@ def compare_attribution_models(
 
         is_misleading = divergence > _DIVERGENCE_ALERT_THRESHOLD
 
-        divergences.append({
-            "scope": scope_key,
-            "last_touch_score": round(last_touch_score, 4),
-            "time_decay_score": round(time_decay_score, 4),
-            "divergence_pct": round(divergence, 4),
-            "misleading_last_click": is_misleading,
-        })
+        divergences.append(
+            {
+                "scope": scope_key,
+                "last_touch_score": round(last_touch_score, 4),
+                "time_decay_score": round(time_decay_score, 4),
+                "divergence_pct": round(divergence, 4),
+                "misleading_last_click": is_misleading,
+            }
+        )
 
         if is_misleading:
             misleading_scopes.append(scope_key)

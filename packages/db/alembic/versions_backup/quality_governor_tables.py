@@ -3,6 +3,7 @@
 Revision ID: qg_001
 Revises: asi_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -17,7 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table("qg_reports",
+    op.create_table(
+        "qg_reports",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -36,7 +38,8 @@ def upgrade() -> None:
     op.create_index("ix_qgr_brand", "qg_reports", ["brand_id"])
     op.create_index("ix_qgr_ci", "qg_reports", ["content_item_id"])
 
-    op.create_table("qg_dimension_scores",
+    op.create_table(
+        "qg_dimension_scores",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -49,7 +52,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table("qg_blocks",
+    op.create_table(
+        "qg_blocks",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -65,7 +69,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table("qg_improvement_actions",
+    op.create_table(
+        "qg_improvement_actions",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),

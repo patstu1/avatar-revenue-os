@@ -3,6 +3,7 @@
 Revision ID: t1u2v3w4x5y6
 Revises: s0h1i2j3k4l5
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -20,7 +21,12 @@ def upgrade() -> None:
     # --- pricing_recommendations ---
     op.create_table(
         "pricing_recommendations",
-        sa.Column("id", sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column(
+            "id",
+            sa.dialects.postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
         sa.Column("brand_id", sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False),
         sa.Column("offer_id", sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("offers.id"), nullable=False),
         sa.Column("recommendation_type", sa.String(80), nullable=False),
@@ -41,7 +47,12 @@ def upgrade() -> None:
     # --- bundle_recommendations ---
     op.create_table(
         "bundle_recommendations",
-        sa.Column("id", sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column(
+            "id",
+            sa.dialects.postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
         sa.Column("brand_id", sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False),
         sa.Column("bundle_name", sa.String(255), nullable=False),
         sa.Column("offer_ids", JSONB, server_default="[]"),
@@ -60,7 +71,12 @@ def upgrade() -> None:
     # --- retention_recommendations ---
     op.create_table(
         "retention_recommendations",
-        sa.Column("id", sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column(
+            "id",
+            sa.dialects.postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
         sa.Column("brand_id", sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False),
         sa.Column("customer_segment", sa.String(255), nullable=False),
         sa.Column("recommendation_type", sa.String(80), nullable=False),
@@ -78,7 +94,12 @@ def upgrade() -> None:
     # --- reactivation_campaigns ---
     op.create_table(
         "reactivation_campaigns",
-        sa.Column("id", sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column(
+            "id",
+            sa.dialects.postgresql.UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
         sa.Column("brand_id", sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False),
         sa.Column("campaign_name", sa.String(255), nullable=False),
         sa.Column("target_segment", sa.String(255), nullable=False),

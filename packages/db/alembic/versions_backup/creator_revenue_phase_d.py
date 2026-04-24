@@ -4,6 +4,7 @@ Revision ID: cra_phase_d_001
 Revises: cra_phase_c_001
 Create Date: 2025-01-01 00:00:00.000000
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID

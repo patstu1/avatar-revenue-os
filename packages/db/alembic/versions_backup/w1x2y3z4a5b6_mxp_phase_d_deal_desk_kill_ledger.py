@@ -3,6 +3,7 @@
 Revision ID: w1x2y3z4a5b6
 Revises: v0w1x2y3z4a5
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -89,7 +90,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_kill_hindsight_reviews_brand_id", "kill_hindsight_reviews", ["brand_id"])
-    op.create_index("ix_kill_hindsight_reviews_kill_ledger_entry_id", "kill_hindsight_reviews", ["kill_ledger_entry_id"])
+    op.create_index(
+        "ix_kill_hindsight_reviews_kill_ledger_entry_id", "kill_hindsight_reviews", ["kill_ledger_entry_id"]
+    )
 
 
 def downgrade() -> None:

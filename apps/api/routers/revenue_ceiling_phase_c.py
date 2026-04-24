@@ -1,4 +1,5 @@
 """Revenue Ceiling Phase C — recurring revenue, sponsor inventory, trust, monetization mix, paid promotion."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -32,6 +33,7 @@ async def _require_brand(brand_id: uuid.UUID, user, db: DBSession) -> Brand:
 # Recurring Revenue
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{brand_id}/recurring-revenue", response_model=list[RecurringRevenueModelOut])
 async def list_recurring_revenue(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
@@ -39,7 +41,9 @@ async def list_recurring_revenue(brand_id: uuid.UUID, current_user: CurrentUser,
 
 
 @router.post("/{brand_id}/recurring-revenue/recompute")
-async def recompute_recurring_revenue(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_recurring_revenue(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rcc.recompute_recurring_revenue(db, brand_id)
     await log_action(
@@ -59,6 +63,7 @@ async def recompute_recurring_revenue(brand_id: uuid.UUID, current_user: Operato
 # Sponsor Inventory
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{brand_id}/sponsor-inventory", response_model=list[SponsorInventoryItemOut])
 async def list_sponsor_inventory(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
@@ -66,7 +71,9 @@ async def list_sponsor_inventory(brand_id: uuid.UUID, current_user: CurrentUser,
 
 
 @router.post("/{brand_id}/sponsor-inventory/recompute")
-async def recompute_sponsor_inventory(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_sponsor_inventory(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rcc.recompute_sponsor_inventory(db, brand_id)
     await log_action(
@@ -86,13 +93,12 @@ async def recompute_sponsor_inventory(brand_id: uuid.UUID, current_user: Operato
 # Sponsor Package Recommendations
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/{brand_id}/sponsor-package-recommendations",
     response_model=list[SponsorPackageRecommendationOut],
 )
-async def list_sponsor_package_recommendations(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_sponsor_package_recommendations(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await rcc.get_sponsor_package_recommendations(db, brand_id)
 
@@ -101,10 +107,9 @@ async def list_sponsor_package_recommendations(
 # Paid Promotion Candidates
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{brand_id}/paid-promotion-candidates", response_model=list[PaidPromotionCandidateOut])
-async def list_paid_promotion_candidates(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession
-):
+async def list_paid_promotion_candidates(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
     return await rcc.get_paid_promotion_candidates(db, brand_id)
 
@@ -132,6 +137,7 @@ async def recompute_paid_promotion_candidates(
 # Trust Conversion
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{brand_id}/trust-conversion", response_model=list[TrustConversionReportOut])
 async def list_trust_conversion(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
@@ -139,7 +145,9 @@ async def list_trust_conversion(brand_id: uuid.UUID, current_user: CurrentUser, 
 
 
 @router.post("/{brand_id}/trust-conversion/recompute")
-async def recompute_trust_conversion(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_trust_conversion(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rcc.recompute_trust_conversion(db, brand_id)
     await log_action(
@@ -159,6 +167,7 @@ async def recompute_trust_conversion(brand_id: uuid.UUID, current_user: Operator
 # Monetization Mix
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{brand_id}/monetization-mix", response_model=list[MonetizationMixReportOut])
 async def list_monetization_mix(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
@@ -166,7 +175,9 @@ async def list_monetization_mix(brand_id: uuid.UUID, current_user: CurrentUser, 
 
 
 @router.post("/{brand_id}/monetization-mix/recompute")
-async def recompute_monetization_mix(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_monetization_mix(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await rcc.recompute_monetization_mix(db, brand_id)
     await log_action(

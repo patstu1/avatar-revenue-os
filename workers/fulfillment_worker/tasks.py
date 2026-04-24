@@ -13,6 +13,7 @@ Tasks:
 Each task runs inside a fresh DB session using the same
 ``run_async`` / async-session-factory pattern as the existing workers.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -42,6 +43,7 @@ def _fresh_session_factory():
     db_url = os.environ["DATABASE_URL"]
     engine = create_async_engine(db_url, pool_pre_ping=True, pool_size=2, max_overflow=2)
     return async_sessionmaker(engine, expire_on_commit=False), engine
+
 
 logger = structlog.get_logger(__name__)
 
@@ -85,14 +87,20 @@ async def _drain_pending_production_jobs() -> dict:
 
         # 1a. Pick up pending jobs.
         pending = (
-            await db.execute(
-                select(ProductionJob).where(
-                    ProductionJob.status == "queued",
-                    ProductionJob.is_active.is_(True),
-                    ProductionJob.picked_up_at.is_(None),
-                ).limit(25)
+            (
+                await db.execute(
+                    select(ProductionJob)
+                    .where(
+                        ProductionJob.status == "queued",
+                        ProductionJob.is_active.is_(True),
+                        ProductionJob.picked_up_at.is_(None),
+                    )
+                    .limit(25)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         picked = 0
         for job in pending:
@@ -124,7 +132,8 @@ async def _drain_pending_production_jobs() -> dict:
             )
             try:
                 await mark_stage(
-                    db, org_id=job.org_id,
+                    db,
+                    org_id=job.org_id,
                     entity_type="production_job",
                     entity_id=job.id,
                     stage="in_progress",
@@ -140,15 +149,21 @@ async def _drain_pending_production_jobs() -> dict:
         # 1b. Detect stuck jobs.
         stuck_cutoff = now - timedelta(hours=STUCK_IN_PROGRESS_HOURS)
         stuck_jobs = (
-            await db.execute(
-                select(ProductionJob).where(
-                    ProductionJob.status == "in_progress",
-                    ProductionJob.is_active.is_(True),
-                    ProductionJob.picked_up_at.isnot(None),
-                    ProductionJob.picked_up_at < stuck_cutoff,
-                ).limit(25)
+            (
+                await db.execute(
+                    select(ProductionJob)
+                    .where(
+                        ProductionJob.status == "in_progress",
+                        ProductionJob.is_active.is_(True),
+                        ProductionJob.picked_up_at.isnot(None),
+                        ProductionJob.picked_up_at < stuck_cutoff,
+                    )
+                    .limit(25)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         escalated = 0
         for job in stuck_jobs:
@@ -227,29 +242,31 @@ async def _dispatch_due_followups() -> dict:
     async with Session() as db:
         now = datetime.now(timezone.utc)
         rows = (
-            await db.execute(
-                select(Delivery).where(
-                    Delivery.followup_sent_at.is_(None),
-                    Delivery.followup_scheduled_at.isnot(None),
-                    Delivery.followup_scheduled_at <= now,
-                    Delivery.status == "sent",
-                    Delivery.is_active.is_(True),
-                ).limit(50)
+            (
+                await db.execute(
+                    select(Delivery)
+                    .where(
+                        Delivery.followup_sent_at.is_(None),
+                        Delivery.followup_scheduled_at.isnot(None),
+                        Delivery.followup_scheduled_at <= now,
+                        Delivery.status == "sent",
+                        Delivery.is_active.is_(True),
+                    )
+                    .limit(50)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         sent = 0
         failed = 0
         skipped_no_smtp = 0
 
         for delivery in rows:
-            client = (
-                await db.execute(select(Client).where(Client.id == delivery.client_id))
-            ).scalar_one_or_none()
+            client = (await db.execute(select(Client).where(Client.id == delivery.client_id))).scalar_one_or_none()
             project = (
-                await db.execute(
-                    select(ClientProject).where(ClientProject.id == delivery.project_id)
-                )
+                await db.execute(select(ClientProject).where(ClientProject.id == delivery.project_id))
             ).scalar_one_or_none()
             if client is None or project is None:
                 delivery.followup_sent_at = now  # prevent retry loop
@@ -329,6 +346,7 @@ def dispatch_due_followups():
 
 async def _chase_unpaid_proposals_task() -> dict:
     from apps.api.services.proposal_dunning_service import chase_unpaid_proposals
+
     Session, engine = _fresh_session_factory()
     async with Session() as db:
         result = await chase_unpaid_proposals(db)
@@ -354,6 +372,7 @@ async def _reconcile_stripe_webhooks_task() -> dict:
     from apps.api.services.stripe_reconciliation_service import (
         reconcile_all_stripe_orgs,
     )
+
     Session, engine = _fresh_session_factory()
     async with Session() as db:
         result = await reconcile_all_stripe_orgs(db)
@@ -372,6 +391,7 @@ async def _scan_retention_states_task() -> dict:
     flip occurs so GM surfaces see candidates in real time.
     """
     from apps.api.services.retention_service import scan_all_retention_states
+
     Session, engine = _fresh_session_factory()
     async with Session() as db:
         result = await scan_all_retention_states(db)
@@ -399,6 +419,7 @@ async def _scan_overdue_invoices_task() -> dict:
     has passed, and open a GMEscalation for each so GM surfaces
     them."""
     from apps.api.services.invoice_service import scan_overdue_invoices
+
     Session, engine = _fresh_session_factory()
     async with Session() as db:
         result = await scan_overdue_invoices(db)

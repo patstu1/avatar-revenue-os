@@ -3,6 +3,7 @@
 Revision ID: cap_alloc_001
 Revises: promote_win_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -17,7 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table("ca_allocation_reports",
+    op.create_table(
+        "ca_allocation_reports",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -36,7 +38,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_car_brand", "ca_allocation_reports", ["brand_id"])
 
-    op.create_table("ca_allocation_targets",
+    op.create_table(
+        "ca_allocation_targets",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -59,7 +62,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_at_brand", "ca_allocation_targets", ["brand_id"])
 
-    op.create_table("ca_allocation_decisions",
+    op.create_table(
+        "ca_allocation_decisions",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -79,7 +83,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table("ca_allocation_constraints",
+    op.create_table(
+        "ca_allocation_constraints",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -94,7 +99,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table("ca_allocation_rebalances",
+    op.create_table(
+        "ca_allocation_rebalances",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -112,5 +118,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for t in ("ca_allocation_rebalances", "ca_allocation_constraints", "ca_allocation_decisions", "ca_allocation_targets", "ca_allocation_reports"):
+    for t in (
+        "ca_allocation_rebalances",
+        "ca_allocation_constraints",
+        "ca_allocation_decisions",
+        "ca_allocation_targets",
+        "ca_allocation_reports",
+    ):
         op.drop_table(t)

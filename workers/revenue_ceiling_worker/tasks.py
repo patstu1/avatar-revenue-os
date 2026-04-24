@@ -1,4 +1,5 @@
 """Recurring Revenue Ceiling Phase A recomputes."""
+
 import logging
 
 from sqlalchemy import select
@@ -247,7 +248,9 @@ def recompute_all_lead_qualification(self) -> dict:
     return _run_async(_run())
 
 
-@app.task(base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_owned_offer_recommendations")
+@app.task(
+    base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_owned_offer_recommendations"
+)
 def recompute_all_owned_offer_recommendations(self) -> dict:
     async def _run():
         total = {"brands": 0, "rows": 0, "errors": []}
@@ -288,7 +291,9 @@ def recompute_all_monetization_mix(self) -> dict:
     return _run_async(_run())
 
 
-@app.task(base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.refresh_all_paid_promotion_candidates")
+@app.task(
+    base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.refresh_all_paid_promotion_candidates"
+)
 def refresh_all_paid_promotion_candidates(self) -> dict:
     async def _run():
         total = {"brands": 0, "eligible": 0, "errors": []}
@@ -330,7 +335,9 @@ def refresh_all_upsell_recommendations(self) -> dict:
     return _run_async(_run())
 
 
-@app.task(base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_pricing_recommendations")
+@app.task(
+    base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_pricing_recommendations"
+)
 def recompute_all_pricing_recommendations(self) -> dict:
     async def _run():
         total = {"brands": 0, "rows": 0, "errors": []}
@@ -372,7 +379,9 @@ def recompute_all_bundle_recommendations(self) -> dict:
     return _run_async(_run())
 
 
-@app.task(base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_retention_recommendations")
+@app.task(
+    base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_retention_recommendations"
+)
 def recompute_all_retention_recommendations(self) -> dict:
     async def _run():
         total = {"brands": 0, "rows": 0, "errors": []}
@@ -414,7 +423,11 @@ def recompute_all_reactivation_campaigns(self) -> dict:
     return _run_async(_run())
 
 
-@app.task(base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_referral_program_recommendations")
+@app.task(
+    base=TrackedTask,
+    bind=True,
+    name="workers.revenue_ceiling_worker.tasks.recompute_all_referral_program_recommendations",
+)
 def recompute_all_referral_program_recommendations(self) -> dict:
     async def _run():
         total = {"brands": 0, "rows": 0, "errors": []}
@@ -435,7 +448,9 @@ def recompute_all_referral_program_recommendations(self) -> dict:
     return _run_async(_run())
 
 
-@app.task(base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_competitive_gap_reports")
+@app.task(
+    base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_competitive_gap_reports"
+)
 def recompute_all_competitive_gap_reports(self) -> dict:
     async def _run():
         total = {"brands": 0, "rows": 0, "errors": []}
@@ -477,7 +492,9 @@ def recompute_all_sponsor_targets(self) -> dict:
     return _run_async(_run())
 
 
-@app.task(base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_sponsor_outreach_sequences")
+@app.task(
+    base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_sponsor_outreach_sequences"
+)
 def recompute_all_sponsor_outreach_sequences(self) -> dict:
     async def _run():
         total = {"brands": 0, "rows": 0, "errors": []}
@@ -498,7 +515,9 @@ def recompute_all_sponsor_outreach_sequences(self) -> dict:
     return _run_async(_run())
 
 
-@app.task(base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_profit_guardrail_reports")
+@app.task(
+    base=TrackedTask, bind=True, name="workers.revenue_ceiling_worker.tasks.recompute_all_profit_guardrail_reports"
+)
 def recompute_all_profit_guardrail_reports(self) -> dict:
     async def _run():
         total = {"brands": 0, "rows": 0, "errors": []}

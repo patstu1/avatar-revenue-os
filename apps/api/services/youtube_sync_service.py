@@ -47,12 +47,14 @@ async def sync_youtube_account(db: AsyncSession, account: CreatorAccount) -> dic
                 if not stats:
                     continue
 
-                existing = (await db.execute(
-                    select(PerformanceMetric).where(
-                        PerformanceMetric.creator_account_id == account.id,
-                        PerformanceMetric.raw_data["youtube_video_id"].astext == video["id"],
+                existing = (
+                    await db.execute(
+                        select(PerformanceMetric).where(
+                            PerformanceMetric.creator_account_id == account.id,
+                            PerformanceMetric.raw_data["youtube_video_id"].astext == video["id"],
+                        )
                     )
-                )).scalar_one_or_none()
+                ).scalar_one_or_none()
 
                 if existing:
                     existing.views = stats.get("views", existing.views)
@@ -133,7 +135,9 @@ async def _fetch_channel_stats(client: httpx.AsyncClient, headers: dict, channel
     }
 
 
-async def _fetch_recent_videos(client: httpx.AsyncClient, headers: dict, channel_id: str, max_results: int = 20) -> list[dict]:
+async def _fetch_recent_videos(
+    client: httpx.AsyncClient, headers: dict, channel_id: str, max_results: int = 20
+) -> list[dict]:
     params = {
         "part": "snippet",
         "channelId": channel_id,
@@ -149,10 +153,12 @@ async def _fetch_recent_videos(client: httpx.AsyncClient, headers: dict, channel
     for item in resp.json().get("items", []):
         vid_id = item.get("id", {}).get("videoId")
         if vid_id:
-            videos.append({
-                "id": vid_id,
-                "title": item.get("snippet", {}).get("title", ""),
-            })
+            videos.append(
+                {
+                    "id": vid_id,
+                    "title": item.get("snippet", {}).get("title", ""),
+                }
+            )
     return videos
 
 

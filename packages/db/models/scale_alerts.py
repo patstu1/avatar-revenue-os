@@ -1,4 +1,5 @@
 """Scale alerts, launch candidates, blocker reports, notifications, launch readiness."""
+
 import uuid
 from typing import Optional
 
@@ -25,7 +26,9 @@ class OperatorAlert(Base):
     expected_time_to_signal_days: Mapped[int] = mapped_column(Integer, default=14)
     supporting_metrics: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     blocking_factors: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
-    linked_scale_recommendation_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("scale_recommendations.id"), nullable=True)
+    linked_scale_recommendation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("scale_recommendations.id"), nullable=True
+    )
     linked_launch_candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("launch_candidates.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -63,7 +66,9 @@ class LaunchCandidate(Base):
     supporting_reasons: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
     required_resources: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
     launch_blockers: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
-    linked_scale_recommendation_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("scale_recommendations.id"), nullable=True)
+    linked_scale_recommendation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("scale_recommendations.id"), nullable=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -86,7 +91,9 @@ class NotificationDelivery(Base):
     __tablename__ = "notification_deliveries"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    alert_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("operator_alerts.id"), index=True)
+    alert_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("operator_alerts.id"), index=True
+    )
     channel: Mapped[str] = mapped_column(String(50), nullable=False)
     recipient: Mapped[Optional[str]] = mapped_column(String(255))
     payload: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)

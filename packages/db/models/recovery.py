@@ -1,4 +1,5 @@
 """Recovery system: incidents detected by the engine and prescribed actions."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -13,9 +14,7 @@ from packages.db.base import Base
 class RecoveryIncident(Base):
     __tablename__ = "recovery_incidents"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     incident_type: Mapped[str] = mapped_column(String(100), nullable=False)
     severity: Mapped[str] = mapped_column(String(50), nullable=False)
     scope_type: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -32,9 +31,7 @@ class RecoveryIncident(Base):
 class RecoveryAction(Base):
     __tablename__ = "recovery_actions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     incident_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("recovery_incidents.id"), nullable=False, index=True
     )

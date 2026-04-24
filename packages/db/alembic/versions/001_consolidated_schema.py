@@ -7,6 +7,7 @@ Revision ID: 001_consolidated
 Revises: None
 Create Date: 2026-04-02
 """
+
 from alembic import op
 
 revision = "001_consolidated"
@@ -36,6 +37,7 @@ def downgrade() -> None:
     tear down the schema, set the env var ALLOW_DESTRUCTIVE_DOWNGRADE=1.
     """
     import os
+
     if os.environ.get("ALLOW_DESTRUCTIVE_DOWNGRADE") != "1":
         raise RuntimeError(
             "Downgrade of 001_consolidated is blocked. "

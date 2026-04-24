@@ -1,4 +1,5 @@
 """Brain Architecture Pack — Phase A tables."""
+
 import uuid
 from typing import Optional
 
@@ -31,8 +32,12 @@ class BrainMemoryLink(Base):
     __tablename__ = "brain_memory_links"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    source_entry_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brain_memory_entries.id"), nullable=False, index=True)
-    target_entry_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brain_memory_entries.id"), nullable=False, index=True)
+    source_entry_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brain_memory_entries.id"), nullable=False, index=True
+    )
+    target_entry_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brain_memory_entries.id"), nullable=False, index=True
+    )
     link_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     strength: Mapped[float] = mapped_column(Float, default=0.5)
     explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -43,7 +48,9 @@ class AccountStateSnapshot(Base):
     __tablename__ = "account_state_snapshots"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True
+    )
     current_state: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     state_score: Mapped[float] = mapped_column(Float, default=0.0)
     previous_state: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)

@@ -1,6 +1,5 @@
 """Unit tests for Revenue Ceiling Phase C scoring engines."""
 
-
 from packages.scoring.revenue_ceiling_phase_c_engines import (
     RECURRING_OFFER_TYPES,
     evaluate_paid_promotion_candidate,
@@ -22,6 +21,7 @@ _FIVE_OFFERS = [{"id": f"o{i}", "name": f"Offer {i}", "payout_amount": 20 * i} f
 # ===========================================================================
 # 1. Recurring Revenue Engine
 # ===========================================================================
+
 
 def test_recurring_revenue_has_required_fields():
     r = score_recurring_revenue("fitness", _TWO_OFFERS, 5000, 0.05, [])
@@ -84,6 +84,7 @@ def test_recurring_expected_annual_greater_than_monthly():
 # 2. Sponsor Inventory Engine
 # ===========================================================================
 
+
 def test_sponsor_inventory_has_required_fields():
     r = score_sponsor_inventory_item("c1", "Finance Deep-Dive", "finance", 25000, 0.05, 50000, "long_form")
     for key in ("sponsor_fit_score", "estimated_package_price", "sponsor_category", "confidence"):
@@ -136,6 +137,7 @@ def test_sponsor_package_confidence_in_range():
 # ===========================================================================
 # 3. Trust Conversion Engine
 # ===========================================================================
+
 
 def _full_trust(niche: str = "finance"):
     """All trust signals present."""
@@ -226,6 +228,7 @@ def test_missing_trust_elements_empty_when_all_present():
 # ===========================================================================
 # 4. Monetization Mix Engine
 # ===========================================================================
+
 
 def test_monetization_mix_has_required_fields():
     r = score_monetization_mix(
@@ -337,23 +340,17 @@ def test_paid_promo_eligible_when_all_signals_strong():
 
 
 def test_paid_promo_not_eligible_low_impressions():
-    r = evaluate_paid_promotion_candidate(
-        **{**_STRONG_GATE_KWARGS, "organic_impressions": 100}
-    )
+    r = evaluate_paid_promotion_candidate(**{**_STRONG_GATE_KWARGS, "organic_impressions": 100})
     assert r["is_eligible"] is False
 
 
 def test_paid_promo_not_eligible_low_engagement():
-    r = evaluate_paid_promotion_candidate(
-        **{**_STRONG_GATE_KWARGS, "organic_engagement_rate": 0.01}
-    )
+    r = evaluate_paid_promotion_candidate(**{**_STRONG_GATE_KWARGS, "organic_engagement_rate": 0.01})
     assert r["is_eligible"] is False
 
 
 def test_paid_promo_not_eligible_zero_revenue():
-    r = evaluate_paid_promotion_candidate(
-        **{**_STRONG_GATE_KWARGS, "organic_revenue": 0.0}
-    )
+    r = evaluate_paid_promotion_candidate(**{**_STRONG_GATE_KWARGS, "organic_revenue": 0.0})
     assert r["is_eligible"] is False
 
 
@@ -365,9 +362,7 @@ def test_paid_promo_gate_has_evidence_dict():
 
 
 def test_paid_promo_gate_reason_present():
-    r = evaluate_paid_promotion_candidate(
-        **{**_STRONG_GATE_KWARGS, "organic_impressions": 100}
-    )
+    r = evaluate_paid_promotion_candidate(**{**_STRONG_GATE_KWARGS, "organic_impressions": 100})
     assert isinstance(r["gate_reason"], str)
     assert len(r["gate_reason"]) > 0
 
@@ -383,9 +378,7 @@ def test_paid_promo_confidence_in_range():
 
 
 def test_paid_promo_gate_reason_mentions_failure_cause():
-    r = evaluate_paid_promotion_candidate(
-        **{**_STRONG_GATE_KWARGS, "organic_impressions": 50}
-    )
+    r = evaluate_paid_promotion_candidate(**{**_STRONG_GATE_KWARGS, "organic_impressions": 50})
     assert r["is_eligible"] is False
     assert "impression" in r["gate_reason"].lower() or "not eligible" in r["gate_reason"].lower()
 
@@ -407,7 +400,7 @@ def test_paid_promo_eligible_via_age_when_roi_borderline():
         organic_impressions=6_000,
         organic_engagement_rate=0.05,
         organic_revenue=200.0,
-        organic_roi=1.0,   # below default 1.5 threshold
+        organic_roi=1.0,  # below default 1.5 threshold
         content_age_days=30,
     )
     assert r["is_eligible"] is True

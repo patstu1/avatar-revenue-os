@@ -5,6 +5,7 @@ OAuth 2.0 refresh-token flow for long-lived server-side access.
 
 API docs: https://developers.google.com/youtube/v3
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -26,8 +27,10 @@ CATEGORY_PEOPLE_BLOGS = "22"
 
 # ── Exceptions ──────────────────────────────────────────────────────────────
 
+
 class YouTubeError(Exception):
     """Base exception for YouTube client errors."""
+
     def __init__(self, message: str, status_code: int = 0, response_body: Any = None):
         super().__init__(message)
         self.status_code = status_code
@@ -36,16 +39,19 @@ class YouTubeError(Exception):
 
 class AuthError(YouTubeError):
     """401/403 — credentials invalid or expired."""
+
     pass
 
 
 class PermanentError(YouTubeError):
     """4xx (non-auth) — bad request, not found, etc."""
+
     pass
 
 
 class TransientError(YouTubeError):
     """429 or 5xx — retryable server/rate-limit errors."""
+
     pass
 
 
@@ -58,6 +64,7 @@ def _classify_error(status_code: int, message: str, body: Any = None) -> YouTube
 
 
 # ── Client ──────────────────────────────────────────────────────────────────
+
 
 class YouTubeClient:
     """Direct YouTube Data API v3 client with resumable upload support."""

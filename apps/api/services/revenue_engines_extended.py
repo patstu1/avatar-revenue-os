@@ -14,6 +14,7 @@ These 10 engines complete the revenue maximization machine by adding:
 
 Each engine produces ranked outputs and real actions.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -37,8 +38,11 @@ logger = structlog.get_logger()
 # ENGINE 8: REVENUE SIMULATION
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def simulate_revenue_scenario(
-    db: AsyncSession, brand_id: uuid.UUID, *,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    *,
     scenario_type: str = "mix_shift",
     target_source: str | None = None,
     target_pct: float | None = None,
@@ -55,22 +59,28 @@ async def simulate_revenue_scenario(
 
     # Current state from ledger
     current_q = await db.execute(
-        select(RevenueLedgerEntry.revenue_source_type,
-               func.sum(RevenueLedgerEntry.gross_amount),
-               func.sum(RevenueLedgerEntry.net_amount),
-               func.sum(RevenueLedgerEntry.platform_fee),
-               func.count())
-        .where(RevenueLedgerEntry.brand_id == brand_id,
-               RevenueLedgerEntry.occurred_at >= day_90,
-               RevenueLedgerEntry.is_active.is_(True),
-               RevenueLedgerEntry.is_refund.is_(False))
+        select(
+            RevenueLedgerEntry.revenue_source_type,
+            func.sum(RevenueLedgerEntry.gross_amount),
+            func.sum(RevenueLedgerEntry.net_amount),
+            func.sum(RevenueLedgerEntry.platform_fee),
+            func.count(),
+        )
+        .where(
+            RevenueLedgerEntry.brand_id == brand_id,
+            RevenueLedgerEntry.occurred_at >= day_90,
+            RevenueLedgerEntry.is_active.is_(True),
+            RevenueLedgerEntry.is_refund.is_(False),
+        )
         .group_by(RevenueLedgerEntry.revenue_source_type)
     )
     current = {}
     for row in current_q.all():
         current[str(row[0])] = {
-            "gross": float(row[1] or 0), "net": float(row[2] or 0),
-            "fees": float(row[3] or 0), "count": row[4],
+            "gross": float(row[1] or 0),
+            "net": float(row[2] or 0),
+            "fees": float(row[3] or 0),
+            "count": row[4],
         }
 
     total_gross = sum(d["gross"] for d in current.values())
@@ -104,16 +114,28 @@ async def simulate_revenue_scenario(
 
     return {
         "scenario_type": scenario_type,
-        "current": {"gross_90d": total_gross, "net_90d": total_net,
-                     "margin": total_net / total_gross if total_gross > 0 else 0},
-        "projected": {"gross_90d": round(proj_gross, 2), "net_90d": round(proj_net, 2),
-                       "margin": round(proj_margin, 3)},
-        "delta": {"gross": round(proj_gross - total_gross, 2),
-                  "net": round(proj_net - total_net, 2),
-                  "pct_change": round((proj_gross - total_gross) / total_gross * 100, 1) if total_gross > 0 else 0},
+        "current": {
+            "gross_90d": total_gross,
+            "net_90d": total_net,
+            "margin": total_net / total_gross if total_gross > 0 else 0,
+        },
+        "projected": {
+            "gross_90d": round(proj_gross, 2),
+            "net_90d": round(proj_net, 2),
+            "margin": round(proj_margin, 3),
+        },
+        "delta": {
+            "gross": round(proj_gross - total_gross, 2),
+            "net": round(proj_net - total_net, 2),
+            "pct_change": round((proj_gross - total_gross) / total_gross * 100, 1) if total_gross > 0 else 0,
+        },
         "confidence": round(confidence, 2),
         "projected_by_source": {k: {"gross": round(v["gross"], 2)} for k, v in projected.items()},
-        "recommendation": "execute" if proj_net > total_net and confidence > 0.5 else "review" if proj_net > total_net else "reject",
+        "recommendation": "execute"
+        if proj_net > total_net and confidence > 0.5
+        else "review"
+        if proj_net > total_net
+        else "reject",
     }
 
 
@@ -121,25 +143,31 @@ async def simulate_revenue_scenario(
 # ENGINE 9: MARGIN-FIRST OPTIMIZER
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def compute_margin_rankings(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict]:
     """Rank revenue paths by true value: net revenue, margin, speed, risk, durability."""
     now = datetime.now(timezone.utc)
     day_90 = now - timedelta(days=90)
 
     source_q = await db.execute(
-        select(RevenueLedgerEntry.revenue_source_type,
-               func.sum(RevenueLedgerEntry.gross_amount),
-               func.sum(RevenueLedgerEntry.net_amount),
-               func.sum(RevenueLedgerEntry.platform_fee),
-               func.sum(RevenueLedgerEntry.cost),
-               func.count(),
-               func.count().filter(RevenueLedgerEntry.is_refund.is_(True)),
-               func.count().filter(RevenueLedgerEntry.is_dispute.is_(True)))
-        .where(RevenueLedgerEntry.brand_id == brand_id,
-               RevenueLedgerEntry.occurred_at >= day_90,
-               RevenueLedgerEntry.is_active.is_(True))
+        select(
+            RevenueLedgerEntry.revenue_source_type,
+            func.sum(RevenueLedgerEntry.gross_amount),
+            func.sum(RevenueLedgerEntry.net_amount),
+            func.sum(RevenueLedgerEntry.platform_fee),
+            func.sum(RevenueLedgerEntry.cost),
+            func.count(),
+            func.count().filter(RevenueLedgerEntry.is_refund.is_(True)),
+            func.count().filter(RevenueLedgerEntry.is_dispute.is_(True)),
+        )
+        .where(
+            RevenueLedgerEntry.brand_id == brand_id,
+            RevenueLedgerEntry.occurred_at >= day_90,
+            RevenueLedgerEntry.is_active.is_(True),
+        )
         .group_by(RevenueLedgerEntry.revenue_source_type)
     )
 
@@ -174,34 +202,51 @@ async def compute_margin_rankings(
         dispute_rate = disputes / count if count > 0 else 0
         risk_score = min(1.0, refund_rate + dispute_rate)
 
-        t = traits.get(source_type, {"payout_speed": 0.5, "repeatability": 0.5, "operational_load": 0.5, "durability": 0.5})
+        t = traits.get(
+            source_type, {"payout_speed": 0.5, "repeatability": 0.5, "operational_load": 0.5, "durability": 0.5}
+        )
 
         # True value score: weighted composite
         true_value = (
-            0.20 * min(1.0, net / max(gross * 2, 1)) +  # net relative to this source's gross
-            0.20 * margin +                         # margin quality
-            0.15 * t["payout_speed"] +              # cash speed
-            0.15 * t["repeatability"] +             # can we do it again
-            0.10 * t["durability"] +                # will it last
-            0.10 * (1.0 - t["operational_load"]) +  # operational efficiency
-            0.10 * (1.0 - risk_score)               # risk-adjusted
+            0.20 * min(1.0, net / max(gross * 2, 1))  # net relative to this source's gross
+            + 0.20 * margin  # margin quality
+            + 0.15 * t["payout_speed"]  # cash speed
+            + 0.15 * t["repeatability"]  # can we do it again
+            + 0.10 * t["durability"]  # will it last
+            + 0.10 * (1.0 - t["operational_load"])  # operational efficiency
+            + 0.10 * (1.0 - risk_score)  # risk-adjusted
         )
 
-        recommendation = "scale" if true_value > 0.55 else "maintain" if true_value > 0.35 else "reduce" if true_value > 0.2 else "suppress"
+        recommendation = (
+            "scale"
+            if true_value > 0.55
+            else "maintain"
+            if true_value > 0.35
+            else "reduce"
+            if true_value > 0.2
+            else "suppress"
+        )
 
-        rankings.append({
-            "source_type": source_type,
-            "gross_90d": round(gross, 2), "net_90d": round(net, 2),
-            "margin": round(margin, 3), "fees": round(fees, 2), "costs": round(costs, 2),
-            "count": count, "refund_rate": round(refund_rate, 3), "dispute_rate": round(dispute_rate, 3),
-            "payout_speed_score": t["payout_speed"],
-            "repeatability_score": t["repeatability"],
-            "durability_score": t["durability"],
-            "operational_load_score": t["operational_load"],
-            "risk_score": round(risk_score, 3),
-            "true_value_score": round(true_value, 3),
-            "recommendation": recommendation,
-        })
+        rankings.append(
+            {
+                "source_type": source_type,
+                "gross_90d": round(gross, 2),
+                "net_90d": round(net, 2),
+                "margin": round(margin, 3),
+                "fees": round(fees, 2),
+                "costs": round(costs, 2),
+                "count": count,
+                "refund_rate": round(refund_rate, 3),
+                "dispute_rate": round(dispute_rate, 3),
+                "payout_speed_score": t["payout_speed"],
+                "repeatability_score": t["repeatability"],
+                "durability_score": t["durability"],
+                "operational_load_score": t["operational_load"],
+                "risk_score": round(risk_score, 3),
+                "true_value_score": round(true_value, 3),
+                "recommendation": recommendation,
+            }
+        )
 
     rankings.sort(key=lambda x: x["true_value_score"], reverse=True)
     return rankings
@@ -212,20 +257,34 @@ async def compute_margin_rankings(
 # ══════════════════════════════════════════════════════════════════════
 
 ARCHETYPES = [
-    "affiliate_closer", "sponsor_magnet", "product_seller",
-    "community_builder", "authority_educator", "entertainment_monetizer",
-    "services_consultant", "lead_gen_specialist", "licensing_creator",
-    "dtc_converter", "hybrid_multi_path",
+    "affiliate_closer",
+    "sponsor_magnet",
+    "product_seller",
+    "community_builder",
+    "authority_educator",
+    "entertainment_monetizer",
+    "services_consultant",
+    "lead_gen_specialist",
+    "licensing_creator",
+    "dtc_converter",
+    "hybrid_multi_path",
 ]
 
 
 async def classify_creator_archetypes(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict]:
     """Classify each account into creator archetypes with fit scores."""
-    accounts = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalars().all()
+    accounts = (
+        (
+            await db.execute(
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     niche = brand.niche if brand else "general"
@@ -233,10 +292,16 @@ async def classify_creator_archetypes(
     # Get ledger data per account
     acct_revenue = {}
     rev_q = await db.execute(
-        select(RevenueLedgerEntry.creator_account_id, RevenueLedgerEntry.revenue_source_type,
-               func.sum(RevenueLedgerEntry.gross_amount))
-        .where(RevenueLedgerEntry.brand_id == brand_id, RevenueLedgerEntry.is_active.is_(True),
-               RevenueLedgerEntry.creator_account_id.isnot(None))
+        select(
+            RevenueLedgerEntry.creator_account_id,
+            RevenueLedgerEntry.revenue_source_type,
+            func.sum(RevenueLedgerEntry.gross_amount),
+        )
+        .where(
+            RevenueLedgerEntry.brand_id == brand_id,
+            RevenueLedgerEntry.is_active.is_(True),
+            RevenueLedgerEntry.creator_account_id.isnot(None),
+        )
         .group_by(RevenueLedgerEntry.creator_account_id, RevenueLedgerEntry.revenue_source_type)
     )
     for row in rev_q.all():
@@ -247,48 +312,77 @@ async def classify_creator_archetypes(
 
     results = []
     for acct in accounts:
-        platform = acct.platform.value if hasattr(acct.platform, 'value') else str(acct.platform) if acct.platform else "unknown"
-        followers = getattr(acct, 'follower_count', 0) or 0
-        engagement = getattr(acct, 'engagement_rate', 0) or getattr(acct, 'ctr', 0) or 0
+        platform = (
+            acct.platform.value
+            if hasattr(acct.platform, "value")
+            else str(acct.platform)
+            if acct.platform
+            else "unknown"
+        )
+        followers = getattr(acct, "follower_count", 0) or 0
+        engagement = getattr(acct, "engagement_rate", 0) or getattr(acct, "ctr", 0) or 0
         rev_data = acct_revenue.get(str(acct.id), {})
 
         # Score each archetype
         scores = {}
         # Portfolio-relative scoring: normalize revenue by max in portfolio, not fixed amounts
         max_source_rev = max((sum(d.values()) for d in acct_revenue.values()), default=1) or 1
-        max_foll = max((getattr(a, 'follower_count', 0) or 0) for a in accounts) or 1
+        max_foll = max((getattr(a, "follower_count", 0) or 0) for a in accounts) or 1
+
         def has_rev(src):
             return min(1.0, rev_data.get(src, 0) / max(max_source_rev, 1))
+
         foll_ratio = followers / max_foll
 
-        scores["affiliate_closer"] = min(1.0, 0.3 + has_rev("affiliate_commission") * 0.5 + (0.2 if engagement > 0 else 0))
+        scores["affiliate_closer"] = min(
+            1.0, 0.3 + has_rev("affiliate_commission") * 0.5 + (0.2 if engagement > 0 else 0)
+        )
         scores["sponsor_magnet"] = min(1.0, 0.2 + foll_ratio * 0.5 + has_rev("sponsor_payment") * 0.3)
-        scores["product_seller"] = min(1.0, 0.2 + has_rev("product_sale") * 0.5 + (0.3 if niche in ("education", "tech", "business") else 0))
+        scores["product_seller"] = min(
+            1.0, 0.2 + has_rev("product_sale") * 0.5 + (0.3 if niche in ("education", "tech", "business") else 0)
+        )
         scores["community_builder"] = min(1.0, 0.2 + (engagement * 5) + (0.2 if foll_ratio > 0.3 else 0))
-        scores["authority_educator"] = min(1.0, 0.2 + (0.4 if niche in ("education", "business", "finance", "tech") else 0.1) + (0.2 if platform in ("youtube", "blog") else 0))
-        scores["entertainment_monetizer"] = min(1.0, 0.2 + has_rev("ad_revenue") * 0.5 + (0.3 if platform in ("youtube", "tiktok") else 0))
-        scores["services_consultant"] = min(1.0, 0.2 + has_rev("service_fee") * 0.5 + (0.3 if niche in ("business", "consulting", "marketing") else 0))
-        scores["lead_gen_specialist"] = min(1.0, 0.15 + has_rev("lead_gen_fee") * 0.5 + (0.3 if niche in ("business", "finance", "saas") else 0))
-        scores["licensing_creator"] = min(1.0, 0.1 + (0.3 if platform in ("youtube", "instagram") else 0) + (0.2 if foll_ratio > 0.8 else 0))
-        scores["dtc_converter"] = min(1.0, 0.15 + has_rev("product_sale") * 0.5 + (0.2 if platform in ("instagram", "tiktok") else 0))
+        scores["authority_educator"] = min(
+            1.0,
+            0.2
+            + (0.4 if niche in ("education", "business", "finance", "tech") else 0.1)
+            + (0.2 if platform in ("youtube", "blog") else 0),
+        )
+        scores["entertainment_monetizer"] = min(
+            1.0, 0.2 + has_rev("ad_revenue") * 0.5 + (0.3 if platform in ("youtube", "tiktok") else 0)
+        )
+        scores["services_consultant"] = min(
+            1.0, 0.2 + has_rev("service_fee") * 0.5 + (0.3 if niche in ("business", "consulting", "marketing") else 0)
+        )
+        scores["lead_gen_specialist"] = min(
+            1.0, 0.15 + has_rev("lead_gen_fee") * 0.5 + (0.3 if niche in ("business", "finance", "saas") else 0)
+        )
+        scores["licensing_creator"] = min(
+            1.0, 0.1 + (0.3 if platform in ("youtube", "instagram") else 0) + (0.2 if foll_ratio > 0.8 else 0)
+        )
+        scores["dtc_converter"] = min(
+            1.0, 0.15 + has_rev("product_sale") * 0.5 + (0.2 if platform in ("instagram", "tiktok") else 0)
+        )
         scores["hybrid_multi_path"] = min(1.0, len([v for v in rev_data.values() if v > 100]) * 0.25)
 
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         primary = ranked[0]
         secondary = ranked[1] if len(ranked) > 1 else ("none", 0)
 
-        results.append({
-            "account_id": str(acct.id),
-            "platform": platform,
-            "followers": followers,
-            "primary_archetype": primary[0],
-            "primary_confidence": round(primary[1], 3),
-            "secondary_archetype": secondary[0],
-            "secondary_confidence": round(secondary[1], 3),
-            "archetype_scores": {k: round(v, 3) for k, v in scores.items()},
-            "best_fit_paths": [r[0] for r in ranked[:3]],
-            "poor_fit_paths": [r[0] for r in ranked[-3:]],
-        })
+        results.append(
+            {
+                "account_id": str(acct.id),
+                "platform": platform,
+                "followers": followers,
+                "primary_archetype": primary[0],
+                "primary_confidence": round(primary[1], 3),
+                "secondary_archetype": secondary[0],
+                "secondary_confidence": round(secondary[1], 3),
+                "archetype_scores": {k: round(v, 3) for k, v in scores.items()},
+                "best_fit_paths": [r[0] for r in ranked[:3]],
+                "poor_fit_paths": [r[0] for r in ranked[-3:]],
+            }
+        )
 
     results.sort(key=lambda x: x["primary_confidence"], reverse=True)
     return results
@@ -298,14 +392,23 @@ async def classify_creator_archetypes(
 # ENGINE 11: OFFER PACKAGING ENGINE
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def compute_packaging_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict]:
     """Recommend entry → core → upsell → continuity packaging per offer."""
-    offers = (await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-        .order_by(Offer.payout_amount.desc().nullslast())
-    )).scalars().all()
+    offers = (
+        (
+            await db.execute(
+                select(Offer)
+                .where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
+                .order_by(Offer.payout_amount.desc().nullslast())
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     if not offers:
         return []
@@ -319,22 +422,36 @@ async def compute_packaging_recommendations(
         entry_offer = sorted_offers[0] if len(sorted_offers) > 1 and i > 0 else None
         upsell_offer = sorted_offers[-1] if len(sorted_offers) > 1 and i < len(sorted_offers) - 1 else None
 
-        recs.append({
-            "offer_id": str(offer.id),
-            "offer_name": offer.name,
-            "payout": payout,
-            "role": "entry" if payout < 30 else "core" if payout < 150 else "premium",
-            "packaging": {
-                "entry_offer": {"id": str(entry_offer.id), "name": entry_offer.name, "payout": float(entry_offer.payout_amount or 0)} if entry_offer else None,
-                "core_offer": {"id": str(offer.id), "name": offer.name, "payout": payout},
-                "upsell_offer": {"id": str(upsell_offer.id), "name": upsell_offer.name, "payout": float(upsell_offer.payout_amount or 0)} if upsell_offer and upsell_offer.id != offer.id else None,
-            },
-            "actions": [
-                "create_bundle" if len(sorted_offers) > 1 else None,
-                "create_upsell_path" if upsell_offer else None,
-                "test_pricing" if payout > 50 else None,
-            ],
-        })
+        recs.append(
+            {
+                "offer_id": str(offer.id),
+                "offer_name": offer.name,
+                "payout": payout,
+                "role": "entry" if payout < 30 else "core" if payout < 150 else "premium",
+                "packaging": {
+                    "entry_offer": {
+                        "id": str(entry_offer.id),
+                        "name": entry_offer.name,
+                        "payout": float(entry_offer.payout_amount or 0),
+                    }
+                    if entry_offer
+                    else None,
+                    "core_offer": {"id": str(offer.id), "name": offer.name, "payout": payout},
+                    "upsell_offer": {
+                        "id": str(upsell_offer.id),
+                        "name": upsell_offer.name,
+                        "payout": float(upsell_offer.payout_amount or 0),
+                    }
+                    if upsell_offer and upsell_offer.id != offer.id
+                    else None,
+                },
+                "actions": [
+                    "create_bundle" if len(sorted_offers) > 1 else None,
+                    "create_upsell_path" if upsell_offer else None,
+                    "test_pricing" if payout > 50 else None,
+                ],
+            }
+        )
 
     return [r for r in recs if r]
 
@@ -343,18 +460,26 @@ async def compute_packaging_recommendations(
 # ENGINE 12: REVENUE EXPERIMENT ENGINE
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def get_experiment_opportunities(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict]:
     """Identify what should be tested to increase revenue."""
     from packages.db.models.promote_winner import ActiveExperiment
 
     # Active experiments
-    active = (await db.execute(
-        select(ActiveExperiment).where(
-            ActiveExperiment.brand_id == brand_id, ActiveExperiment.status == "active"
+    active = (
+        (
+            await db.execute(
+                select(ActiveExperiment).where(
+                    ActiveExperiment.brand_id == brand_id, ActiveExperiment.status == "active"
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     active_vars = {e.tested_variable for e in active}
 
@@ -373,12 +498,14 @@ async def get_experiment_opportunities(
 
     for var, hypothesis in testable:
         if var not in active_vars:
-            opportunities.append({
-                "tested_variable": var,
-                "hypothesis": hypothesis,
-                "status": "ready_to_launch",
-                "priority": "high" if var in ("offer_pairing", "pricing_tier", "content_format") else "medium",
-            })
+            opportunities.append(
+                {
+                    "tested_variable": var,
+                    "hypothesis": hypothesis,
+                    "status": "ready_to_launch",
+                    "priority": "high" if var in ("offer_pairing", "pricing_tier", "content_format") else "medium",
+                }
+            )
 
     return {
         "active_experiments": [{"id": str(e.id), "variable": e.tested_variable, "status": e.status} for e in active],
@@ -392,8 +519,10 @@ async def get_experiment_opportunities(
 # ENGINE 13: PAYOUT SPEED INTELLIGENCE
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def compute_payout_speed(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict]:
     """Score revenue paths by how fast money arrives."""
     now = datetime.now(timezone.utc)
@@ -401,15 +530,19 @@ async def compute_payout_speed(
 
     # Average time from occurred_at to confirmed_at / paid_out_at
     speed_q = await db.execute(
-        select(RevenueLedgerEntry.revenue_source_type,
-               func.count(),
-               func.sum(RevenueLedgerEntry.gross_amount),
-               func.count().filter(RevenueLedgerEntry.payment_state == "paid"),
-               func.count().filter(RevenueLedgerEntry.payment_state == "pending"))
-        .where(RevenueLedgerEntry.brand_id == brand_id,
-               RevenueLedgerEntry.occurred_at >= day_90,
-               RevenueLedgerEntry.is_active.is_(True),
-               RevenueLedgerEntry.is_refund.is_(False))
+        select(
+            RevenueLedgerEntry.revenue_source_type,
+            func.count(),
+            func.sum(RevenueLedgerEntry.gross_amount),
+            func.count().filter(RevenueLedgerEntry.payment_state == "paid"),
+            func.count().filter(RevenueLedgerEntry.payment_state == "pending"),
+        )
+        .where(
+            RevenueLedgerEntry.brand_id == brand_id,
+            RevenueLedgerEntry.occurred_at >= day_90,
+            RevenueLedgerEntry.is_active.is_(True),
+            RevenueLedgerEntry.is_refund.is_(False),
+        )
         .group_by(RevenueLedgerEntry.revenue_source_type)
     )
 
@@ -437,18 +570,24 @@ async def compute_payout_speed(
         paid_rate = paid / count if count > 0 else 0
         speed_score = max(0, 1.0 - est["avg_days_to_cash"] / 90)
 
-        results.append({
-            "source_type": source,
-            "total_entries": count,
-            "total_gross": round(gross, 2),
-            "paid_count": paid,
-            "pending_count": pending,
-            "paid_rate": round(paid_rate, 3),
-            "avg_days_to_cash": est["avg_days_to_cash"],
-            "reliability": est["reliability"],
-            "speed_score": round(speed_score, 3),
-            "recommendation": "prioritize" if speed_score > 0.7 else "acceptable" if speed_score > 0.4 else "slow_payer",
-        })
+        results.append(
+            {
+                "source_type": source,
+                "total_entries": count,
+                "total_gross": round(gross, 2),
+                "paid_count": paid,
+                "pending_count": pending,
+                "paid_rate": round(paid_rate, 3),
+                "avg_days_to_cash": est["avg_days_to_cash"],
+                "reliability": est["reliability"],
+                "speed_score": round(speed_score, 3),
+                "recommendation": "prioritize"
+                if speed_score > 0.7
+                else "acceptable"
+                if speed_score > 0.4
+                else "slow_payer",
+            }
+        )
 
     results.sort(key=lambda x: x["speed_score"], reverse=True)
     return results
@@ -458,8 +597,10 @@ async def compute_payout_speed(
 # ENGINE 14: REVENUE LEAK DETECTOR
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def detect_revenue_leaks(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict]:
     """Aggressively detect lost or unrealized money."""
     leaks = []
@@ -475,96 +616,126 @@ async def detect_revenue_leaks(
     )
     unattr = unattr_q.one()
     if (unattr[0] or 0) > 0:
-        leaks.append({
-            "leak_type": "unattributed_revenue",
-            "severity": "high",
-            "count": unattr[0],
-            "estimated_lost": float(unattr[1] or 0),
-            "action": "attribute_revenue",
-            "description": f"{unattr[0]} revenue entries with no content/offer attribution",
-        })
+        leaks.append(
+            {
+                "leak_type": "unattributed_revenue",
+                "severity": "high",
+                "count": unattr[0],
+                "estimated_lost": float(unattr[1] or 0),
+                "action": "attribute_revenue",
+                "description": f"{unattr[0]} revenue entries with no content/offer attribution",
+            }
+        )
 
     # 2. Published content with no offer
-    unmon_count = (await db.execute(
-        select(func.count()).select_from(ContentItem).where(
-            ContentItem.brand_id == brand_id, ContentItem.status == "published",
-            ContentItem.offer_id.is_(None),
+    unmon_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(ContentItem)
+            .where(
+                ContentItem.brand_id == brand_id,
+                ContentItem.status == "published",
+                ContentItem.offer_id.is_(None),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
     if unmon_count > 0:
-        leaks.append({
-            "leak_type": "unmonetized_content",
-            "severity": "high",
-            "count": unmon_count,
-            "estimated_lost": unmon_count * 50,  # Conservative per-content estimate
-            "action": "assign_offers",
-            "description": f"{unmon_count} published content items earning nothing",
-        })
+        leaks.append(
+            {
+                "leak_type": "unmonetized_content",
+                "severity": "high",
+                "count": unmon_count,
+                "estimated_lost": unmon_count * 50,  # Conservative per-content estimate
+                "action": "assign_offers",
+                "description": f"{unmon_count} published content items earning nothing",
+            }
+        )
 
     # 3. Active offers with no content
-    offer_count = (await db.execute(
-        select(func.count()).select_from(Offer).where(
-            Offer.brand_id == brand_id, Offer.is_active.is_(True),
+    offer_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(Offer)
+            .where(
+                Offer.brand_id == brand_id,
+                Offer.is_active.is_(True),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
     orphan_count = 0
     if offer_count > 0:
-        offers_q = (await db.execute(
-            select(Offer.id).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-        )).scalars().all()
+        offers_q = (
+            (await db.execute(select(Offer.id).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))))
+            .scalars()
+            .all()
+        )
         for oid in offers_q:
-            ct = (await db.execute(
-                select(func.count()).select_from(ContentItem).where(
-                    ContentItem.brand_id == brand_id, ContentItem.offer_id == oid
+            ct = (
+                await db.execute(
+                    select(func.count())
+                    .select_from(ContentItem)
+                    .where(ContentItem.brand_id == brand_id, ContentItem.offer_id == oid)
                 )
-            )).scalar() or 0
+            ).scalar() or 0
             if ct == 0:
                 orphan_count += 1
     if orphan_count > 0:
-        leaks.append({
-            "leak_type": "orphan_offers",
-            "severity": "medium",
-            "count": orphan_count,
-            "estimated_lost": orphan_count * 200,
-            "action": "create_content_for_offers",
-            "description": f"{orphan_count} active offers with no content attached",
-        })
+        leaks.append(
+            {
+                "leak_type": "orphan_offers",
+                "severity": "medium",
+                "count": orphan_count,
+                "estimated_lost": orphan_count * 200,
+                "action": "create_content_for_offers",
+                "description": f"{orphan_count} active offers with no content attached",
+            }
+        )
 
     # 4. Stalled sponsor deals
-    stalled = (await db.execute(
-        select(func.count()).select_from(SponsorOpportunity).where(
-            SponsorOpportunity.brand_id == brand_id,
-            SponsorOpportunity.status.in_(["prospect", "negotiation"]),
+    stalled = (
+        await db.execute(
+            select(func.count())
+            .select_from(SponsorOpportunity)
+            .where(
+                SponsorOpportunity.brand_id == brand_id,
+                SponsorOpportunity.status.in_(["prospect", "negotiation"]),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
     if stalled > 0:
-        leaks.append({
-            "leak_type": "stalled_sponsor_deals",
-            "severity": "medium",
-            "count": stalled,
-            "estimated_lost": stalled * 1000,
-            "action": "follow_up_deals",
-            "description": f"{stalled} sponsor deals stalled in early stages",
-        })
+        leaks.append(
+            {
+                "leak_type": "stalled_sponsor_deals",
+                "severity": "medium",
+                "count": stalled,
+                "estimated_lost": stalled * 1000,
+                "action": "follow_up_deals",
+                "description": f"{stalled} sponsor deals stalled in early stages",
+            }
+        )
 
     # 5. Pending revenue too long
-    pending = (await db.execute(
-        select(func.count(), func.sum(RevenueLedgerEntry.gross_amount)).where(
-            RevenueLedgerEntry.brand_id == brand_id,
-            RevenueLedgerEntry.payment_state == "pending",
-            RevenueLedgerEntry.occurred_at < datetime.now(timezone.utc) - timedelta(days=30),
-            RevenueLedgerEntry.is_active.is_(True),
+    pending = (
+        await db.execute(
+            select(func.count(), func.sum(RevenueLedgerEntry.gross_amount)).where(
+                RevenueLedgerEntry.brand_id == brand_id,
+                RevenueLedgerEntry.payment_state == "pending",
+                RevenueLedgerEntry.occurred_at < datetime.now(timezone.utc) - timedelta(days=30),
+                RevenueLedgerEntry.is_active.is_(True),
+            )
         )
-    )).one()
+    ).one()
     if (pending[0] or 0) > 0:
-        leaks.append({
-            "leak_type": "pending_too_long",
-            "severity": "high",
-            "count": pending[0],
-            "estimated_lost": float(pending[1] or 0),
-            "action": "follow_up_payments",
-            "description": f"${float(pending[1] or 0):.0f} pending for 30+ days",
-        })
+        leaks.append(
+            {
+                "leak_type": "pending_too_long",
+                "severity": "high",
+                "count": pending[0],
+                "estimated_lost": float(pending[1] or 0),
+                "action": "follow_up_payments",
+                "description": f"${float(pending[1] or 0):.0f} pending for 30+ days",
+            }
+        )
 
     leaks.sort(key=lambda x: x.get("estimated_lost", 0), reverse=True)
     return leaks
@@ -574,13 +745,21 @@ async def detect_revenue_leaks(
 # ENGINE 15: CREATOR PORTFOLIO ALLOCATOR
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def compute_portfolio_allocation(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict]:
     """Treat creators like capital allocation: who deserves more support?"""
-    accounts = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalars().all()
+    accounts = (
+        (
+            await db.execute(
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     now = datetime.now(timezone.utc)
     day_90 = now - timedelta(days=90)
@@ -588,66 +767,104 @@ async def compute_portfolio_allocation(
     results = []
     for acct in accounts:
         # Revenue from this account
-        acct_rev = (await db.execute(
-            select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
-                RevenueLedgerEntry.brand_id == brand_id,
-                RevenueLedgerEntry.creator_account_id == acct.id,
-                RevenueLedgerEntry.occurred_at >= day_90,
-                RevenueLedgerEntry.is_active.is_(True),
+        acct_rev = (
+            await db.execute(
+                select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
+                    RevenueLedgerEntry.brand_id == brand_id,
+                    RevenueLedgerEntry.creator_account_id == acct.id,
+                    RevenueLedgerEntry.occurred_at >= day_90,
+                    RevenueLedgerEntry.is_active.is_(True),
+                )
             )
-        )).scalar() or 0.0
+        ).scalar() or 0.0
 
         # Content count
-        content_count = (await db.execute(
-            select(func.count()).select_from(ContentItem).where(
-                ContentItem.brand_id == brand_id, ContentItem.creator_account_id == acct.id,
+        content_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(ContentItem)
+                .where(
+                    ContentItem.brand_id == brand_id,
+                    ContentItem.creator_account_id == acct.id,
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
 
-        followers = getattr(acct, 'follower_count', 0) or 0
-        engagement = getattr(acct, 'engagement_rate', 0) or getattr(acct, 'ctr', 0) or 0
-        platform = acct.platform.value if hasattr(acct.platform, 'value') else str(acct.platform)
+        followers = getattr(acct, "follower_count", 0) or 0
+        engagement = getattr(acct, "engagement_rate", 0) or getattr(acct, "ctr", 0) or 0
+        platform = acct.platform.value if hasattr(acct.platform, "value") else str(acct.platform)
 
         # Portfolio score
         # Portfolio-relative: normalize against the best-performing account, not a fixed number
-        max_acct_rev = max((float(r) for r in [
-            (await db.execute(select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
-                RevenueLedgerEntry.creator_account_id == a.id, RevenueLedgerEntry.is_active.is_(True)
-            ))).scalar() or 0 for a in accounts[:5]  # Check top 5 for efficiency
-        ]), default=1) or 1
+        max_acct_rev = (
+            max(
+                (
+                    float(r)
+                    for r in [
+                        (
+                            await db.execute(
+                                select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
+                                    RevenueLedgerEntry.creator_account_id == a.id,
+                                    RevenueLedgerEntry.is_active.is_(True),
+                                )
+                            )
+                        ).scalar()
+                        or 0
+                        for a in accounts[:5]  # Check top 5 for efficiency
+                    ]
+                ),
+                default=1,
+            )
+            or 1
+        )
         revenue_score = min(1.0, float(acct_rev) / max(max_acct_rev, 1))
         content_score = min(1.0, content_count / 20)
-        max_foll_portfolio = max((getattr(a, 'follower_count', 0) or 0) for a in accounts) or 1
+        max_foll_portfolio = max((getattr(a, "follower_count", 0) or 0) for a in accounts) or 1
         audience_score = min(1.0, followers / max(max_foll_portfolio, 1))
         engagement_score = min(1.0, engagement * 10)
-        scale_role = getattr(acct, 'scale_role', None) or ""
+        scale_role = getattr(acct, "scale_role", None) or ""
 
         # Accounts with scale_role="reduced" get a penalty — the machine deprioritized them
         scale_penalty = 0.3 if scale_role == "reduced" else 0.0
 
-        portfolio_score = max(0, (
-            0.40 * revenue_score +
-            0.20 * engagement_score +
-            0.20 * audience_score +
-            0.20 * content_score
-        ) - scale_penalty)
+        portfolio_score = max(
+            0,
+            (0.40 * revenue_score + 0.20 * engagement_score + 0.20 * audience_score + 0.20 * content_score)
+            - scale_penalty,
+        )
 
         # Force "reduced" accounts into pause tier regardless of score
         if scale_role == "reduced":
             tier = "pause"
         else:
-            tier = "hero" if portfolio_score > 0.6 else "growth" if portfolio_score > 0.3 else "maintain" if portfolio_score > 0.1 else "pause"
+            tier = (
+                "hero"
+                if portfolio_score > 0.6
+                else "growth"
+                if portfolio_score > 0.3
+                else "maintain"
+                if portfolio_score > 0.1
+                else "pause"
+            )
 
-        results.append({
-            "account_id": str(acct.id),
-            "platform": platform,
-            "revenue_90d": round(float(acct_rev), 2),
-            "content_count": content_count,
-            "followers": followers,
-            "portfolio_score": round(portfolio_score, 3),
-            "tier": tier,
-            "recommendation": "scale" if tier == "hero" else "grow" if tier == "growth" else "maintain" if tier == "maintain" else "reduce",
-        })
+        results.append(
+            {
+                "account_id": str(acct.id),
+                "platform": platform,
+                "revenue_90d": round(float(acct_rev), 2),
+                "content_count": content_count,
+                "followers": followers,
+                "portfolio_score": round(portfolio_score, 3),
+                "tier": tier,
+                "recommendation": "scale"
+                if tier == "hero"
+                else "grow"
+                if tier == "growth"
+                else "maintain"
+                if tier == "maintain"
+                else "reduce",
+            }
+        )
 
     results.sort(key=lambda x: x["portfolio_score"], reverse=True)
     return results
@@ -657,27 +874,37 @@ async def compute_portfolio_allocation(
 # ENGINE 16: CROSS-PLATFORM COMPOUNDING
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def detect_compounding_opportunities(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict]:
     """A win on one platform should cascade to follow-on actions elsewhere."""
     opportunities = []
 
     # Find accounts with strong performance
-    accounts = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalars().all()
+    accounts = (
+        (
+            await db.execute(
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     platform_rev = {}
     for acct in accounts:
-        platform = acct.platform.value if hasattr(acct.platform, 'value') else str(acct.platform)
-        rev = (await db.execute(
-            select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
-                RevenueLedgerEntry.brand_id == brand_id,
-                RevenueLedgerEntry.creator_account_id == acct.id,
-                RevenueLedgerEntry.is_active.is_(True),
+        platform = acct.platform.value if hasattr(acct.platform, "value") else str(acct.platform)
+        rev = (
+            await db.execute(
+                select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
+                    RevenueLedgerEntry.brand_id == brand_id,
+                    RevenueLedgerEntry.creator_account_id == acct.id,
+                    RevenueLedgerEntry.is_active.is_(True),
+                )
             )
-        )).scalar() or 0.0
+        ).scalar() or 0.0
         if platform not in platform_rev or float(rev) > platform_rev[platform]["revenue"]:
             platform_rev[platform] = {"revenue": float(rev), "account_id": str(acct.id)}
 
@@ -696,35 +923,47 @@ async def detect_compounding_opportunities(
             existing_platforms = {p for p in platform_rev.keys()}
             for target in targets:
                 if target not in existing_platforms:
-                    opportunities.append({
-                        "type": "cross_platform_expansion",
-                        "source_platform": platform,
-                        "source_revenue": data["revenue"],
-                        "target_platform": target,
-                        "expected_uplift_pct": 20,
-                        "action": "expand_to_platform",
-                        "description": f"Strong ${data['revenue']:.0f} on {platform} → expand to {target}",
-                    })
+                    opportunities.append(
+                        {
+                            "type": "cross_platform_expansion",
+                            "source_platform": platform,
+                            "source_revenue": data["revenue"],
+                            "target_platform": target,
+                            "expected_uplift_pct": 20,
+                            "action": "expand_to_platform",
+                            "description": f"Strong ${data['revenue']:.0f} on {platform} → expand to {target}",
+                        }
+                    )
 
     # Winning patterns that could be applied elsewhere
-    winners = (await db.execute(
-        select(WinningPatternMemory).where(
-            WinningPatternMemory.brand_id == brand_id,
-            WinningPatternMemory.is_active.is_(True),
-            WinningPatternMemory.win_score >= 0.7,
-        ).limit(5)
-    )).scalars().all()
+    winners = (
+        (
+            await db.execute(
+                select(WinningPatternMemory)
+                .where(
+                    WinningPatternMemory.brand_id == brand_id,
+                    WinningPatternMemory.is_active.is_(True),
+                    WinningPatternMemory.win_score >= 0.7,
+                )
+                .limit(5)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     for pat in winners:
         if (pat.usage_count or 0) < 5:
-            opportunities.append({
-                "type": "pattern_replication",
-                "pattern_name": pat.pattern_name,
-                "win_score": pat.win_score,
-                "current_usage": pat.usage_count,
-                "action": "replicate_winning_pattern",
-                "description": f"Winning pattern '{pat.pattern_name}' used only {pat.usage_count}x — scale it",
-            })
+            opportunities.append(
+                {
+                    "type": "pattern_replication",
+                    "pattern_name": pat.pattern_name,
+                    "win_score": pat.win_score,
+                    "current_usage": pat.usage_count,
+                    "action": "replicate_winning_pattern",
+                    "description": f"Winning pattern '{pat.pattern_name}' used only {pat.usage_count}x — scale it",
+                }
+            )
 
     opportunities.sort(key=lambda x: x.get("source_revenue", x.get("win_score", 0)), reverse=True)
     return opportunities
@@ -734,8 +973,10 @@ async def detect_compounding_opportunities(
 # ENGINE 17: REVENUE DURABILITY SCORING
 # ══════════════════════════════════════════════════════════════════════
 
+
 async def compute_durability_scores(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict]:
     """Score revenue paths by durability: short-term vs lasting money."""
     now = datetime.now(timezone.utc)
@@ -751,11 +992,13 @@ async def compute_durability_scores(
     for label, start, end in periods:
         q = await db.execute(
             select(RevenueLedgerEntry.revenue_source_type, func.sum(RevenueLedgerEntry.gross_amount))
-            .where(RevenueLedgerEntry.brand_id == brand_id,
-                   RevenueLedgerEntry.occurred_at >= start,
-                   RevenueLedgerEntry.occurred_at < end,
-                   RevenueLedgerEntry.is_active.is_(True),
-                   RevenueLedgerEntry.is_refund.is_(False))
+            .where(
+                RevenueLedgerEntry.brand_id == brand_id,
+                RevenueLedgerEntry.occurred_at >= start,
+                RevenueLedgerEntry.occurred_at < end,
+                RevenueLedgerEntry.is_active.is_(True),
+                RevenueLedgerEntry.is_refund.is_(False),
+            )
             .group_by(RevenueLedgerEntry.revenue_source_type)
         )
         for row in q.all():
@@ -794,26 +1037,47 @@ async def compute_durability_scores(
         traits = durability_traits.get(source, {"defensibility": 0.5, "platform_dependence": 0.5, "copyability": 0.5})
 
         durability_score = (
-            0.25 * traits["defensibility"] +
-            0.20 * (1.0 - volatility) +
-            0.20 * (1.0 - traits["platform_dependence"]) +
-            0.15 * (1.0 - traits["copyability"]) +
-            0.10 * min(1.0, max(0, growth + 0.5)) +
-            0.10 * min(1.0, recent / max(sum(source_periods.get(s, {}).get("recent_30d", 0) for s in source_periods) / max(len(source_periods), 1), 1)) if recent > 0 else 0  # Relative to portfolio average
+            0.25 * traits["defensibility"]
+            + 0.20 * (1.0 - volatility)
+            + 0.20 * (1.0 - traits["platform_dependence"])
+            + 0.15 * (1.0 - traits["copyability"])
+            + 0.10 * min(1.0, max(0, growth + 0.5))
+            + 0.10
+            * min(
+                1.0,
+                recent
+                / max(
+                    sum(source_periods.get(s, {}).get("recent_30d", 0) for s in source_periods)
+                    / max(len(source_periods), 1),
+                    1,
+                ),
+            )
+            if recent > 0
+            else 0  # Relative to portfolio average
         )
 
-        recommendation = "exploit" if durability_score > 0.6 else "diversify" if durability_score > 0.4 else "stabilize" if durability_score > 0.2 else "reduce"
+        recommendation = (
+            "exploit"
+            if durability_score > 0.6
+            else "diversify"
+            if durability_score > 0.4
+            else "stabilize"
+            if durability_score > 0.2
+            else "reduce"
+        )
 
-        results.append({
-            "source_type": source,
-            "recent_30d": round(recent, 2),
-            "trend": "growing" if growth > 0.1 else "stable" if growth > -0.1 else "declining",
-            "volatility": round(min(1.0, volatility), 3),
-            "defensibility": traits["defensibility"],
-            "platform_dependence": traits["platform_dependence"],
-            "durability_score": round(max(0, min(1, durability_score)), 3),
-            "recommendation": recommendation,
-        })
+        results.append(
+            {
+                "source_type": source,
+                "recent_30d": round(recent, 2),
+                "trend": "growing" if growth > 0.1 else "stable" if growth > -0.1 else "declining",
+                "volatility": round(min(1.0, volatility), 3),
+                "defensibility": traits["defensibility"],
+                "platform_dependence": traits["platform_dependence"],
+                "durability_score": round(max(0, min(1, durability_score)), 3),
+                "recommendation": recommendation,
+            }
+        )
 
     results.sort(key=lambda x: x["durability_score"], reverse=True)
     return results

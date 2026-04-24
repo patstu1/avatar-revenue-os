@@ -1,4 +1,5 @@
 """DB-backed integration tests for System Command Center."""
+
 from __future__ import annotations
 
 import uuid
@@ -31,12 +32,40 @@ async def brand_with_data(db_session: AsyncSession):
     db_session.add(acct)
     await db_session.flush()
 
-    ci = ContentItem(brand_id=brand.id, creator_account_id=acct.id, title="CC Content", content_type=ContentType.SHORT_VIDEO, platform="tiktok", status="published")
+    ci = ContentItem(
+        brand_id=brand.id,
+        creator_account_id=acct.id,
+        title="CC Content",
+        content_type=ContentType.SHORT_VIDEO,
+        platform="tiktok",
+        status="published",
+    )
     db_session.add(ci)
     await db_session.flush()
 
-    db_session.add(PerformanceMetric(brand_id=brand.id, content_item_id=ci.id, creator_account_id=acct.id, platform=Platform.TIKTOK, impressions=10000, clicks=500, engagement_rate=0.08, revenue=50.0))
-    db_session.add(AccountStateReport(brand_id=brand.id, account_id=acct.id, current_state="scaling", confidence=0.8, monetization_intensity="medium", posting_cadence="aggressive", expansion_eligible=True))
+    db_session.add(
+        PerformanceMetric(
+            brand_id=brand.id,
+            content_item_id=ci.id,
+            creator_account_id=acct.id,
+            platform=Platform.TIKTOK,
+            impressions=10000,
+            clicks=500,
+            engagement_rate=0.08,
+            revenue=50.0,
+        )
+    )
+    db_session.add(
+        AccountStateReport(
+            brand_id=brand.id,
+            account_id=acct.id,
+            current_state="scaling",
+            confidence=0.8,
+            monetization_intensity="medium",
+            posting_cadence="aggressive",
+            expansion_eligible=True,
+        )
+    )
     await db_session.flush()
 
     return brand

@@ -1,4 +1,5 @@
 """Brain Architecture Phase C — agent mesh, workflow coordination, context bus, memory binding APIs."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -38,7 +39,9 @@ async def list_agent_registry(brand_id: uuid.UUID, current_user: CurrentUser, db
 
 @router.get("/{brand_id}/agent-runs-v2", response_model=list[AgentRunV2Out])
 async def list_agent_runs_v2(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -52,7 +55,9 @@ async def list_agent_runs_v2(
 
 @router.post("/{brand_id}/agent-mesh/recompute", response_model=RecomputeSummaryOut)
 async def recompute_agent_mesh(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -74,7 +79,9 @@ async def recompute_agent_mesh(
 
 @router.get("/{brand_id}/workflow-coordination", response_model=list[WorkflowCoordinationRunOut])
 async def list_workflow_coordination(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -88,7 +95,9 @@ async def list_workflow_coordination(
 
 @router.get("/{brand_id}/shared-context-events", response_model=list[SharedContextEventOut])
 async def list_shared_context_events(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(200, ge=1, le=1000),
 ):
     await _require_brand(brand_id, current_user, db)

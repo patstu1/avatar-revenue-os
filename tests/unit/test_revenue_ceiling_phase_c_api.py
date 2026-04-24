@@ -21,6 +21,7 @@ from packages.scoring.revenue_ceiling_phase_c_engines import (
 # Sponsor package pricing logic
 # ---------------------------------------------------------------------------
 
+
 def test_sponsor_package_pricing_logic():
     """Directly call score_sponsor_package and verify the price is in a
     sensible dollar range for a mid-size finance audience."""
@@ -91,52 +92,40 @@ def test_organic_gate_passes_when_all_signals_strong():
 
 def test_organic_gate_strict_impressions():
     """Gate is False when impressions are below the minimum threshold."""
-    r = evaluate_paid_promotion_candidate(
-        **{**_PASSING_GATE, "organic_impressions": 200}
-    )
+    r = evaluate_paid_promotion_candidate(**{**_PASSING_GATE, "organic_impressions": 200})
     assert r["is_eligible"] is False
 
 
 def test_organic_gate_strict_engagement():
     """Gate is False when engagement rate is below the minimum threshold."""
-    r = evaluate_paid_promotion_candidate(
-        **{**_PASSING_GATE, "organic_engagement_rate": 0.005}
-    )
+    r = evaluate_paid_promotion_candidate(**{**_PASSING_GATE, "organic_engagement_rate": 0.005})
     assert r["is_eligible"] is False
 
 
 def test_organic_gate_strict_revenue():
     """Gate is False when organic revenue is zero — no proven monetization."""
-    r = evaluate_paid_promotion_candidate(
-        **{**_PASSING_GATE, "organic_revenue": 0.0}
-    )
+    r = evaluate_paid_promotion_candidate(**{**_PASSING_GATE, "organic_revenue": 0.0})
     assert r["is_eligible"] is False
 
 
 def test_organic_gate_strict_low_roi_and_young_content():
     """Gate is False when both ROI and content age are below thresholds
     (the gate uses roi_or_age_pass — both must fail to close this path)."""
-    r = evaluate_paid_promotion_candidate(
-        **{**_PASSING_GATE, "organic_roi": 0.5, "content_age_days": 3}
-    )
+    r = evaluate_paid_promotion_candidate(**{**_PASSING_GATE, "organic_roi": 0.5, "content_age_days": 3})
     assert r["is_eligible"] is False
 
 
 def test_organic_gate_passes_on_age_alone_when_roi_low():
     """Content that has aged sufficiently (≥ 14 days) should satisfy the
     roi_or_age criterion even when ROI is below the default threshold."""
-    r = evaluate_paid_promotion_candidate(
-        **{**_PASSING_GATE, "organic_roi": 0.8, "content_age_days": 60}
-    )
+    r = evaluate_paid_promotion_candidate(**{**_PASSING_GATE, "organic_roi": 0.8, "content_age_days": 60})
     assert r["is_eligible"] is True
 
 
 def test_organic_gate_gate_reason_is_non_empty_string():
     """gate_reason must always be a non-empty string for both outcomes."""
     eligible = evaluate_paid_promotion_candidate(**_PASSING_GATE)
-    not_eligible = evaluate_paid_promotion_candidate(
-        **{**_PASSING_GATE, "organic_impressions": 10}
-    )
+    not_eligible = evaluate_paid_promotion_candidate(**{**_PASSING_GATE, "organic_impressions": 10})
     assert isinstance(eligible["gate_reason"], str) and eligible["gate_reason"]
     assert isinstance(not_eligible["gate_reason"], str) and not_eligible["gate_reason"]
 
@@ -160,6 +149,7 @@ def test_organic_gate_confidence_rises_with_passing_signals():
 # Recurring revenue scoring formula
 # ---------------------------------------------------------------------------
 
+
 def test_recurring_revenue_scoring_formula():
     """Annual value must exceed one month's value — recurring revenue compounds
     across a retention window that is always longer than one month."""
@@ -171,8 +161,7 @@ def test_recurring_revenue_scoring_formula():
         existing_recurring_products=[],
     )
     assert r["expected_annual_value"] > r["expected_monthly_value"], (
-        f"annual={r['expected_annual_value']:.2f} should exceed "
-        f"monthly={r['expected_monthly_value']:.2f}"
+        f"annual={r['expected_annual_value']:.2f} should exceed monthly={r['expected_monthly_value']:.2f}"
     )
 
 
@@ -198,33 +187,26 @@ def test_recurring_revenue_churn_reduces_annual_vs_naive_projection():
     because the engine applies a churn discount."""
     r = score_recurring_revenue("finance", [], 20_000, 0.04, [])
     naive_annual = r["expected_monthly_value"] * 12
-    assert r["expected_annual_value"] < naive_annual, (
-        "Churn should reduce annual below naive 12 × monthly projection"
-    )
+    assert r["expected_annual_value"] < naive_annual, "Churn should reduce annual below naive 12 × monthly projection"
 
 
 # ---------------------------------------------------------------------------
 # Trust conversion — uplift and deficit
 # ---------------------------------------------------------------------------
 
+
 def test_trust_conversion_uplift_decreases_as_trust_improves():
     """Adding more trust elements should reduce the expected conversion uplift
     (because the deficit that uplift addresses is shrinking)."""
-    weak = score_trust_conversion(
-        "finance", False, False, 0, False, False, 5, 0.5, 0.02
-    )
-    strong = score_trust_conversion(
-        "finance", True, True, 10, True, True, 20, 0.8, 0.05
-    )
+    weak = score_trust_conversion("finance", False, False, 0, False, False, 5, 0.5, 0.02)
+    strong = score_trust_conversion("finance", True, True, 10, True, True, 20, 0.8, 0.05)
     assert weak["expected_uplift"] > strong["expected_uplift"]
 
 
 def test_trust_proof_blocks_have_action_field():
     """Every recommended proof block must carry an 'action' key so the
     product can render instructions to the user."""
-    r = score_trust_conversion(
-        "fitness", False, False, 0, False, False, 5, 0.5, 0.02
-    )
+    r = score_trust_conversion("fitness", False, False, 0, False, False, 5, 0.5, 0.02)
     for block in r["recommended_proof_blocks"]:
         assert "action" in block, f"Block missing 'action': {block}"
 
@@ -232,6 +214,7 @@ def test_trust_proof_blocks_have_action_field():
 # ---------------------------------------------------------------------------
 # Monetization mix
 # ---------------------------------------------------------------------------
+
 
 def test_monetization_mix_dependency_risk_is_hhi():
     """Verify the dependency risk follows HHI semantics: one method → 1.0,

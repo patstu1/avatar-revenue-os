@@ -1,4 +1,5 @@
 """Brain Architecture Phase C — agent mesh, workflow coordination, context bus, memory binding engines."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -147,6 +148,7 @@ def build_agent_registry() -> list[dict[str, Any]]:
 
 # ── Agent Run Simulation ─────────────────────────────────────────────
 
+
 def run_agent(slug: str, ctx: dict[str, Any], memory: list[dict[str, Any]]) -> dict[str, Any]:
     conf = 0.5
     mem_refs: list[str] = []
@@ -161,8 +163,11 @@ def run_agent(slug: str, ctx: dict[str, Any], memory: list[dict[str, Any]]) -> d
     agent_def = catalog.get(slug)
     if not agent_def:
         return {
-            "outputs": {}, "confidence": 0.0, "explanation": f"Unknown agent: {slug}",
-            "memory_refs": [], "status": "error",
+            "outputs": {},
+            "confidence": 0.0,
+            "explanation": f"Unknown agent: {slug}",
+            "memory_refs": [],
+            "status": "error",
         }
 
     account_state = ctx.get("account_state", "warming")
@@ -319,13 +324,15 @@ def run_workflow(workflow_type: str, ctx: dict[str, Any], memory: list[dict[str,
         final_outputs[agent_slug] = result["outputs"]
 
         if i < len(sequence) - 1:
-            handoff_events.append({
-                "from_agent": agent_slug,
-                "to_agent": sequence[i + 1],
-                "step_index": i,
-                "payload_keys": list(result["outputs"].keys()),
-                "confidence": result["confidence"],
-            })
+            handoff_events.append(
+                {
+                    "from_agent": agent_slug,
+                    "to_agent": sequence[i + 1],
+                    "step_index": i,
+                    "payload_keys": list(result["outputs"].keys()),
+                    "confidence": result["confidence"],
+                }
+            )
 
     return {
         "status": "completed",
@@ -339,6 +346,7 @@ def run_workflow(workflow_type: str, ctx: dict[str, Any], memory: list[dict[str,
 
 # ── Shared Context Bus ────────────────────────────────────────────────
 
+
 def derive_context_events(
     agent_slug: str,
     agent_outputs: dict[str, Any],
@@ -347,73 +355,87 @@ def derive_context_events(
     events: list[dict[str, Any]] = []
 
     if agent_slug == "trend_scout" and agent_outputs.get("recommendation") == "scale":
-        events.append({
-            "event_type": "winner_promoted",
-            "source_module": "trend_scout",
-            "target_modules": ["scale_commander", "monetization_router"],
-            "payload": {"recommendation": "scale", "opportunities": agent_outputs.get("top_opportunities", [])},
-            "priority": 3,
-            "explanation": "Trend scout identified scalable winner",
-        })
+        events.append(
+            {
+                "event_type": "winner_promoted",
+                "source_module": "trend_scout",
+                "target_modules": ["scale_commander", "monetization_router"],
+                "payload": {"recommendation": "scale", "opportunities": agent_outputs.get("top_opportunities", [])},
+                "priority": 3,
+                "explanation": "Trend scout identified scalable winner",
+            }
+        )
 
     if agent_slug == "recovery_agent" and agent_outputs.get("action") == "escalate":
-        events.append({
-            "event_type": "launch_blocked",
-            "source_module": "recovery_agent",
-            "target_modules": ["ops_watchdog", "account_launcher"],
-            "payload": {"blocker": agent_outputs.get("blocker", "unknown")},
-            "priority": 1,
-            "explanation": "Recovery agent detected blocker requiring escalation",
-        })
+        events.append(
+            {
+                "event_type": "launch_blocked",
+                "source_module": "recovery_agent",
+                "target_modules": ["ops_watchdog", "account_launcher"],
+                "payload": {"blocker": agent_outputs.get("blocker", "unknown")},
+                "priority": 1,
+                "explanation": "Recovery agent detected blocker requiring escalation",
+            }
+        )
 
     if agent_slug == "funnel_optimizer" and agent_outputs.get("leak_stage") not in (None, "unknown"):
-        events.append({
-            "event_type": "funnel_leaking",
-            "source_module": "funnel_optimizer",
-            "target_modules": ["monetization_router", "recovery_agent"],
-            "payload": {"leak_stage": agent_outputs["leak_stage"], "fix_action": agent_outputs.get("fix_action")},
-            "priority": 2,
-            "explanation": f"Funnel leak detected at {agent_outputs['leak_stage']}",
-        })
+        events.append(
+            {
+                "event_type": "funnel_leaking",
+                "source_module": "funnel_optimizer",
+                "target_modules": ["monetization_router", "recovery_agent"],
+                "payload": {"leak_stage": agent_outputs["leak_stage"], "fix_action": agent_outputs.get("fix_action")},
+                "priority": 2,
+                "explanation": f"Funnel leak detected at {agent_outputs['leak_stage']}",
+            }
+        )
 
     if agent_slug == "retention_strategist" and agent_outputs.get("action") == "reactivation_campaign":
-        events.append({
-            "event_type": "retention_action_triggered",
-            "source_module": "retention_strategist",
-            "target_modules": ["monetization_router", "pricing_strategist"],
-            "payload": {"target_segment": agent_outputs.get("target_segment")},
-            "priority": 4,
-            "explanation": "Retention action triggered for churn-risk segment",
-        })
+        events.append(
+            {
+                "event_type": "retention_action_triggered",
+                "source_module": "retention_strategist",
+                "target_modules": ["monetization_router", "pricing_strategist"],
+                "payload": {"target_segment": agent_outputs.get("target_segment")},
+                "priority": 4,
+                "explanation": "Retention action triggered for churn-risk segment",
+            }
+        )
 
     if agent_slug == "scale_commander" and agent_outputs.get("action") == "increase_output":
-        events.append({
-            "event_type": "account_scaling",
-            "source_module": "scale_commander",
-            "target_modules": ["paid_amplification_agent", "ops_watchdog"],
-            "payload": {"factor": agent_outputs.get("factor", 1.0)},
-            "priority": 3,
-            "explanation": "Scale commander increasing output",
-        })
+        events.append(
+            {
+                "event_type": "account_scaling",
+                "source_module": "scale_commander",
+                "target_modules": ["paid_amplification_agent", "ops_watchdog"],
+                "payload": {"factor": agent_outputs.get("factor", 1.0)},
+                "priority": 3,
+                "explanation": "Scale commander increasing output",
+            }
+        )
 
     if agent_slug == "sponsor_strategist" and agent_outputs.get("packages_identified", 0) > 0:
-        events.append({
-            "event_type": "sponsor_opportunity_detected",
-            "source_module": "sponsor_strategist",
-            "target_modules": ["pricing_strategist", "monetization_router"],
-            "payload": {"packages": agent_outputs.get("packages_identified")},
-            "priority": 4,
-            "explanation": "Sponsor opportunities identified",
-        })
+        events.append(
+            {
+                "event_type": "sponsor_opportunity_detected",
+                "source_module": "sponsor_strategist",
+                "target_modules": ["pricing_strategist", "monetization_router"],
+                "payload": {"packages": agent_outputs.get("packages_identified")},
+                "priority": 4,
+                "explanation": "Sponsor opportunities identified",
+            }
+        )
 
     if agent_slug == "ops_watchdog" and agent_outputs.get("action") == "throttle":
-        events.append({
-            "event_type": "system_throttle",
-            "source_module": "ops_watchdog",
-            "target_modules": ["scale_commander", "account_launcher", "paid_amplification_agent"],
-            "payload": {"severity": agent_outputs.get("severity")},
-            "priority": 1,
-            "explanation": "Ops watchdog triggered system throttle",
-        })
+        events.append(
+            {
+                "event_type": "system_throttle",
+                "source_module": "ops_watchdog",
+                "target_modules": ["scale_commander", "account_launcher", "paid_amplification_agent"],
+                "payload": {"severity": agent_outputs.get("severity")},
+                "priority": 1,
+                "explanation": "Ops watchdog triggered system throttle",
+            }
+        )
 
     return events

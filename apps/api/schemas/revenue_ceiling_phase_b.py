@@ -1,4 +1,5 @@
 """Pydantic schemas for Revenue Ceiling Phase B."""
+
 from __future__ import annotations
 
 from typing import Any

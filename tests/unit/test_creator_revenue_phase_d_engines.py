@@ -1,4 +1,5 @@
 """Unit tests for Creator Revenue Avenues Phase D hub engine."""
+
 from __future__ import annotations
 
 from packages.scoring.creator_revenue_engine import (
@@ -12,6 +13,7 @@ from packages.scoring.creator_revenue_engine import (
 )
 
 # ── classify_avenue_truth_state ────────────────────────────────────────
+
 
 class TestClassifyAvenueTruthState:
     def test_live_when_revenue(self):
@@ -43,6 +45,7 @@ class TestClassifyAvenueTruthState:
 
 
 # ── determine_operator_next_action ─────────────────────────────────────
+
 
 class TestDetermineOperatorNextAction:
     def test_live_returns_monitor(self):
@@ -76,11 +79,17 @@ class TestDetermineOperatorNextAction:
 
 # ── rank_hub_entries ───────────────────────────────────────────────────
 
+
 class TestRankHubEntries:
     def test_adds_hub_score(self):
         entries = [
             {"avenue_type": "merch", "truth_state": "executing", "total_expected_value": 10000, "avg_confidence": 0.5},
-            {"avenue_type": "licensing", "truth_state": "blocked", "total_expected_value": 20000, "avg_confidence": 0.3},
+            {
+                "avenue_type": "licensing",
+                "truth_state": "blocked",
+                "total_expected_value": 20000,
+                "avg_confidence": 0.3,
+            },
         ]
         ranked = rank_hub_entries(entries)
         assert "hub_score" in ranked[0]
@@ -109,6 +118,7 @@ class TestRankHubEntries:
 
 
 # ── build_event_rollup ─────────────────────────────────────────────────
+
 
 class TestBuildEventRollup:
     def test_empty_events(self):
@@ -148,6 +158,7 @@ class TestBuildEventRollup:
 
 
 # ── AVENUE constants ───────────────────────────────────────────────────
+
 
 class TestAvenueConstants:
     def test_all_9_avenues(self):

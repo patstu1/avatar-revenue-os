@@ -1,4 +1,5 @@
 """Creative memory: atoms (reusable content patterns) and links to scoped entities."""
+
 import uuid
 from typing import Optional
 
@@ -12,15 +13,11 @@ from packages.db.base import Base
 class CreativeMemoryAtom(Base):
     __tablename__ = "creative_memory_atoms"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     atom_type: Mapped[str] = mapped_column(String(100), nullable=False)
     content_json: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     niche: Mapped[Optional[str]] = mapped_column(String(200))
-    audience_segment_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    audience_segment_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     platform: Mapped[Optional[str]] = mapped_column(String(50))
     monetization_type: Mapped[Optional[str]] = mapped_column(String(100))
     account_type: Mapped[Optional[str]] = mapped_column(String(50))
@@ -35,9 +32,7 @@ class CreativeMemoryAtom(Base):
 class CreativeMemoryLink(Base):
     __tablename__ = "creative_memory_links"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     atom_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creative_memory_atoms.id"), nullable=False, index=True
     )

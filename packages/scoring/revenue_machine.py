@@ -7,6 +7,7 @@ Implements the "elite-machine architecture" framework:
 - Elite Readiness Scorecard (7-question diagnostic)
 - Contextual Spend Trigger system (upgrade nudges at critical moments)
 """
+
 from __future__ import annotations
 
 import math
@@ -571,29 +572,61 @@ def _score_acquisition(m: dict) -> EngineHealth:
     signals.append({"metric": "time_to_first_value_sec", "value": time_to_first_value, "score": round(ttfv_score, 1)})
     if time_to_first_value > 300:
         bottlenecks.append(f"Time-to-first-value is {time_to_first_value}s — target is under 300s")
-        actions.append({"action": "reduce_time_to_value", "description": "Streamline onboarding to deliver value in under 5 minutes. Pre-fill templates, skip optional steps.", "priority": "critical", "expected_impact_pct": 20})
+        actions.append(
+            {
+                "action": "reduce_time_to_value",
+                "description": "Streamline onboarding to deliver value in under 5 minutes. Pre-fill templates, skip optional steps.",
+                "priority": "critical",
+                "expected_impact_pct": 20,
+            }
+        )
 
     viral_score = min(25, viral_coefficient * 25)
     share_bonus = min(5, share_rate * 50)
     viral_score = _clamp(viral_score + share_bonus, 0, 25)
-    signals.append({"metric": "viral_coefficient", "value": round(viral_coefficient, 3), "score": round(viral_score, 1)})
+    signals.append(
+        {"metric": "viral_coefficient", "value": round(viral_coefficient, 3), "score": round(viral_score, 1)}
+    )
     if viral_coefficient < 0.3:
         bottlenecks.append(f"Viral coefficient is {viral_coefficient:.2f} — organic growth is weak")
-        actions.append({"action": "increase_shareability", "description": "Add share CTAs to outputs, watermark free exports with viral links, implement referral rewards.", "priority": "high", "expected_impact_pct": 15})
+        actions.append(
+            {
+                "action": "increase_shareability",
+                "description": "Add share CTAs to outputs, watermark free exports with viral links, implement referral rewards.",
+                "priority": "high",
+                "expected_impact_pct": 15,
+            }
+        )
 
     friction_raw = activation_rate * 100
     friction_score = min(25, friction_raw * 0.5)
     organic_bonus = min(5, organic_pct * 10)
     friction_score = _clamp(friction_score + organic_bonus, 0, 25)
-    signals.append({"metric": "day1_activation_rate", "value": round(activation_rate, 3), "score": round(friction_score, 1)})
+    signals.append(
+        {"metric": "day1_activation_rate", "value": round(activation_rate, 3), "score": round(friction_score, 1)}
+    )
     if activation_rate < 0.4:
         bottlenecks.append(f"Day-1 activation is {activation_rate:.0%} — too many users drop off before seeing value")
-        actions.append({"action": "reduce_onboarding_friction", "description": "Implement progressive disclosure, remove mandatory fields, add skip-to-value path.", "priority": "high", "expected_impact_pct": 18})
+        actions.append(
+            {
+                "action": "reduce_onboarding_friction",
+                "description": "Implement progressive disclosure, remove mandatory fields, add skip-to-value path.",
+                "priority": "high",
+                "expected_impact_pct": 18,
+            }
+        )
 
     ltv_cac = _safe_div(ltv, cac, 0)
     if cac > 0 and ltv_cac < 3:
         bottlenecks.append(f"LTV:CAC ratio is {ltv_cac:.1f}x — below healthy 3x threshold")
-        actions.append({"action": "improve_ltv_cac", "description": "Reduce paid acquisition spend, double down on organic/viral channels, improve retention.", "priority": "high", "expected_impact_pct": 12})
+        actions.append(
+            {
+                "action": "improve_ltv_cac",
+                "description": "Reduce paid acquisition spend, double down on organic/viral channels, improve retention.",
+                "priority": "high",
+                "expected_impact_pct": 12,
+            }
+        )
 
     total = _clamp(signup_score + ttfv_score + viral_score + friction_score)
 
@@ -624,28 +657,72 @@ def _score_conversion(m: dict) -> EngineHealth:
     signals.append({"metric": "free_to_paid_rate", "value": round(free_to_paid, 4), "score": round(f2p_score, 1)})
     if free_to_paid < 0.03:
         bottlenecks.append(f"Free-to-paid conversion is {free_to_paid:.1%} — below 3% benchmark")
-        actions.append({"action": "improve_free_to_paid", "description": "Add upgrade prompts at value moments, limit free tier to create urgency, show before/after proof.", "priority": "critical", "expected_impact_pct": 25})
+        actions.append(
+            {
+                "action": "improve_free_to_paid",
+                "description": "Add upgrade prompts at value moments, limit free tier to create urgency, show before/after proof.",
+                "priority": "critical",
+                "expected_impact_pct": 25,
+            }
+        )
 
     speed_score = 20.0 if first_purchase_time_hrs <= 24 else max(0, 20 - (first_purchase_time_hrs - 24) / 20)
     speed_score = _clamp(speed_score, 0, 20)
-    signals.append({"metric": "time_to_first_purchase_hrs", "value": first_purchase_time_hrs, "score": round(speed_score, 1)})
+    signals.append(
+        {"metric": "time_to_first_purchase_hrs", "value": first_purchase_time_hrs, "score": round(speed_score, 1)}
+    )
     if first_purchase_time_hrs > 168:
         bottlenecks.append(f"Median first purchase takes {first_purchase_time_hrs:.0f}h — must shorten decision window")
-        actions.append({"action": "accelerate_first_purchase", "description": "Add time-limited offers, usage-based triggers, and clear 'you just hit a limit' messaging.", "priority": "high", "expected_impact_pct": 15})
+        actions.append(
+            {
+                "action": "accelerate_first_purchase",
+                "description": "Add time-limited offers, usage-based triggers, and clear 'you just hit a limit' messaging.",
+                "priority": "high",
+                "expected_impact_pct": 15,
+            }
+        )
 
     metered_score = min(20, paywall_encounter_rate * 100 * 2)
-    signals.append({"metric": "paywall_encounter_rate", "value": round(paywall_encounter_rate, 4), "score": round(metered_score, 1)})
+    signals.append(
+        {
+            "metric": "paywall_encounter_rate",
+            "value": round(paywall_encounter_rate, 4),
+            "score": round(metered_score, 1),
+        }
+    )
     if paywall_encounter_rate < 0.1:
         bottlenecks.append("Too few users hitting premium moments — free tier may be too generous")
-        actions.append({"action": "increase_premium_moments", "description": "Tighten free limits, gate 2-3 high-value features, show premium outputs as previews.", "priority": "high", "expected_impact_pct": 18})
+        actions.append(
+            {
+                "action": "increase_premium_moments",
+                "description": "Tighten free limits, gate 2-3 high-value features, show premium outputs as previews.",
+                "priority": "high",
+                "expected_impact_pct": 18,
+            }
+        )
 
     packaging_score = min(15, pricing_page_conversion * 100 * 1.5)
-    signals.append({"metric": "pricing_page_conversion", "value": round(pricing_page_conversion, 4), "score": round(packaging_score, 1)})
+    signals.append(
+        {
+            "metric": "pricing_page_conversion",
+            "value": round(pricing_page_conversion, 4),
+            "score": round(packaging_score, 1),
+        }
+    )
 
     cta_score = min(15, upgrade_cta_click_rate * 100 * 1.5)
-    signals.append({"metric": "upgrade_cta_click_rate", "value": round(upgrade_cta_click_rate, 4), "score": round(cta_score, 1)})
+    signals.append(
+        {"metric": "upgrade_cta_click_rate", "value": round(upgrade_cta_click_rate, 4), "score": round(cta_score, 1)}
+    )
     if upgrade_cta_click_rate < 0.05:
-        actions.append({"action": "optimize_upgrade_ctas", "description": "A/B test CTA copy, placement, and timing. Show savings or ROI in the CTA.", "priority": "medium", "expected_impact_pct": 10})
+        actions.append(
+            {
+                "action": "optimize_upgrade_ctas",
+                "description": "A/B test CTA copy, placement, and timing. Show savings or ROI in the CTA.",
+                "priority": "medium",
+                "expected_impact_pct": 10,
+            }
+        )
 
     total = _clamp(f2p_score + speed_score + metered_score + packaging_score + cta_score)
 
@@ -673,24 +750,53 @@ def _score_expansion(m: dict) -> EngineHealth:
     arpu_growth_monthly = m.get("arpu_growth_rate_monthly", 0.0)
 
     exp_rev_score = min(25, expansion_revenue_pct * 100)
-    signals.append({"metric": "expansion_revenue_pct", "value": round(expansion_revenue_pct, 4), "score": round(exp_rev_score, 1)})
+    signals.append(
+        {"metric": "expansion_revenue_pct", "value": round(expansion_revenue_pct, 4), "score": round(exp_rev_score, 1)}
+    )
     if expansion_revenue_pct < 0.10:
         bottlenecks.append(f"Expansion revenue is only {expansion_revenue_pct:.0%} of total — needs to be 20%+")
-        actions.append({"action": "drive_expansion_revenue", "description": "Deploy credit pack nudges at usage peaks, add premium module offers, enable seat-based scaling.", "priority": "critical", "expected_impact_pct": 22})
+        actions.append(
+            {
+                "action": "drive_expansion_revenue",
+                "description": "Deploy credit pack nudges at usage peaks, add premium module offers, enable seat-based scaling.",
+                "priority": "critical",
+                "expected_impact_pct": 22,
+            }
+        )
 
     credit_score = min(20, credit_purchase_rate * 100 * 2)
-    signals.append({"metric": "credit_purchase_rate", "value": round(credit_purchase_rate, 4), "score": round(credit_score, 1)})
+    signals.append(
+        {"metric": "credit_purchase_rate", "value": round(credit_purchase_rate, 4), "score": round(credit_score, 1)}
+    )
     if credit_purchase_rate < 0.05:
         bottlenecks.append("Credit purchase rate is low — users may not understand the credit value")
-        actions.append({"action": "promote_credit_packs", "description": "Show credits-remaining warnings, offer bonus credits on bulk purchase, tie credits to visible outcomes.", "priority": "high", "expected_impact_pct": 14})
+        actions.append(
+            {
+                "action": "promote_credit_packs",
+                "description": "Show credits-remaining warnings, offer bonus credits on bulk purchase, tie credits to visible outcomes.",
+                "priority": "high",
+                "expected_impact_pct": 14,
+            }
+        )
 
     seat_score = min(20, seat_expansion_rate * 100 * 2)
-    signals.append({"metric": "seat_expansion_rate", "value": round(seat_expansion_rate, 4), "score": round(seat_score, 1)})
+    signals.append(
+        {"metric": "seat_expansion_rate", "value": round(seat_expansion_rate, 4), "score": round(seat_score, 1)}
+    )
     if seat_expansion_rate < 0.03:
-        actions.append({"action": "encourage_team_expansion", "description": "Show collaboration features, add 'invite team' prompts, offer team trial periods.", "priority": "medium", "expected_impact_pct": 10})
+        actions.append(
+            {
+                "action": "encourage_team_expansion",
+                "description": "Show collaboration features, add 'invite team' prompts, offer team trial periods.",
+                "priority": "medium",
+                "expected_impact_pct": 10,
+            }
+        )
 
     addon_score = min(20, addon_attach_rate * 100 * 2)
-    signals.append({"metric": "addon_attach_rate", "value": round(addon_attach_rate, 4), "score": round(addon_score, 1)})
+    signals.append(
+        {"metric": "addon_attach_rate", "value": round(addon_attach_rate, 4), "score": round(addon_score, 1)}
+    )
 
     upgrade_score = min(15, upgrade_rate * 100 * 1.5)
     signals.append({"metric": "plan_upgrade_rate", "value": round(upgrade_rate, 4), "score": round(upgrade_score, 1)})
@@ -723,35 +829,75 @@ def _score_retention(m: dict) -> EngineHealth:
     m.get("churn_rate_30d", 0.0)
 
     retention_score = min(30, monthly_retention * 30)
-    signals.append({"metric": "monthly_retention_rate", "value": round(monthly_retention, 4), "score": round(retention_score, 1)})
+    signals.append(
+        {"metric": "monthly_retention_rate", "value": round(monthly_retention, 4), "score": round(retention_score, 1)}
+    )
     if monthly_retention < 0.85:
         bottlenecks.append(f"Monthly retention at {monthly_retention:.0%} — must exceed 85%")
-        actions.append({"action": "improve_retention", "description": "Implement win-back campaigns, add usage nudges for dormant users, build switching cost through saved data.", "priority": "critical", "expected_impact_pct": 25})
+        actions.append(
+            {
+                "action": "improve_retention",
+                "description": "Implement win-back campaigns, add usage nudges for dormant users, build switching cost through saved data.",
+                "priority": "critical",
+                "expected_impact_pct": 25,
+            }
+        )
 
     nrr_score = 0.0
     if net_revenue_retention > 0:
         nrr_score = min(20, max(0, (net_revenue_retention - 0.8) * 100))
-    signals.append({"metric": "net_revenue_retention", "value": round(net_revenue_retention, 4), "score": round(nrr_score, 1)})
+    signals.append(
+        {"metric": "net_revenue_retention", "value": round(net_revenue_retention, 4), "score": round(nrr_score, 1)}
+    )
     if net_revenue_retention < 1.0:
         bottlenecks.append(f"NRR is {net_revenue_retention:.0%} — below 100% means contraction")
-        actions.append({"action": "improve_nrr", "description": "Drive expansion within retained accounts — upsell credits, seats, and premium features.", "priority": "high", "expected_impact_pct": 18})
+        actions.append(
+            {
+                "action": "improve_nrr",
+                "description": "Drive expansion within retained accounts — upsell credits, seats, and premium features.",
+                "priority": "high",
+                "expected_impact_pct": 18,
+            }
+        )
 
     stickiness_raw = (
-        min(10, saved_workflows_per_user * 2) +
-        min(10, stored_assets_per_user * 0.5) +
-        min(10, setup_investment_hours * 1.5)
+        min(10, saved_workflows_per_user * 2)
+        + min(10, stored_assets_per_user * 0.5)
+        + min(10, setup_investment_hours * 1.5)
     )
     stickiness_score = _clamp(stickiness_raw, 0, 25)
-    signals.append({"metric": "stickiness_composite", "value": round(stickiness_raw, 2), "score": round(stickiness_score, 1)})
+    signals.append(
+        {"metric": "stickiness_composite", "value": round(stickiness_raw, 2), "score": round(stickiness_score, 1)}
+    )
     if saved_workflows_per_user < 2:
         bottlenecks.append("Low saved workflows — users aren't building switching costs")
-        actions.append({"action": "increase_saved_workflows", "description": "Prompt users to save workflows after successful runs, auto-save templates, show 'your library' dashboard.", "priority": "high", "expected_impact_pct": 12})
+        actions.append(
+            {
+                "action": "increase_saved_workflows",
+                "description": "Prompt users to save workflows after successful runs, auto-save templates, show 'your library' dashboard.",
+                "priority": "high",
+                "expected_impact_pct": 12,
+            }
+        )
 
     recurring_score = min(25, recurring_usage_rate * 100 * 0.5)
-    signals.append({"metric": "recurring_weekly_usage_rate", "value": round(recurring_usage_rate, 4), "score": round(recurring_score, 1)})
+    signals.append(
+        {
+            "metric": "recurring_weekly_usage_rate",
+            "value": round(recurring_usage_rate, 4),
+            "score": round(recurring_score, 1),
+        }
+    )
     if recurring_usage_rate < 0.4:
         bottlenecks.append(f"Only {recurring_usage_rate:.0%} of users return weekly — habitual use is low")
-        actions.append({"action": "build_usage_habits", "description": "Add scheduled automations, weekly digest emails, and streak rewards to build recurring behavior.", "priority": "high", "expected_impact_pct": 15})
+        actions.append(
+            {
+                "action": "build_usage_habits",
+                "description": "Add scheduled automations, weekly digest emails, and streak rewards to build recurring behavior.",
+                "priority": "high",
+                "expected_impact_pct": 15,
+            }
+        )
 
     total = _clamp(retention_score + nrr_score + stickiness_score + recurring_score)
 
@@ -781,10 +927,19 @@ def _score_monetization(m: dict) -> EngineHealth:
     premium_output_revenue_pct = m.get("premium_output_revenue_pct", 0.0)
 
     diversification_score = min(25, revenue_streams_active * 5)
-    signals.append({"metric": "active_revenue_streams", "value": revenue_streams_active, "score": round(diversification_score, 1)})
+    signals.append(
+        {"metric": "active_revenue_streams", "value": revenue_streams_active, "score": round(diversification_score, 1)}
+    )
     if revenue_streams_active < 3:
         bottlenecks.append(f"Only {revenue_streams_active} revenue stream(s) — need 3+ for resilience")
-        actions.append({"action": "diversify_revenue", "description": "Add transaction fees, premium outputs, and credit packs alongside subscriptions.", "priority": "critical", "expected_impact_pct": 20})
+        actions.append(
+            {
+                "action": "diversify_revenue",
+                "description": "Add transaction fees, premium outputs, and credit packs alongside subscriptions.",
+                "priority": "critical",
+                "expected_impact_pct": 20,
+            }
+        )
 
     arpu_score = min(20, arpu * 0.2)
     arppu_bonus = min(5, _safe_div(arppu, max(arpu, 1)) * 2)
@@ -792,19 +947,45 @@ def _score_monetization(m: dict) -> EngineHealth:
     signals.append({"metric": "arpu", "value": round(arpu, 2), "score": round(arpu_score, 1)})
 
     value_alignment = min(20, revenue_per_action * 20) if revenue_per_action > 0 else min(20, pricing_satisfaction * 20)
-    signals.append({"metric": "value_alignment", "value": round(revenue_per_action or pricing_satisfaction, 4), "score": round(value_alignment, 1)})
+    signals.append(
+        {
+            "metric": "value_alignment",
+            "value": round(revenue_per_action or pricing_satisfaction, 4),
+            "score": round(value_alignment, 1),
+        }
+    )
     if pricing_satisfaction > 0 and pricing_satisfaction < 0.6:
         bottlenecks.append(f"Pricing satisfaction is {pricing_satisfaction:.0%} — users feel price ≠ value")
-        actions.append({"action": "align_pricing_to_value", "description": "Shift pricing anchors to outcomes delivered (ROI shown at upgrade moment), add usage-based components.", "priority": "high", "expected_impact_pct": 15})
+        actions.append(
+            {
+                "action": "align_pricing_to_value",
+                "description": "Shift pricing anchors to outcomes delivered (ROI shown at upgrade moment), add usage-based components.",
+                "priority": "high",
+                "expected_impact_pct": 15,
+            }
+        )
 
     ltv_score = min(15, ltv * 0.01)
     signals.append({"metric": "ltv", "value": round(ltv, 2), "score": round(ltv_score, 1)})
 
     layered_rev = min(15, (transaction_fee_revenue_pct + premium_output_revenue_pct) * 100)
-    signals.append({"metric": "layered_revenue_pct", "value": round(transaction_fee_revenue_pct + premium_output_revenue_pct, 4), "score": round(layered_rev, 1)})
+    signals.append(
+        {
+            "metric": "layered_revenue_pct",
+            "value": round(transaction_fee_revenue_pct + premium_output_revenue_pct, 4),
+            "score": round(layered_rev, 1),
+        }
+    )
     if transaction_fee_revenue_pct + premium_output_revenue_pct < 0.1:
         bottlenecks.append("Transaction fees + premium outputs are under 10% of revenue — untapped layers")
-        actions.append({"action": "activate_layered_revenue", "description": "Enable transaction fees on platform-generated revenue, promote premium output catalog.", "priority": "high", "expected_impact_pct": 18})
+        actions.append(
+            {
+                "action": "activate_layered_revenue",
+                "description": "Enable transaction fees on platform-generated revenue, promote premium output catalog.",
+                "priority": "high",
+                "expected_impact_pct": 18,
+            }
+        )
 
     total = _clamp(diversification_score + arpu_score + value_alignment + ltv_score + layered_rev)
 
@@ -995,7 +1176,11 @@ def compute_elite_readiness(metrics: dict) -> dict:
 
     usage_values = metrics.get("usage_volume_series", [])
     margin_values = metrics.get("margin_per_user_series", [])
-    usage_margin_corr = _correlation(usage_values, margin_values) if usage_values and margin_values else metrics.get("usage_margin_correlation", 0.0)
+    usage_margin_corr = (
+        _correlation(usage_values, margin_values)
+        if usage_values and margin_values
+        else metrics.get("usage_margin_correlation", 0.0)
+    )
 
     has_enterprise = metrics.get("has_enterprise_tier", False)
     has_self_serve = metrics.get("has_self_serve", False)
@@ -1015,16 +1200,18 @@ def compute_elite_readiness(metrics: dict) -> dict:
     for q in _ELITE_QUESTIONS:
         actual = combined.get(q.metric_key)
         if actual is None:
-            results.append({
-                "question_id": q.question_id,
-                "question": q.question,
-                "passed": False,
-                "actual_value": None,
-                "threshold": q.threshold,
-                "comparator": q.comparator,
-                "data_missing": True,
-                "remedy": _QUESTION_REMEDIES.get(q.question_id, {}),
-            })
+            results.append(
+                {
+                    "question_id": q.question_id,
+                    "question": q.question,
+                    "passed": False,
+                    "actual_value": None,
+                    "threshold": q.threshold,
+                    "comparator": q.comparator,
+                    "data_missing": True,
+                    "remedy": _QUESTION_REMEDIES.get(q.question_id, {}),
+                }
+            )
             total_weight += q.weight
             continue
 
@@ -1056,10 +1243,18 @@ def compute_elite_readiness(metrics: dict) -> dict:
         }
         if not passed:
             entry["remedy"] = _QUESTION_REMEDIES.get(q.question_id, {})
-            if q.comparator in ("gte", "gt") and isinstance(actual, (int, float)) and isinstance(q.threshold, (int, float)):
+            if (
+                q.comparator in ("gte", "gt")
+                and isinstance(actual, (int, float))
+                and isinstance(q.threshold, (int, float))
+            ):
                 gap_pct = _safe_div(q.threshold - actual, q.threshold) * 100
                 entry["gap_pct"] = round(gap_pct, 1)
-            elif q.comparator in ("lte", "lt") and isinstance(actual, (int, float)) and isinstance(q.threshold, (int, float)):
+            elif (
+                q.comparator in ("lte", "lt")
+                and isinstance(actual, (int, float))
+                and isinstance(q.threshold, (int, float))
+            ):
                 overshoot_pct = _safe_div(actual - q.threshold, q.threshold) * 100
                 entry["overshoot_pct"] = round(overshoot_pct, 1)
         results.append(entry)
@@ -1070,9 +1265,7 @@ def compute_elite_readiness(metrics: dict) -> dict:
     passed_count = sum(1 for r in results if r["passed"])
     failed_count = sum(1 for r in results if not r["passed"])
 
-    failing_remedies = [
-        r["remedy"] for r in results if not r["passed"] and r.get("remedy")
-    ]
+    failing_remedies = [r["remedy"] for r in results if not r["passed"] and r.get("remedy")]
     failing_remedies.sort(key=lambda a: a.get("expected_impact_pct", 0), reverse=True)
 
     if passed_count == 7:
@@ -1434,17 +1627,19 @@ def evaluate_spend_triggers(user_context: dict) -> list[dict]:
             if placeholder in message:
                 message = message.replace(placeholder, str(val))
 
-        active_triggers.append({
-            "trigger_id": trigger.trigger_id,
-            "display_name": trigger.display_name,
-            "priority": trigger.priority,
-            "nudge_message": message,
-            "cta_text": trigger.cta_text,
-            "cta_action": trigger.cta_action,
-            "estimated_revenue_impact": trigger.estimated_revenue_impact,
-            "category": trigger.category,
-            "context_data": result,
-        })
+        active_triggers.append(
+            {
+                "trigger_id": trigger.trigger_id,
+                "display_name": trigger.display_name,
+                "priority": trigger.priority,
+                "nudge_message": message,
+                "cta_text": trigger.cta_text,
+                "cta_action": trigger.cta_action,
+                "estimated_revenue_impact": trigger.estimated_revenue_impact,
+                "category": trigger.category,
+                "context_data": result,
+            }
+        )
 
     active_triggers.sort(key=lambda t: t["priority"], reverse=True)
     return active_triggers
@@ -1513,14 +1708,16 @@ def generate_revenue_machine_report(
     for a in elite_readiness.get("gap_analysis", []):
         all_actions.append({**a, "source": "elite_readiness"})
     for t in active_triggers[:5]:
-        all_actions.append({
-            "action": t["cta_action"],
-            "description": t["nudge_message"],
-            "priority": "high" if t["priority"] >= 7 else "medium",
-            "expected_impact_pct": round(t["estimated_revenue_impact"] / max(metrics.get("mrr", 100), 1) * 100, 1),
-            "source": "spend_trigger",
-            "trigger_id": t["trigger_id"],
-        })
+        all_actions.append(
+            {
+                "action": t["cta_action"],
+                "description": t["nudge_message"],
+                "priority": "high" if t["priority"] >= 7 else "medium",
+                "expected_impact_pct": round(t["estimated_revenue_impact"] / max(metrics.get("mrr", 100), 1) * 100, 1),
+                "source": "spend_trigger",
+                "trigger_id": t["trigger_id"],
+            }
+        )
 
     all_actions.sort(key=lambda a: a.get("expected_impact_pct", 0), reverse=True)
     top_actions = all_actions[:15]
@@ -1530,12 +1727,7 @@ def generate_revenue_machine_report(
     trigger_density = min(10, len(active_triggers) * 2)
     fee_health = min(10, fee_projection.get("blended_effective_rate_pct", 0) * 2)
 
-    composite_score = _clamp(
-        om_score * 0.40 +
-        er_score * 0.35 +
-        trigger_density +
-        fee_health
-    )
+    composite_score = _clamp(om_score * 0.40 + er_score * 0.35 + trigger_density + fee_health)
 
     mrr = metrics.get("mrr", 0)
     arr = mrr * 12
@@ -1552,7 +1744,9 @@ def generate_revenue_machine_report(
         "revenue_mix": {
             "subscription_pct": round(_safe_div(arr, arr + fee_annual + premium_monthly_est * 12) * 100, 1),
             "transaction_fees_pct": round(_safe_div(fee_annual, arr + fee_annual + premium_monthly_est * 12) * 100, 1),
-            "premium_outputs_pct": round(_safe_div(premium_monthly_est * 12, arr + fee_annual + premium_monthly_est * 12) * 100, 1),
+            "premium_outputs_pct": round(
+                _safe_div(premium_monthly_est * 12, arr + fee_annual + premium_monthly_est * 12) * 100, 1
+            ),
         },
     }
 

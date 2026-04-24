@@ -1,4 +1,5 @@
 """Health check endpoints — liveness, readiness, deep checks, and provider status."""
+
 from __future__ import annotations
 
 import time
@@ -17,6 +18,7 @@ router = APIRouter()
 
 # ── Basic liveness ──────────────────────────────────────────────────────────
 
+
 @router.get("/health")
 @router.get("/healthz")
 async def healthz():
@@ -25,6 +27,7 @@ async def healthz():
 
 
 # ── Readiness (legacy alias kept for backwards compat) ──────────────────────
+
 
 @router.get("/readyz")
 async def readyz(db: DBSession):
@@ -63,6 +66,7 @@ async def readyz(db: DBSession):
 
 
 # ── Deep health check ──────────────────────────────────────────────────────
+
 
 @router.get("/health/deep")
 async def health_deep(db: DBSession):

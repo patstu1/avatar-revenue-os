@@ -215,7 +215,18 @@ def _pick_best_next_account(
     brand_niche: str | None,
 ) -> dict[str, Any]:
     platforms_seen = {a.platform for a in accounts}
-    _all_plats = ["youtube", "tiktok", "instagram", "twitter", "reddit", "linkedin", "facebook", "pinterest", "threads", "snapchat"]
+    _all_plats = [
+        "youtube",
+        "tiktok",
+        "instagram",
+        "twitter",
+        "reddit",
+        "linkedin",
+        "facebook",
+        "pinterest",
+        "threads",
+        "snapchat",
+    ]
     alt = next((p for p in _all_plats if p not in platforms_seen), "tiktok")
     if recommendation_key == RK_ADD_PLATFORM_SPECIFIC:
         return {
@@ -448,7 +459,9 @@ def run_scale_engine(
         if rec_key not in (RK_DO_NOT_SCALE_YET, RK_IMPROVE_FUNNEL, RK_ADD_OFFER_FIRST):
             rec_key = RK_ADD_EXPERIMENTAL
             coarse = "experiment"
-            explanation = "Single-account brand: add experimental lane per default portfolio (1 flagship + 1 experimental)."
+            explanation = (
+                "Single-account brand: add experimental lane per default portfolio (1 flagship + 1 experimental)."
+            )
 
     best_next = _pick_best_next_account(rec_key, accounts, brand_niche)
     weekly = build_weekly_action_plan(rec_key, accounts, weak_names)

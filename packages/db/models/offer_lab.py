@@ -1,4 +1,5 @@
 """Offer Lab — offer development, variants, pricing, bundles, upsells, learning."""
+
 import uuid
 from typing import Optional
 
@@ -12,7 +13,9 @@ from packages.db.base import Base
 class OfferLabOffer(Base):
     __tablename__ = "ol_offers"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    source_offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True)
+    source_offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True
+    )
     offer_name: Mapped[str] = mapped_column(String(500), nullable=False)
     offer_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     audience_segment: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
@@ -39,7 +42,9 @@ class OfferLabOffer(Base):
 
 class OfferLabVariant(Base):
     __tablename__ = "ol_variants"
-    offer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ol_offers.id"), nullable=False, index=True)
+    offer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ol_offers.id"), nullable=False, index=True
+    )
     variant_type: Mapped[str] = mapped_column(String(40), nullable=False)
     variant_name: Mapped[str] = mapped_column(String(255), nullable=False)
     angle: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
@@ -52,7 +57,9 @@ class OfferLabVariant(Base):
 
 class OfferLabPricingTest(Base):
     __tablename__ = "ol_pricing_tests"
-    offer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ol_offers.id"), nullable=False, index=True)
+    offer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ol_offers.id"), nullable=False, index=True
+    )
     test_price: Mapped[float] = mapped_column(Float, nullable=False)
     control_price: Mapped[float] = mapped_column(Float, nullable=False)
     conversion_at_test: Mapped[float] = mapped_column(Float, default=0.0)
@@ -66,7 +73,9 @@ class OfferLabPricingTest(Base):
 
 class OfferLabPositioningTest(Base):
     __tablename__ = "ol_positioning_tests"
-    offer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ol_offers.id"), nullable=False, index=True)
+    offer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ol_offers.id"), nullable=False, index=True
+    )
     test_angle: Mapped[str] = mapped_column(String(60), nullable=False)
     control_angle: Mapped[str] = mapped_column(String(60), nullable=False)
     test_conversion: Mapped[float] = mapped_column(Float, default=0.0)
@@ -129,7 +138,9 @@ class OfferLabBlocker(Base):
 class OfferLabLearning(Base):
     __tablename__ = "ol_learning"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    offer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ol_offers.id"), nullable=False, index=True)
+    offer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ol_offers.id"), nullable=False, index=True
+    )
     learning_type: Mapped[str] = mapped_column(String(40), nullable=False)
     measured_metric: Mapped[str] = mapped_column(String(60), nullable=False)
     measured_value: Mapped[float] = mapped_column(Float, default=0.0)

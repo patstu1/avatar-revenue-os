@@ -1,4 +1,5 @@
 """Analytics worker tasks — trend scanning, performance ingestion, saturation checks."""
+
 import logging
 
 from packages.db.session import run_async
@@ -84,20 +85,24 @@ def scan_trends(self) -> dict:
                     continue
                 volume = int(sig.get("views", 0) or sig.get("video_count", 0) or sig.get("score", 0) or 0)
                 velocity = float(sig.get("view_count", 0) or sig.get("num_comments", 0) or 0)
-                strength = SignalStrength.STRONG if volume > 100_000 else (
-                    SignalStrength.MODERATE if volume > 10_000 else SignalStrength.WEAK
+                strength = (
+                    SignalStrength.STRONG
+                    if volume > 100_000
+                    else (SignalStrength.MODERATE if volume > 10_000 else SignalStrength.WEAK)
                 )
-                session.add(TrendSignal(
-                    brand_id=brand_id,
-                    platform=sig.get("source", "unknown"),
-                    signal_type="trend_scan",
-                    keyword=keyword[:500],
-                    volume=volume,
-                    velocity=velocity,
-                    strength=strength,
-                    is_actionable=strength in (SignalStrength.STRONG, SignalStrength.MODERATE),
-                    metadata_blob={"raw": {k: v for k, v in sig.items() if k not in ("source",)}},
-                ))
+                session.add(
+                    TrendSignal(
+                        brand_id=brand_id,
+                        platform=sig.get("source", "unknown"),
+                        signal_type="trend_scan",
+                        keyword=keyword[:500],
+                        volume=volume,
+                        velocity=velocity,
+                        strength=strength,
+                        is_actionable=strength in (SignalStrength.STRONG, SignalStrength.MODERATE),
+                        metadata_blob={"raw": {k: v for k, v in sig.items() if k not in ("source",)}},
+                    )
+                )
                 total_processed += 1
 
             run.status = JobStatus.COMPLETED
@@ -131,9 +136,7 @@ def ingest_performance(self) -> dict:
     metrics_created = 0
 
     with Session(engine) as session:
-        accounts = session.execute(
-            select(CreatorAccount).where(CreatorAccount.is_active.is_(True))
-        ).scalars().all()
+        accounts = session.execute(select(CreatorAccount).where(CreatorAccount.is_active.is_(True))).scalars().all()
 
         for account in accounts:
             accounts_processed += 1
@@ -142,8 +145,10 @@ def ingest_performance(self) -> dict:
 
                 from packages.clients.external_clients import BufferClient
 
-                if os.environ.get("BUFFER_API_KEY") and hasattr(account.platform, 'value'):
-                    platform_val = account.platform.value if hasattr(account.platform, 'value') else str(account.platform)
+                if os.environ.get("BUFFER_API_KEY") and hasattr(account.platform, "value"):
+                    platform_val = (
+                        account.platform.value if hasattr(account.platform, "value") else str(account.platform)
+                    )
                     if platform_val in ("youtube", "tiktok", "instagram", "twitter", "facebook", "linkedin"):
                         client = BufferClient()
                         result = run_async(client.get_profiles())
@@ -152,107 +157,154 @@ def ingest_performance(self) -> dict:
                             for prof in profiles:
                                 stats = prof.get("statistics", {})
                                 if stats:
-                                    session.add(PerformanceMetric(
-                                        brand_id=account.brand_id,
-                                        content_item_id=None,
-                                        creator_account_id=account.id,
-                                        platform=account.platform,
-                                        impressions=int(stats.get("reach", 0)),
-                                        views=int(stats.get("views", 0)),
-                                        likes=int(stats.get("likes", 0)),
-                                        clicks=int(stats.get("clicks", 0)),
-                                        followers_gained=int(stats.get("new_followers", 0)),
-                                        engagement_rate=float(stats.get("engagement_rate", 0)),
-                                        revenue=0.0,
-                                        measured_at=datetime.now(timezone.utc),
-                                    ))
+                                    session.add(
+                                        PerformanceMetric(
+                                            brand_id=account.brand_id,
+                                            content_item_id=None,
+                                            creator_account_id=account.id,
+                                            platform=account.platform,
+                                            impressions=int(stats.get("reach", 0)),
+                                            views=int(stats.get("views", 0)),
+                                            likes=int(stats.get("likes", 0)),
+                                            clicks=int(stats.get("clicks", 0)),
+                                            followers_gained=int(stats.get("new_followers", 0)),
+                                            engagement_rate=float(stats.get("engagement_rate", 0)),
+                                            revenue=0.0,
+                                            measured_at=datetime.now(timezone.utc),
+                                        )
+                                    )
                                     metrics_created += 1
 
                 from packages.db.models.content import ContentItem
-                published_items = session.execute(
-                    select(ContentItem).where(
-                        ContentItem.creator_account_id == account.id,
-                        ContentItem.status == "published",
-                    ).order_by(ContentItem.created_at.desc()).limit(20)
-                ).scalars().all()
+
+                published_items = (
+                    session.execute(
+                        select(ContentItem)
+                        .where(
+                            ContentItem.creator_account_id == account.id,
+                            ContentItem.status == "published",
+                        )
+                        .order_by(ContentItem.created_at.desc())
+                        .limit(20)
+                    )
+                    .scalars()
+                    .all()
+                )
                 for ci in published_items:
                     existing = session.execute(
-                        select(PerformanceMetric).where(
+                        select(PerformanceMetric)
+                        .where(
                             PerformanceMetric.content_item_id == ci.id,
-                        ).limit(1)
+                        )
+                        .limit(1)
                     ).scalar_one_or_none()
                     if not existing:
                         aff_revenue = 0.0
                         try:
                             from packages.db.models.affiliate_intel import AffiliateConversionEvent
-                            convs = session.execute(
-                                select(func.coalesce(func.sum(AffiliateConversionEvent.conversion_value), 0)).where(
-                                    AffiliateConversionEvent.brand_id == account.brand_id,
-                                )
-                            ).scalar() or 0.0
+
+                            convs = (
+                                session.execute(
+                                    select(func.coalesce(func.sum(AffiliateConversionEvent.conversion_value), 0)).where(
+                                        AffiliateConversionEvent.brand_id == account.brand_id,
+                                    )
+                                ).scalar()
+                                or 0.0
+                            )
                             aff_revenue = float(convs) / max(len(published_items), 1)
                         except Exception:
                             logger.debug("affiliate revenue lookup failed", exc_info=True)
-                        session.add(PerformanceMetric(
-                            brand_id=account.brand_id,
-                            content_item_id=ci.id,
-                            creator_account_id=account.id,
-                            platform=account.platform,
-                            impressions=0, views=0, likes=0, clicks=0,
-                            followers_gained=0, engagement_rate=0.0,
-                            revenue=aff_revenue,
-                            measured_at=datetime.now(timezone.utc),
-                        ))
+                        session.add(
+                            PerformanceMetric(
+                                brand_id=account.brand_id,
+                                content_item_id=ci.id,
+                                creator_account_id=account.id,
+                                platform=account.platform,
+                                impressions=0,
+                                views=0,
+                                likes=0,
+                                clicks=0,
+                                followers_gained=0,
+                                engagement_rate=0.0,
+                                revenue=aff_revenue,
+                                measured_at=datetime.now(timezone.utc),
+                            )
+                        )
                         metrics_created += 1
             except Exception as exc:
                 import logging
+
                 logging.getLogger(__name__).warning("ingest_performance error for %s: %s", account.id, exc)
 
         # ── Brand-level fallback: pick up published content without a creator account ──
         from packages.db.models.content import ContentItem
         from packages.db.models.core import Brand
+
         try:
             all_brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
             for brand in all_brands:
-                orphan_items = session.execute(
-                    select(ContentItem).where(
-                        ContentItem.brand_id == brand.id,
-                        ContentItem.creator_account_id.is_(None),
-                        ContentItem.status == "published",
-                    ).order_by(ContentItem.created_at.desc()).limit(20)
-                ).scalars().all()
+                orphan_items = (
+                    session.execute(
+                        select(ContentItem)
+                        .where(
+                            ContentItem.brand_id == brand.id,
+                            ContentItem.creator_account_id.is_(None),
+                            ContentItem.status == "published",
+                        )
+                        .order_by(ContentItem.created_at.desc())
+                        .limit(20)
+                    )
+                    .scalars()
+                    .all()
+                )
 
                 fallback_account = session.execute(
-                    select(CreatorAccount).where(
+                    select(CreatorAccount)
+                    .where(
                         CreatorAccount.brand_id == brand.id,
                         CreatorAccount.is_active.is_(True),
-                    ).order_by(CreatorAccount.created_at).limit(1)
+                    )
+                    .order_by(CreatorAccount.created_at)
+                    .limit(1)
                 ).scalar_one_or_none()
 
                 for ci in orphan_items:
                     if fallback_account:
                         ci.creator_account_id = fallback_account.id
-                        ci.platform = ci.platform or (fallback_account.platform.value if hasattr(fallback_account.platform, "value") else str(fallback_account.platform))
+                        ci.platform = ci.platform or (
+                            fallback_account.platform.value
+                            if hasattr(fallback_account.platform, "value")
+                            else str(fallback_account.platform)
+                        )
 
                     existing = session.execute(
-                        select(PerformanceMetric).where(
+                        select(PerformanceMetric)
+                        .where(
                             PerformanceMetric.content_item_id == ci.id,
-                        ).limit(1)
+                        )
+                        .limit(1)
                     ).scalar_one_or_none()
                     if not existing and fallback_account:
-                        session.add(PerformanceMetric(
-                            brand_id=brand.id,
-                            content_item_id=ci.id,
-                            creator_account_id=fallback_account.id,
-                            platform=fallback_account.platform,
-                            impressions=0, views=0, likes=0, clicks=0,
-                            followers_gained=0, engagement_rate=0.0,
-                            revenue=0.0,
-                            measured_at=datetime.now(timezone.utc),
-                        ))
+                        session.add(
+                            PerformanceMetric(
+                                brand_id=brand.id,
+                                content_item_id=ci.id,
+                                creator_account_id=fallback_account.id,
+                                platform=fallback_account.platform,
+                                impressions=0,
+                                views=0,
+                                likes=0,
+                                clicks=0,
+                                followers_gained=0,
+                                engagement_rate=0.0,
+                                revenue=0.0,
+                                measured_at=datetime.now(timezone.utc),
+                            )
+                        )
                         metrics_created += 1
         except Exception as exc:
             import logging
+
             logging.getLogger(__name__).warning("orphan content ingestion error: %s", exc)
 
         session.commit()
@@ -281,16 +333,23 @@ def sync_youtube_analytics(self) -> dict:
     errors = []
 
     with Session(engine) as session:
-        youtube_accounts = session.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.is_active.is_(True),
-                CreatorAccount.platform_access_token.isnot(None),
-                CreatorAccount.credential_status == "connected",
+        youtube_accounts = (
+            session.execute(
+                select(CreatorAccount).where(
+                    CreatorAccount.is_active.is_(True),
+                    CreatorAccount.platform_access_token.isnot(None),
+                    CreatorAccount.credential_status == "connected",
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
-        yt_accounts = [a for a in youtube_accounts
-                       if (a.platform.value if hasattr(a.platform, 'value') else str(a.platform)) == "youtube"]
+        yt_accounts = [
+            a
+            for a in youtube_accounts
+            if (a.platform.value if hasattr(a.platform, "value") else str(a.platform)) == "youtube"
+        ]
 
     if not yt_accounts:
         return {"status": "completed", "accounts_synced": 0, "message": "No YouTube accounts with credentials"}
@@ -302,9 +361,9 @@ def sync_youtube_analytics(self) -> dict:
         nonlocal accounts_synced, total_metrics
         async with _async_sf() as db:
             for acct_stub in yt_accounts:
-                acct = (await db.execute(
-                    select(CreatorAccount).where(CreatorAccount.id == acct_stub.id)
-                )).scalar_one_or_none()
+                acct = (
+                    await db.execute(select(CreatorAccount).where(CreatorAccount.id == acct_stub.id))
+                ).scalar_one_or_none()
                 if not acct:
                     continue
                 try:
@@ -355,12 +414,18 @@ def recompute_revenue_forecast(self) -> dict:
                 from packages.scoring.revenue_intelligence import forecast_revenue
 
                 cutoff = datetime.now(timezone.utc) - timedelta(days=90)
-                metrics = session.execute(
-                    select(PerformanceMetric).where(
-                        PerformanceMetric.brand_id == brand.id,
-                        PerformanceMetric.measured_at >= cutoff,
-                    ).order_by(PerformanceMetric.measured_at)
-                ).scalars().all()
+                metrics = (
+                    session.execute(
+                        select(PerformanceMetric)
+                        .where(
+                            PerformanceMetric.brand_id == brand.id,
+                            PerformanceMetric.measured_at >= cutoff,
+                        )
+                        .order_by(PerformanceMetric.measured_at)
+                    )
+                    .scalars()
+                    .all()
+                )
 
                 history = [
                     {"date": m.measured_at.isoformat() if m.measured_at else "", "revenue": float(m.revenue or 0)}
@@ -397,19 +462,25 @@ def check_revenue_anomalies(self) -> dict:
         for brand in brands:
             brands_checked += 1
             try:
-                avg_7d = session.execute(
-                    select(func.avg(PerformanceMetric.revenue)).where(
-                        PerformanceMetric.brand_id == brand.id,
-                        PerformanceMetric.measured_at >= now - timedelta(days=7),
-                    )
-                ).scalar() or 0.0
+                avg_7d = (
+                    session.execute(
+                        select(func.avg(PerformanceMetric.revenue)).where(
+                            PerformanceMetric.brand_id == brand.id,
+                            PerformanceMetric.measured_at >= now - timedelta(days=7),
+                        )
+                    ).scalar()
+                    or 0.0
+                )
 
-                avg_30d = session.execute(
-                    select(func.avg(PerformanceMetric.revenue)).where(
-                        PerformanceMetric.brand_id == brand.id,
-                        PerformanceMetric.measured_at >= now - timedelta(days=30),
-                    )
-                ).scalar() or 0.0
+                avg_30d = (
+                    session.execute(
+                        select(func.avg(PerformanceMetric.revenue)).where(
+                            PerformanceMetric.brand_id == brand.id,
+                            PerformanceMetric.measured_at >= now - timedelta(days=30),
+                        )
+                    ).scalar()
+                    or 0.0
+                )
 
                 if avg_30d > 0 and abs(avg_7d - avg_30d) / avg_30d > 0.3:
                     anomalies_found += 1
@@ -438,17 +509,18 @@ def check_saturation(self) -> dict:
     saturation_flags = 0
 
     with Session(engine) as session:
-        accounts = session.execute(
-            select(CreatorAccount).where(CreatorAccount.is_active.is_(True))
-        ).scalars().all()
+        accounts = session.execute(select(CreatorAccount).where(CreatorAccount.is_active.is_(True))).scalars().all()
 
         for account in accounts:
             accounts_analyzed += 1
-            metric_count = session.execute(
-                select(func.count()).select_from(PerformanceMetric).where(
-                    PerformanceMetric.creator_account_id == account.id
-                )
-            ).scalar() or 0
+            metric_count = (
+                session.execute(
+                    select(func.count())
+                    .select_from(PerformanceMetric)
+                    .where(PerformanceMetric.creator_account_id == account.id)
+                ).scalar()
+                or 0
+            )
 
             if metric_count == 0:
                 continue
@@ -462,33 +534,49 @@ def check_saturation(self) -> dict:
             cutoff_7d = now - timedelta(days=7)
             cutoff_30d = now - timedelta(days=30)
 
-            posts_7d = session.execute(
-                select(func.count()).select_from(ContentItem).where(
-                    ContentItem.creator_account_id == account.id,
-                    ContentItem.status == "published",
-                    ContentItem.created_at >= cutoff_7d,
-                )
-            ).scalar() or 0
-            posts_30d = session.execute(
-                select(func.count()).select_from(ContentItem).where(
-                    ContentItem.creator_account_id == account.id,
-                    ContentItem.status == "published",
-                    ContentItem.created_at >= cutoff_30d,
-                )
-            ).scalar() or 0
+            posts_7d = (
+                session.execute(
+                    select(func.count())
+                    .select_from(ContentItem)
+                    .where(
+                        ContentItem.creator_account_id == account.id,
+                        ContentItem.status == "published",
+                        ContentItem.created_at >= cutoff_7d,
+                    )
+                ).scalar()
+                or 0
+            )
+            posts_30d = (
+                session.execute(
+                    select(func.count())
+                    .select_from(ContentItem)
+                    .where(
+                        ContentItem.creator_account_id == account.id,
+                        ContentItem.status == "published",
+                        ContentItem.created_at >= cutoff_30d,
+                    )
+                ).scalar()
+                or 0
+            )
 
-            avg_eng_7d = session.execute(
-                select(func.avg(PerformanceMetric.engagement_rate)).where(
-                    PerformanceMetric.creator_account_id == account.id,
-                    PerformanceMetric.measured_at >= cutoff_7d,
-                )
-            ).scalar() or 0.0
-            avg_eng_30d = session.execute(
-                select(func.avg(PerformanceMetric.engagement_rate)).where(
-                    PerformanceMetric.creator_account_id == account.id,
-                    PerformanceMetric.measured_at >= cutoff_30d,
-                )
-            ).scalar() or 0.0
+            avg_eng_7d = (
+                session.execute(
+                    select(func.avg(PerformanceMetric.engagement_rate)).where(
+                        PerformanceMetric.creator_account_id == account.id,
+                        PerformanceMetric.measured_at >= cutoff_7d,
+                    )
+                ).scalar()
+                or 0.0
+            )
+            avg_eng_30d = (
+                session.execute(
+                    select(func.avg(PerformanceMetric.engagement_rate)).where(
+                        PerformanceMetric.creator_account_id == account.id,
+                        PerformanceMetric.measured_at >= cutoff_30d,
+                    )
+                ).scalar()
+                or 0.0
+            )
 
             sat_input = SaturationInput(
                 total_posts_in_niche=int(posts_30d),

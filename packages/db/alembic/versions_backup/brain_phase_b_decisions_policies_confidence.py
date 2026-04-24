@@ -4,6 +4,7 @@ Revision ID: brain_phase_b_001
 Revises: brain_phase_a_001
 Create Date: 2026-03-31
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
@@ -41,7 +42,9 @@ def upgrade() -> None:
         "policy_evaluations",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("decision_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brain_decisions.id"), nullable=True, index=True),
+        sa.Column(
+            "decision_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brain_decisions.id"), nullable=True, index=True
+        ),
         sa.Column("action_ref", sa.String(200), nullable=False, index=True),
         sa.Column("policy_mode", sa.String(30), nullable=False, index=True),
         sa.Column("reason", sa.Text, nullable=False),
@@ -61,7 +64,9 @@ def upgrade() -> None:
         "confidence_reports",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("decision_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brain_decisions.id"), nullable=True, index=True),
+        sa.Column(
+            "decision_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brain_decisions.id"), nullable=True, index=True
+        ),
         sa.Column("scope_label", sa.String(200), nullable=False, index=True),
         sa.Column("confidence_score", sa.Float, server_default="0"),
         sa.Column("confidence_band", sa.String(30), server_default="medium"),
@@ -83,7 +88,9 @@ def upgrade() -> None:
         "upside_cost_estimates",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("decision_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brain_decisions.id"), nullable=True, index=True),
+        sa.Column(
+            "decision_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brain_decisions.id"), nullable=True, index=True
+        ),
         sa.Column("scope_label", sa.String(200), nullable=False, index=True),
         sa.Column("expected_upside", sa.Float, server_default="0"),
         sa.Column("expected_cost", sa.Float, server_default="0"),

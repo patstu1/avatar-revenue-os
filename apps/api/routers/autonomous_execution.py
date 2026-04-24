@@ -1,4 +1,5 @@
 """Autonomous execution control plane — policy, gate preview, runs, blocker escalations."""
+
 import uuid
 from typing import Optional
 
@@ -112,7 +113,9 @@ async def gate_preview(
             confidence=confidence,
             estimated_cost_usd=estimated_cost_usd,
         )
-        return AutomationGatePreviewOut(decision=r["decision"], reasons=r.get("reasons") or [], guardrail=r.get("guardrail"))
+        return AutomationGatePreviewOut(
+            decision=r["decision"], reasons=r.get("reasons") or [], guardrail=r.get("guardrail")
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -307,9 +310,7 @@ async def resolve_blocker(
 ):
     await _require_brand(brand_id, current_user, db)
     try:
-        out = await svc.resolve_blocker(
-            db, brand_id, blocker_id, current_user.id, body.resolution_notes
-        )
+        out = await svc.resolve_blocker(db, brand_id, blocker_id, current_user.id, body.resolution_notes)
         await log_action(
             db,
             "autonomous_execution.blocker_resolved",

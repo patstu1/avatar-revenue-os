@@ -27,6 +27,7 @@ Computations:
 
 All org-scoped. No mutations. No LLM calls.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -65,15 +66,17 @@ from packages.db.models.proposals import Payment, Proposal
 
 
 async def _table_exists(db: AsyncSession, name: str) -> bool:
-    return bool((
-        await db.execute(
-            text(
-                "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
-                "WHERE table_schema='public' AND table_name=:n)"
-            ),
-            {"n": name},
-        )
-    ).scalar())
+    return bool(
+        (
+            await db.execute(
+                text(
+                    "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
+                    "WHERE table_schema='public' AND table_name=:n)"
+                ),
+                {"n": name},
+            )
+        ).scalar()
+    )
 
 
 async def _count_table(db: AsyncSession, name: str, where: str = "") -> int | None:
@@ -94,9 +97,7 @@ async def _count_table(db: AsyncSession, name: str, where: str = "") -> int | No
         return None
 
 
-async def _recent_activity_cutoff(
-    db: AsyncSession, table: str, since: datetime
-) -> int | None:
+async def _recent_activity_cutoff(db: AsyncSession, table: str, since: datetime) -> int | None:
     """Count rows in ``table`` with created_at >= since, if column exists.
     Returns None if table missing, 0 if no column or count zero. Savepoint
     -protected so column mismatches do not abort the outer transaction.
@@ -106,10 +107,7 @@ async def _recent_activity_cutoff(
     try:
         async with db.begin_nested():
             res = await db.execute(
-                text(
-                    f"SELECT COUNT(*) FROM \"{table}\" "
-                    f"WHERE created_at >= :s"
-                ),
+                text(f'SELECT COUNT(*) FROM "{table}" WHERE created_at >= :s'),
                 {"s": since},
             )
             return int(res.scalar() or 0)
@@ -126,13 +124,15 @@ async def _recent_activity_cutoff(
 #: indicate the revenue is already captured in ``payments``. Rows with
 #: these event_types are EXCLUDED from recognized revenue to prevent
 #: double counting.
-STRIPE_ORIGIN_EVENT_TYPES: frozenset = frozenset({
-    "stripe_payment",
-    "stripe_charge_sync",
-    "stripe_invoice_paid",
-    "shopify_order",
-    "shopify_refund",
-})
+STRIPE_ORIGIN_EVENT_TYPES: frozenset = frozenset(
+    {
+        "stripe_payment",
+        "stripe_charge_sync",
+        "stripe_invoice_paid",
+        "shopify_order",
+        "shopify_refund",
+    }
+)
 
 
 def _attribute_payment_to_avenue(payment_metadata: dict | None) -> str:
@@ -219,15 +219,18 @@ async def compute_floor_status(
         payments_count_by_avenue[avenue] = payments_count_by_avenue.get(avenue, 0) + 1
 
     # 7-day payments for run-rate projection
-    payments_7d_cents = int((
-        await db.execute(
-            select(func.coalesce(func.sum(Payment.amount_cents), 0)).where(
-                Payment.org_id == org_id,
-                Payment.status == "succeeded",
-                Payment.completed_at >= since_7,
+    payments_7d_cents = int(
+        (
+            await db.execute(
+                select(func.coalesce(func.sum(Payment.amount_cents), 0)).where(
+                    Payment.org_id == org_id,
+                    Payment.status == "succeeded",
+                    Payment.completed_at >= since_7,
+                )
             )
-        )
-    ).scalar() or 0)
+        ).scalar()
+        or 0
+    )
 
     # ── SUPPLEMENTAL LEDGER: creator_revenue_events (non-Stripe only) ──
     supplemental_by_avenue: dict[str, dict] = {}
@@ -259,9 +262,7 @@ async def compute_floor_status(
             cents = int(cents or 0)
             evt = str(event_type or "")
             is_stripe_origin = (
-                evt in STRIPE_ORIGIN_EVENT_TYPES
-                or evt.startswith("stripe_")
-                or evt.startswith("shopify_")
+                evt in STRIPE_ORIGIN_EVENT_TYPES or evt.startswith("stripe_") or evt.startswith("shopify_")
             )
             if is_stripe_origin:
                 excluded_stripe_origin_count += n
@@ -292,17 +293,19 @@ async def compute_floor_status(
         total = p_cents + s_cents
         if total == 0:
             continue
-        avenue_breakdown.append({
-            "avenue_id": avenue_id,
-            "display_name": avenue_id.replace("_", " ").title(),
-            "recognized_cents_30d": total,
-            "recognized_usd_30d": total / 100.0,
-            "from_payments_cents": p_cents,
-            "from_payments_count": payments_count_by_avenue.get(avenue_id, 0),
-            "from_creator_events_cents": s_cents,
-            "from_creator_events_count": s_entry["count"],
-            "creator_event_types": sorted(s_entry["event_types"]),
-        })
+        avenue_breakdown.append(
+            {
+                "avenue_id": avenue_id,
+                "display_name": avenue_id.replace("_", " ").title(),
+                "recognized_cents_30d": total,
+                "recognized_usd_30d": total / 100.0,
+                "from_payments_cents": p_cents,
+                "from_payments_count": payments_count_by_avenue.get(avenue_id, 0),
+                "from_creator_events_cents": s_cents,
+                "from_creator_events_count": s_entry["count"],
+                "creator_event_types": sorted(s_entry["event_types"]),
+            }
+        )
     avenue_breakdown.sort(key=lambda b: -b["recognized_cents_30d"])
 
     strongest_avenue = avenue_breakdown[0] if avenue_breakdown else None
@@ -313,43 +316,66 @@ async def compute_floor_status(
     async def _plan_row(avenue_id: str, display: str, table: str, where: str, sum_col: str):
         cents = await _safe_sum(db, table, where, {"s": since}, sum_col=sum_col)
         if cents > 0:
-            plan_data.append({
-                "avenue_id": avenue_id,
-                "display_name": display,
-                "source_table": table,
-                "plan_cents_30d": cents,
-                "plan_usd_30d": cents / 100.0,
-                "note": "PLAN DATA — not counted in recognized revenue",
-            })
+            plan_data.append(
+                {
+                    "avenue_id": avenue_id,
+                    "display_name": display,
+                    "source_table": table,
+                    "plan_cents_30d": cents,
+                    "plan_usd_30d": cents / 100.0,
+                    "note": "PLAN DATA — not counted in recognized revenue",
+                }
+            )
 
-    await _plan_row("high_ticket", "High-ticket deals (won)",
-                    "high_ticket_deals",
-                    "status='won' AND created_at >= :s",
-                    "COALESCE(deal_value_cents, 0)")
-    await _plan_row("monetization_packs", "Monetization packs (credit_transactions)",
-                    "credit_transactions",
-                    "amount_cents > 0 AND created_at >= :s",
-                    "COALESCE(amount_cents, 0)")
-    await _plan_row("monetization_packs", "Monetization packs (pack_purchases)",
-                    "pack_purchases",
-                    "created_at >= :s",
-                    "COALESCE(amount_cents, 0)")
-    await _plan_row("external_affiliate", "External affiliate commissions",
-                    "af_commissions",
-                    "created_at >= :s",
-                    "COALESCE(amount_cents, 0)")
-    await _plan_row("owned_affiliate", "Owned affiliate partner conversions",
-                    "af_own_partner_conversions",
-                    "created_at >= :s",
-                    "COALESCE(conversion_amount_cents, 0)")
-    await _plan_row("sponsor_deals", "Sponsor deals (won)",
-                    "sponsor_opportunities",
-                    "status='won' AND created_at >= :s",
-                    "COALESCE(deal_amount_cents, 0)")
-    await _plan_row("saas_subscriptions", "SaaS subscription payments",
-                    "subscription_events",
-                    "event_type='payment_succeeded' AND created_at >= :s",
-                    "COALESCE(amount_cents, 0)")
+    await _plan_row(
+        "high_ticket",
+        "High-ticket deals (won)",
+        "high_ticket_deals",
+        "status='won' AND created_at >= :s",
+        "COALESCE(deal_value_cents, 0)",
+    )
+    await _plan_row(
+        "monetization_packs",
+        "Monetization packs (credit_transactions)",
+        "credit_transactions",
+        "amount_cents > 0 AND created_at >= :s",
+        "COALESCE(amount_cents, 0)",
+    )
+    await _plan_row(
+        "monetization_packs",
+        "Monetization packs (pack_purchases)",
+        "pack_purchases",
+        "created_at >= :s",
+        "COALESCE(amount_cents, 0)",
+    )
+    await _plan_row(
+        "external_affiliate",
+        "External affiliate commissions",
+        "af_commissions",
+        "created_at >= :s",
+        "COALESCE(amount_cents, 0)",
+    )
+    await _plan_row(
+        "owned_affiliate",
+        "Owned affiliate partner conversions",
+        "af_own_partner_conversions",
+        "created_at >= :s",
+        "COALESCE(conversion_amount_cents, 0)",
+    )
+    await _plan_row(
+        "sponsor_deals",
+        "Sponsor deals (won)",
+        "sponsor_opportunities",
+        "status='won' AND created_at >= :s",
+        "COALESCE(deal_amount_cents, 0)",
+    )
+    await _plan_row(
+        "saas_subscriptions",
+        "SaaS subscription payments",
+        "subscription_events",
+        "event_type='payment_succeeded' AND created_at >= :s",
+        "COALESCE(amount_cents, 0)",
+    )
 
     # ── Floor math ────────────────────────────────────────────────
     floor_cents = floor_for_month(month_index)
@@ -363,7 +389,6 @@ async def compute_floor_status(
         "window_days": 30,
         "org_id": str(org_id),
         "month_index": month_index,
-
         # Floor
         "floor_cents": floor_cents,
         "floor_usd": floor_cents / 100.0,
@@ -373,7 +398,6 @@ async def compute_floor_status(
         "ratio_to_floor": round(ratio, 4),
         "month_1_floor_cents": FLOOR_MONTH_1_CENTS,
         "month_12_floor_cents": FLOOR_MONTH_12_CENTS,
-
         # Recognized revenue (the ONLY total that counts toward the floor)
         "trailing_30d_cents": recognized_total_cents,
         "trailing_30d_usd": recognized_total_cents / 100.0,
@@ -385,19 +409,15 @@ async def compute_floor_status(
             "excluded_stripe_origin_events_count": excluded_stripe_origin_count,
             "excluded_stripe_origin_events_cents": excluded_stripe_origin_cents,
         },
-
         # Projection
         "last_7d_cents": payments_7d_cents,
         "projected_30d_cents_at_7d_runrate": projected_30d_cents,
         "projected_ratio_to_floor": round(projected_ratio, 4),
-
         # Per-avenue attribution
         "avenue_breakdown": avenue_breakdown,
         "strongest_avenue": strongest_avenue,
-
         # Plan data (not counted)
         "plan_data_ledgers": plan_data,
-
         # Canonical rule documentation
         "recognized_revenue_rule": (
             "Recognized revenue = payments.amount_cents (status=succeeded) "
@@ -490,28 +510,31 @@ async def compute_avenue_portfolio(
         for t in a["revenue_tables"]:
             total = await _count_table(db, t)
             last30 = await _recent_activity_cutoff(db, t, since)
-            revenue_detail.append({
-                "table": t,
-                "total_rows": total,
-                "rows_last_30d": last30,
-            })
+            revenue_detail.append(
+                {
+                    "table": t,
+                    "total_rows": total,
+                    "rows_last_30d": last30,
+                }
+            )
             if total is not None:
                 revenue_total += total
             if last30 is not None:
                 revenue_cents_30d_table = 0
                 # For payments: sum amount_cents succeeded 30d
                 if t == "payments":
-                    payments_sum = int((
-                        await db.execute(
-                            select(
-                                func.coalesce(func.sum(Payment.amount_cents), 0)
-                            ).where(
-                                Payment.org_id == org_id,
-                                Payment.status == "succeeded",
-                                Payment.completed_at >= since,
+                    payments_sum = int(
+                        (
+                            await db.execute(
+                                select(func.coalesce(func.sum(Payment.amount_cents), 0)).where(
+                                    Payment.org_id == org_id,
+                                    Payment.status == "succeeded",
+                                    Payment.completed_at >= since,
+                                )
                             )
-                        )
-                    ).scalar() or 0)
+                        ).scalar()
+                        or 0
+                    )
                     revenue_cents_30d_table = payments_sum
                 elif t == "creator_revenue_events" and a.get("revenue_avenue_tag"):
                     tag = a["revenue_avenue_tag"]
@@ -538,11 +561,13 @@ async def compute_avenue_portfolio(
         for t in a["activity_tables"]:
             total = await _count_table(db, t)
             last30 = await _recent_activity_cutoff(db, t, since)
-            activity_detail.append({
-                "table": t,
-                "total_rows": total,
-                "rows_last_30d": last30,
-            })
+            activity_detail.append(
+                {
+                    "table": t,
+                    "total_rows": total,
+                    "rows_last_30d": last30,
+                }
+            )
             if total is not None:
                 activity_total_rows += total
             if last30 is not None:
@@ -557,22 +582,24 @@ async def compute_avenue_portfolio(
             activity_rows_30d=activity_rows_30d,
         )
 
-        avenues_out.append({
-            "n": a["n"],
-            "id": a["id"],
-            "display_name": a["display_name"],
-            "description": a["description"],
-            "doctrine_status": a["status"],
-            "live_status": live_status,
-            "revenue_cents_30d": revenue_cents_30d,
-            "revenue_usd_30d": revenue_cents_30d / 100.0,
-            "revenue_tables": revenue_detail,
-            "activity_total_rows": activity_total_rows,
-            "activity_rows_30d": activity_rows_30d,
-            "activity_tables": activity_detail,
-            "unlock_plan": a.get("unlock_plan"),
-            "revenue_avenue_tag": a.get("revenue_avenue_tag"),
-        })
+        avenues_out.append(
+            {
+                "n": a["n"],
+                "id": a["id"],
+                "display_name": a["display_name"],
+                "description": a["description"],
+                "doctrine_status": a["status"],
+                "live_status": live_status,
+                "revenue_cents_30d": revenue_cents_30d,
+                "revenue_usd_30d": revenue_cents_30d / 100.0,
+                "revenue_tables": revenue_detail,
+                "activity_total_rows": activity_total_rows,
+                "activity_rows_30d": activity_rows_30d,
+                "activity_tables": activity_detail,
+                "unlock_plan": a.get("unlock_plan"),
+                "revenue_avenue_tag": a.get("revenue_avenue_tag"),
+            }
+        )
 
     # Strongest + weakest unlockable
     strongest = max(
@@ -580,12 +607,11 @@ async def compute_avenue_portfolio(
         key=lambda a: a["revenue_cents_30d"],
         default=None,
     )
-    dormant = [
-        a for a in avenues_out
-        if a["live_status"] == STATUS_LIVE_BUT_DORMANT
-    ]
+    dormant = [a for a in avenues_out if a["live_status"] == STATUS_LIVE_BUT_DORMANT]
     weakest_unlockable = max(
-        dormant, key=lambda a: a["activity_total_rows"], default=None,
+        dormant,
+        key=lambda a: a["activity_total_rows"],
+        default=None,
     )
 
     # Status histogram
@@ -716,15 +742,17 @@ async def compute_engine_status(
         else:
             live_status = STATUS_PRESENT_IN_CODE_ONLY
 
-        engines_out.append({
-            "id": e["id"],
-            "family": e["family"],
-            "purpose": e["purpose"],
-            "doctrine_status": e["status"],
-            "live_status": live_status,
-            "total_rows": total_rows,
-            "tables": per_table,
-        })
+        engines_out.append(
+            {
+                "id": e["id"],
+                "family": e["family"],
+                "purpose": e["purpose"],
+                "doctrine_status": e["status"],
+                "live_status": live_status,
+                "total_rows": total_rows,
+                "tables": per_table,
+            }
+        )
 
     status_hist: dict[str, int] = {}
     family_hist: dict[str, int] = {}
@@ -789,13 +817,8 @@ async def compute_pipeline_state(db: AsyncSession, *, org_id: uuid.UUID) -> dict
             Payment.status == "succeeded",
         )
     )
-    clients_count = int((
-        await db.execute(
-            select(func.count(Client.id)).where(Client.org_id == org_id)
-        )
-    ).scalar() or 0)
-    stages.append(_stage_entry(7, "payment.completed",
-                               {"payments": int(s7.scalar() or 0), "clients": clients_count}))
+    clients_count = int((await db.execute(select(func.count(Client.id)).where(Client.org_id == org_id))).scalar() or 0)
+    stages.append(_stage_entry(7, "payment.completed", {"payments": int(s7.scalar() or 0), "clients": clients_count}))
 
     # Stage 8 — intake pending
     s8 = await db.execute(
@@ -854,7 +877,8 @@ async def compute_pipeline_state(db: AsyncSession, *, org_id: uuid.UUID) -> dict
 def _stage_entry(n: int, name: str, count: Any) -> dict:
     spec = next((s for s in STAGE_MACHINE if s["n"] == n), None)
     return {
-        "stage": n, "name": name,
+        "stage": n,
+        "name": name,
         "count": count,
         "timeout_minutes": spec["timeout_minutes"] if spec else None,
     }
@@ -868,30 +892,38 @@ def _stage_entry(n: int, name: str, count: Any) -> dict:
 async def compute_bottlenecks(db: AsyncSession, *, org_id: uuid.UUID) -> dict:
     now = datetime.now(timezone.utc)
     rows = (
-        await db.execute(
-            select(StageState).where(
-                StageState.org_id == org_id,
-                StageState.is_active.is_(True),
-                StageState.sla_deadline.is_not(None),
-            ).order_by(StageState.sla_deadline.asc())
+        (
+            await db.execute(
+                select(StageState)
+                .where(
+                    StageState.org_id == org_id,
+                    StageState.is_active.is_(True),
+                    StageState.sla_deadline.is_not(None),
+                )
+                .order_by(StageState.sla_deadline.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     ranked = []
     for s in rows:
         overdue_minutes = None
         if s.sla_deadline:
             overdue_minutes = int((now - s.sla_deadline).total_seconds() // 60)
         status = "stuck" if s.is_stuck else ("overdue" if (overdue_minutes and overdue_minutes > 0) else "on_track")
-        ranked.append({
-            "entity_type": s.entity_type,
-            "entity_id": str(s.entity_id),
-            "stage": s.stage,
-            "entered_at": s.entered_at.isoformat() if s.entered_at else None,
-            "sla_deadline": s.sla_deadline.isoformat() if s.sla_deadline else None,
-            "overdue_minutes": overdue_minutes,
-            "status": status,
-            "stuck_reason": s.stuck_reason,
-        })
+        ranked.append(
+            {
+                "entity_type": s.entity_type,
+                "entity_id": str(s.entity_id),
+                "stage": s.stage,
+                "entered_at": s.entered_at.isoformat() if s.entered_at else None,
+                "sla_deadline": s.sla_deadline.isoformat() if s.sla_deadline else None,
+                "overdue_minutes": overdue_minutes,
+                "status": status,
+                "stuck_reason": s.stuck_reason,
+            }
+        )
     ranked.sort(key=lambda r: (not (r["status"] == "stuck"), -(r["overdue_minutes"] or 0)))
     return {
         "org_id": str(org_id),
@@ -914,26 +946,33 @@ async def compute_closest_revenue(db: AsyncSession, *, org_id: uuid.UUID) -> dic
     # A — sent proposals not yet paid (B2B)
     A = []
     A_rows = (
-        await db.execute(
-            select(Proposal).where(
-                Proposal.org_id == org_id,
-                Proposal.status == "sent",
-                Proposal.is_active.is_(True),
-            ).order_by(Proposal.total_amount_cents.desc()).limit(25)
+        (
+            await db.execute(
+                select(Proposal)
+                .where(
+                    Proposal.org_id == org_id,
+                    Proposal.status == "sent",
+                    Proposal.is_active.is_(True),
+                )
+                .order_by(Proposal.total_amount_cents.desc())
+                .limit(25)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for p in A_rows:
-        A.append({
-            "type": "proposal_sent_unpaid",
-            "avenue_id": "b2b_services",
-            "proposal_id": str(p.id),
-            "recipient_email": p.recipient_email,
-            "amount_cents": p.total_amount_cents,
-            "sent_at": p.sent_at.isoformat() if p.sent_at else None,
-            "hours_since_sent": (
-                int((now - p.sent_at).total_seconds() // 3600) if p.sent_at else None
-            ),
-        })
+        A.append(
+            {
+                "type": "proposal_sent_unpaid",
+                "avenue_id": "b2b_services",
+                "proposal_id": str(p.id),
+                "recipient_email": p.recipient_email,
+                "amount_cents": p.total_amount_cents,
+                "sent_at": p.sent_at.isoformat() if p.sent_at else None,
+                "hours_since_sent": (int((now - p.sent_at).total_seconds() // 3600) if p.sent_at else None),
+            }
+        )
 
     # B — pending drafts with money-intent
     money_intents = ("pricing_request", "warm_interest", "negotiation")
@@ -946,67 +985,101 @@ async def compute_closest_revenue(db: AsyncSession, *, org_id: uuid.UUID) -> dic
                 EmailReplyDraft.status == "pending",
                 EmailReplyDraft.is_active.is_(True),
                 EmailClassification.intent.in_(money_intents),
-            ).limit(25)
+            )
+            .limit(25)
         )
     ).all()
-    B = [{
-        "type": "draft_pending_money_intent",
-        "avenue_id": "b2b_services",
-        "draft_id": str(d.id),
-        "to_email": d.to_email,
-        "intent": c.intent if c else None,
-        "confidence": float(c.confidence) if c else None,
-    } for d, c in B_rows]
+    B = [
+        {
+            "type": "draft_pending_money_intent",
+            "avenue_id": "b2b_services",
+            "draft_id": str(d.id),
+            "to_email": d.to_email,
+            "intent": c.intent if c else None,
+            "confidence": float(c.confidence) if c else None,
+        }
+        for d, c in B_rows
+    ]
 
     # C — approved drafts awaiting send
     C_rows = (
-        await db.execute(
-            select(EmailReplyDraft).where(
-                EmailReplyDraft.org_id == org_id,
-                EmailReplyDraft.status == "approved",
-                EmailReplyDraft.is_active.is_(True),
-            ).limit(25)
+        (
+            await db.execute(
+                select(EmailReplyDraft)
+                .where(
+                    EmailReplyDraft.org_id == org_id,
+                    EmailReplyDraft.status == "approved",
+                    EmailReplyDraft.is_active.is_(True),
+                )
+                .limit(25)
+            )
         )
-    ).scalars().all()
-    C = [{
-        "type": "draft_approved_pending_send",
-        "avenue_id": "b2b_services",
-        "draft_id": str(d.id),
-        "to_email": d.to_email,
-    } for d in C_rows]
+        .scalars()
+        .all()
+    )
+    C = [
+        {
+            "type": "draft_approved_pending_send",
+            "avenue_id": "b2b_services",
+            "draft_id": str(d.id),
+            "to_email": d.to_email,
+        }
+        for d in C_rows
+    ]
 
     # D — intakes sent unsubmitted
     D_rows = (
-        await db.execute(
-            select(IntakeRequest).where(
-                IntakeRequest.org_id == org_id,
-                IntakeRequest.status.in_(("sent", "viewed")),
-                IntakeRequest.is_active.is_(True),
-            ).limit(25)
+        (
+            await db.execute(
+                select(IntakeRequest)
+                .where(
+                    IntakeRequest.org_id == org_id,
+                    IntakeRequest.status.in_(("sent", "viewed")),
+                    IntakeRequest.is_active.is_(True),
+                )
+                .limit(25)
+            )
         )
-    ).scalars().all()
-    D = [{
-        "type": "intake_sent_not_submitted",
-        "avenue_id": "b2b_services",
-        "intake_id": str(i.id),
-        "client_id": str(i.client_id),
-    } for i in D_rows]
+        .scalars()
+        .all()
+    )
+    D = [
+        {
+            "type": "intake_sent_not_submitted",
+            "avenue_id": "b2b_services",
+            "intake_id": str(i.id),
+            "client_id": str(i.client_id),
+        }
+        for i in D_rows
+    ]
 
     # E — sponsor outreach sequences in-flight (avenue 17 proxy)
     E_count = await _count_table(db, "sponsor_outreach_sequences") or 0
-    E = [{
-        "type": "sponsor_outreach_in_flight",
-        "avenue_id": "sponsor_deals",
-        "count": E_count,
-    }] if E_count > 0 else []
+    E = (
+        [
+            {
+                "type": "sponsor_outreach_in_flight",
+                "avenue_id": "sponsor_deals",
+                "count": E_count,
+            }
+        ]
+        if E_count > 0
+        else []
+    )
 
     # F — high-ticket opportunities ready to close
     F_count = await _count_table(db, "high_ticket_opportunities") or 0
-    F = [{
-        "type": "high_ticket_opportunity",
-        "avenue_id": "high_ticket",
-        "count": F_count,
-    }] if F_count > 0 else []
+    F = (
+        [
+            {
+                "type": "high_ticket_opportunity",
+                "avenue_id": "high_ticket",
+                "count": F_count,
+            }
+        ]
+        if F_count > 0
+        else []
+    )
 
     total_potential = sum(x.get("amount_cents", 0) or 0 for x in A)
 
@@ -1032,7 +1105,10 @@ async def compute_closest_revenue(db: AsyncSession, *, org_id: uuid.UUID) -> dic
 
 
 async def compute_blocking_floors(
-    db: AsyncSession, *, org_id: uuid.UUID, month_index: int = 1,
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
+    month_index: int = 1,
 ) -> dict:
     floor = await compute_floor_status(db, org_id=org_id, month_index=month_index)
     closest = await compute_closest_revenue(db, org_id=org_id)
@@ -1040,8 +1116,7 @@ async def compute_blocking_floors(
     gap_cents = int(floor["gap_cents"])
     potential_cents = int(closest["total_potential_cents"])
     ratio_with_inflight = (
-        ((floor["trailing_30d_cents"] + potential_cents) / floor["floor_cents"])
-        if floor["floor_cents"] else 0.0
+        ((floor["trailing_30d_cents"] + potential_cents) / floor["floor_cents"]) if floor["floor_cents"] else 0.0
     )
 
     reasons = []
@@ -1079,7 +1154,10 @@ async def compute_blocking_floors(
 
 
 async def compute_ask_operator(
-    db: AsyncSession, *, org_id: uuid.UUID, month_index: int = 1,
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
+    month_index: int = 1,
 ) -> dict:
     """Concrete list of operator inputs GM needs right now.
 
@@ -1096,45 +1174,63 @@ async def compute_ask_operator(
 
     # Pending approvals (operator must decide)
     pending_approvals = (
-        await db.execute(
-            select(GMApproval).where(
-                GMApproval.org_id == org_id,
-                GMApproval.status == "pending",
-                GMApproval.is_active.is_(True),
-            ).order_by(GMApproval.created_at.desc()).limit(25)
+        (
+            await db.execute(
+                select(GMApproval)
+                .where(
+                    GMApproval.org_id == org_id,
+                    GMApproval.status == "pending",
+                    GMApproval.is_active.is_(True),
+                )
+                .order_by(GMApproval.created_at.desc())
+                .limit(25)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for a in pending_approvals:
-        asks.append({
-            "category": "approval_decision",
-            "priority": 1,
-            "request": f"Approve/reject: {a.title}",
-            "context": a.description or "",
-            "risk_level": a.risk_level,
-            "entity_type": "gm_approval",
-            "entity_id": str(a.id),
-        })
+        asks.append(
+            {
+                "category": "approval_decision",
+                "priority": 1,
+                "request": f"Approve/reject: {a.title}",
+                "context": a.description or "",
+                "risk_level": a.risk_level,
+                "entity_type": "gm_approval",
+                "entity_id": str(a.id),
+            }
+        )
 
     # Open escalations needing attention
     open_escalations = (
-        await db.execute(
-            select(GMEscalation).where(
-                GMEscalation.org_id == org_id,
-                GMEscalation.status.in_(("open", "acknowledged")),
-                GMEscalation.is_active.is_(True),
-            ).order_by(GMEscalation.last_seen_at.desc()).limit(25)
+        (
+            await db.execute(
+                select(GMEscalation)
+                .where(
+                    GMEscalation.org_id == org_id,
+                    GMEscalation.status.in_(("open", "acknowledged")),
+                    GMEscalation.is_active.is_(True),
+                )
+                .order_by(GMEscalation.last_seen_at.desc())
+                .limit(25)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for e in open_escalations:
-        asks.append({
-            "category": "escalation_resolution",
-            "priority": 2,
-            "request": f"Resolve escalation: {e.title}",
-            "context": e.description or "",
-            "severity": e.severity,
-            "entity_type": "gm_escalation",
-            "entity_id": str(e.id),
-        })
+        asks.append(
+            {
+                "category": "escalation_resolution",
+                "priority": 2,
+                "request": f"Resolve escalation: {e.title}",
+                "context": e.description or "",
+                "severity": e.severity,
+                "entity_type": "gm_escalation",
+                "entity_id": str(e.id),
+            }
+        )
 
     # Dormant-avenue activations: list LIVE_BUT_DORMANT avenues with highest activity_total
     portfolio = await compute_avenue_portfolio(db, org_id=org_id)
@@ -1144,34 +1240,35 @@ async def compute_ask_operator(
         reverse=True,
     )[:5]
     for a in dormant_avenues:
-        asks.append({
-            "category": "dormant_avenue_activation",
-            "priority": 3,
-            "request": (
-                f"Approve activation of avenue {a['n']} ({a['display_name']}) — "
-                f"{a['activity_total_rows']} planned actions, no realized revenue yet."
-            ),
-            "context": a.get("description", ""),
-            "avenue_id": a["id"],
-            "unlock_plan": a.get("unlock_plan") or [],
-        })
+        asks.append(
+            {
+                "category": "dormant_avenue_activation",
+                "priority": 3,
+                "request": (
+                    f"Approve activation of avenue {a['n']} ({a['display_name']}) — "
+                    f"{a['activity_total_rows']} planned actions, no realized revenue yet."
+                ),
+                "context": a.get("description", ""),
+                "avenue_id": a["id"],
+                "unlock_plan": a.get("unlock_plan") or [],
+            }
+        )
 
     # Code-only avenues: need operator decision on whether to build the activation
-    code_only = [
-        a for a in portfolio["avenues"]
-        if a["live_status"] == STATUS_PRESENT_IN_CODE_ONLY
-    ]
+    code_only = [a for a in portfolio["avenues"] if a["live_status"] == STATUS_PRESENT_IN_CODE_ONLY]
     for a in code_only:
-        asks.append({
-            "category": "code_only_avenue_activation",
-            "priority": 4,
-            "request": (
-                f"Decide on avenue {a['n']} ({a['display_name']}): "
-                "should we activate it? First step of unlock plan is needed."
-            ),
-            "avenue_id": a["id"],
-            "unlock_plan": a.get("unlock_plan") or [],
-        })
+        asks.append(
+            {
+                "category": "code_only_avenue_activation",
+                "priority": 4,
+                "request": (
+                    f"Decide on avenue {a['n']} ({a['display_name']}): "
+                    "should we activate it? First step of unlock plan is needed."
+                ),
+                "avenue_id": a["id"],
+                "unlock_plan": a.get("unlock_plan") or [],
+            }
+        )
 
     # Missing critical provider credentials
     critical_providers = ("stripe_webhook", "inbound_email_route", "smtp", "anthropic")
@@ -1186,27 +1283,31 @@ async def compute_ask_operator(
             )
         ).scalar() or 0
         if count == 0:
-            asks.append({
-                "category": "missing_credential",
-                "priority": 2,
-                "request": f"Configure {key} integration_providers row — currently absent or disabled.",
-                "provider_key": key,
-            })
+            asks.append(
+                {
+                    "category": "missing_credential",
+                    "priority": 2,
+                    "request": f"Configure {key} integration_providers row — currently absent or disabled.",
+                    "provider_key": key,
+                }
+            )
 
     # Floor-budget: if below floor, ask operator for activation authority + budget
     floor = await compute_floor_status(db, org_id=org_id, month_index=month_index)
     if not floor["floor_met"]:
-        asks.append({
-            "category": "budget_authority",
-            "priority": 1,
-            "request": (
-                f"Floor M{month_index} not met: ${floor['trailing_30d_usd']:.0f} / "
-                f"${floor['floor_usd']:.0f}. Grant GM authority to activate "
-                f"top dormant avenues and/or increase paid promotion budget."
-            ),
-            "gap_usd": floor["gap_usd"],
-            "ratio": floor["ratio_to_floor"],
-        })
+        asks.append(
+            {
+                "category": "budget_authority",
+                "priority": 1,
+                "request": (
+                    f"Floor M{month_index} not met: ${floor['trailing_30d_usd']:.0f} / "
+                    f"${floor['floor_usd']:.0f}. Grant GM authority to activate "
+                    f"top dormant avenues and/or increase paid promotion budget."
+                ),
+                "gap_usd": floor["gap_usd"],
+                "ratio": floor["ratio_to_floor"],
+            }
+        )
 
     # Sort by priority
     asks.sort(key=lambda x: x["priority"])
@@ -1234,7 +1335,9 @@ def _bucket_count(items: list[dict], key: str) -> dict:
 
 
 async def compute_unlock_plans(
-    db: AsyncSession, *, org_id: uuid.UUID,
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
 ) -> dict:
     portfolio = await compute_avenue_portfolio(db, org_id=org_id)
     dormant = [a for a in portfolio["avenues"] if a["live_status"] == STATUS_LIVE_BUT_DORMANT]
@@ -1242,24 +1345,26 @@ async def compute_unlock_plans(
 
     plans = []
     for a in dormant + code_only:
-        plans.append({
-            "avenue_id": a["id"],
-            "n": a["n"],
-            "display_name": a["display_name"],
-            "live_status": a["live_status"],
-            "activity_total_rows": a["activity_total_rows"],
-            "revenue_cents_30d": a["revenue_cents_30d"],
-            "plan": a.get("unlock_plan") or [
-                "No canonical unlock plan in doctrine — request one via operator."
-            ],
-            "action_class": "approval_required",
-        })
+        plans.append(
+            {
+                "avenue_id": a["id"],
+                "n": a["n"],
+                "display_name": a["display_name"],
+                "live_status": a["live_status"],
+                "activity_total_rows": a["activity_total_rows"],
+                "revenue_cents_30d": a["revenue_cents_30d"],
+                "plan": a.get("unlock_plan") or ["No canonical unlock plan in doctrine — request one via operator."],
+                "action_class": "approval_required",
+            }
+        )
 
     # Rank by dormant before code-only, then by activity_total desc
-    plans.sort(key=lambda p: (
-        p["live_status"] != STATUS_LIVE_BUT_DORMANT,  # dormant first
-        -p["activity_total_rows"],
-    ))
+    plans.sort(
+        key=lambda p: (
+            p["live_status"] != STATUS_LIVE_BUT_DORMANT,  # dormant first
+            -p["activity_total_rows"],
+        )
+    )
 
     return {
         "org_id": str(org_id),
@@ -1275,95 +1380,132 @@ async def compute_unlock_plans(
 
 
 async def compute_game_plan(
-    db: AsyncSession, *, org_id: uuid.UUID, month_index: int = 1,
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
+    month_index: int = 1,
 ) -> dict:
     now = datetime.now(timezone.utc)
     plan: list[dict] = []
 
     # Rank 1 — revenue at immediate risk (B2B proposals unpaid > 24h)
     risky = (
-        await db.execute(
-            select(Proposal).where(
-                Proposal.org_id == org_id,
-                Proposal.status == "sent",
-                Proposal.is_active.is_(True),
-                Proposal.sent_at <= (now - timedelta(hours=24)),
-            ).order_by(Proposal.total_amount_cents.desc()).limit(10)
+        (
+            await db.execute(
+                select(Proposal)
+                .where(
+                    Proposal.org_id == org_id,
+                    Proposal.status == "sent",
+                    Proposal.is_active.is_(True),
+                    Proposal.sent_at <= (now - timedelta(hours=24)),
+                )
+                .order_by(Proposal.total_amount_cents.desc())
+                .limit(10)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for p in risky:
-        plan.append({
-            "priority_rank": 1, "label": "revenue_at_immediate_risk",
-            "action_type": "followup_unpaid_proposal",
-            "action_class": "approval_required",
-            "avenue_id": "b2b_services",
-            "entity_type": "proposal", "entity_id": str(p.id),
-            "detail": f"Proposal to {p.recipient_email} ${p.total_amount_cents/100:.0f} unpaid "
-                      f"{int((now-p.sent_at).total_seconds()//3600)}h.",
-            "potential_cents": p.total_amount_cents,
-        })
+        plan.append(
+            {
+                "priority_rank": 1,
+                "label": "revenue_at_immediate_risk",
+                "action_type": "followup_unpaid_proposal",
+                "action_class": "approval_required",
+                "avenue_id": "b2b_services",
+                "entity_type": "proposal",
+                "entity_id": str(p.id),
+                "detail": f"Proposal to {p.recipient_email} ${p.total_amount_cents / 100:.0f} unpaid "
+                f"{int((now - p.sent_at).total_seconds() // 3600)}h.",
+                "potential_cents": p.total_amount_cents,
+            }
+        )
 
     # Rank 2 — blocked revenue close
     stale = (
-        await db.execute(
-            select(EmailReplyDraft).where(
-                EmailReplyDraft.org_id == org_id,
-                EmailReplyDraft.status == "approved",
-                EmailReplyDraft.approved_at <= (now - timedelta(minutes=5)),
-                EmailReplyDraft.is_active.is_(True),
-            ).limit(10)
+        (
+            await db.execute(
+                select(EmailReplyDraft)
+                .where(
+                    EmailReplyDraft.org_id == org_id,
+                    EmailReplyDraft.status == "approved",
+                    EmailReplyDraft.approved_at <= (now - timedelta(minutes=5)),
+                    EmailReplyDraft.is_active.is_(True),
+                )
+                .limit(10)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for d in stale:
-        plan.append({
-            "priority_rank": 2, "label": "blocked_revenue_close",
-            "action_type": "dispatch_approved_draft",
-            "action_class": "auto_execute",
-            "avenue_id": "b2b_services",
-            "entity_type": "email_reply_draft", "entity_id": str(d.id),
-            "detail": f"Draft to {d.to_email} approved — beat cycle should have fired.",
-        })
+        plan.append(
+            {
+                "priority_rank": 2,
+                "label": "blocked_revenue_close",
+                "action_type": "dispatch_approved_draft",
+                "action_class": "auto_execute",
+                "avenue_id": "b2b_services",
+                "entity_type": "email_reply_draft",
+                "entity_id": str(d.id),
+                "detail": f"Draft to {d.to_email} approved — beat cycle should have fired.",
+            }
+        )
 
     undelivered = (
-        await db.execute(
-            select(ProductionJob).where(
-                ProductionJob.org_id == org_id,
-                ProductionJob.status == "qa_passed",
-                ProductionJob.is_active.is_(True),
-            ).limit(10)
+        (
+            await db.execute(
+                select(ProductionJob)
+                .where(
+                    ProductionJob.org_id == org_id,
+                    ProductionJob.status == "qa_passed",
+                    ProductionJob.is_active.is_(True),
+                )
+                .limit(10)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for j in undelivered:
-        plan.append({
-            "priority_rank": 2, "label": "blocked_revenue_close",
-            "action_type": "dispatch_delivery",
-            "action_class": "auto_execute",
-            "avenue_id": "b2b_services",
-            "entity_type": "production_job", "entity_id": str(j.id),
-            "detail": f"Job {j.id} qa_passed, awaiting delivery.",
-        })
+        plan.append(
+            {
+                "priority_rank": 2,
+                "label": "blocked_revenue_close",
+                "action_type": "dispatch_delivery",
+                "action_class": "auto_execute",
+                "avenue_id": "b2b_services",
+                "entity_type": "production_job",
+                "entity_id": str(j.id),
+                "detail": f"Job {j.id} qa_passed, awaiting delivery.",
+            }
+        )
 
     # Rank 3 — floor gap
     floor = await compute_floor_status(db, org_id=org_id, month_index=month_index)
     if not floor["floor_met"]:
-        plan.append({
-            "priority_rank": 3, "label": "floor_gap_math",
-            "action_type": "close_floor_gap",
-            "action_class": "approval_required",
-            "avenue_id": "multi",
-            "entity_type": "floor", "entity_id": f"month_{month_index}",
-            "detail": (
-                f"Trailing 30d: ${floor['trailing_30d_usd']:.0f} (across {len(floor['avenue_breakdown'])} "
-                f"avenues) vs ${floor['floor_usd']:.0f} floor. Gap ${floor['gap_usd']:.0f}."
-            ),
-            "potential_cents": floor["gap_cents"],
-        })
+        plan.append(
+            {
+                "priority_rank": 3,
+                "label": "floor_gap_math",
+                "action_type": "close_floor_gap",
+                "action_class": "approval_required",
+                "avenue_id": "multi",
+                "entity_type": "floor",
+                "entity_id": f"month_{month_index}",
+                "detail": (
+                    f"Trailing 30d: ${floor['trailing_30d_usd']:.0f} (across {len(floor['avenue_breakdown'])} "
+                    f"avenues) vs ${floor['floor_usd']:.0f} floor. Gap ${floor['gap_usd']:.0f}."
+                ),
+                "potential_cents": floor["gap_cents"],
+            }
+        )
 
     # Rank 4 — dormant + code-only avenue activation (both are unlockable)
     portfolio = await compute_avenue_portfolio(db, org_id=org_id)
     unlockable = [
-        a for a in portfolio["avenues"]
-        if a["live_status"] in (STATUS_LIVE_BUT_DORMANT, STATUS_PRESENT_IN_CODE_ONLY)
+        a for a in portfolio["avenues"] if a["live_status"] in (STATUS_LIVE_BUT_DORMANT, STATUS_PRESENT_IN_CODE_ONLY)
     ]
     # LIVE_BUT_DORMANT first (more ready), then by activity_total desc
     unlockable.sort(
@@ -1373,84 +1515,121 @@ async def compute_game_plan(
         )
     )
     for a in unlockable[:10]:  # top 10, not 5 — more avenues, more surface
-        plan.append({
-            "priority_rank": 4, "label": "dormant_avenue_activation",
-            "action_type": "activate_dormant_avenue",
-            "action_class": "approval_required",
-            "avenue_id": a["id"],
-            "entity_type": "avenue", "entity_id": a["id"],
-            "live_status": a["live_status"],
-            "detail": (
-                f"Avenue {a['n']} {a['display_name']} [{a['live_status']}]: "
-                f"{a['activity_total_rows']} planned actions, "
-                f"zero realized revenue. "
-                f"{'Canonical unlock plan available.' if a.get('unlock_plan') else 'No doctrine unlock plan yet.'}"
-            ),
-            "unlock_plan": a.get("unlock_plan") or [],
-        })
+        plan.append(
+            {
+                "priority_rank": 4,
+                "label": "dormant_avenue_activation",
+                "action_type": "activate_dormant_avenue",
+                "action_class": "approval_required",
+                "avenue_id": a["id"],
+                "entity_type": "avenue",
+                "entity_id": a["id"],
+                "live_status": a["live_status"],
+                "detail": (
+                    f"Avenue {a['n']} {a['display_name']} [{a['live_status']}]: "
+                    f"{a['activity_total_rows']} planned actions, "
+                    f"zero realized revenue. "
+                    f"{'Canonical unlock plan available.' if a.get('unlock_plan') else 'No doctrine unlock plan yet.'}"
+                ),
+                "unlock_plan": a.get("unlock_plan") or [],
+            }
+        )
 
     # Rank 5 — stuck fulfillment (escalations)
     stuck = (
-        await db.execute(
-            select(GMEscalation).where(
-                GMEscalation.org_id == org_id,
-                GMEscalation.status.in_(("open", "acknowledged")),
-                GMEscalation.is_active.is_(True),
-            ).order_by(GMEscalation.last_seen_at.desc()).limit(10)
+        (
+            await db.execute(
+                select(GMEscalation)
+                .where(
+                    GMEscalation.org_id == org_id,
+                    GMEscalation.status.in_(("open", "acknowledged")),
+                    GMEscalation.is_active.is_(True),
+                )
+                .order_by(GMEscalation.last_seen_at.desc())
+                .limit(10)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for e in stuck:
-        plan.append({
-            "priority_rank": 5, "label": "stuck_fulfillment",
-            "action_type": "resolve_escalation",
-            "action_class": "approval_required",
-            "avenue_id": "b2b_services",
-            "entity_type": "gm_escalation", "entity_id": str(e.id),
-            "detail": f"{e.reason_code}: {e.title}",
-        })
+        plan.append(
+            {
+                "priority_rank": 5,
+                "label": "stuck_fulfillment",
+                "action_type": "resolve_escalation",
+                "action_class": "approval_required",
+                "avenue_id": "b2b_services",
+                "entity_type": "gm_escalation",
+                "entity_id": str(e.id),
+                "detail": f"{e.reason_code}: {e.title}",
+            }
+        )
 
     # Rank 6 — retention (stale clients)
     stale_clients = (
-        await db.execute(
-            select(Client).where(
-                Client.org_id == org_id,
-                Client.is_active.is_(True),
-                Client.status == "active",
-                Client.last_paid_at <= (now - timedelta(days=30)),
-            ).order_by(Client.total_paid_cents.desc()).limit(5)
+        (
+            await db.execute(
+                select(Client)
+                .where(
+                    Client.org_id == org_id,
+                    Client.is_active.is_(True),
+                    Client.status == "active",
+                    Client.last_paid_at <= (now - timedelta(days=30)),
+                )
+                .order_by(Client.total_paid_cents.desc())
+                .limit(5)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for c in stale_clients:
-        plan.append({
-            "priority_rank": 6, "label": "retention_expansion",
-            "action_type": "propose_next_project_or_retainer",
-            "action_class": "approval_required",
-            "avenue_id": "recurring_revenue",
-            "entity_type": "client", "entity_id": str(c.id),
-            "detail": f"Client {c.display_name} (LTV ${c.total_paid_cents/100:.0f}) "
-                      f"paid "
-                      f"{int((now-c.last_paid_at).total_seconds()//86400) if c.last_paid_at else '?'}d ago.",
-        })
+        plan.append(
+            {
+                "priority_rank": 6,
+                "label": "retention_expansion",
+                "action_type": "propose_next_project_or_retainer",
+                "action_class": "approval_required",
+                "avenue_id": "recurring_revenue",
+                "entity_type": "client",
+                "entity_id": str(c.id),
+                "detail": f"Client {c.display_name} (LTV ${c.total_paid_cents / 100:.0f}) "
+                f"paid "
+                f"{int((now - c.last_paid_at).total_seconds() // 86400) if c.last_paid_at else '?'}d ago.",
+            }
+        )
 
     # Rank 7 — pending approvals (hygiene)
     pend = (
-        await db.execute(
-            select(GMApproval).where(
-                GMApproval.org_id == org_id,
-                GMApproval.status == "pending",
-                GMApproval.is_active.is_(True),
-            ).order_by(GMApproval.created_at.desc()).limit(5)
+        (
+            await db.execute(
+                select(GMApproval)
+                .where(
+                    GMApproval.org_id == org_id,
+                    GMApproval.status == "pending",
+                    GMApproval.is_active.is_(True),
+                )
+                .order_by(GMApproval.created_at.desc())
+                .limit(5)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for a in pend:
-        plan.append({
-            "priority_rank": 7, "label": "operational_hygiene",
-            "action_type": "decide_pending_approval",
-            "action_class": "approval_required",
-            "avenue_id": "b2b_services",
-            "entity_type": "gm_approval", "entity_id": str(a.id),
-            "detail": f"{a.action_type}: {a.title}",
-        })
+        plan.append(
+            {
+                "priority_rank": 7,
+                "label": "operational_hygiene",
+                "action_type": "decide_pending_approval",
+                "action_class": "approval_required",
+                "avenue_id": "b2b_services",
+                "entity_type": "gm_approval",
+                "entity_id": str(a.id),
+                "detail": f"{a.action_type}: {a.title}",
+            }
+        )
 
     plan.sort(key=lambda i: (i["priority_rank"], -(i.get("potential_cents") or 0)))
 
@@ -1476,4 +1655,5 @@ async def compute_retention_book(db, org_id) -> dict:
     from apps.api.services.retention_service import (
         compute_retention_book as svc,
     )
+
     return await svc(db, org_id=org_id)

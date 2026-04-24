@@ -3,6 +3,7 @@
 Revision ID: s0h1i2j3k4l5
 Revises: r9g1h2i3j4k5
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -128,7 +129,9 @@ def upgrade() -> None:
         sa.UniqueConstraint("brand_id", "opportunity_key", name="uq_owned_offer_brand_key"),
     )
     op.create_index("ix_owned_offer_recommendations_brand_id", "owned_offer_recommendations", ["brand_id"])
-    op.create_index("ix_owned_offer_recommendations_opportunity_key", "owned_offer_recommendations", ["opportunity_key"])
+    op.create_index(
+        "ix_owned_offer_recommendations_opportunity_key", "owned_offer_recommendations", ["opportunity_key"]
+    )
 
 
 def downgrade() -> None:

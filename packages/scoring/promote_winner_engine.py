@@ -2,16 +2,24 @@
 
 Pure functions. No I/O.
 """
+
 from __future__ import annotations
 
 import math
 from typing import Any
 
 EXPERIMENT_TYPES = [
-    "hook", "content_form", "cta_type", "offer_angle",
-    "avatar_vs_non_avatar", "faceless_vs_face_forward",
-    "short_vs_long", "trust_vs_fast_scroll",
-    "posting_window", "monetization_path", "account_role_strategy",
+    "hook",
+    "content_form",
+    "cta_type",
+    "offer_angle",
+    "avatar_vs_non_avatar",
+    "faceless_vs_face_forward",
+    "short_vs_long",
+    "trust_vs_fast_scroll",
+    "posting_window",
+    "monetization_path",
+    "account_role_strategy",
 ]
 
 MIN_DEFAULT_SAMPLE = 30
@@ -35,11 +43,13 @@ def create_experiment(
         raise ValueError("At least 2 variants required")
     variants = []
     for i, vc in enumerate(variant_configs):
-        variants.append({
-            "variant_name": vc.get("name", f"variant_{i}"),
-            "variant_config": vc,
-            "is_control": i == 0,
-        })
+        variants.append(
+            {
+                "variant_name": vc.get("name", f"variant_{i}"),
+                "variant_config": vc,
+                "is_control": i == 0,
+            }
+        )
     return {
         "tested_variable": tested_variable,
         "hypothesis": hypothesis or f"Testing {tested_variable} variants",
@@ -100,7 +110,11 @@ def detect_winner(
         return {"status": "no_signal", "winner": None, "losers": []}
 
     margin = (best_val - second_val) / max(abs(second_val), 0.001)
-    se = math.sqrt((best_val * (1 - min(best_val, 1))) / best_n + (second_val * (1 - min(second_val, 1))) / second_n) if best_val < 1 and second_val < 1 else 0.01
+    se = (
+        math.sqrt((best_val * (1 - min(best_val, 1))) / best_n + (second_val * (1 - min(second_val, 1))) / second_n)
+        if best_val < 1 and second_val < 1
+        else 0.01
+    )
     z = (best_val - second_val) / max(se, 0.0001)
     confidence = min(0.999, 1 - math.exp(-0.5 * z * z)) if z > 0 else 0.0
 
@@ -137,34 +151,40 @@ def build_promotion_rules(
     platform = experiment.get("platform") or experiment.get("target_platform")
     boost = round(min(0.5, win_margin * confidence), 3)
 
-    rules.append({
-        "rule_type": f"default_{tested_var}",
-        "rule_key": wname,
-        "rule_value": wconfig,
-        "target_platform": platform,
-        "weight_boost": boost,
-        "explanation": f"Promoted {wname} as default {tested_var} — margin {win_margin:.1%}, confidence {confidence:.1%}",
-    })
+    rules.append(
+        {
+            "rule_type": f"default_{tested_var}",
+            "rule_key": wname,
+            "rule_value": wconfig,
+            "target_platform": platform,
+            "weight_boost": boost,
+            "explanation": f"Promoted {wname} as default {tested_var} — margin {win_margin:.1%}, confidence {confidence:.1%}",
+        }
+    )
 
     if tested_var in ("hook", "cta_type", "offer_angle", "content_form"):
-        rules.append({
-            "rule_type": "brief_injection",
-            "rule_key": f"preferred_{tested_var}",
-            "rule_value": {"value": wname, "config": wconfig},
-            "target_platform": platform,
-            "weight_boost": boost,
-            "explanation": f"Inject {wname} as preferred {tested_var} in content briefs",
-        })
+        rules.append(
+            {
+                "rule_type": "brief_injection",
+                "rule_key": f"preferred_{tested_var}",
+                "rule_value": {"value": wname, "config": wconfig},
+                "target_platform": platform,
+                "weight_boost": boost,
+                "explanation": f"Inject {wname} as preferred {tested_var} in content briefs",
+            }
+        )
 
     if tested_var == "monetization_path":
-        rules.append({
-            "rule_type": "monetization_default",
-            "rule_key": "preferred_monetization",
-            "rule_value": {"value": wname, "config": wconfig},
-            "target_platform": platform,
-            "weight_boost": boost,
-            "explanation": f"Promote {wname} as default monetization path",
-        })
+        rules.append(
+            {
+                "rule_type": "monetization_default",
+                "rule_key": "preferred_monetization",
+                "rule_value": {"value": wname, "config": wconfig},
+                "target_platform": platform,
+                "weight_boost": boost,
+                "explanation": f"Promote {wname} as default monetization path",
+            }
+        )
 
     return rules
 
@@ -178,12 +198,14 @@ def build_suppression_rules(
     tested_var = experiment.get("tested_variable", "")
     for loser in losers:
         lname = loser.get("variant_name", "unknown")
-        rules.append({
-            "rule_type": f"suppress_{tested_var}",
-            "rule_key": lname,
-            "target_platform": experiment.get("platform") or experiment.get("target_platform"),
-            "explanation": f"Suppress {lname} — lost in {tested_var} experiment",
-        })
+        rules.append(
+            {
+                "rule_type": f"suppress_{tested_var}",
+                "rule_key": lname,
+                "target_platform": experiment.get("platform") or experiment.get("target_platform"),
+                "explanation": f"Suppress {lname} — lost in {tested_var} experiment",
+            }
+        )
     return rules
 
 

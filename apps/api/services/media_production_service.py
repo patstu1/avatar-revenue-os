@@ -3,6 +3,7 @@
 Chains: Script → Voice Narration → Avatar Video → B-Roll → Assembly → Assets
 This is the core pipeline that transforms text scripts into publishable video content.
 """
+
 from __future__ import annotations
 
 import logging
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 async def _get_voice_client(provider_key: str):
     from packages.clients.ai_clients import ElevenLabsClient, FishAudioClient, VoxtralClient
+
     if provider_key == "elevenlabs":
         return ElevenLabsClient()
     elif provider_key == "fish_audio":
@@ -31,6 +33,7 @@ async def _get_voice_client(provider_key: str):
 
 async def _get_avatar_client(provider_key: str):
     from packages.clients.ai_clients import DIDClient, HeyGenClient, SynthesiaClient
+
     if provider_key == "heygen":
         return HeyGenClient()
     elif provider_key == "did":
@@ -42,6 +45,7 @@ async def _get_avatar_client(provider_key: str):
 
 async def _get_video_client(provider_key: str):
     from packages.clients.ai_clients import HiggsFieldClient, KlingClient, RunwayClient, WanClient
+
     if provider_key == "higgsfield":
         return HiggsFieldClient()
     elif provider_key == "runway":
@@ -54,7 +58,10 @@ async def _get_video_client(provider_key: str):
 
 
 async def produce_voice_narration(
-    db: AsyncSession, script: Script, brand_id: uuid.UUID, tier: str = "standard",
+    db: AsyncSession,
+    script: Script,
+    brand_id: uuid.UUID,
+    tier: str = "standard",
     voice_id: str = "",
 ) -> dict[str, Any]:
     """Generate voice narration from script text."""
@@ -84,9 +91,11 @@ async def produce_voice_narration(
             audio_url = f"memory://voice/{script.id}/{provider_key}"
 
     asset = Asset(
-        brand_id=brand_id, asset_type="voice_narration",
+        brand_id=brand_id,
+        asset_type="voice_narration",
         file_path=audio_url or f"voice/{script.id}/{provider_key}",
-        mime_type="audio/mpeg", storage_provider="external_url" if audio_url.startswith("http") else "memory",
+        mime_type="audio/mpeg",
+        storage_provider="external_url" if audio_url.startswith("http") else "memory",
         metadata_blob={"provider": provider_key, "script_id": str(script.id), "char_count": len(text)},
     )
     db.add(asset)
@@ -96,8 +105,12 @@ async def produce_voice_narration(
 
 
 async def produce_avatar_video(
-    db: AsyncSession, script: Script, brand_id: uuid.UUID, tier: str = "hero",
-    voice_url: str = "", avatar_id: str = "default",
+    db: AsyncSession,
+    script: Script,
+    brand_id: uuid.UUID,
+    tier: str = "hero",
+    voice_url: str = "",
+    avatar_id: str = "default",
 ) -> dict[str, Any]:
     """Generate avatar video from script + optional voice audio."""
     provider_key = route_to_provider("avatar", tier)
@@ -120,7 +133,11 @@ async def produce_avatar_video(
             elif try_key == "synthesia":
                 result = await try_client.generate(text, avatar_id=avatar_id)
             else:
-                result = await try_client.generate(text, source_url=voice_url) if voice_url else await try_client.generate(text)
+                result = (
+                    await try_client.generate(text, source_url=voice_url)
+                    if voice_url
+                    else await try_client.generate(text)
+                )
             if result.get("success"):
                 provider_key = try_key
                 break
@@ -130,26 +147,41 @@ async def produce_avatar_video(
             result = {"success": False, "error": str(e)}
 
     if not result or not result.get("success"):
-        return {"success": False, "error": result.get("error", "All avatar providers failed") if result else "No avatar provider configured"}
+        return {
+            "success": False,
+            "error": result.get("error", "All avatar providers failed") if result else "No avatar provider configured",
+        }
 
     video_url = result.get("data", {}).get("video_url", "") or result.get("data", {}).get("result_url", "")
     duration = result.get("data", {}).get("duration")
 
     asset = Asset(
-        brand_id=brand_id, asset_type="avatar_video",
+        brand_id=brand_id,
+        asset_type="avatar_video",
         file_path=video_url or f"avatar/{script.id}/{provider_key}",
-        mime_type="video/mp4", duration_seconds=duration,
+        mime_type="video/mp4",
+        duration_seconds=duration,
         storage_provider="external_url" if video_url.startswith("http") else "provider",
         metadata_blob={"provider": provider_key, "script_id": str(script.id), "avatar_id": avatar_id},
     )
     db.add(asset)
     await db.flush()
 
-    return {"success": True, "asset_id": str(asset.id), "video_url": video_url, "provider": provider_key, "duration": duration}
+    return {
+        "success": True,
+        "asset_id": str(asset.id),
+        "video_url": video_url,
+        "provider": provider_key,
+        "duration": duration,
+    }
 
 
 async def produce_broll_clips(
-    db: AsyncSession, script: Script, brand_id: uuid.UUID, tier: str = "standard", num_clips: int = 2,
+    db: AsyncSession,
+    script: Script,
+    brand_id: uuid.UUID,
+    tier: str = "standard",
+    num_clips: int = 2,
 ) -> list[dict[str, Any]]:
     """Generate b-roll video clips from script key points."""
     provider_key = route_to_provider("video", tier)
@@ -172,9 +204,11 @@ async def produce_broll_clips(
             if result.get("success"):
                 video_url = result.get("data", {}).get("video_url", "") or result.get("data", {}).get("url", "")
                 asset = Asset(
-                    brand_id=brand_id, asset_type="broll_clip",
+                    brand_id=brand_id,
+                    asset_type="broll_clip",
                     file_path=video_url or f"broll/{script.id}/{i}",
-                    mime_type="video/mp4", storage_provider="external_url" if video_url and video_url.startswith("http") else "provider",
+                    mime_type="video/mp4",
+                    storage_provider="external_url" if video_url and video_url.startswith("http") else "provider",
                     metadata_blob={"provider": provider_key, "clip_index": i, "prompt": prompt[:200]},
                 )
                 db.add(asset)
@@ -209,7 +243,7 @@ async def produce_full_video(
     if not script:
         return {"success": False, "error": "Script not found"}
 
-    ct = ci.content_type.value if hasattr(ci.content_type, 'value') else str(ci.content_type)
+    ct = ci.content_type.value if hasattr(ci.content_type, "value") else str(ci.content_type)
     is_video = ct in ("SHORT_VIDEO", "LONG_VIDEO", "REEL", "SHORT", "STORY")
     if not is_video:
         return {"success": False, "skip": True, "reason": f"Content type {ct} does not need video production"}

@@ -1,4 +1,3 @@
-
 import pytest
 from sqlalchemy import select
 
@@ -53,8 +52,8 @@ async def brand_with_offer(async_session):
         description="Customers with high loyalty and purchase value",
         estimated_size=1000,
         revenue_contribution=50000.0,
-        conversion_rate=0.08, # loyalty_score proxy
-        avg_ltv=500.0, # avg_purchase_value proxy
+        conversion_rate=0.08,  # loyalty_score proxy
+        avg_ltv=500.0,  # avg_purchase_value proxy
     )
     async_session.add(high_value_segment)
 
@@ -64,8 +63,8 @@ async def brand_with_offer(async_session):
         description="Recently acquired and engaged customers",
         estimated_size=2000,
         revenue_contribution=20000.0,
-        conversion_rate=0.03, # loyalty_score proxy
-        avg_ltv=100.0, # avg_purchase_value proxy
+        conversion_rate=0.03,  # loyalty_score proxy
+        avg_ltv=100.0,  # avg_purchase_value proxy
     )
     async_session.add(new_customer_segment)
 
@@ -75,8 +74,8 @@ async def brand_with_offer(async_session):
         description="Broad audience segment",
         estimated_size=10000,
         revenue_contribution=75000.0,
-        conversion_rate=0.02, # loyalty_score proxy
-        avg_ltv=75.0, # avg_purchase_value proxy
+        conversion_rate=0.02,  # loyalty_score proxy
+        avg_ltv=75.0,  # avg_purchase_value proxy
     )
     async_session.add(general_segment)
 
@@ -117,7 +116,15 @@ async def test_recompute_all_referral_program_recommendations_worker(async_sessi
     assert result["rows"] == 1
     assert not result["errors"]
 
-    recommendations = (await async_session.execute(select(ReferralProgramRecommendation).where(ReferralProgramRecommendation.brand_id == brand.id))).scalars().all()
+    recommendations = (
+        (
+            await async_session.execute(
+                select(ReferralProgramRecommendation).where(ReferralProgramRecommendation.brand_id == brand.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(recommendations) == 1
     assert recommendations[0].brand_id == brand.id
     assert recommendations[0].customer_segment is not None
@@ -137,10 +144,19 @@ async def test_recompute_all_competitive_gap_reports_worker(async_session, brand
     assert result["rows"] == 1
     assert not result["errors"]
 
-    reports = (await async_session.execute(select(CompetitiveGapReport).where(CompetitiveGapReport.brand_id == brand.id))).scalars().all()
+    reports = (
+        (await async_session.execute(select(CompetitiveGapReport).where(CompetitiveGapReport.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(reports) == 1
     assert reports[0].brand_id == brand.id
-    assert reports[0].gap_type in ("pricing_disadvantage", "feature_disadvantage", "customer_satisfaction_gap", "no_significant_gap")
+    assert reports[0].gap_type in (
+        "pricing_disadvantage",
+        "feature_disadvantage",
+        "customer_satisfaction_gap",
+        "no_significant_gap",
+    )
     assert reports[0].severity in ("low", "medium", "high", "critical")
     assert reports[0].estimated_impact >= 0
     assert reports[0].confidence > 0
@@ -152,10 +168,12 @@ async def test_recompute_all_sponsor_targets_worker(async_session, brand_with_of
     brand, _ = brand_with_offer
     result = recompute_all_sponsor_targets()
     assert result["brands"] == 1
-    assert result["rows"] == 2 # Two sponsor profiles created in fixture
+    assert result["rows"] == 2  # Two sponsor profiles created in fixture
     assert not result["errors"]
 
-    targets = (await async_session.execute(select(SponsorTarget).where(SponsorTarget.brand_id == brand.id))).scalars().all()
+    targets = (
+        (await async_session.execute(select(SponsorTarget).where(SponsorTarget.brand_id == brand.id))).scalars().all()
+    )
     assert len(targets) == 2
     assert targets[0].brand_id == brand.id
     assert targets[0].target_company_name is not None
@@ -172,24 +190,32 @@ async def test_recompute_all_sponsor_outreach_sequences_worker(async_session, br
     # Need to create sponsor targets first for the sequences to be generated
     result_targets = recompute_all_sponsor_targets()
     assert result_targets["brands"] == 1
-    assert result_targets["rows"] == 2 # Two sponsor profiles created in fixture
+    assert result_targets["rows"] == 2  # Two sponsor profiles created in fixture
     assert not result_targets["errors"]
 
     result = recompute_all_sponsor_outreach_sequences()
     assert result["brands"] == 1
-    assert result["rows"] == 2 # Two sponsor targets, so two sequences
+    assert result["rows"] == 2  # Two sponsor targets, so two sequences
     assert not result["errors"]
 
-    sequences = (await async_session.execute(select(SponsorOutreachSequence).join(SponsorTarget).where(SponsorTarget.brand_id == brand.id))).scalars().all()
+    sequences = (
+        (
+            await async_session.execute(
+                select(SponsorOutreachSequence).join(SponsorTarget).where(SponsorTarget.brand_id == brand.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(sequences) == 2
     for seq in sequences:
         assert seq.sponsor_target_id is not None
         assert seq.sequence_name is not None
         assert len(seq.steps) > 0
         assert seq.estimated_response_rate > 0
-        assert seq.expected_value > 0 # New field
+        assert seq.expected_value > 0  # New field
         assert seq.confidence > 0
-        assert seq.explanation is not None # New field
+        assert seq.explanation is not None  # New field
 
 
 @pytest.mark.asyncio
@@ -200,7 +226,11 @@ async def test_recompute_all_profit_guardrail_reports_worker(async_session, bran
     assert result["rows"] >= 1
     assert not result["errors"]
 
-    reports = (await async_session.execute(select(ProfitGuardrailReport).where(ProfitGuardrailReport.brand_id == brand.id))).scalars().all()
+    reports = (
+        (await async_session.execute(select(ProfitGuardrailReport).where(ProfitGuardrailReport.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(reports) >= 1
     for r in reports:
         assert r.brand_id == brand.id

@@ -1,4 +1,5 @@
 """Operator Copilot — chat sessions, messages, citations, action/issue summaries."""
+
 import uuid
 from typing import Optional
 
@@ -24,7 +25,9 @@ class CopilotChatSession(Base):
 class CopilotChatMessage(Base):
     __tablename__ = "copilot_chat_messages"
 
-    session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("copilot_chat_sessions.id"), nullable=False, index=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("copilot_chat_sessions.id"), nullable=False, index=True
+    )
     role: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     grounding_sources: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
@@ -41,7 +44,9 @@ class CopilotChatMessage(Base):
 class CopilotResponseCitation(Base):
     __tablename__ = "copilot_response_citations"
 
-    message_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("copilot_chat_messages.id"), nullable=False, index=True)
+    message_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("copilot_chat_messages.id"), nullable=False, index=True
+    )
     source_table: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     source_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     source_label: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

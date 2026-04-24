@@ -3,6 +3,7 @@
 Evaluates whether a topic/niche is oversaturated for a brand or account.
 Deterministic rules-based logic.
 """
+
 from dataclasses import dataclass
 
 FORMULA_VERSION = "v1"

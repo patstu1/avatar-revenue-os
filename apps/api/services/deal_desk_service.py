@@ -1,4 +1,5 @@
 """Deal Desk service — strategy recommendations per scope (offer, sponsor, lead)."""
+
 from __future__ import annotations
 
 import uuid
@@ -47,9 +48,7 @@ async def recompute_deal_desk(db: AsyncSession, brand_id: uuid.UUID) -> dict[str
     # Brand-level metrics
     aud_scalar = (
         await db.execute(
-            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(
-                CreatorAccount.brand_id == brand_id
-            )
+            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(CreatorAccount.brand_id == brand_id)
         )
     ).scalar()
     audience_size = int(aud_scalar or 0)
@@ -148,20 +147,12 @@ async def recompute_deal_desk(db: AsyncSession, brand_id: uuid.UUID) -> dict[str
 
     # Gather deal scopes: offers, sponsors, audience segments
     offers = list(
-        (
-            await db.execute(
-                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
     sponsors = list(
         (
             await db.execute(
-                select(SponsorProfile).where(
-                    SponsorProfile.brand_id == brand_id, SponsorProfile.is_active.is_(True)
-                )
+                select(SponsorProfile).where(SponsorProfile.brand_id == brand_id, SponsorProfile.is_active.is_(True))
             )
         )
         .scalars()
@@ -170,9 +161,7 @@ async def recompute_deal_desk(db: AsyncSession, brand_id: uuid.UUID) -> dict[str
     segments = list(
         (
             await db.execute(
-                select(AudienceSegment).where(
-                    AudienceSegment.brand_id == brand_id, AudienceSegment.is_active.is_(True)
-                )
+                select(AudienceSegment).where(AudienceSegment.brand_id == brand_id, AudienceSegment.is_active.is_(True))
             )
         )
         .scalars()
@@ -182,49 +171,57 @@ async def recompute_deal_desk(db: AsyncSession, brand_id: uuid.UUID) -> dict[str
     deal_contexts: list[dict[str, Any]] = []
 
     for o in offers:
-        deal_contexts.append({
-            "scope_type": "offer",
-            "scope_id": str(o.id),
-            "deal_value": float(o.average_order_value or 0) * 10,
-            "lead_quality": min(1.0, float(o.conversion_rate or 0) * 10),
-            "urgency": 0.5,
-            "competition_intensity": 0.4,
-            "niche": brand.niche or "general",
-        })
+        deal_contexts.append(
+            {
+                "scope_type": "offer",
+                "scope_id": str(o.id),
+                "deal_value": float(o.average_order_value or 0) * 10,
+                "lead_quality": min(1.0, float(o.conversion_rate or 0) * 10),
+                "urgency": 0.5,
+                "competition_intensity": 0.4,
+                "niche": brand.niche or "general",
+            }
+        )
 
     for sp in sponsors:
         budget_mid = (float(sp.budget_range_min or 0) + float(sp.budget_range_max or 0)) / 2
-        deal_contexts.append({
-            "scope_type": "sponsor",
-            "scope_id": str(sp.id),
-            "deal_value": budget_mid,
-            "lead_quality": 0.6,
-            "urgency": 0.5,
-            "competition_intensity": 0.5,
-            "niche": brand.niche or "general",
-        })
+        deal_contexts.append(
+            {
+                "scope_type": "sponsor",
+                "scope_id": str(sp.id),
+                "deal_value": budget_mid,
+                "lead_quality": 0.6,
+                "urgency": 0.5,
+                "competition_intensity": 0.5,
+                "niche": brand.niche or "general",
+            }
+        )
 
     for seg in segments:
-        deal_contexts.append({
-            "scope_type": "audience_segment",
-            "scope_id": str(seg.id),
-            "deal_value": float(seg.avg_ltv or 0) * float(seg.estimated_size or 0) * 0.01,
-            "lead_quality": min(1.0, float(seg.conversion_rate or 0) * 10),
-            "urgency": 0.4,
-            "competition_intensity": 0.3,
-            "niche": brand.niche or "general",
-        })
+        deal_contexts.append(
+            {
+                "scope_type": "audience_segment",
+                "scope_id": str(seg.id),
+                "deal_value": float(seg.avg_ltv or 0) * float(seg.estimated_size or 0) * 0.01,
+                "lead_quality": min(1.0, float(seg.conversion_rate or 0) * 10),
+                "urgency": 0.4,
+                "competition_intensity": 0.3,
+                "niche": brand.niche or "general",
+            }
+        )
 
     if not deal_contexts:
-        deal_contexts.append({
-            "scope_type": "brand",
-            "scope_id": str(brand_id),
-            "deal_value": avg_monthly_revenue,
-            "lead_quality": 0.5,
-            "urgency": 0.5,
-            "competition_intensity": 0.5,
-            "niche": brand.niche or "general",
-        })
+        deal_contexts.append(
+            {
+                "scope_type": "brand",
+                "scope_id": str(brand_id),
+                "deal_value": avg_monthly_revenue,
+                "lead_quality": 0.5,
+                "urgency": 0.5,
+                "competition_intensity": 0.5,
+                "niche": brand.niche or "general",
+            }
+        )
 
     count = 0
     for ctx in deal_contexts:
@@ -280,8 +277,7 @@ async def recompute_deal_desk(db: AsyncSession, brand_id: uuid.UUID) -> dict[str
     rec_rows = list(
         (
             await db.execute(
-                select(DealDeskRecommendation)
-                .where(
+                select(DealDeskRecommendation).where(
                     DealDeskRecommendation.brand_id == brand_id,
                     DealDeskRecommendation.is_active.is_(True),
                 )
@@ -335,9 +331,7 @@ def _rec_dict(x: DealDeskRecommendation) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_deal_desk_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_deal_desk_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

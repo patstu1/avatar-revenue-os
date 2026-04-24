@@ -1,4 +1,5 @@
 """Buffer Distribution Layer — Celery tasks for publish submission and status sync."""
+
 from __future__ import annotations
 
 import uuid
@@ -16,6 +17,7 @@ async def _all_brand_ids(db) -> list[uuid.UUID]:
     from sqlalchemy import select
 
     from packages.db.models.core import Brand
+
     rows = (await db.execute(select(Brand.id).where(Brand.is_active.is_(True)))).all()
     return [r[0] for r in rows]
 
@@ -72,9 +74,7 @@ async def _sync_buffer_statuses():
 
     async with get_async_session_factory()() as db:
         brand_ids = await _all_brand_ids(db)
-        org_ids_q = await db.execute(
-            select(Organization.id).where(Organization.is_active.is_(True))
-        )
+        org_ids_q = await db.execute(select(Organization.id).where(Organization.is_active.is_(True)))
         org_ids = [r[0] for r in org_ids_q.all()]
 
     # Step 1: per-brand status sync (legacy)

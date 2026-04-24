@@ -17,6 +17,7 @@ Covers:
       ask_operator, unlock_plans + 7-line situation report.
   11. GM_OPERATOR_PROMPT carries the wide doctrine text + anti-narrowing.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -55,13 +56,28 @@ def test_doctrine_has_22_avenues_none_collapsed():
     ids = {a["id"] for a in REVENUE_AVENUES}
     # Spot-check: operator list matches
     for expected_id in (
-        "b2b_services", "ugc_services", "consulting", "premium_access",
-        "licensing", "syndication", "data_products", "merchandise",
-        "live_events", "owned_affiliate", "external_affiliate",
-        "saas_subscriptions", "high_ticket", "product_launches",
-        "monetization_packs", "ecommerce", "sponsor_deals",
-        "recurring_revenue", "paid_promotion", "upsell_bundles",
-        "referral", "reactivation",
+        "b2b_services",
+        "ugc_services",
+        "consulting",
+        "premium_access",
+        "licensing",
+        "syndication",
+        "data_products",
+        "merchandise",
+        "live_events",
+        "owned_affiliate",
+        "external_affiliate",
+        "saas_subscriptions",
+        "high_ticket",
+        "product_launches",
+        "monetization_packs",
+        "ecommerce",
+        "sponsor_deals",
+        "recurring_revenue",
+        "paid_promotion",
+        "upsell_bundles",
+        "referral",
+        "reactivation",
     ):
         assert expected_id in ids, f"avenue {expected_id} missing from doctrine"
 
@@ -75,8 +91,7 @@ def test_doctrine_has_strategic_engines_and_every_one_carries_status():
 
 def test_every_avenue_has_required_fields():
     for a in REVENUE_AVENUES:
-        for field in ("id", "n", "display_name", "status",
-                       "revenue_tables", "activity_tables", "description"):
+        for field in ("id", "n", "display_name", "status", "revenue_tables", "activity_tables", "description"):
             assert field in a, f"avenue {a['id']} missing field {field}"
         assert a["status"] in STATUS_FLAGS, f"{a['id']} invalid status"
 
@@ -114,35 +129,44 @@ def test_canonical_table_list_is_wide_not_narrow():
     # Must exceed the Batch 7A narrow-27 count. After full-machine doctrine
     # it should cover every avenue + every engine + core tables.
     assert len(CANONICAL_DATA_TABLES) >= 100, (
-        f"Canonical table list only has {len(CANONICAL_DATA_TABLES)} — "
-        "doctrine is still narrow."
+        f"Canonical table list only has {len(CANONICAL_DATA_TABLES)} — doctrine is still narrow."
     )
     # Spot-check: major-engine tables must be present
     for critical in (
-        "offer_ladders", "message_sequences", "sponsor_inventory",
-        "recurring_revenue_models", "ugc_service_actions",
-        "service_consulting_actions", "ol_bundles", "high_ticket_opportunities",
-        "reactivation_campaigns", "referral_program_recommendations",
-        "trust_conversion_reports", "paid_promotion_candidates",
-        "kill_ledger_entries", "brain_decisions", "tv_signals",
-        "portfolio_launch_plans", "ca_allocation_reports",
-        "creator_revenue_events", "payments",
+        "offer_ladders",
+        "message_sequences",
+        "sponsor_inventory",
+        "recurring_revenue_models",
+        "ugc_service_actions",
+        "service_consulting_actions",
+        "ol_bundles",
+        "high_ticket_opportunities",
+        "reactivation_campaigns",
+        "referral_program_recommendations",
+        "trust_conversion_reports",
+        "paid_promotion_candidates",
+        "kill_ledger_entries",
+        "brain_decisions",
+        "tv_signals",
+        "portfolio_launch_plans",
+        "ca_allocation_reports",
+        "creator_revenue_events",
+        "payments",
     ):
         assert critical in CANONICAL_DATA_TABLES, f"{critical} missing from CANONICAL_DATA_TABLES"
 
 
 def test_classify_action_dormant_avenue_forces_approval():
     # Even with high confidence + reversible, activating dormant → approval
-    assert classify_action(
-        confidence=0.99, standard_reversible=True, activates_dormant_avenue=True
-    ) == ACTION_CLASS_APPROVAL
+    assert (
+        classify_action(confidence=0.99, standard_reversible=True, activates_dormant_avenue=True)
+        == ACTION_CLASS_APPROVAL
+    )
 
 
 def test_classify_action_escalation_overrides_dormant():
     # Escalation still wins over dormant
-    assert classify_action(
-        confidence=0.5, activates_dormant_avenue=True
-    ) == ACTION_CLASS_ESCALATE
+    assert classify_action(confidence=0.5, activates_dormant_avenue=True) == ACTION_CLASS_ESCALATE
 
 
 def test_doctrine_text_has_all_three_hard_rules_verbatim():
@@ -175,6 +199,7 @@ def test_doctrine_text_forbids_narrowing():
 
 def test_operator_prompt_carries_wide_doctrine():
     from apps.api.services.gm_system_prompt import GM_OPERATOR_PROMPT
+
     assert "GM OPERATING DIRECTIVE" in GM_OPERATOR_PROMPT
     assert "ANTI-NARROWING RULE" in GM_OPERATOR_PROMPT
     assert "B2B services" in GM_OPERATOR_PROMPT
@@ -206,7 +231,8 @@ async def _auth(api_client, sample_org_data) -> tuple[dict, uuid.UUID]:
 
 @pytest.mark.asyncio
 async def test_doctrine_endpoint_exposes_22_avenues_and_all_engines(
-    api_client, sample_org_data,
+    api_client,
+    sample_org_data,
 ):
     headers, _ = await _auth(api_client, sample_org_data)
     r = await api_client.get("/api/v1/gm/doctrine", headers=headers)
@@ -222,19 +248,26 @@ async def test_doctrine_endpoint_exposes_22_avenues_and_all_engines(
 
 @pytest.mark.asyncio
 async def test_floor_status_combines_payments_and_creator_revenue(
-    api_client, db_session, sample_org_data,
+    api_client,
+    db_session,
+    sample_org_data,
 ):
     from packages.db.models.proposals import Payment
 
     headers, org_id = await _auth(api_client, sample_org_data)
     # Seed $5,000 B2B payment
-    db_session.add(Payment(
-        org_id=org_id, provider="stripe",
-        provider_event_id=f"evt_{uuid.uuid4().hex[:10]}",
-        amount_cents=500_000, currency="usd", status="succeeded",
-        completed_at=datetime.now(timezone.utc) - timedelta(days=5),
-        customer_email="test@example.com",
-    ))
+    db_session.add(
+        Payment(
+            org_id=org_id,
+            provider="stripe",
+            provider_event_id=f"evt_{uuid.uuid4().hex[:10]}",
+            amount_cents=500_000,
+            currency="usd",
+            status="succeeded",
+            completed_at=datetime.now(timezone.utc) - timedelta(days=5),
+            customer_email="test@example.com",
+        )
+    )
     await db_session.commit()
 
     r = await api_client.get("/api/v1/gm/floor-status", headers=headers)
@@ -250,7 +283,8 @@ async def test_floor_status_combines_payments_and_creator_revenue(
 
 @pytest.mark.asyncio
 async def test_avenue_portfolio_returns_all_22_with_live_status(
-    api_client, sample_org_data,
+    api_client,
+    sample_org_data,
 ):
     headers, _ = await _auth(api_client, sample_org_data)
     r = await api_client.get("/api/v1/gm/avenue-portfolio", headers=headers)
@@ -269,7 +303,8 @@ async def test_avenue_portfolio_returns_all_22_with_live_status(
 
 @pytest.mark.asyncio
 async def test_engine_status_returns_all_engines_classified(
-    api_client, sample_org_data,
+    api_client,
+    sample_org_data,
 ):
     headers, _ = await _auth(api_client, sample_org_data)
     r = await api_client.get("/api/v1/gm/engine-status", headers=headers)
@@ -301,7 +336,8 @@ async def test_ask_operator_returns_structured_asks(api_client, sample_org_data)
 
 @pytest.mark.asyncio
 async def test_unlock_plans_returns_dormant_avenues_with_plans(
-    api_client, sample_org_data,
+    api_client,
+    sample_org_data,
 ):
     headers, _ = await _auth(api_client, sample_org_data)
     r = await api_client.get("/api/v1/gm/unlock-plans", headers=headers)
@@ -329,19 +365,29 @@ async def test_game_plan_ranks_across_all_avenues(api_client, sample_org_data):
 
 @pytest.mark.asyncio
 async def test_startup_inspection_includes_all_wide_fields(
-    api_client, sample_org_data,
+    api_client,
+    sample_org_data,
 ):
     headers, _ = await _auth(api_client, sample_org_data)
     r = await api_client.get("/api/v1/gm/startup-inspection", headers=headers)
     assert r.status_code == 200
     body = r.json()
     for field in (
-        "floor_status", "avenue_portfolio", "engine_status", "pipeline_state",
-        "bottlenecks", "closest_revenue", "blocking_floors", "game_plan",
-        "ask_operator", "unlock_plans",
+        "floor_status",
+        "avenue_portfolio",
+        "engine_status",
+        "pipeline_state",
+        "bottlenecks",
+        "closest_revenue",
+        "blocking_floors",
+        "game_plan",
+        "ask_operator",
+        "unlock_plans",
         "situation_report_lines",
-        "priority_rank_reference", "forbidden_behaviors",
-        "total_avenues", "total_engines",
+        "priority_rank_reference",
+        "forbidden_behaviors",
+        "total_avenues",
+        "total_engines",
     ):
         assert field in body, f"missing field {field}"
     # 7-line situation report (Batch 7A-WIDE format)
@@ -351,7 +397,9 @@ async def test_startup_inspection_includes_all_wide_fields(
 
 @pytest.mark.asyncio
 async def test_floor_status_does_not_double_count_stripe_origin_events(
-    api_client, db_session, sample_org_data,
+    api_client,
+    db_session,
+    sample_org_data,
 ):
     """The canonical bug: a Stripe payment writes to BOTH ``payments``
     and ``creator_revenue_events`` (event_type='stripe_charge_sync').
@@ -365,32 +413,37 @@ async def test_floor_status_does_not_double_count_stripe_origin_events(
 
     # Seed a $1,000 payment
     event_id = f"evt_dedup_{uuid.uuid4().hex[:10]}"
-    db_session.add(Payment(
-        org_id=org_id, provider="stripe",
-        provider_event_id=event_id,
-        amount_cents=100_000, currency="usd", status="succeeded",
-        completed_at=datetime.now(timezone.utc) - timedelta(days=1),
-        customer_email="dedup@example.com",
-    ))
+    db_session.add(
+        Payment(
+            org_id=org_id,
+            provider="stripe",
+            provider_event_id=event_id,
+            amount_cents=100_000,
+            currency="usd",
+            status="succeeded",
+            completed_at=datetime.now(timezone.utc) - timedelta(days=1),
+            customer_email="dedup@example.com",
+        )
+    )
 
     # Seed a matching creator_revenue_event that represents the SAME
     # Stripe transaction. Per the rule this must NOT add to the total.
     brand = (
-        await db_session.execute(
-            select(Brand).where(Brand.organization_id == org_id).limit(1)
-        )
+        await db_session.execute(select(Brand).where(Brand.organization_id == org_id).limit(1))
     ).scalar_one_or_none()
     if brand is not None:
-        db_session.add(CreatorRevenueEvent(
-            brand_id=brand.id,
-            avenue_type="ugc_services",
-            event_type="stripe_charge_sync",
-            revenue=1000.00,  # $1,000 stored in dollars (creator_revenue_events schema)
-            cost=0.0,
-            profit=1000.00,
-            description="Should be excluded — duplicates the $1,000 Payment above",
-            metadata_json={"stripe_event_id": event_id},
-        ))
+        db_session.add(
+            CreatorRevenueEvent(
+                brand_id=brand.id,
+                avenue_type="ugc_services",
+                event_type="stripe_charge_sync",
+                revenue=1000.00,  # $1,000 stored in dollars (creator_revenue_events schema)
+                cost=0.0,
+                profit=1000.00,
+                description="Should be excluded — duplicates the $1,000 Payment above",
+                metadata_json={"stripe_event_id": event_id},
+            )
+        )
     await db_session.commit()
 
     r = await api_client.get("/api/v1/gm/floor-status", headers=headers)
@@ -400,8 +453,7 @@ async def test_floor_status_does_not_double_count_stripe_origin_events(
 
     # Total must be $1,000 (payments only), not $2,000 (double-counted)
     assert body["trailing_30d_cents"] == 100_000, (
-        f"Expected 100_000 ($1,000), got {body['trailing_30d_cents']}. "
-        f"Double-count detected. Breakdown: {breakdown}"
+        f"Expected 100_000 ($1,000), got {body['trailing_30d_cents']}. Double-count detected. Breakdown: {breakdown}"
     )
     # Payments ledger contributes the full $1,000
     assert breakdown["from_payments_cents"] == 100_000
@@ -414,7 +466,9 @@ async def test_floor_status_does_not_double_count_stripe_origin_events(
 
 @pytest.mark.asyncio
 async def test_floor_status_includes_non_stripe_creator_revenue(
-    api_client, db_session, sample_org_data,
+    api_client,
+    db_session,
+    sample_org_data,
 ):
     """A manual creator_revenue_event (not from Stripe) MUST be counted
     in recognized revenue — it represents real money that does not
@@ -426,23 +480,23 @@ async def test_floor_status_includes_non_stripe_creator_revenue(
     headers, org_id = await _auth(api_client, sample_org_data)
 
     brand = (
-        await db_session.execute(
-            select(Brand).where(Brand.organization_id == org_id).limit(1)
-        )
+        await db_session.execute(select(Brand).where(Brand.organization_id == org_id).limit(1))
     ).scalar_one_or_none()
     if brand is None:
         pytest.skip("No brand for this org to attach creator_revenue_events to")
 
     # Seed a manual (non-Stripe) revenue event for $500
-    db_session.add(CreatorRevenueEvent(
-        brand_id=brand.id,
-        avenue_type="licensing",
-        event_type="manual_log",           # NOT stripe_/shopify_
-        revenue=500.00,
-        cost=0.0,
-        profit=500.00,
-        description="Manual licensing payment — wire transfer",
-    ))
+    db_session.add(
+        CreatorRevenueEvent(
+            brand_id=brand.id,
+            avenue_type="licensing",
+            event_type="manual_log",  # NOT stripe_/shopify_
+            revenue=500.00,
+            cost=0.0,
+            profit=500.00,
+            description="Manual licensing payment — wire transfer",
+        )
+    )
     await db_session.commit()
 
     r = await api_client.get("/api/v1/gm/floor-status", headers=headers)
@@ -465,7 +519,9 @@ async def test_floor_status_includes_non_stripe_creator_revenue(
 
 @pytest.mark.asyncio
 async def test_floor_status_plan_data_ledgers_do_not_add_to_total(
-    api_client, db_session, sample_org_data,
+    api_client,
+    db_session,
+    sample_org_data,
 ):
     """Plan-data ledgers (high_ticket_deals, sponsor_opportunities,
     subscription_events, credit_transactions, pack_purchases, af_*)
@@ -477,13 +533,18 @@ async def test_floor_status_plan_data_ledgers_do_not_add_to_total(
     headers, org_id = await _auth(api_client, sample_org_data)
 
     # Exactly $200 of recognized revenue from payments
-    db_session.add(Payment(
-        org_id=org_id, provider="stripe",
-        provider_event_id=f"evt_plan_{uuid.uuid4().hex[:10]}",
-        amount_cents=20_000, currency="usd", status="succeeded",
-        completed_at=datetime.now(timezone.utc) - timedelta(days=2),
-        customer_email="plan@example.com",
-    ))
+    db_session.add(
+        Payment(
+            org_id=org_id,
+            provider="stripe",
+            provider_event_id=f"evt_plan_{uuid.uuid4().hex[:10]}",
+            amount_cents=20_000,
+            currency="usd",
+            status="succeeded",
+            completed_at=datetime.now(timezone.utc) - timedelta(days=2),
+            customer_email="plan@example.com",
+        )
+    )
     await db_session.commit()
 
     r = await api_client.get("/api/v1/gm/floor-status", headers=headers)
@@ -491,8 +552,7 @@ async def test_floor_status_plan_data_ledgers_do_not_add_to_total(
     # Total is exactly payments, regardless of whatever plan-data rows
     # exist elsewhere.
     assert body["trailing_30d_cents"] == 20_000, (
-        f"trailing_30d must equal payments total alone; got "
-        f"{body['trailing_30d_cents']}. Plan-data bled through."
+        f"trailing_30d must equal payments total alone; got {body['trailing_30d_cents']}. Plan-data bled through."
     )
     # plan_data_ledgers field must exist and be a list
     assert isinstance(body["plan_data_ledgers"], list)
@@ -500,7 +560,8 @@ async def test_floor_status_plan_data_ledgers_do_not_add_to_total(
 
 @pytest.mark.asyncio
 async def test_floor_status_carries_canonical_rule_text(
-    api_client, sample_org_data,
+    api_client,
+    sample_org_data,
 ):
     headers, _ = await _auth(api_client, sample_org_data)
     r = await api_client.get("/api/v1/gm/floor-status", headers=headers)
@@ -513,6 +574,7 @@ async def test_floor_status_carries_canonical_rule_text(
 @pytest.mark.asyncio
 async def test_doctrine_text_has_recognized_revenue_rule(api_client, sample_org_data):
     from apps.api.services.gm_doctrine import GM_REVENUE_DOCTRINE, RECOGNIZED_REVENUE_RULE
+
     assert "RECOGNIZED-REVENUE RULE" in RECOGNIZED_REVENUE_RULE
     assert "RECOGNIZED-REVENUE RULE" in GM_REVENUE_DOCTRINE
     assert "payments" in GM_REVENUE_DOCTRINE

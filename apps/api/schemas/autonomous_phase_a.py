@@ -1,4 +1,5 @@
 """Schemas — Autonomous Execution Phase A: signal scanning, auto-queue, warmup & output."""
+
 from __future__ import annotations
 
 from datetime import datetime

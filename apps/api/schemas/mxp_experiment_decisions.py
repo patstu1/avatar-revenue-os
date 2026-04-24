@@ -1,4 +1,5 @@
 """Pydantic schemas for MXP Experiment Decisions."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 
 class DataSource(str, Enum):
     """Transparency label: where this data came from."""
+
     SYNTHETIC_PROXY = "synthetic_proxy"
     LIVE_IMPORT = "live_import"
     OPERATOR_QUEUED = "operator_queued"

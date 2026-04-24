@@ -43,6 +43,7 @@ def test_recommend_pricing():
     assert recommendation["recommendation_type"] in ("price_increase", "price_decrease", "anchor_reprice", "hold")
     assert recommendation["current_price"] == current_price
 
+
 def test_recommend_bundle():
     offer1_id = uuid.uuid4()
     offer2_id = uuid.uuid4()
@@ -77,11 +78,13 @@ def test_recommend_bundle():
     assert "confidence" in recommendation
     assert "explanation" in recommendation
 
+
 def test_recommend_bundle_no_offers():
     recommendation = recommend_bundle([], [], [])
     assert recommendation["bundle_name"] == "No Bundle Recommended"
     assert recommendation["offer_ids"] == []
     assert recommendation["recommended_bundle_price"] == 0.0
+
 
 def test_recommend_retention():
     customer_id = uuid.uuid4()
@@ -108,6 +111,7 @@ def test_recommend_retention():
     assert "confidence" in recommendation
     assert "explanation" in recommendation
     assert recommendation["customer_segment"] == "critical_churn_risk"
+
 
 def test_recommend_reactivation_campaign():
     lapsed_customer_segment = [

@@ -1,4 +1,5 @@
 """Experiment decision service — prioritise tests, persist outcomes, close the loop."""
+
 from __future__ import annotations
 
 import uuid
@@ -52,18 +53,18 @@ async def _load_prior_scope_signals(db: AsyncSession, brand_id: uuid.UUID) -> li
         if key in seen:
             continue
         seen.add(key)
-        signals.append({
-            "target_scope_type": st,
-            "target_scope_id": sid,
-            "outcome_type": out.outcome_type,
-            "observed_uplift": float(out.observed_uplift),
-        })
+        signals.append(
+            {
+                "target_scope_type": st,
+                "target_scope_id": sid,
+                "outcome_type": out.outcome_type,
+                "observed_uplift": float(out.observed_uplift),
+            }
+        )
     return signals
 
 
-async def _load_offer_lifecycle_map(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[uuid.UUID, tuple[str, float]]:
+async def _load_offer_lifecycle_map(db: AsyncSession, brand_id: uuid.UUID) -> dict[uuid.UUID, tuple[str, float]]:
     rows = list(
         (
             await db.execute(
@@ -79,9 +80,7 @@ async def _load_offer_lifecycle_map(
     return {r.offer_id: (r.lifecycle_state, float(r.health_score or 0.0)) for r in rows}
 
 
-async def _load_latest_market_timing_score(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> float | None:
+async def _load_latest_market_timing_score(db: AsyncSession, brand_id: uuid.UUID) -> float | None:
     row = (
         await db.execute(
             select(MarketTimingReport)
@@ -293,27 +292,32 @@ async def _persist_outcomes_for_decisions(
             try:
                 from packages.db.models.pattern_memory import WinningPatternMemory
                 from packages.scoring.pattern_memory_engine import _sig
+
                 exp_type = dec.experiment_type or "experiment"
                 variant_name = str(wid)[:8]
                 sig = _sig("experiment_winner", exp_type, "", "")
-                existing = (await db.execute(
-                    select(WinningPatternMemory).where(
-                        WinningPatternMemory.brand_id == brand_id,
-                        WinningPatternMemory.pattern_signature == sig,
+                existing = (
+                    await db.execute(
+                        select(WinningPatternMemory).where(
+                            WinningPatternMemory.brand_id == brand_id,
+                            WinningPatternMemory.pattern_signature == sig,
+                        )
                     )
-                )).scalar_one_or_none()
+                ).scalar_one_or_none()
                 if not existing:
-                    db.add(WinningPatternMemory(
-                        brand_id=brand_id,
-                        pattern_type=exp_type,
-                        pattern_name=f"experiment_winner_{variant_name}",
-                        pattern_signature=sig,
-                        performance_band="strong",
-                        confidence=float(r.get("confidence", 0.5)),
-                        win_score=min(1.0, 0.6 + float(r.get("observed_uplift", 0))),
-                        explanation=f"Promoted from experiment {dec.id}",
-                        evidence_json={"experiment_id": str(dec.id), "uplift": float(r.get("observed_uplift", 0))},
-                    ))
+                    db.add(
+                        WinningPatternMemory(
+                            brand_id=brand_id,
+                            pattern_type=exp_type,
+                            pattern_name=f"experiment_winner_{variant_name}",
+                            pattern_signature=sig,
+                            performance_band="strong",
+                            confidence=float(r.get("confidence", 0.5)),
+                            win_score=min(1.0, 0.6 + float(r.get("observed_uplift", 0))),
+                            explanation=f"Promoted from experiment {dec.id}",
+                            evidence_json={"experiment_id": str(dec.id), "uplift": float(r.get("observed_uplift", 0))},
+                        )
+                    )
             except Exception:
                 logger.debug("experiment_winner_pattern_promotion_failed", exc_info=True)
 
@@ -328,9 +332,7 @@ async def _persist_outcomes_for_decisions(
 # ---------------------------------------------------------------------------
 
 
-async def recompute_experiment_decisions(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_experiment_decisions(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -347,24 +349,12 @@ async def recompute_experiment_decisions(
     )
 
     offers = list(
-        (
-            await db.execute(
-                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
     offers_by_id = {o.id: o for o in offers}
 
     content_items = list(
-        (
-            await db.execute(
-                select(ContentItem).where(ContentItem.brand_id == brand_id).limit(100)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(100))).scalars().all()
     )
     content_by_id = {ci.id: ci for ci in content_items}
 
@@ -388,52 +378,86 @@ async def recompute_experiment_decisions(
         base_up = 0.15 * skew
         if note:
             lifecycle_notes.append(note)
-        experiments.append({
-            "experiment_type": "offer_variant",
-            "target_scope_type": "offer",
-            "target_scope_id": str(offer.id),
-            "hypothesis": f"Testing variant of offer '{offer.name}' for conversion lift",
-            "expected_upside": round(min(1.0, base_up), 4),
-            "confidence_gap": 0.40,
-            "age_days": 0,
-        })
+        experiments.append(
+            {
+                "experiment_type": "offer_variant",
+                "target_scope_type": "offer",
+                "target_scope_id": str(offer.id),
+                "hypothesis": f"Testing variant of offer '{offer.name}' for conversion lift",
+                "expected_upside": round(min(1.0, base_up), 4),
+                "confidence_gap": 0.40,
+                "age_days": 0,
+            }
+        )
 
     for ci in content_items[:20]:
-        experiments.append({
-            "experiment_type": "content_format",
-            "target_scope_type": "content_item",
-            "target_scope_id": str(ci.id),
-            "hypothesis": f"Testing format variation on '{ci.title}'",
-            "expected_upside": 0.10,
-            "confidence_gap": 0.50,
-            "age_days": 0,
-        })
+        experiments.append(
+            {
+                "experiment_type": "content_format",
+                "target_scope_type": "content_item",
+                "target_scope_id": str(ci.id),
+                "hypothesis": f"Testing format variation on '{ci.title}'",
+                "expected_upside": 0.10,
+                "confidence_gap": 0.50,
+                "age_days": 0,
+            }
+        )
 
     try:
         from packages.db.models.pattern_memory import LosingPatternMemory, WinningPatternMemory
         from packages.scoring.pattern_memory_engine import suggest_experiments_from_patterns
-        win_rows = list((await db.execute(
-            select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand_id, WinningPatternMemory.is_active.is_(True))
-        )).scalars().all())
-        lose_rows = list((await db.execute(
-            select(LosingPatternMemory).where(LosingPatternMemory.brand_id == brand_id, LosingPatternMemory.is_active.is_(True))
-        )).scalars().all())
+
+        win_rows = list(
+            (
+                await db.execute(
+                    select(WinningPatternMemory).where(
+                        WinningPatternMemory.brand_id == brand_id, WinningPatternMemory.is_active.is_(True)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        lose_rows = list(
+            (
+                await db.execute(
+                    select(LosingPatternMemory).where(
+                        LosingPatternMemory.brand_id == brand_id, LosingPatternMemory.is_active.is_(True)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
         existing_types = [e["experiment_type"] for e in experiments]
         suggestions = suggest_experiments_from_patterns(
-            [{"pattern_type": w.pattern_type, "pattern_name": w.pattern_name, "win_score": float(w.win_score), "usage_count": w.usage_count} for w in win_rows],
-            [{"pattern_type": l.pattern_type, "pattern_name": l.pattern_name, "fail_score": float(l.fail_score)} for l in lose_rows],
+            [
+                {
+                    "pattern_type": w.pattern_type,
+                    "pattern_name": w.pattern_name,
+                    "win_score": float(w.win_score),
+                    "usage_count": w.usage_count,
+                }
+                for w in win_rows
+            ],
+            [
+                {"pattern_type": l.pattern_type, "pattern_name": l.pattern_name, "fail_score": float(l.fail_score)}
+                for l in lose_rows
+            ],
             existing_types,
         )
         for s in suggestions[:10]:
-            experiments.append({
-                "experiment_type": s["tested_variable"],
-                "target_scope_type": "pattern_memory",
-                "target_scope_id": None,
-                "hypothesis": s["hypothesis"],
-                "expected_upside": 0.20 if s["priority"] == "high" else 0.12,
-                "confidence_gap": 0.60,
-                "age_days": 0,
-            })
+            experiments.append(
+                {
+                    "experiment_type": s["tested_variable"],
+                    "target_scope_type": "pattern_memory",
+                    "target_scope_id": None,
+                    "hypothesis": s["hypothesis"],
+                    "expected_upside": 0.20 if s["priority"] == "high" else 0.12,
+                    "confidence_gap": 0.60,
+                    "age_days": 0,
+                }
+            )
     except Exception:
         logger.debug("pattern_based_experiment_suggestion_failed", exc_info=True)
 
@@ -442,11 +466,7 @@ async def recompute_experiment_decisions(
     experiments, signal_influence = apply_prior_scope_signals(experiments, prior_scope_signals)
 
     total_impressions = (
-        await db.execute(
-            select(PerformanceMetric.impressions)
-            .where(PerformanceMetric.brand_id == brand_id)
-            .limit(1)
-        )
+        await db.execute(select(PerformanceMetric.impressions).where(PerformanceMetric.brand_id == brand_id).limit(1))
     ).scalar()
     total_traffic = int(total_impressions or 1000)
 
@@ -530,9 +550,7 @@ async def recompute_experiment_decisions(
     }
 
 
-async def recompute_experiment_outcomes_only(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_experiment_outcomes_only(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     """Re-evaluate outcomes for current active decisions without rebuilding the decision set."""
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
@@ -553,20 +571,10 @@ async def recompute_experiment_outcomes_only(
     if not decisions:
         return {"experiment_outcomes": 0, "experiment_outcome_actions": 0}
 
-    offers = list(
-        (
-            await db.execute(select(Offer).where(Offer.brand_id == brand_id))
-        )
-        .scalars()
-        .all()
-    )
+    offers = list((await db.execute(select(Offer).where(Offer.brand_id == brand_id))).scalars().all())
     offers_by_id = {o.id: o for o in offers}
     content_items = list(
-        (
-            await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(200))
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(200))).scalars().all()
     )
     content_by_id = {ci.id: ci for ci in content_items}
     perf_rows = (
@@ -652,9 +660,7 @@ def _eoa_dict(x: ExperimentOutcomeAction) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_experiment_decisions(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_experiment_decisions(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -673,9 +679,7 @@ async def get_experiment_decisions(
     return [_ed_dict(r) for r in rows]
 
 
-async def get_experiment_outcomes(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_experiment_outcomes(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -691,14 +695,16 @@ async def get_experiment_outcomes(
     return [_eo_dict(r) for r in rows]
 
 
-_VALID_EXECUTION_STATUSES = frozenset({
-    "pending_operator",
-    "acknowledged",
-    "in_progress",
-    "completed",
-    "rejected",
-    "skipped",
-})
+_VALID_EXECUTION_STATUSES = frozenset(
+    {
+        "pending_operator",
+        "acknowledged",
+        "in_progress",
+        "completed",
+        "rejected",
+        "skipped",
+    }
+)
 
 
 async def update_outcome_action_status(
@@ -727,9 +733,7 @@ async def update_outcome_action_status(
     return _eoa_dict(row)
 
 
-async def get_experiment_outcome_actions(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_experiment_outcome_actions(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

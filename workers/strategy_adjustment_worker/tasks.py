@@ -7,6 +7,7 @@ engagement spikes, and cross-pollinates winning monetization angles.
 ZERO ARTIFICIAL CAPS on pattern counts, brief counts, or content volume.
 Everything is proportional to measured reality.
 """
+
 from __future__ import annotations
 
 import logging
@@ -51,6 +52,7 @@ def _run(coro):
 # MAIN TASK: adjust_content_strategy
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @shared_task(
     name="workers.strategy_adjustment_worker.tasks.adjust_content_strategy",
     base=TrackedTask,
@@ -80,9 +82,9 @@ def adjust_all_strategies():
 async def _do_adjust_all():
     """Iterate ALL brands and adjust each one."""
     async with get_async_session_factory()() as db:
-        brands = list((await db.execute(
-            select(Brand.id, Brand.organization_id).where(Brand.is_active.is_(True))
-        )).all())
+        brands = list(
+            (await db.execute(select(Brand.id, Brand.organization_id).where(Brand.is_active.is_(True)))).all()
+        )
 
     results = []
     for brand_id, org_id in brands:
@@ -114,6 +116,7 @@ async def _do_adjust_all():
 # CORE LOGIC
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 async def _do_adjust_strategy(brand_id: uuid.UUID, org_id: uuid.UUID | None) -> dict:
     """Full strategy adjustment for one brand."""
     from sqlalchemy.orm import Session as SyncSession
@@ -133,44 +136,78 @@ async def _do_adjust_strategy(brand_id: uuid.UUID, org_id: uuid.UUID | None) -> 
 
     async with get_async_session_factory()() as db:
         # ── 1. Load ALL active winning patterns (zero cap) ────────────────
-        winning_patterns = list((await db.execute(
-            select(WinningPatternMemory).where(
-                WinningPatternMemory.brand_id == brand_id,
-                WinningPatternMemory.is_active.is_(True),
-            ).order_by(WinningPatternMemory.win_score.desc())
-        )).scalars().all())
+        winning_patterns = list(
+            (
+                await db.execute(
+                    select(WinningPatternMemory)
+                    .where(
+                        WinningPatternMemory.brand_id == brand_id,
+                        WinningPatternMemory.is_active.is_(True),
+                    )
+                    .order_by(WinningPatternMemory.win_score.desc())
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         # ── 2. Load ALL active losing patterns (zero cap) ────────────────
-        losing_patterns = list((await db.execute(
-            select(LosingPatternMemory).where(
-                LosingPatternMemory.brand_id == brand_id,
-                LosingPatternMemory.is_active.is_(True),
-            ).order_by(LosingPatternMemory.fail_score.desc())
-        )).scalars().all())
+        losing_patterns = list(
+            (
+                await db.execute(
+                    select(LosingPatternMemory)
+                    .where(
+                        LosingPatternMemory.brand_id == brand_id,
+                        LosingPatternMemory.is_active.is_(True),
+                    )
+                    .order_by(LosingPatternMemory.fail_score.desc())
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         # ── 3. Load active accounts for this brand ───────────────────────
-        accounts = list((await db.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == brand_id,
-                CreatorAccount.is_active.is_(True),
+        accounts = list(
+            (
+                await db.execute(
+                    select(CreatorAccount).where(
+                        CreatorAccount.brand_id == brand_id,
+                        CreatorAccount.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         # ── 4. Load active offers for this brand ─────────────────────────
-        offers = list((await db.execute(
-            select(Offer).where(
-                Offer.brand_id == brand_id,
-                Offer.is_active.is_(True),
+        offers = list(
+            (
+                await db.execute(
+                    select(Offer).where(
+                        Offer.brand_id == brand_id,
+                        Offer.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         # ── 5. Load existing pending briefs (for deprioritization) ───────
-        pending_briefs = list((await db.execute(
-            select(ContentBrief).where(
-                ContentBrief.brand_id == brand_id,
-                ContentBrief.status.in_(["draft", "ready", "pending_generation"]),
+        pending_briefs = list(
+            (
+                await db.execute(
+                    select(ContentBrief).where(
+                        ContentBrief.brand_id == brand_id,
+                        ContentBrief.status.in_(["draft", "ready", "pending_generation"]),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         if not winning_patterns and not losing_patterns:
             logger.info("strategy_adjust: no patterns for brand %s, skipping", brand_id)
@@ -178,13 +215,20 @@ async def _do_adjust_strategy(brand_id: uuid.UUID, org_id: uuid.UUID | None) -> 
 
         # ── Step A: Generate briefs proportional to winning pattern scores ──
         briefs_created = await _generate_winner_briefs(
-            db, brand_id, winning_patterns, accounts, offers,
+            db,
+            brand_id,
+            winning_patterns,
+            accounts,
+            offers,
         )
         summary["briefs_created"] = briefs_created
 
         # ── Step B: Deprioritize pending briefs that match losing patterns ──
         deprioritized = await _deprioritize_loser_briefs(
-            db, brand_id, losing_patterns, pending_briefs,
+            db,
+            brand_id,
+            losing_patterns,
+            pending_briefs,
         )
         summary["briefs_deprioritized"] = deprioritized
 
@@ -229,7 +273,12 @@ async def _do_adjust_strategy(brand_id: uuid.UUID, org_id: uuid.UUID | None) -> 
 
     logger.info(
         "strategy_adjust.complete brand=%s briefs=%d depri=%d rotated=%d burst=%d cross=%d",
-        brand_id, briefs_created, deprioritized, rotated, burst, cross,
+        brand_id,
+        briefs_created,
+        deprioritized,
+        rotated,
+        burst,
+        cross,
     )
     return summary
 
@@ -238,8 +287,13 @@ async def _do_adjust_strategy(brand_id: uuid.UUID, org_id: uuid.UUID | None) -> 
 # STEP A: Generate winner briefs — proportional to win_score vs. average
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 async def _generate_winner_briefs(
-    db, brand_id, winning_patterns, accounts, offers,
+    db,
+    brand_id,
+    winning_patterns,
+    accounts,
+    offers,
 ) -> int:
     """For each winning pattern, generate briefs proportional to its relative strength.
 
@@ -261,12 +315,18 @@ async def _generate_winner_briefs(
 
     # Load existing brief titles to avoid duplication
     existing_titles = set()
-    existing = list((await db.execute(
-        select(ContentBrief.title).where(
-            ContentBrief.brand_id == brand_id,
-            ContentBrief.status.in_(["draft", "ready", "pending_generation", "generating", "script_generated"]),
+    existing = list(
+        (
+            await db.execute(
+                select(ContentBrief.title).where(
+                    ContentBrief.brand_id == brand_id,
+                    ContentBrief.status.in_(["draft", "ready", "pending_generation", "generating", "script_generated"]),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     existing_titles = {t.lower().strip() for t in existing if t}
 
     # Build account lookup by platform
@@ -331,7 +391,9 @@ async def _generate_winner_briefs(
                         f"Win score: {pattern.win_score:.2f} (relative strength: {relative_strength:.1f}x)",
                         f"Pattern type: {pattern.pattern_type}",
                     ],
-                    cta_strategy=f"Monetization: {pattern.monetization_method or 'organic'}" if pattern.monetization_method else None,
+                    cta_strategy=f"Monetization: {pattern.monetization_method or 'organic'}"
+                    if pattern.monetization_method
+                    else None,
                     monetization_integration=pattern.monetization_method,
                     target_duration_seconds=duration,
                     tone_guidance=f"Content form: {pattern.content_form}" if pattern.content_form else None,
@@ -365,8 +427,12 @@ def _build_brief_title(pattern, platform: str, index: int) -> str:
 # STEP B: Deprioritize pending briefs matching losing patterns
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 async def _deprioritize_loser_briefs(
-    db, brand_id, losing_patterns, pending_briefs,
+    db,
+    brand_id,
+    losing_patterns,
+    pending_briefs,
 ) -> int:
     """Move briefs matching losing patterns to the back of the queue.
 
@@ -431,6 +497,7 @@ async def _deprioritize_loser_briefs(
 # STEP C: Rotate offers — winners get more placement, zero-converters swapped
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 async def _rotate_offers(db, brand_id, winning_patterns, offers) -> int:
     """Adjust offer placement based on pattern performance.
 
@@ -448,10 +515,7 @@ async def _rotate_offers(db, brand_id, winning_patterns, offers) -> int:
             offer_win_counts[oid_str] = offer_win_counts.get(oid_str, 0) + p.win_score
 
     # Find offers with zero conversions
-    zero_conversion_offers = [
-        o for o in offers
-        if o.conversion_rate == 0 and o.epc == 0
-    ]
+    zero_conversion_offers = [o for o in offers if o.conversion_rate == 0 and o.epc == 0]
 
     rotated = 0
 
@@ -476,13 +540,19 @@ async def _rotate_offers(db, brand_id, winning_patterns, offers) -> int:
         zero_ids = {str(o.id) for o in zero_conversion_offers}
         best_offer_id = max(offer_win_counts, key=offer_win_counts.get)
 
-        pending_with_zero = list((await db.execute(
-            select(ContentBrief).where(
-                ContentBrief.brand_id == brand_id,
-                ContentBrief.status.in_(["draft", "ready", "pending_generation"]),
-                ContentBrief.offer_id.in_([uuid.UUID(oid) for oid in zero_ids]),
+        pending_with_zero = list(
+            (
+                await db.execute(
+                    select(ContentBrief).where(
+                        ContentBrief.brand_id == brand_id,
+                        ContentBrief.status.in_(["draft", "ready", "pending_generation"]),
+                        ContentBrief.offer_id.in_([uuid.UUID(oid) for oid in zero_ids]),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         for brief in pending_with_zero:
             brief.offer_id = uuid.UUID(best_offer_id)
@@ -503,8 +573,12 @@ async def _rotate_offers(db, brand_id, winning_patterns, offers) -> int:
 # STEP D: Detect engagement spikes and burst-queue content
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 async def _detect_spikes_and_burst(
-    db, brand_id, accounts, winning_patterns,
+    db,
+    brand_id,
+    accounts,
+    winning_patterns,
 ) -> int:
     """If an account shows a sudden engagement spike, queue a burst of content.
 
@@ -522,23 +596,30 @@ async def _detect_spikes_and_burst(
         platform = acct.platform.value if hasattr(acct.platform, "value") else str(acct.platform)
 
         # Get 7-day average engagement for this account
-        avg_result = (await db.execute(
-            select(func.avg(PerformanceMetric.engagement_rate)).where(
-                PerformanceMetric.creator_account_id == acct.id,
-                PerformanceMetric.measured_at >= seven_days_ago,
+        avg_result = (
+            await db.execute(
+                select(func.avg(PerformanceMetric.engagement_rate)).where(
+                    PerformanceMetric.creator_account_id == acct.id,
+                    PerformanceMetric.measured_at >= seven_days_ago,
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
 
         avg_engagement = float(avg_result) if avg_result else 0.0
         if avg_engagement <= 0:
             continue
 
         # Get latest metric
-        latest = (await db.execute(
-            select(PerformanceMetric).where(
-                PerformanceMetric.creator_account_id == acct.id,
-            ).order_by(PerformanceMetric.measured_at.desc()).limit(1)
-        )).scalar_one_or_none()
+        latest = (
+            await db.execute(
+                select(PerformanceMetric)
+                .where(
+                    PerformanceMetric.creator_account_id == acct.id,
+                )
+                .order_by(PerformanceMetric.measured_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
 
         if not latest or not latest.engagement_rate:
             continue
@@ -586,7 +667,10 @@ async def _detect_spikes_and_burst(
 
             logger.info(
                 "strategy_adjust.spike brand=%s account=%s spike=%.1fx burst=%d",
-                brand_id, acct.id, spike_ratio, burst_count,
+                brand_id,
+                acct.id,
+                spike_ratio,
+                burst_count,
             )
 
     await db.flush()
@@ -597,8 +681,12 @@ async def _detect_spikes_and_burst(
 # STEP E: Cross-pollinate monetization angles across platforms
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 async def _cross_pollinate_monetization(
-    db, brand_id, winning_patterns, accounts,
+    db,
+    brand_id,
+    winning_patterns,
+    accounts,
 ) -> int:
     """If a monetization angle works on one platform, test it on all other active platforms.
 
@@ -621,24 +709,36 @@ async def _cross_pollinate_monetization(
 
     # Load existing reuse recommendations to avoid duplicating
     existing_reuse = set()
-    reuse_recs = list((await db.execute(
-        select(PatternReuseRecommendation).where(
-            PatternReuseRecommendation.brand_id == brand_id,
-            PatternReuseRecommendation.is_active.is_(True),
+    reuse_recs = list(
+        (
+            await db.execute(
+                select(PatternReuseRecommendation).where(
+                    PatternReuseRecommendation.brand_id == brand_id,
+                    PatternReuseRecommendation.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
 
     for rec in reuse_recs:
         existing_reuse.add((str(rec.pattern_id), rec.target_platform))
 
     # Load existing brief titles for dedup
     existing_titles = set()
-    existing = list((await db.execute(
-        select(ContentBrief.title).where(
-            ContentBrief.brand_id == brand_id,
-            ContentBrief.status.in_(["draft", "ready", "pending_generation", "generating", "script_generated"]),
+    existing = list(
+        (
+            await db.execute(
+                select(ContentBrief.title).where(
+                    ContentBrief.brand_id == brand_id,
+                    ContentBrief.status.in_(["draft", "ready", "pending_generation", "generating", "script_generated"]),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     existing_titles = {t.lower().strip() for t in existing if t}
 
     cross_tests = 0

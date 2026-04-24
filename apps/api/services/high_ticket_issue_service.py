@@ -20,6 +20,7 @@ Two functions:
      recorded as a liability; actual Stripe refund execution is a
      separate billing-batch concern.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -52,7 +53,7 @@ HIGH_TICKET_ISSUE_SUBTYPES = (
 
 # Severity thresholds for affected_cents
 CRITICAL_THRESHOLD_CENTS = 10_000_00  # $10k
-WARNING_THRESHOLD_CENTS = 1_000_00    # $1k
+WARNING_THRESHOLD_CENTS = 1_000_00  # $1k
 
 
 async def classify_high_ticket_issue(
@@ -73,9 +74,7 @@ async def classify_high_ticket_issue(
        "onboarding_event_id" | None}
     """
     if subtype not in HIGH_TICKET_ISSUE_SUBTYPES:
-        raise ValueError(
-            f"subtype must be one of {HIGH_TICKET_ISSUE_SUBTYPES}, got {subtype!r}"
-        )
+        raise ValueError(f"subtype must be one of {HIGH_TICKET_ISSUE_SUBTYPES}, got {subtype!r}")
     if affected_cents < 0:
         raise ValueError("affected_cents cannot be negative")
 
@@ -107,7 +106,7 @@ async def classify_high_ticket_issue(
         description=(
             notes
             or f"Operator-classified high-ticket issue: {subtype}. "
-            f"Affected amount: ${affected_cents/100:,.2f}. "
+            f"Affected amount: ${affected_cents / 100:,.2f}. "
             f"Client email: {draft.to_email}."
         )[:4000],
         severity=severity,
@@ -149,10 +148,7 @@ async def classify_high_ticket_issue(
         db,
         domain="fulfillment",
         event_type=f"client.issue.high_ticket_{subtype}",
-        summary=(
-            f"High-ticket {subtype}: "
-            f"{draft.to_email} ${affected_cents/100:,.2f} ({severity})"
-        ),
+        summary=(f"High-ticket {subtype}: {draft.to_email} ${affected_cents / 100:,.2f} ({severity})"),
         org_id=draft.org_id,
         entity_type="email_reply_draft",
         entity_id=draft.id,
@@ -173,9 +169,7 @@ async def classify_high_ticket_issue(
         "severity": severity,
         "subtype": subtype,
         "client_id": str(client.id) if client else None,
-        "onboarding_event_id": (
-            str(onboarding_event_id) if onboarding_event_id else None
-        ),
+        "onboarding_event_id": (str(onboarding_event_id) if onboarding_event_id else None),
         "affected_cents": affected_cents,
     }
 
@@ -215,9 +209,7 @@ async def issue_credit(
         amount_cents=amount_cents,
         details_json={
             "reason": reason,
-            "reference_project_id": (
-                str(reference_project_id) if reference_project_id else None
-            ),
+            "reference_project_id": (str(reference_project_id) if reference_project_id else None),
             "notes": notes,
             "liability_recorded": True,
             "stripe_refund_executed": False,
@@ -231,7 +223,7 @@ async def issue_credit(
         domain="fulfillment",
         event_type="client.retention.credit_issued",
         summary=(
-            f"High-ticket credit ${amount_cents/100:,.2f} issued for "
+            f"High-ticket credit ${amount_cents / 100:,.2f} issued for "
             f"{client.display_name or client.primary_email}: {reason[:60]}"
         ),
         org_id=client.org_id,

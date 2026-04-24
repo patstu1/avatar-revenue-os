@@ -3,6 +3,7 @@
 Uses linear regression on trailing revenue-per-post by niche/platform,
 projected forward based on planned posting cadence + fleet status.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -41,8 +42,10 @@ def forecast_revenue(
     """Forecast monthly revenue based on historical data + planned scaling."""
     if not daily_revenue or len(daily_revenue) < 7:
         return {
-            "forecast_revenue_30d": 0, "confidence": "low",
-            "reason": "Insufficient data (need 7+ days)", "data_days": len(daily_revenue),
+            "forecast_revenue_30d": 0,
+            "confidence": "low",
+            "reason": "Insufficient data (need 7+ days)",
+            "data_days": len(daily_revenue),
         }
 
     slope, intercept = linear_trend(daily_revenue)

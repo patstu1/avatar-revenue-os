@@ -23,6 +23,7 @@ Usage:
         # Circuit breaker tripped
         ...
 """
+
 from __future__ import annotations
 
 import os
@@ -79,6 +80,7 @@ class GuardrailResult:
 
 class GuardrailBlocked(Exception):
     """Raised when a guardrail blocks execution."""
+
     def __init__(self, reason: str, category: str = "guardrail"):
         self.reason = reason
         self.category = category
@@ -132,6 +134,7 @@ class GuardrailEngine:
             return self._redis
         try:
             import redis
+
             url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
             self._redis = redis.Redis.from_url(url, decode_responses=True)
             return self._redis
@@ -140,6 +143,7 @@ class GuardrailEngine:
 
     def _today_key(self) -> str:
         from datetime import datetime, timezone
+
         return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     # ── Provider spend caps ───────────────────────────────────────────
@@ -164,17 +168,23 @@ class GuardrailEngine:
 
         projected = current + estimated_cost
         if projected > cap:
-            reason = f"Provider {provider} daily spend cap exceeded: ${current:.2f} + ${estimated_cost:.2f} > ${cap:.2f} cap"
-            logger.warning("guardrail.spend_cap_exceeded",
-                           provider=provider, current=current,
-                           estimated=estimated_cost, cap=cap)
+            reason = (
+                f"Provider {provider} daily spend cap exceeded: ${current:.2f} + ${estimated_cost:.2f} > ${cap:.2f} cap"
+            )
+            logger.warning(
+                "guardrail.spend_cap_exceeded", provider=provider, current=current, estimated=estimated_cost, cap=cap
+            )
             return GuardrailResult(
-                allowed=False, reason=reason,
-                spend_today=current, cap=cap,
+                allowed=False,
+                reason=reason,
+                spend_today=current,
+                cap=cap,
             )
 
         return GuardrailResult(
-            allowed=True, spend_today=current, cap=cap,
+            allowed=True,
+            spend_today=current,
+            cap=cap,
             reason=f"${projected:.2f} / ${cap:.2f}",
         )
 
@@ -217,12 +227,12 @@ class GuardrailEngine:
         projected = current + estimated_cost
         if projected > cap:
             reason = f"Lane {lane} daily spend cap exceeded: ${current:.2f} + ${estimated_cost:.2f} > ${cap:.2f} cap"
-            logger.warning("guardrail.lane_cap_exceeded",
-                           lane=lane, current=current,
-                           estimated=estimated_cost, cap=cap)
+            logger.warning("guardrail.lane_cap_exceeded", lane=lane, current=current, estimated=estimated_cost, cap=cap)
             return GuardrailResult(
-                allowed=False, reason=reason,
-                spend_today=current, cap=cap,
+                allowed=False,
+                reason=reason,
+                spend_today=current,
+                cap=cap,
             )
 
         return GuardrailResult(allowed=True, spend_today=current, cap=cap)
@@ -265,11 +275,12 @@ class GuardrailEngine:
                 f"Circuit breaker tripped: {lane}/{provider} has "
                 f"{count} failures in the last hour (threshold={threshold})"
             )
-            logger.error("guardrail.circuit_breaker_tripped",
-                         lane=lane, provider=provider,
-                         failures=count, threshold=threshold)
+            logger.error(
+                "guardrail.circuit_breaker_tripped", lane=lane, provider=provider, failures=count, threshold=threshold
+            )
             return GuardrailResult(
-                allowed=False, reason=reason,
+                allowed=False,
+                reason=reason,
                 failures_in_window=count,
             )
 
@@ -288,8 +299,7 @@ class GuardrailEngine:
             pipe.expire(key, _FAILURE_WINDOW_SECONDS)
             pipe.execute()
         except Exception:
-            logger.exception("guardrail.record_failure.failed",
-                             lane=lane, provider=provider)
+            logger.exception("guardrail.record_failure.failed", lane=lane, provider=provider)
 
     def clear_failures(self, lane: str, provider: str) -> None:
         """Reset failure counter (called on success)."""
@@ -313,8 +323,7 @@ class GuardrailEngine:
                 f"Confidence {confidence:.2f} below threshold {threshold:.2f} "
                 f"for action '{action}'. Blocking expensive execution."
             )
-            logger.info("guardrail.confidence_gate",
-                        confidence=confidence, threshold=threshold, action=action)
+            logger.info("guardrail.confidence_gate", confidence=confidence, threshold=threshold, action=action)
             return GuardrailResult(allowed=False, reason=reason)
         return GuardrailResult(allowed=True)
 

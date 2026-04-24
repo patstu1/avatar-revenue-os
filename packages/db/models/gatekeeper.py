@@ -1,4 +1,5 @@
 """AI Gatekeeper — hard internal control system for build/execution quality."""
+
 import uuid
 from typing import Optional
 
@@ -12,9 +13,7 @@ from packages.db.base import Base
 class GatekeeperCompletionReport(Base):
     __tablename__ = "gatekeeper_completion_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     module_name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     has_model: Mapped[bool] = mapped_column(Boolean, default=False)
     has_migration: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -36,9 +35,7 @@ class GatekeeperCompletionReport(Base):
 class GatekeeperTruthReport(Base):
     __tablename__ = "gatekeeper_truth_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     module_name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     claimed_status: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     actual_status: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
@@ -55,9 +52,7 @@ class GatekeeperTruthReport(Base):
 class GatekeeperExecutionClosureReport(Base):
     __tablename__ = "gatekeeper_execution_closure_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     module_name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     has_execution_path: Mapped[bool] = mapped_column(Boolean, default=False)
     has_downstream_action: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -75,9 +70,7 @@ class GatekeeperExecutionClosureReport(Base):
 class GatekeeperTestReport(Base):
     __tablename__ = "gatekeeper_test_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     module_name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     unit_test_count: Mapped[int] = mapped_column(Integer, default=0)
     integration_test_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -93,9 +86,7 @@ class GatekeeperTestReport(Base):
 class GatekeeperDependencyReport(Base):
     __tablename__ = "gatekeeper_dependency_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     module_name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     provider_key: Mapped[Optional[str]] = mapped_column(String(80), nullable=True, index=True)
     dependency_met: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -111,9 +102,7 @@ class GatekeeperDependencyReport(Base):
 class GatekeeperContradictionReport(Base):
     __tablename__ = "gatekeeper_contradiction_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     module_a: Mapped[str] = mapped_column(String(200), nullable=False)
     module_b: Mapped[str] = mapped_column(String(200), nullable=False)
     contradiction_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
@@ -128,9 +117,7 @@ class GatekeeperContradictionReport(Base):
 class GatekeeperOperatorCommandReport(Base):
     __tablename__ = "gatekeeper_operator_command_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     command_source: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     command_summary: Mapped[str] = mapped_column(Text, nullable=False)
     is_actionable: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -146,9 +133,7 @@ class GatekeeperOperatorCommandReport(Base):
 class GatekeeperExpansionPermission(Base):
     __tablename__ = "gatekeeper_expansion_permissions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     expansion_target: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     prerequisites_met: Mapped[bool] = mapped_column(Boolean, default=False)
     blockers_resolved: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -164,9 +149,7 @@ class GatekeeperExpansionPermission(Base):
 class GatekeeperAlert(Base):
     __tablename__ = "gatekeeper_alerts"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     gate_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     severity: Mapped[str] = mapped_column(String(30), default="high", index=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -180,9 +163,7 @@ class GatekeeperAlert(Base):
 class GatekeeperAuditLedger(Base):
     __tablename__ = "gatekeeper_audit_ledgers"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     gate_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     action: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     module_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)

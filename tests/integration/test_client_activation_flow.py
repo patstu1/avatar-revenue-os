@@ -15,6 +15,7 @@ Covers:
      NO intake.completed event, status stays viewed/sent.
   7. GET /clients and GET /clients/{id} return org-scoped records.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -48,10 +49,12 @@ async def _seed_proposal_with_payment_link(
     api_client, db_session, headers, monkeypatch, recipient_email: str
 ) -> tuple[uuid.UUID, uuid.UUID]:
     """Create a proposal + payment link. Returns (proposal_id, payment_link_id)."""
+
     async def _fake_create_link(**kwargs):
         return {"url": "https://checkout.stripe.com/test", "id": "plink_client_act"}
 
     from apps.api.services import stripe_billing_service
+
     monkeypatch.setattr(stripe_billing_service, "create_payment_link", _fake_create_link)
 
     create = await api_client.post(
@@ -65,9 +68,7 @@ async def _seed_proposal_with_payment_link(
         },
     )
     pid = uuid.UUID(create.json()["id"])
-    link = await api_client.post(
-        f"/api/v1/proposals/{pid}/payment-link", headers=headers, json={}
-    )
+    link = await api_client.post(f"/api/v1/proposals/{pid}/payment-link", headers=headers, json={})
     plid = uuid.UUID(link.json()["id"])
     return pid, plid
 
@@ -103,6 +104,7 @@ def _make_webhook_verify_patcher(payload: dict, event_id: str):
             "event_type": "checkout.session.completed",
             "payload": payload,
         }, None
+
     return _fake_verify
 
 
@@ -112,14 +114,13 @@ async def test_payment_completed_creates_client_and_starts_onboarding(
 ):
     headers, org_id = await _auth(api_client, sample_org_data)
     email = f"founder-{uuid.uuid4().hex[:6]}@acme.example"
-    proposal_id, _ = await _seed_proposal_with_payment_link(
-        api_client, db_session, headers, monkeypatch, email
-    )
+    proposal_id, _ = await _seed_proposal_with_payment_link(api_client, db_session, headers, monkeypatch, email)
 
     event_id = f"evt_act_{uuid.uuid4().hex[:12]}"
     payload = _fake_stripe_payload(event_id, proposal_id, org_id, email)
 
     from apps.api.routers import webhooks as webhooks_mod
+
     monkeypatch.setattr(
         webhooks_mod,
         "_verify_webhook_with_candidates",
@@ -147,52 +148,49 @@ async def test_payment_completed_creates_client_and_starts_onboarding(
     assert client.total_paid_cents == 150000
 
     # IntakeRequest created, status=sent
-    intake = (
-        await db_session.execute(
-            select(IntakeRequest).where(IntakeRequest.client_id == client.id)
-        )
-    ).scalar_one()
+    intake = (await db_session.execute(select(IntakeRequest).where(IntakeRequest.client_id == client.id))).scalar_one()
     assert intake.status == "sent"
     assert intake.token  # token is populated
     assert intake.sent_at is not None
 
     # Events: client.created + onboarding.started + intake.sent
     event_types = (
-        await db_session.execute(
-            select(SystemEvent.event_type).where(
-                SystemEvent.event_domain == "fulfillment",
-                SystemEvent.organization_id == org_id,
+        (
+            await db_session.execute(
+                select(SystemEvent.event_type).where(
+                    SystemEvent.event_domain == "fulfillment",
+                    SystemEvent.organization_id == org_id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert "client.created" in event_types
     assert "onboarding.started" in event_types
     assert "intake.sent" in event_types
 
     # ClientOnboardingEvent rows
     onb_events = (
-        await db_session.execute(
-            select(ClientOnboardingEvent).where(ClientOnboardingEvent.client_id == client.id)
-        )
-    ).scalars().all()
+        (await db_session.execute(select(ClientOnboardingEvent).where(ClientOnboardingEvent.client_id == client.id)))
+        .scalars()
+        .all()
+    )
     types = {e.event_type for e in onb_events}
     assert "onboarding.started" in types
     assert "intake.sent" in types
 
 
 @pytest.mark.asyncio
-async def test_duplicate_stripe_event_does_not_duplicate_client(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_duplicate_stripe_event_does_not_duplicate_client(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     email = f"dedup-{uuid.uuid4().hex[:6]}@acme.example"
-    proposal_id, _ = await _seed_proposal_with_payment_link(
-        api_client, db_session, headers, monkeypatch, email
-    )
+    proposal_id, _ = await _seed_proposal_with_payment_link(api_client, db_session, headers, monkeypatch, email)
 
     event_id = f"evt_dup_{uuid.uuid4().hex[:12]}"
     payload = _fake_stripe_payload(event_id, proposal_id, org_id, email)
     from apps.api.routers import webhooks as webhooks_mod
+
     monkeypatch.setattr(
         webhooks_mod,
         "_verify_webhook_with_candidates",
@@ -212,128 +210,118 @@ async def test_duplicate_stripe_event_does_not_duplicate_client(
     )
 
     clients = (
-        await db_session.execute(
-            select(Client).where(
-                Client.org_id == org_id,
-                Client.primary_email == email,
+        (
+            await db_session.execute(
+                select(Client).where(
+                    Client.org_id == org_id,
+                    Client.primary_email == email,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(clients) == 1
     intakes = (
-        await db_session.execute(
-            select(IntakeRequest).where(IntakeRequest.client_id == clients[0].id)
-        )
-    ).scalars().all()
+        (await db_session.execute(select(IntakeRequest).where(IntakeRequest.client_id == clients[0].id)))
+        .scalars()
+        .all()
+    )
     assert len(intakes) == 1
 
     # Exactly one client.created event for this org
     evts = (
-        await db_session.execute(
-            select(SystemEvent).where(
-                SystemEvent.event_type == "client.created",
-                SystemEvent.organization_id == org_id,
+        (
+            await db_session.execute(
+                select(SystemEvent).where(
+                    SystemEvent.event_type == "client.created",
+                    SystemEvent.organization_id == org_id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(evts) == 1
 
 
 @pytest.mark.asyncio
-async def test_second_payment_reuses_client_updates_totals(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_second_payment_reuses_client_updates_totals(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     email = f"repeat-{uuid.uuid4().hex[:6]}@acme.example"
-    proposal_id, _ = await _seed_proposal_with_payment_link(
-        api_client, db_session, headers, monkeypatch, email
-    )
+    proposal_id, _ = await _seed_proposal_with_payment_link(api_client, db_session, headers, monkeypatch, email)
 
     # First payment
     from apps.api.routers import webhooks as webhooks_mod
+
     event_id_1 = f"evt_first_{uuid.uuid4().hex[:12]}"
     monkeypatch.setattr(
         webhooks_mod,
         "_verify_webhook_with_candidates",
-        _make_webhook_verify_patcher(
-            _fake_stripe_payload(event_id_1, proposal_id, org_id, email), event_id_1
-        ),
+        _make_webhook_verify_patcher(_fake_stripe_payload(event_id_1, proposal_id, org_id, email), event_id_1),
     )
-    await api_client.post(
-        "/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}"
-    )
+    await api_client.post("/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}")
 
     # Second payment with DIFFERENT event_id (Stripe recurring/renewal case)
     event_id_2 = f"evt_second_{uuid.uuid4().hex[:12]}"
     monkeypatch.setattr(
         webhooks_mod,
         "_verify_webhook_with_candidates",
-        _make_webhook_verify_patcher(
-            _fake_stripe_payload(event_id_2, proposal_id, org_id, email), event_id_2
-        ),
+        _make_webhook_verify_patcher(_fake_stripe_payload(event_id_2, proposal_id, org_id, email), event_id_2),
     )
-    await api_client.post(
-        "/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}"
-    )
+    await api_client.post("/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}")
 
     # One Client, two Payments, client.total_paid_cents == 300000
     clients = (
-        await db_session.execute(
-            select(Client).where(
-                Client.org_id == org_id,
-                Client.primary_email == email,
+        (
+            await db_session.execute(
+                select(Client).where(
+                    Client.org_id == org_id,
+                    Client.primary_email == email,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(clients) == 1
     assert clients[0].total_paid_cents == 300000
 
-    payments = (
-        await db_session.execute(
-            select(Payment).where(Payment.org_id == org_id)
-        )
-    ).scalars().all()
+    payments = (await db_session.execute(select(Payment).where(Payment.org_id == org_id))).scalars().all()
     assert len(payments) == 2
 
     # Only ONE client.created event
     evts = (
-        await db_session.execute(
-            select(SystemEvent).where(
-                SystemEvent.event_type == "client.created",
-                SystemEvent.organization_id == org_id,
+        (
+            await db_session.execute(
+                select(SystemEvent).where(
+                    SystemEvent.event_type == "client.created",
+                    SystemEvent.organization_id == org_id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(evts) == 1
 
 
 @pytest.mark.asyncio
-async def test_intake_public_view_marks_viewed(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_intake_public_view_marks_viewed(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     email = f"view-{uuid.uuid4().hex[:6]}@acme.example"
-    proposal_id, _ = await _seed_proposal_with_payment_link(
-        api_client, db_session, headers, monkeypatch, email
-    )
+    proposal_id, _ = await _seed_proposal_with_payment_link(api_client, db_session, headers, monkeypatch, email)
     event_id = f"evt_view_{uuid.uuid4().hex[:12]}"
     from apps.api.routers import webhooks as webhooks_mod
+
     monkeypatch.setattr(
         webhooks_mod,
         "_verify_webhook_with_candidates",
-        _make_webhook_verify_patcher(
-            _fake_stripe_payload(event_id, proposal_id, org_id, email), event_id
-        ),
+        _make_webhook_verify_patcher(_fake_stripe_payload(event_id, proposal_id, org_id, email), event_id),
     )
-    await api_client.post(
-        "/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}"
-    )
+    await api_client.post("/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}")
 
-    intake = (
-        await db_session.execute(
-            select(IntakeRequest).where(IntakeRequest.org_id == org_id)
-        )
-    ).scalar_one()
+    intake = (await db_session.execute(select(IntakeRequest).where(IntakeRequest.org_id == org_id))).scalar_one()
 
     r = await api_client.get(f"/api/v1/intake/{intake.token}")
     assert r.status_code == 200
@@ -348,32 +336,21 @@ async def test_intake_public_view_marks_viewed(
 
 
 @pytest.mark.asyncio
-async def test_intake_submit_complete_fires_intake_completed(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_intake_submit_complete_fires_intake_completed(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     email = f"submit-{uuid.uuid4().hex[:6]}@acme.example"
-    proposal_id, _ = await _seed_proposal_with_payment_link(
-        api_client, db_session, headers, monkeypatch, email
-    )
+    proposal_id, _ = await _seed_proposal_with_payment_link(api_client, db_session, headers, monkeypatch, email)
     event_id = f"evt_submit_{uuid.uuid4().hex[:12]}"
     from apps.api.routers import webhooks as webhooks_mod
+
     monkeypatch.setattr(
         webhooks_mod,
         "_verify_webhook_with_candidates",
-        _make_webhook_verify_patcher(
-            _fake_stripe_payload(event_id, proposal_id, org_id, email), event_id
-        ),
+        _make_webhook_verify_patcher(_fake_stripe_payload(event_id, proposal_id, org_id, email), event_id),
     )
-    await api_client.post(
-        "/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}"
-    )
+    await api_client.post("/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}")
 
-    intake = (
-        await db_session.execute(
-            select(IntakeRequest).where(IntakeRequest.org_id == org_id)
-        )
-    ).scalar_one()
+    intake = (await db_session.execute(select(IntakeRequest).where(IntakeRequest.org_id == org_id))).scalar_one()
 
     r = await api_client.post(
         f"/api/v1/intake/{intake.token}/submit",
@@ -410,40 +387,27 @@ async def test_intake_submit_complete_fires_intake_completed(
     assert intake.completed_at is not None
 
     sub = (
-        await db_session.execute(
-            select(IntakeSubmission).where(IntakeSubmission.intake_request_id == intake.id)
-        )
+        await db_session.execute(select(IntakeSubmission).where(IntakeSubmission.intake_request_id == intake.id))
     ).scalar_one()
     assert sub.is_complete is True
 
 
 @pytest.mark.asyncio
-async def test_intake_submit_missing_required_stays_open(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_intake_submit_missing_required_stays_open(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     email = f"partial-{uuid.uuid4().hex[:6]}@acme.example"
-    proposal_id, _ = await _seed_proposal_with_payment_link(
-        api_client, db_session, headers, monkeypatch, email
-    )
+    proposal_id, _ = await _seed_proposal_with_payment_link(api_client, db_session, headers, monkeypatch, email)
     event_id = f"evt_partial_{uuid.uuid4().hex[:12]}"
     from apps.api.routers import webhooks as webhooks_mod
+
     monkeypatch.setattr(
         webhooks_mod,
         "_verify_webhook_with_candidates",
-        _make_webhook_verify_patcher(
-            _fake_stripe_payload(event_id, proposal_id, org_id, email), event_id
-        ),
+        _make_webhook_verify_patcher(_fake_stripe_payload(event_id, proposal_id, org_id, email), event_id),
     )
-    await api_client.post(
-        "/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}"
-    )
+    await api_client.post("/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}")
 
-    intake = (
-        await db_session.execute(
-            select(IntakeRequest).where(IntakeRequest.org_id == org_id)
-        )
-    ).scalar_one()
+    intake = (await db_session.execute(select(IntakeRequest).where(IntakeRequest.org_id == org_id))).scalar_one()
 
     r = await api_client.post(
         f"/api/v1/intake/{intake.token}/submit",
@@ -458,13 +422,17 @@ async def test_intake_submit_missing_required_stays_open(
 
     # intake.completed NOT fired
     evts = (
-        await db_session.execute(
-            select(SystemEvent).where(
-                SystemEvent.event_type == "intake.completed",
-                SystemEvent.entity_id == intake.id,
+        (
+            await db_session.execute(
+                select(SystemEvent).where(
+                    SystemEvent.event_type == "intake.completed",
+                    SystemEvent.entity_id == intake.id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(evts) == 0
 
     await db_session.refresh(intake)
@@ -472,26 +440,19 @@ async def test_intake_submit_missing_required_stays_open(
 
 
 @pytest.mark.asyncio
-async def test_get_clients_is_org_scoped(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_get_clients_is_org_scoped(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     email = f"scoped-{uuid.uuid4().hex[:6]}@acme.example"
-    proposal_id, _ = await _seed_proposal_with_payment_link(
-        api_client, db_session, headers, monkeypatch, email
-    )
+    proposal_id, _ = await _seed_proposal_with_payment_link(api_client, db_session, headers, monkeypatch, email)
     event_id = f"evt_scope_{uuid.uuid4().hex[:12]}"
     from apps.api.routers import webhooks as webhooks_mod
+
     monkeypatch.setattr(
         webhooks_mod,
         "_verify_webhook_with_candidates",
-        _make_webhook_verify_patcher(
-            _fake_stripe_payload(event_id, proposal_id, org_id, email), event_id
-        ),
+        _make_webhook_verify_patcher(_fake_stripe_payload(event_id, proposal_id, org_id, email), event_id),
     )
-    await api_client.post(
-        "/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}"
-    )
+    await api_client.post("/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}")
 
     r = await api_client.get("/api/v1/clients", headers=headers)
     assert r.status_code == 200

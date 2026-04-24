@@ -5,6 +5,7 @@ Two entry points:
   2. attribute_revenue_for_content_item: per-item fast path (event-driven, triggered
      by analytics ingestion ~5-6 min after publish)
 """
+
 import logging
 import uuid
 
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 async def _run():
     from apps.api.services.causal_attribution_service import recompute_attribution
+
     async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
     c = 0
@@ -58,9 +60,7 @@ async def _attribute_single_item(content_item_id_str: str):
     cid = uuid.UUID(content_item_id_str)
 
     async with get_async_session_factory()() as db:
-        item = (await db.execute(
-            select(ContentItem).where(ContentItem.id == cid)
-        )).scalar_one_or_none()
+        item = (await db.execute(select(ContentItem).where(ContentItem.id == cid))).scalar_one_or_none()
         if not item:
             return {"skipped": True, "reason": "content_item_not_found"}
 

@@ -10,6 +10,7 @@ No .env fallback — dashboard/provider config is the source of truth.
 If SMTP/IMAP credentials are missing from integration_providers, the task
 skips with a structured log and does not fall back to environment variables.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -38,6 +39,7 @@ def _run_async(coro):
         loop = asyncio.get_event_loop()
         if loop.is_running():
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 return pool.submit(run_async, coro).result()
         return loop.run_until_complete(coro)
@@ -71,13 +73,18 @@ async def _get_smtp_credentials(db, org_id: uuid.UUID) -> dict:
 
     configured = bool(host and username and password)
     if not configured:
-        logger.warning("outreach.smtp_not_configured",
-                       org_id=str(org_id),
-                       hint="Add SMTP credentials via Settings > Integrations (provider_key='smtp')")
+        logger.warning(
+            "outreach.smtp_not_configured",
+            org_id=str(org_id),
+            hint="Add SMTP credentials via Settings > Integrations (provider_key='smtp')",
+        )
 
     return {
-        "host": host, "port": port, "username": username,
-        "password": password, "from_email": from_email,
+        "host": host,
+        "port": port,
+        "username": username,
+        "password": password,
+        "from_email": from_email,
         "reply_to": reply_to,
         "configured": configured,
     }
@@ -102,19 +109,27 @@ async def _get_imap_credentials(db, org_id: uuid.UUID) -> dict:
 
     configured = bool(host and username and password)
     if not configured:
-        logger.warning("outreach.imap_not_configured",
-                       org_id=str(org_id),
-                       hint="Add IMAP credentials via Settings > Integrations (provider_key='imap')")
+        logger.warning(
+            "outreach.imap_not_configured",
+            org_id=str(org_id),
+            hint="Add IMAP credentials via Settings > Integrations (provider_key='imap')",
+        )
 
     return {
-        "host": host, "port": port, "username": username,
-        "password": password, "configured": configured,
+        "host": host,
+        "port": port,
+        "username": username,
+        "password": password,
+        "configured": configured,
     }
 
 
 async def _send_smtp_email(
-    smtp_creds: dict, to_email: str, subject: str,
-    body_html: str, body_text: str = "",
+    smtp_creds: dict,
+    to_email: str,
+    subject: str,
+    body_html: str,
+    body_text: str = "",
 ) -> dict:
     """Send an email via SMTP. Uses aiosmtplib (same as EmailAdapter)."""
     from email.mime.multipart import MIMEMultipart
@@ -123,7 +138,10 @@ async def _send_smtp_email(
     import aiosmtplib
 
     if not smtp_creds.get("configured"):
-        return {"success": False, "error": "SMTP not configured — add credentials via Settings > Integrations (provider_key='smtp')"}
+        return {
+            "success": False,
+            "error": "SMTP not configured — add credentials via Settings > Integrations (provider_key='smtp')",
+        }
 
     msg = MIMEMultipart("alternative")
     msg["From"] = smtp_creds["from_email"]
@@ -171,6 +189,7 @@ async def _send_smtp_email(
 def _text_to_html(text: str) -> str:
     """Convert plain text to simple HTML."""
     import html as html_mod
+
     escaped = html_mod.escape(text)
     paragraphs = escaped.split("\n\n")
     html_parts = []
@@ -194,17 +213,17 @@ async def _send_outreach_email_impl(outreach_id: str, brand_id: str, org_id: str
 
     async with get_async_session_factory()() as db:
         # Load outreach sequence record
-        outreach = (await db.execute(
-            select(SponsorOutreachSequence).where(SponsorOutreachSequence.id == outreach_uuid)
-        )).scalar_one_or_none()
+        outreach = (
+            await db.execute(select(SponsorOutreachSequence).where(SponsorOutreachSequence.id == outreach_uuid))
+        ).scalar_one_or_none()
 
         if not outreach:
             return {"error": f"Outreach record {outreach_id} not found"}
 
         # Load the sponsor target
-        target = (await db.execute(
-            select(SponsorTarget).where(SponsorTarget.id == outreach.sponsor_target_id)
-        )).scalar_one_or_none()
+        target = (
+            await db.execute(select(SponsorTarget).where(SponsorTarget.id == outreach.sponsor_target_id))
+        ).scalar_one_or_none()
 
         if not target:
             return {"error": f"Sponsor target not found for outreach {outreach_id}"}
@@ -232,7 +251,8 @@ async def _send_outreach_email_impl(outreach_id: str, brand_id: str, org_id: str
         if not autonomous_send or confidence < 0.7:
             # Gate: create OperatorAction for review instead of sending
             action = await emit_action(
-                db, org_id=org_uuid,
+                db,
+                org_id=org_uuid,
                 action_type="send_outreach_email",
                 title=f"Review & Send: {subject[:60]}",
                 description=f"To: {to_email}. Outreach to {target.target_company_name}. Confidence: {confidence:.0%}",
@@ -287,9 +307,12 @@ async def _send_outreach_email_impl(outreach_id: str, brand_id: str, org_id: str
 
         # Emit event
         await emit_event(
-            db, domain="outreach", event_type="outreach.email_sent",
+            db,
+            domain="outreach",
+            event_type="outreach.email_sent",
             summary=f"Outreach sent to {to_email} ({target.target_company_name})",
-            org_id=org_uuid, brand_id=brand_uuid,
+            org_id=org_uuid,
+            brand_id=brand_uuid,
             details={
                 "outreach_id": outreach_id,
                 "to_email": to_email,
@@ -328,16 +351,16 @@ async def _send_follow_up_impl(outreach_id: str, sequence_step: int, org_id: str
     outreach_uuid = uuid.UUID(outreach_id)
 
     async with get_async_session_factory()() as db:
-        outreach = (await db.execute(
-            select(SponsorOutreachSequence).where(SponsorOutreachSequence.id == outreach_uuid)
-        )).scalar_one_or_none()
+        outreach = (
+            await db.execute(select(SponsorOutreachSequence).where(SponsorOutreachSequence.id == outreach_uuid))
+        ).scalar_one_or_none()
 
         if not outreach:
             return {"error": f"Outreach record {outreach_id} not found"}
 
-        target = (await db.execute(
-            select(SponsorTarget).where(SponsorTarget.id == outreach.sponsor_target_id)
-        )).scalar_one_or_none()
+        target = (
+            await db.execute(select(SponsorTarget).where(SponsorTarget.id == outreach.sponsor_target_id))
+        ).scalar_one_or_none()
 
         if not target:
             return {"error": "Sponsor target not found"}
@@ -399,7 +422,9 @@ async def _send_follow_up_impl(outreach_id: str, sequence_step: int, org_id: str
             )
 
         await emit_event(
-            db, domain="outreach", event_type="outreach.follow_up_sent",
+            db,
+            domain="outreach",
+            event_type="outreach.follow_up_sent",
             summary=f"Follow-up #{sequence_step + 1} sent to {to_email} ({target.target_company_name})",
             org_id=org_uuid,
             details={
@@ -509,7 +534,8 @@ async def _poll_inbox_impl(org_id: str) -> dict:
 
                     # Ingest the reply — classify it, match to deals, advance stages
                     await ingest_reply(
-                        db, org_uuid,
+                        db,
+                        org_uuid,
                         sender_email=sender,
                         subject=subject,
                         body=body,
@@ -551,7 +577,11 @@ async def _poll_inbox_impl(org_id: str) -> dict:
 
 
 async def _match_reply_to_outreach(
-    db, org_uuid: uuid.UUID, sender: str, subject: str, body: str,
+    db,
+    org_uuid: uuid.UUID,
+    sender: str,
+    subject: str,
+    body: str,
 ) -> None:
     """Try to match an incoming reply to a SponsorOutreachSequence record.
 
@@ -562,11 +592,17 @@ async def _match_reply_to_outreach(
     from packages.db.models.expansion_pack2_phase_c import SponsorOutreachSequence, SponsorTarget
 
     # Find sponsor targets whose contact email matches the sender
-    targets = (await db.execute(
-        select(SponsorTarget).where(
-            SponsorTarget.is_active.is_(True),
+    targets = (
+        (
+            await db.execute(
+                select(SponsorTarget).where(
+                    SponsorTarget.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     matched_target = None
     for t in targets:
@@ -579,12 +615,18 @@ async def _match_reply_to_outreach(
         return
 
     # Find active outreach sequences for this target
-    sequences = (await db.execute(
-        select(SponsorOutreachSequence).where(
-            SponsorOutreachSequence.sponsor_target_id == matched_target.id,
-            SponsorOutreachSequence.is_active.is_(True),
+    sequences = (
+        (
+            await db.execute(
+                select(SponsorOutreachSequence).where(
+                    SponsorOutreachSequence.sponsor_target_id == matched_target.id,
+                    SponsorOutreachSequence.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     if not sequences:
         return
@@ -604,7 +646,9 @@ async def _match_reply_to_outreach(
                 break
 
     await emit_event(
-        db, domain="outreach", event_type="outreach.reply_received",
+        db,
+        domain="outreach",
+        event_type="outreach.reply_received",
         summary=f"Reply from {sender} matched to {matched_target.target_company_name}: {classification['classification']}",
         org_id=org_uuid,
         details={
@@ -670,21 +714,30 @@ async def _execute_closer_actions_impl() -> dict:
 
     async with async_session_factory() as db:
         # Get all pending closer actions
-        actions = (await db.execute(
-            select(CloserAction).where(
-                CloserAction.is_active.is_(True),
-                CloserAction.is_completed.is_(False),
-            ).order_by(CloserAction.priority.asc()).limit(50)
-        )).scalars().all()
+        actions = (
+            (
+                await db.execute(
+                    select(CloserAction)
+                    .where(
+                        CloserAction.is_active.is_(True),
+                        CloserAction.is_completed.is_(False),
+                    )
+                    .order_by(CloserAction.priority.asc())
+                    .limit(50)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         for ca in actions:
             try:
                 # Load the associated lead to get contact info
                 lead = None
                 if ca.lead_opportunity_id:
-                    lead = (await db.execute(
-                        select(LeadOpportunity).where(LeadOpportunity.id == ca.lead_opportunity_id)
-                    )).scalar_one_or_none()
+                    lead = (
+                        await db.execute(select(LeadOpportunity).where(LeadOpportunity.id == ca.lead_opportunity_id))
+                    ).scalar_one_or_none()
 
                 if not lead:
                     skipped += 1
@@ -712,13 +765,14 @@ async def _execute_closer_actions_impl() -> dict:
                         if result.get("sent"):
                             ca.is_completed = True
                             sent += 1
-                            log.info("closer_action.email_sent",
-                                     lead_id=str(ca.lead_opportunity_id),
-                                     to=contact_info["email"])
+                            log.info(
+                                "closer_action.email_sent",
+                                lead_id=str(ca.lead_opportunity_id),
+                                to=contact_info["email"],
+                            )
                         else:
                             failed += 1
-                            log.warning("closer_action.email_failed",
-                                        error=result.get("error", "unknown"))
+                            log.warning("closer_action.email_failed", error=result.get("error", "unknown"))
                     else:
                         skipped += 1
 
@@ -733,8 +787,7 @@ async def _execute_closer_actions_impl() -> dict:
                         if result.get("sent"):
                             ca.is_completed = True
                             sent += 1
-                            log.info("closer_action.sms_sent",
-                                     lead_id=str(ca.lead_opportunity_id))
+                            log.info("closer_action.sms_sent", lead_id=str(ca.lead_opportunity_id))
                         else:
                             failed += 1
                     else:
@@ -743,8 +796,7 @@ async def _execute_closer_actions_impl() -> dict:
                     skipped += 1
 
             except Exception as e:
-                log.warning("closer_action.execution_error",
-                            action_id=str(ca.id), error=str(e))
+                log.warning("closer_action.execution_error", action_id=str(ca.id), error=str(e))
                 failed += 1
 
         await db.commit()
@@ -776,9 +828,9 @@ def _build_closer_email_body(ca, lead, contact_info: dict) -> str:
 
     return f"""<p>Hi {name},</p>
 
-<p>Thank you for your interest{company_line}. {ca.rationale or 'We wanted to follow up on your recent inquiry.'}</p>
+<p>Thank you for your interest{company_line}. {ca.rationale or "We wanted to follow up on your recent inquiry."}</p>
 
-<p>{ca.expected_outcome or 'We would love to discuss how we can help you achieve your goals.'}</p>
+<p>{ca.expected_outcome or "We would love to discuss how we can help you achieve your goals."}</p>
 
 <p>Looking forward to connecting.</p>
 

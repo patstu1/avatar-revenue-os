@@ -1,4 +1,5 @@
 """Autonomous execution control plane — policies, runs, blocker escalations."""
+
 from __future__ import annotations
 
 import uuid
@@ -262,9 +263,7 @@ async def update_run_status(
     return _run_out(run)
 
 
-async def mark_run_rollback(
-    db: AsyncSession, brand_id: uuid.UUID, run_id: uuid.UUID
-) -> dict[str, Any]:
+async def mark_run_rollback(db: AsyncSession, brand_id: uuid.UUID, run_id: uuid.UUID) -> dict[str, Any]:
     run = (
         await db.execute(
             select(AutomationExecutionRun).where(

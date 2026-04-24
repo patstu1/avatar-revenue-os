@@ -1,4 +1,5 @@
 """Brand Governance OS — governance, voices, knowledge, editorial, assets."""
+
 import uuid
 from typing import Optional
 
@@ -42,7 +43,9 @@ class BrandKnowledgeBase(Base):
 
 class BrandKnowledgeDocument(Base):
     __tablename__ = "bg_knowledge_docs"
-    knowledge_base_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bg_knowledge_bases.id"), nullable=False, index=True)
+    knowledge_base_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("bg_knowledge_bases.id"), nullable=False, index=True
+    )
     doc_type: Mapped[str] = mapped_column(String(40), nullable=False)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -96,7 +99,9 @@ class BrandStyleToken(Base):
 class BrandGovernanceViolation(Base):
     __tablename__ = "bg_violations"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
     violation_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     rule_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     severity: Mapped[str] = mapped_column(String(20), default="hard")
@@ -107,7 +112,9 @@ class BrandGovernanceViolation(Base):
 class BrandGovernanceApproval(Base):
     __tablename__ = "bg_approvals"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
     approved_by: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     approval_status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

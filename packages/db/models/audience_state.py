@@ -1,4 +1,5 @@
 """Audience state machine: reports per segment and state-transition events."""
+
 import uuid
 from typing import Optional
 
@@ -12,12 +13,8 @@ from packages.db.base import Base
 class AudienceStateReport(Base):
     __tablename__ = "audience_state_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
-    audience_segment_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
+    audience_segment_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     state_name: Mapped[str] = mapped_column(String(100), nullable=False)
     state_score: Mapped[float] = mapped_column(Float, default=0.0)
     transition_probabilities_json: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
@@ -30,12 +27,8 @@ class AudienceStateReport(Base):
 class AudienceStateEvent(Base):
     __tablename__ = "audience_state_events"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
-    audience_segment_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
+    audience_segment_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     from_state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     to_state: Mapped[str] = mapped_column(String(100), nullable=False)
     trigger_reason_json: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)

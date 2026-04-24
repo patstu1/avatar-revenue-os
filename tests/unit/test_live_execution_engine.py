@@ -12,6 +12,7 @@ from packages.scoring.live_execution_engine import (
 
 # ── classify_analytics_source ──────────────────────────────────────────
 
+
 class TestClassifyAnalyticsSource:
     def test_buffer_is_social(self):
         assert classify_analytics_source("buffer_analytics") == "social"
@@ -64,6 +65,7 @@ class TestClassifyAnalyticsSource:
 
 # ── reconcile_truth ────────────────────────────────────────────────────
 
+
 class TestReconcileTruth:
     def test_live_import_beats_proxy(self):
         assert reconcile_truth("synthetic_proxy", "live_import") == "live_import"
@@ -86,6 +88,7 @@ class TestReconcileTruth:
 
 # ── compute_import_summary ─────────────────────────────────────────────
 
+
 class TestComputeImportSummary:
     def test_all_new(self):
         events = [{"external_post_id": "a"}, {"external_post_id": "b"}]
@@ -106,6 +109,7 @@ class TestComputeImportSummary:
 
 
 # ── derive_experiment_truth ────────────────────────────────────────────
+
 
 class TestDeriveExperimentTruth:
     def test_live_with_large_sample(self):
@@ -132,6 +136,7 @@ class TestDeriveExperimentTruth:
 
 
 # ── detect_messaging_blockers ──────────────────────────────────────────
+
 
 class TestDetectMessagingBlockers:
     def test_all_missing(self):
@@ -177,84 +182,59 @@ class TestDetectMessagingBlockers:
 
 # ── validate_email_send ────────────────────────────────────────────────
 
+
 class TestValidateEmailSend:
     def test_valid_smtp(self):
         result = validate_email_send(
-            {"to_email": "a@b.com", "subject": "Hi", "body_text": "Hello"},
-            {"has_smtp_config": True}
+            {"to_email": "a@b.com", "subject": "Hi", "body_text": "Hello"}, {"has_smtp_config": True}
         )
         assert result["valid"] is True
 
     def test_valid_esp(self):
         result = validate_email_send(
-            {"to_email": "a@b.com", "subject": "Hi", "template_id": "tmpl_1"},
-            {"has_esp_api_key": True}
+            {"to_email": "a@b.com", "subject": "Hi", "template_id": "tmpl_1"}, {"has_esp_api_key": True}
         )
         assert result["valid"] is True
 
     def test_no_provider(self):
-        result = validate_email_send(
-            {"to_email": "a@b.com", "subject": "Hi", "body_text": "Hello"},
-            {}
-        )
+        result = validate_email_send({"to_email": "a@b.com", "subject": "Hi", "body_text": "Hello"}, {})
         assert result["valid"] is False
 
     def test_missing_email(self):
-        result = validate_email_send(
-            {"to_email": "", "subject": "Hi", "body_text": "Hello"},
-            {"has_smtp_config": True}
-        )
+        result = validate_email_send({"to_email": "", "subject": "Hi", "body_text": "Hello"}, {"has_smtp_config": True})
         assert result["valid"] is False
 
     def test_missing_subject(self):
         result = validate_email_send(
-            {"to_email": "a@b.com", "subject": "", "body_text": "Hello"},
-            {"has_smtp_config": True}
+            {"to_email": "a@b.com", "subject": "", "body_text": "Hello"}, {"has_smtp_config": True}
         )
         assert result["valid"] is False
 
     def test_missing_body_and_template(self):
-        result = validate_email_send(
-            {"to_email": "a@b.com", "subject": "Hi"},
-            {"has_smtp_config": True}
-        )
+        result = validate_email_send({"to_email": "a@b.com", "subject": "Hi"}, {"has_smtp_config": True})
         assert result["valid"] is False
 
 
 # ── validate_sms_send ──────────────────────────────────────────────────
 
+
 class TestValidateSmsSend:
     def test_valid(self):
-        result = validate_sms_send(
-            {"to_phone": "+1234567890", "message_body": "Hello"},
-            {"has_sms_api_key": True}
-        )
+        result = validate_sms_send({"to_phone": "+1234567890", "message_body": "Hello"}, {"has_sms_api_key": True})
         assert result["valid"] is True
 
     def test_no_api_key(self):
-        result = validate_sms_send(
-            {"to_phone": "+1234567890", "message_body": "Hello"},
-            {}
-        )
+        result = validate_sms_send({"to_phone": "+1234567890", "message_body": "Hello"}, {})
         assert result["valid"] is False
 
     def test_missing_phone(self):
-        result = validate_sms_send(
-            {"to_phone": "", "message_body": "Hello"},
-            {"has_sms_api_key": True}
-        )
+        result = validate_sms_send({"to_phone": "", "message_body": "Hello"}, {"has_sms_api_key": True})
         assert result["valid"] is False
 
     def test_missing_body(self):
-        result = validate_sms_send(
-            {"to_phone": "+1234567890", "message_body": ""},
-            {"has_sms_api_key": True}
-        )
+        result = validate_sms_send({"to_phone": "+1234567890", "message_body": ""}, {"has_sms_api_key": True})
         assert result["valid"] is False
 
     def test_body_too_long(self):
-        result = validate_sms_send(
-            {"to_phone": "+1234567890", "message_body": "X" * 1601},
-            {"has_sms_api_key": True}
-        )
+        result = validate_sms_send({"to_phone": "+1234567890", "message_body": "X" * 1601}, {"has_sms_api_key": True})
         assert result["valid"] is False

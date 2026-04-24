@@ -6,7 +6,6 @@ keyword-driven scoring formulas, and the cross-function qualification pipeline
 from a product / integration perspective.
 """
 
-
 from packages.scoring.expansion_pack2_phase_a_engines import (
     detect_offer_opportunities,
     generate_closer_actions,
@@ -16,6 +15,7 @@ from packages.scoring.expansion_pack2_phase_a_engines import (
 # ---------------------------------------------------------------------------
 # End-to-end lead qualification pipeline
 # ---------------------------------------------------------------------------
+
 
 def test_lead_qualification_full_pipeline():
     """score_lead followed by generate_closer_actions must produce a hot tier
@@ -35,9 +35,7 @@ def test_lead_qualification_full_pipeline():
         0.12,
         8,
     )
-    assert r["qualification_tier"] == "hot", (
-        f"Expected hot tier; composite={r['composite_score']:.3f}"
-    )
+    assert r["qualification_tier"] == "hot", f"Expected hot tier; composite={r['composite_score']:.3f}"
 
     actions = generate_closer_actions(
         r["qualification_tier"],
@@ -54,18 +52,14 @@ def test_lead_qualification_full_pipeline():
 
     # At least one action should be a discovery-call or booking step
     action_types = [a["action_type"] for a in actions]
-    booking_actions = [
-        t for t in action_types
-        if any(kw in t for kw in ("book", "discovery", "call"))
-    ]
-    assert len(booking_actions) >= 1, (
-        f"No booking/discovery action found; action_types present: {action_types}"
-    )
+    booking_actions = [t for t in action_types if any(kw in t for kw in ("book", "discovery", "call"))]
+    assert len(booking_actions) >= 1, f"No booking/discovery action found; action_types present: {action_types}"
 
 
 # ---------------------------------------------------------------------------
 # Offer opportunity — signal pattern detection
 # ---------------------------------------------------------------------------
+
 
 def test_offer_opportunity_repeated_question_pattern():
     """Comment themes that are clearly repeated how-to questions must surface at
@@ -82,9 +76,7 @@ def test_offer_opportunity_repeated_question_pattern():
         avg_monthly_revenue=3_000.0,
     )
     signal_types = [r["signal_type"] for r in result]
-    assert "repeated_question" in signal_types, (
-        f"'repeated_question' not found; signal_types present: {signal_types}"
-    )
+    assert "repeated_question" in signal_types, f"'repeated_question' not found; signal_types present: {signal_types}"
 
 
 def test_offer_opportunity_manual_request_template_detection():
@@ -105,8 +97,7 @@ def test_offer_opportunity_manual_request_template_detection():
     signal_types = [r["signal_type"] for r in result]
     target = {"manual_request_pattern", "repeated_question"}
     assert any(st in target for st in signal_types), (
-        f"Neither 'manual_request_pattern' nor 'repeated_question' found; "
-        f"signal_types present: {signal_types}"
+        f"Neither 'manual_request_pattern' nor 'repeated_question' found; signal_types present: {signal_types}"
     )
 
 
@@ -160,14 +151,13 @@ def test_offer_opportunity_membership_trigger():
         avg_monthly_revenue=4_000.0,
     )
     offer_types = [r["recommended_offer_type"] for r in result]
-    assert "membership" in offer_types, (
-        f"'membership' not found; recommended_offer_types present: {offer_types}"
-    )
+    assert "membership" in offer_types, f"'membership' not found; recommended_offer_types present: {offer_types}"
 
 
 # ---------------------------------------------------------------------------
 # Lead scoring — keyword-driven sub-scores
 # ---------------------------------------------------------------------------
+
 
 def test_lead_scoring_budget_keywords_raise_budget_score():
     """A message containing explicit budget-intent keywords must produce a higher
@@ -203,14 +193,14 @@ def test_lead_scoring_sophistication_keywords():
         3,
     )
     assert r["sophistication_score"] >= 0.3, (
-        f"sophistication_score={r['sophistication_score']:.3f} < 0.3 "
-        f"for message with explicit sophistication keywords"
+        f"sophistication_score={r['sophistication_score']:.3f} < 0.3 for message with explicit sophistication keywords"
     )
 
 
 # ---------------------------------------------------------------------------
 # Closer actions — tier-specific playbook paths
 # ---------------------------------------------------------------------------
+
 
 def test_closer_actions_warm_lead_nurture_path():
     """A warm lead arriving via email should receive at least one nurture-type
@@ -228,9 +218,7 @@ def test_closer_actions_warm_lead_nurture_path():
     )
     action_types = {a["action_type"] for a in actions}
     nurture_types = {"send_case_study", "send_testimonials", "follow_up_chat"}
-    assert action_types & nurture_types, (
-        f"No nurture action found; action_types present: {action_types}"
-    )
+    assert action_types & nurture_types, f"No nurture action found; action_types present: {action_types}"
 
 
 def test_closer_action_opener_contains_niche():
@@ -251,14 +239,13 @@ def test_closer_action_opener_contains_niche():
     # Sort by priority to ensure we're inspecting the priority-1 action
     sorted_actions = sorted(actions, key=lambda a: a["priority"])
     opener = sorted_actions[0]["subject_or_opener"].lower()
-    assert "finance" in opener, (
-        f"Niche 'finance' not found in first action opener: '{opener}'"
-    )
+    assert "finance" in opener, f"Niche 'finance' not found in first action opener: '{opener}'"
 
 
 # ---------------------------------------------------------------------------
 # Source-channel effect on lead scores
 # ---------------------------------------------------------------------------
+
 
 def test_lead_call_booked_source_boosts_scores():
     """A call_booked lead must have urgency_score and trust_readiness_score that

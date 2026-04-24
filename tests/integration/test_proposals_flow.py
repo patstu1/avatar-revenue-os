@@ -16,6 +16,7 @@ Covers:
      PaymentLink completed, emits payment.completed.
   8. Stripe webhook idempotency — same event_id twice → one Payment row.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -41,9 +42,7 @@ async def _auth(api_client, sample_org_data) -> tuple[dict, uuid.UUID]:
 
 
 @pytest.mark.asyncio
-async def test_create_proposal_persists_rows_and_emits_event(
-    api_client, db_session, sample_org_data
-):
+async def test_create_proposal_persists_rows_and_emits_event(api_client, db_session, sample_org_data):
     headers, org_id = await _auth(api_client, sample_org_data)
 
     resp = await api_client.post(
@@ -79,21 +78,23 @@ async def test_create_proposal_persists_rows_and_emits_event(
     proposal_id = uuid.UUID(body["id"])
 
     # DB: proposal row
-    proposal = (
-        await db_session.execute(select(Proposal).where(Proposal.id == proposal_id))
-    ).scalar_one()
+    proposal = (await db_session.execute(select(Proposal).where(Proposal.id == proposal_id))).scalar_one()
     assert proposal.org_id == org_id
     assert proposal.total_amount_cents == 200000
     assert proposal.status == "draft"
 
     # DB: two line items
     items = (
-        await db_session.execute(
-            select(ProposalLineItem)
-            .where(ProposalLineItem.proposal_id == proposal.id)
-            .order_by(ProposalLineItem.position)
+        (
+            await db_session.execute(
+                select(ProposalLineItem)
+                .where(ProposalLineItem.proposal_id == proposal.id)
+                .order_by(ProposalLineItem.position)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(items) == 2
     assert items[0].unit_amount_cents == 150000
     assert items[1].unit_amount_cents == 50000
@@ -114,9 +115,7 @@ async def test_create_proposal_persists_rows_and_emits_event(
 
 
 @pytest.mark.asyncio
-async def test_add_line_item_updates_proposal_total(
-    api_client, db_session, sample_org_data
-):
+async def test_add_line_item_updates_proposal_total(api_client, db_session, sample_org_data):
     headers, _org_id = await _auth(api_client, sample_org_data)
     create = await api_client.post(
         "/api/v1/proposals",
@@ -124,9 +123,7 @@ async def test_add_line_item_updates_proposal_total(
         json={
             "recipient_email": "founder@acme.example",
             "title": "Custom pilot",
-            "line_items": [
-                {"description": "Pilot sprint", "unit_amount_cents": 100000}
-            ],
+            "line_items": [{"description": "Pilot sprint", "unit_amount_cents": 100000}],
         },
     )
     pid = create.json()["id"]
@@ -143,16 +140,12 @@ async def test_add_line_item_updates_proposal_total(
     assert resp.status_code == 201, resp.text
     assert resp.json()["total_amount_cents"] == 50000
 
-    proposal = (
-        await db_session.execute(select(Proposal).where(Proposal.id == uuid.UUID(pid)))
-    ).scalar_one()
+    proposal = (await db_session.execute(select(Proposal).where(Proposal.id == uuid.UUID(pid)))).scalar_one()
     assert proposal.total_amount_cents == 150000  # 100k + 2 * 25k
 
 
 @pytest.mark.asyncio
-async def test_send_proposal_transitions_state_and_emits_event(
-    api_client, db_session, sample_org_data
-):
+async def test_send_proposal_transitions_state_and_emits_event(api_client, db_session, sample_org_data):
     headers, _ = await _auth(api_client, sample_org_data)
     create = await api_client.post(
         "/api/v1/proposals",
@@ -183,9 +176,7 @@ async def test_send_proposal_transitions_state_and_emits_event(
 
 
 @pytest.mark.asyncio
-async def test_create_payment_link_persists_row_and_emits_event(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_create_payment_link_persists_row_and_emits_event(api_client, db_session, sample_org_data, monkeypatch):
     # Bypass real Stripe — return a fake successful link create result.
     async def _fake_create_link(**kwargs):
         return {
@@ -194,6 +185,7 @@ async def test_create_payment_link_persists_row_and_emits_event(
         }
 
     from apps.api.services import stripe_billing_service
+
     monkeypatch.setattr(stripe_billing_service, "create_payment_link", _fake_create_link)
 
     headers, org_id = await _auth(api_client, sample_org_data)
@@ -219,11 +211,7 @@ async def test_create_payment_link_persists_row_and_emits_event(
     assert body["url"].startswith("https://checkout.stripe.com")
     assert body["provider_link_id"] == "plink_test_fake123"
 
-    link = (
-        await db_session.execute(
-            select(PaymentLink).where(PaymentLink.id == uuid.UUID(body["id"]))
-        )
-    ).scalar_one()
+    link = (await db_session.execute(select(PaymentLink).where(PaymentLink.id == uuid.UUID(body["id"])))).scalar_one()
     assert link.proposal_id == uuid.UUID(pid)
     assert link.status == "active"
 
@@ -314,11 +302,10 @@ async def test_stripe_webhook_writes_payment_and_transitions_proposal(
         return {"url": "https://checkout.stripe.com/cs_webhook_test", "id": "plink_wh_test"}
 
     from apps.api.services import stripe_billing_service
+
     monkeypatch.setattr(stripe_billing_service, "create_payment_link", _fake_create_link)
 
-    link_resp = await api_client.post(
-        f"/api/v1/proposals/{pid_str}/payment-link", headers=headers, json={}
-    )
+    link_resp = await api_client.post(f"/api/v1/proposals/{pid_str}/payment-link", headers=headers, json={})
     payment_link_id = uuid.UUID(link_resp.json()["id"])
 
     # Bypass Stripe signature verification — return a valid result dict.
@@ -363,6 +350,7 @@ async def test_stripe_webhook_writes_payment_and_transitions_proposal(
         }, None
 
     from apps.api.routers import webhooks as webhooks_mod
+
     monkeypatch.setattr(webhooks_mod, "_verify_webhook_with_candidates", _fake_verify)
 
     # Fire the webhook
@@ -390,20 +378,12 @@ async def test_stripe_webhook_writes_payment_and_transitions_proposal(
     assert payment.customer_email == "paying-customer@acme.example"
 
     # Proposal transitioned
-    proposal = (
-        await db_session.execute(
-            select(Proposal).where(Proposal.id == uuid.UUID(pid_str))
-        )
-    ).scalar_one()
+    proposal = (await db_session.execute(select(Proposal).where(Proposal.id == uuid.UUID(pid_str)))).scalar_one()
     assert proposal.status == "paid"
     assert proposal.paid_at is not None
 
     # PaymentLink marked completed
-    link = (
-        await db_session.execute(
-            select(PaymentLink).where(PaymentLink.id == payment_link_id)
-        )
-    ).scalar_one()
+    link = (await db_session.execute(select(PaymentLink).where(PaymentLink.id == payment_link_id))).scalar_one()
     assert link.status == "completed"
     assert link.completed_at is not None
 
@@ -423,9 +403,7 @@ async def test_stripe_webhook_writes_payment_and_transitions_proposal(
 
 
 @pytest.mark.asyncio
-async def test_stripe_webhook_payment_is_idempotent_on_event_id(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_stripe_webhook_payment_is_idempotent_on_event_id(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
 
     create = await api_client.post(
@@ -462,6 +440,7 @@ async def test_stripe_webhook_payment_is_idempotent_on_event_id(
         }, None
 
     from apps.api.routers import webhooks as webhooks_mod
+
     monkeypatch.setattr(webhooks_mod, "_verify_webhook_with_candidates", _fake_verify)
 
     # POST twice with the same event_id
@@ -482,11 +461,15 @@ async def test_stripe_webhook_payment_is_idempotent_on_event_id(
 
     # Only one Payment row
     payments = (
-        await db_session.execute(
-            select(Payment).where(
-                Payment.provider == "stripe",
-                Payment.provider_event_id == event_id,
+        (
+            await db_session.execute(
+                select(Payment).where(
+                    Payment.provider == "stripe",
+                    Payment.provider_event_id == event_id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(payments) == 1

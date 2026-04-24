@@ -1,4 +1,5 @@
 """Schemas for the Control Layer — the operator's primary command surface."""
+
 from datetime import datetime
 from typing import Optional
 
@@ -7,6 +8,7 @@ from pydantic import BaseModel
 
 class SystemHealthResponse(BaseModel):
     """Real-time system health for the control layer."""
+
     # Entity counts
     total_brands: int = 0
     total_accounts: int = 0
@@ -102,6 +104,7 @@ class SystemEventList(BaseModel):
 
 class ControlLayerDashboard(BaseModel):
     """The complete control layer response — everything the operator needs."""
+
     health: SystemHealthResponse
     pending_actions: list[OperatorActionResponse] = []
     recent_events: list[SystemEventResponse] = []

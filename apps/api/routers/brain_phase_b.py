@@ -1,4 +1,5 @@
 """Brain Architecture Phase B — decisions, policies, confidence, cost/upside, arbitration APIs."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -28,7 +29,9 @@ async def _require_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
 
 @router.get("/{brand_id}/brain-decisions", response_model=list[BrainDecisionOut])
 async def list_brain_decisions(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -42,7 +45,9 @@ async def list_brain_decisions(
 
 @router.post("/{brand_id}/brain-decisions/recompute", response_model=RecomputeSummaryOut)
 async def recompute_brain_decisions(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -64,7 +69,9 @@ async def recompute_brain_decisions(
 
 @router.get("/{brand_id}/policy-evaluations", response_model=list[PolicyEvaluationOut])
 async def list_policy_evaluations(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -78,7 +85,9 @@ async def list_policy_evaluations(
 
 @router.get("/{brand_id}/confidence-reports", response_model=list[ConfidenceReportOut])
 async def list_confidence_reports(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -92,7 +101,9 @@ async def list_confidence_reports(
 
 @router.get("/{brand_id}/upside-cost-estimates", response_model=list[UpsideCostEstimateOut])
 async def list_upside_cost_estimates(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -106,7 +117,9 @@ async def list_upside_cost_estimates(
 
 @router.get("/{brand_id}/arbitration-reports", response_model=list[ArbitrationReportOut])
 async def list_arbitration_reports(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)

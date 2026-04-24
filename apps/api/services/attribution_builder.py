@@ -6,6 +6,7 @@ Two strategies:
 
 Used by the publishing pipeline to inject monetization context into captions.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -108,22 +109,17 @@ async def select_offer_for_publish(
     3. Use weighted random selection (rotation_weight field)
     """
     # First try: specific revenue assignments
-    assignment_query = (
-        select(RevenueAssignment)
-        .where(
-            RevenueAssignment.brand_id == brand_id,
-            RevenueAssignment.is_active.is_(True),
-        )
+    assignment_query = select(RevenueAssignment).where(
+        RevenueAssignment.brand_id == brand_id,
+        RevenueAssignment.is_active.is_(True),
     )
     if account_id:
         assignment_query = assignment_query.where(
-            (RevenueAssignment.creator_account_id == account_id)
-            | (RevenueAssignment.creator_account_id.is_(None))
+            (RevenueAssignment.creator_account_id == account_id) | (RevenueAssignment.creator_account_id.is_(None))
         )
     if platform:
         assignment_query = assignment_query.where(
-            (RevenueAssignment.platform == platform)
-            | (RevenueAssignment.platform.is_(None))
+            (RevenueAssignment.platform == platform) | (RevenueAssignment.platform.is_(None))
         )
     assignment_query = assignment_query.order_by(RevenueAssignment.priority.desc())
 
@@ -132,9 +128,7 @@ async def select_offer_for_publish(
     if assignments:
         # Load offers from assignments
         offer_ids = [a.offer_id for a in assignments]
-        offers_result = await db.execute(
-            select(Offer).where(Offer.id.in_(offer_ids), Offer.is_active.is_(True))
-        )
+        offers_result = await db.execute(select(Offer).where(Offer.id.in_(offer_ids), Offer.is_active.is_(True)))
         offers = list(offers_result.scalars().all())
 
         if offers:
@@ -148,15 +142,19 @@ async def select_offer_for_publish(
 
             selected = random.choices(offers, weights=weights, k=1)[0]
 
-            logger.info("offer_selected_from_assignment",
-                        offer_id=str(selected.id), offer_name=selected.name,
-                        brand_id=str(brand_id), platform=platform)
+            logger.info(
+                "offer_selected_from_assignment",
+                offer_id=str(selected.id),
+                offer_name=selected.name,
+                brand_id=str(brand_id),
+                platform=platform,
+            )
             return selected
 
     # Fallback: weighted selection from all active brand offers
-    all_offers = list((await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-    )).scalars().all())
+    all_offers = list(
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
+    )
 
     if not all_offers:
         return None
@@ -164,9 +162,13 @@ async def select_offer_for_publish(
     weights = [max(o.rotation_weight, 0.01) for o in all_offers]
     selected = random.choices(all_offers, weights=weights, k=1)[0]
 
-    logger.info("offer_selected_fallback",
-                offer_id=str(selected.id), offer_name=selected.name,
-                brand_id=str(brand_id), platform=platform)
+    logger.info(
+        "offer_selected_fallback",
+        offer_id=str(selected.id),
+        offer_name=selected.name,
+        brand_id=str(brand_id),
+        platform=platform,
+    )
     return selected
 
 
@@ -190,7 +192,9 @@ async def build_publish_monetization_context(
         platform = platform.value
 
     offer = await select_offer_for_publish(
-        db, brand_id, platform=platform,
+        db,
+        brand_id,
+        platform=platform,
         account_id=getattr(creator_account, "id", None),
     )
 
@@ -211,9 +215,7 @@ async def build_publish_monetization_context(
     tags = getattr(content_item, "hashtags", None) or getattr(content_item, "tags", None) or []
     caption = build_caption_with_cta(base_caption, offer=offer, tracking_url=tracking_url, hashtags=tags)
 
-    rid = hashlib.md5(
-        f"{content_item.id}:{creator_account.id}:{offer.id}:{platform}".encode()
-    ).hexdigest()[:12]
+    rid = hashlib.md5(f"{content_item.id}:{creator_account.id}:{offer.id}:{platform}".encode()).hexdigest()[:12]
 
     return {
         "monetization": "active",

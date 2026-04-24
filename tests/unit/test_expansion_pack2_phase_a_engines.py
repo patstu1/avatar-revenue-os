@@ -8,7 +8,6 @@ Covers:
 NOTE: content_engagement_signals must be a list[dict], not a plain dict.
 """
 
-
 from packages.scoring.expansion_pack2_phase_a_engines import (
     EP2A,
     detect_offer_opportunities,
@@ -107,6 +106,7 @@ _DEFAULT_DETECT_KWARGS = dict(
 # 0. Module constant
 # ===========================================================================
 
+
 def test_ep2a_constant_is_string():
     assert isinstance(EP2A, str)
     assert len(EP2A) > 0
@@ -115,6 +115,7 @@ def test_ep2a_constant_is_string():
 # ===========================================================================
 # 1. Lead-scoring engine — score_lead
 # ===========================================================================
+
 
 def test_score_lead_has_required_fields():
     r = score_lead("comment", "finance", "I need help urgently today", 10_000, 200, 0.03, 0.05, 3)
@@ -208,9 +209,7 @@ def test_score_lead_recommended_action_valid():
     """recommended_action must be drawn from the known action vocabulary."""
     valid_actions = {"book_call", "nurture_sequence", "low_priority_follow_up"}
     r = score_lead(**_DEFAULT_LEAD_KWARGS)
-    assert r["recommended_action"] in valid_actions, (
-        f"Unexpected recommended_action: '{r['recommended_action']}'"
-    )
+    assert r["recommended_action"] in valid_actions, f"Unexpected recommended_action: '{r['recommended_action']}'"
 
 
 def test_score_lead_composite_drives_tier():
@@ -251,6 +250,7 @@ def test_score_lead_composite_drives_tier():
 # ===========================================================================
 # 2. Closer-action generation — generate_closer_actions
 # ===========================================================================
+
 
 def test_generate_closer_actions_hot_tier_returns_actions():
     """A hot lead via call_booked must produce at least three actionable steps."""
@@ -313,9 +313,7 @@ def test_generate_closer_actions_high_aov_adds_sponsor_prep():
         "WealthPath",
     )
     types = [a["action_type"] for a in actions]
-    assert "sponsor_negotiation_prep" in types, (
-        f"sponsor_negotiation_prep not found; action_types present: {types}"
-    )
+    assert "sponsor_negotiation_prep" in types, f"sponsor_negotiation_prep not found; action_types present: {types}"
 
 
 def test_generate_closer_actions_timing_valid():
@@ -323,9 +321,7 @@ def test_generate_closer_actions_timing_valid():
     valid_timings = {"immediate", "24h", "48h", "72h"}
     actions = generate_closer_actions(**_HOT_ACTION_KWARGS)
     for i, action in enumerate(actions):
-        assert action["timing"] in valid_timings, (
-            f"Action[{i}] has invalid timing: '{action['timing']}'"
-        )
+        assert action["timing"] in valid_timings, f"Action[{i}] has invalid timing: '{action['timing']}'"
 
 
 def test_generate_closer_actions_channels_valid():
@@ -333,9 +329,7 @@ def test_generate_closer_actions_channels_valid():
     valid_channels = {"email", "dm", "call", "chat"}
     actions = generate_closer_actions(**_HOT_ACTION_KWARGS)
     for i, action in enumerate(actions):
-        assert action["channel"] in valid_channels, (
-            f"Action[{i}] has invalid channel: '{action['channel']}'"
-        )
+        assert action["channel"] in valid_channels, f"Action[{i}] has invalid channel: '{action['channel']}'"
 
 
 # ===========================================================================
@@ -404,8 +398,7 @@ def test_detect_offer_opportunities_objections_trigger_coaching():
     )
     coaching_rows = [r for r in result if r["recommended_offer_type"] == "coaching_program"]
     assert len(coaching_rows) >= 1, (
-        f"No coaching_program row found; types present: "
-        f"{[r['recommended_offer_type'] for r in result]}"
+        f"No coaching_program row found; types present: {[r['recommended_offer_type'] for r in result]}"
     )
 
 
@@ -432,10 +425,7 @@ def test_detect_offer_opportunities_high_engagement_triggers_course():
         avg_monthly_revenue=10.0,
     )
     hi_rows = [r for r in result if r["signal_type"] == "high_interest_low_conversion"]
-    assert len(hi_rows) >= 1, (
-        f"No high_interest_low_conversion row; signal_types: "
-        f"{[r['signal_type'] for r in result]}"
-    )
+    assert len(hi_rows) >= 1, f"No high_interest_low_conversion row; signal_types: {[r['signal_type'] for r in result]}"
 
 
 def test_detect_offer_opportunities_build_priority_valid():
@@ -453,8 +443,7 @@ def test_detect_offer_opportunities_price_min_lte_max():
     result = detect_offer_opportunities(**_DEFAULT_DETECT_KWARGS)
     for i, item in enumerate(result):
         assert item["price_point_min"] <= item["price_point_max"], (
-            f"Row[{i}] price_point_min {item['price_point_min']} "
-            f"> price_point_max {item['price_point_max']}"
+            f"Row[{i}] price_point_min {item['price_point_min']} > price_point_max {item['price_point_max']}"
         )
 
 
@@ -470,6 +459,4 @@ def test_detect_offer_opportunities_no_duplicate_keys():
     """All opportunity_key values across returned rows must be unique."""
     result = detect_offer_opportunities(**_DEFAULT_DETECT_KWARGS)
     keys = [item["opportunity_key"] for item in result]
-    assert len(keys) == len(set(keys)), (
-        f"Duplicate opportunity_keys detected: {keys}"
-    )
+    assert len(keys) == len(set(keys)), f"Duplicate opportunity_keys detected: {keys}"

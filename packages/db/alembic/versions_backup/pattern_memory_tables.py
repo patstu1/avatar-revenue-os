@@ -3,6 +3,7 @@
 Revision ID: pattern_mem_001
 Revises: content_routing_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -17,7 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table("winning_pattern_memory",
+    op.create_table(
+        "winning_pattern_memory",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -48,19 +50,25 @@ def upgrade() -> None:
     op.create_index("ix_wpm_type", "winning_pattern_memory", ["pattern_type"])
     op.create_index("ix_wpm_platform", "winning_pattern_memory", ["platform"])
 
-    op.create_table("winning_pattern_evidence",
+    op.create_table(
+        "winning_pattern_evidence",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("pattern_id", sa.UUID(), nullable=False),
         sa.Column("brand_id", sa.UUID(), nullable=False),
         sa.Column("content_item_id", sa.UUID(), nullable=True),
-        sa.Column("impressions", sa.Integer(), server_default="0"), sa.Column("clicks", sa.Integer(), server_default="0"),
-        sa.Column("saves", sa.Integer(), server_default="0"), sa.Column("comments", sa.Integer(), server_default="0"),
+        sa.Column("impressions", sa.Integer(), server_default="0"),
+        sa.Column("clicks", sa.Integer(), server_default="0"),
+        sa.Column("saves", sa.Integer(), server_default="0"),
+        sa.Column("comments", sa.Integer(), server_default="0"),
         sa.Column("watch_time_seconds", sa.Integer(), server_default="0"),
-        sa.Column("conversion_rate", sa.Float(), server_default="0"), sa.Column("epc", sa.Float(), server_default="0"),
-        sa.Column("aov", sa.Float(), server_default="0"), sa.Column("profit", sa.Float(), server_default="0"),
-        sa.Column("revenue_density", sa.Float(), server_default="0"), sa.Column("engagement_rate", sa.Float(), server_default="0"),
+        sa.Column("conversion_rate", sa.Float(), server_default="0"),
+        sa.Column("epc", sa.Float(), server_default="0"),
+        sa.Column("aov", sa.Float(), server_default="0"),
+        sa.Column("profit", sa.Float(), server_default="0"),
+        sa.Column("revenue_density", sa.Float(), server_default="0"),
+        sa.Column("engagement_rate", sa.Float(), server_default="0"),
         sa.Column("details_json", JSONB(), server_default="{}", nullable=True),
         sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
         sa.ForeignKeyConstraint(["pattern_id"], ["winning_pattern_memory.id"]),
@@ -70,7 +78,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_wpe_pattern", "winning_pattern_evidence", ["pattern_id"])
 
-    op.create_table("winning_pattern_clusters",
+    op.create_table(
+        "winning_pattern_clusters",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -78,7 +87,8 @@ def upgrade() -> None:
         sa.Column("cluster_name", sa.String(255), nullable=False),
         sa.Column("cluster_type", sa.String(60), nullable=False),
         sa.Column("pattern_ids", JSONB(), server_default="[]", nullable=True),
-        sa.Column("avg_win_score", sa.Float(), server_default="0"), sa.Column("pattern_count", sa.Integer(), server_default="0"),
+        sa.Column("avg_win_score", sa.Float(), server_default="0"),
+        sa.Column("pattern_count", sa.Integer(), server_default="0"),
         sa.Column("platform", sa.String(50), nullable=True),
         sa.Column("explanation", sa.Text(), nullable=True),
         sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
@@ -87,7 +97,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_wpc_brand", "winning_pattern_clusters", ["brand_id"])
 
-    op.create_table("losing_pattern_memory",
+    op.create_table(
+        "losing_pattern_memory",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -106,7 +117,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_lpm_brand", "losing_pattern_memory", ["brand_id"])
 
-    op.create_table("pattern_reuse_recommendations",
+    op.create_table(
+        "pattern_reuse_recommendations",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -124,7 +136,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_prr_brand", "pattern_reuse_recommendations", ["brand_id"])
 
-    op.create_table("pattern_decay_reports",
+    op.create_table(
+        "pattern_decay_reports",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -144,5 +157,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for t in ("pattern_decay_reports", "pattern_reuse_recommendations", "losing_pattern_memory", "winning_pattern_clusters", "winning_pattern_evidence", "winning_pattern_memory"):
+    for t in (
+        "pattern_decay_reports",
+        "pattern_reuse_recommendations",
+        "losing_pattern_memory",
+        "winning_pattern_clusters",
+        "winning_pattern_evidence",
+        "winning_pattern_memory",
+    ):
         op.drop_table(t)

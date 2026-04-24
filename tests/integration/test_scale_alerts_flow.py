@@ -1,15 +1,41 @@
 """Integration tests for scale alerts APIs and persistence."""
+
 import pytest
 
 
 async def _auth_brand(api_client, sample_org_data):
     await api_client.post("/api/v1/auth/register", json=sample_org_data)
-    login = await api_client.post("/api/v1/auth/login", json={"email": sample_org_data["email"], "password": sample_org_data["password"]})
+    login = await api_client.post(
+        "/api/v1/auth/login", json={"email": sample_org_data["email"], "password": sample_org_data["password"]}
+    )
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
-    brand = await api_client.post("/api/v1/brands/", json={"name": "Alert Brand", "slug": "alert-brand", "niche": "finance"}, headers=headers)
+    brand = await api_client.post(
+        "/api/v1/brands/", json={"name": "Alert Brand", "slug": "alert-brand", "niche": "finance"}, headers=headers
+    )
     bid = brand.json()["id"]
-    await api_client.post("/api/v1/accounts/", json={"brand_id": bid, "platform": "youtube", "platform_username": "@alert_yt", "niche_focus": "finance", "posting_capacity_per_day": 2, "scale_role": "flagship"}, headers=headers)
-    await api_client.post("/api/v1/offers/", json={"brand_id": bid, "name": "Alert Offer", "monetization_method": "affiliate", "epc": 2.5, "conversion_rate": 0.03}, headers=headers)
+    await api_client.post(
+        "/api/v1/accounts/",
+        json={
+            "brand_id": bid,
+            "platform": "youtube",
+            "platform_username": "@alert_yt",
+            "niche_focus": "finance",
+            "posting_capacity_per_day": 2,
+            "scale_role": "flagship",
+        },
+        headers=headers,
+    )
+    await api_client.post(
+        "/api/v1/offers/",
+        json={
+            "brand_id": bid,
+            "name": "Alert Offer",
+            "monetization_method": "affiliate",
+            "epc": 2.5,
+            "conversion_rate": 0.03,
+        },
+        headers=headers,
+    )
     return headers, bid
 
 
@@ -126,9 +152,7 @@ async def test_resolve_alert(api_client, sample_org_data):
     await api_client.post(f"/api/v1/brands/{bid}/alerts/recompute", headers=headers)
     lst = await api_client.get(f"/api/v1/brands/{bid}/alerts", headers=headers)
     aid = lst.json()[0]["id"]
-    r = await api_client.post(
-        f"/api/v1/alerts/{aid}/resolve", headers=headers, json={"notes": "verified"}
-    )
+    r = await api_client.post(f"/api/v1/alerts/{aid}/resolve", headers=headers, json={"notes": "verified"})
     assert r.status_code == 200
     assert r.json()["status"] == "resolved"
 

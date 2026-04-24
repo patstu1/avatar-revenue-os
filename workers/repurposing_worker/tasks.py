@@ -29,6 +29,7 @@ DERIVATIVE_PLATFORMS = ["tiktok", "instagram", "youtube"]
 # Utility: download a URL to a local temp file
 # ---------------------------------------------------------------------------
 
+
 def _download_to_temp(url: str, suffix: str = ".mp4") -> str:
     """Download a URL to a named temp file and return the path.
 
@@ -99,6 +100,7 @@ def _fmt_srt_time(seconds: float) -> str:
 # Original brief-based repurposing (kept for backward compatibility)
 # ---------------------------------------------------------------------------
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.repurposing_worker.tasks.repurpose_content")
 def repurpose_content(self) -> dict:
     """Find approved LONG_VIDEO ContentItems and create SHORT_VIDEO briefs on other platforms."""
@@ -115,12 +117,16 @@ def repurpose_content(self) -> dict:
 
     with Session(engine) as session:
         try:
-            candidates = session.execute(
-                select(ContentItem).where(
-                    ContentItem.content_type == ContentType.LONG_VIDEO,
-                    ContentItem.status == "approved",
+            candidates = (
+                session.execute(
+                    select(ContentItem).where(
+                        ContentItem.content_type == ContentType.LONG_VIDEO,
+                        ContentItem.status == "approved",
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             for item in candidates:
                 items_found += 1
@@ -130,13 +136,17 @@ def repurpose_content(self) -> dict:
                     if target_platform == existing_platform:
                         continue
 
-                    already_exists = session.execute(
-                        select(ContentBrief).where(
-                            ContentBrief.brand_id == item.brand_id,
-                            ContentBrief.target_platform == target_platform,
-                            ContentBrief.title.contains(f"[repurpose:{item.id}]"),
+                    already_exists = (
+                        session.execute(
+                            select(ContentBrief).where(
+                                ContentBrief.brand_id == item.brand_id,
+                                ContentBrief.target_platform == target_platform,
+                                ContentBrief.title.contains(f"[repurpose:{item.id}]"),
+                            )
                         )
-                    ).scalars().first()
+                        .scalars()
+                        .first()
+                    )
 
                     if already_exists:
                         continue
@@ -182,6 +192,7 @@ def repurpose_content(self) -> dict:
 # ---------------------------------------------------------------------------
 # Real FFmpeg-based clip extraction pipeline
 # ---------------------------------------------------------------------------
+
 
 @app.task(
     base=TrackedTask,
@@ -246,17 +257,19 @@ def repurpose_to_shorts(
 
             if not source_asset:
                 # Fallback: look for any video asset linked to this content item
-                source_asset = session.execute(
-                    select(Asset).where(
-                        Asset.content_item_id == source_item.id,
-                        Asset.asset_type.in_(["video", "long_video", "source_video"]),
+                source_asset = (
+                    session.execute(
+                        select(Asset).where(
+                            Asset.content_item_id == source_item.id,
+                            Asset.asset_type.in_(["video", "long_video", "source_video"]),
+                        )
                     )
-                ).scalars().first()
+                    .scalars()
+                    .first()
+                )
 
             if not source_asset:
-                raise ValueError(
-                    f"No video asset found for ContentItem {content_item_id}"
-                )
+                raise ValueError(f"No video asset found for ContentItem {content_item_id}")
 
             source_url = source_asset.file_path
             logger.info(
@@ -290,7 +303,9 @@ def repurpose_to_shorts(
                 if start_sec >= end_sec:
                     logger.warning(
                         "Skipping clip %d: start_sec=%.2f >= end_sec=%.2f",
-                        idx, start_sec, end_sec,
+                        idx,
+                        start_sec,
+                        end_sec,
                     )
                     continue
 
@@ -302,7 +317,10 @@ def repurpose_to_shorts(
                     clip_temp_files.append(clip_path)
 
                     VideoProcessor.extract_clip(
-                        source_path, clip_path, start_sec, end_sec,
+                        source_path,
+                        clip_path,
+                        start_sec,
+                        end_sec,
                     )
 
                     current_path = clip_path
@@ -333,7 +351,8 @@ def repurpose_to_shorts(
                     file_size = os.path.getsize(current_path)
 
                     storage_key = storage.generate_key(
-                        prefix="clips", extension=".mp4",
+                        prefix="clips",
+                        extension=".mp4",
                     )
                     clip_url = storage.upload_file(
                         current_path,
@@ -342,7 +361,10 @@ def repurpose_to_shorts(
                     )
                     logger.info(
                         "Uploaded clip %d: %s (%.1fs, %d bytes)",
-                        idx, clip_url, clip_duration, file_size,
+                        idx,
+                        clip_url,
+                        clip_duration,
+                        file_size,
                     )
 
                     # Step 5: Create Asset record
@@ -392,19 +414,23 @@ def repurpose_to_shorts(
                     # Link asset back to content item
                     asset.content_item_id = clip_item.id
 
-                    created_clips.append({
-                        "clip_index": idx,
-                        "content_item_id": str(clip_item.id),
-                        "asset_id": str(asset.id),
-                        "url": clip_url,
-                        "duration_seconds": clip_duration,
-                        "start_sec": start_sec,
-                        "end_sec": end_sec,
-                    })
+                    created_clips.append(
+                        {
+                            "clip_index": idx,
+                            "content_item_id": str(clip_item.id),
+                            "asset_id": str(asset.id),
+                            "url": clip_url,
+                            "duration_seconds": clip_duration,
+                            "start_sec": start_sec,
+                            "end_sec": end_sec,
+                        }
+                    )
 
                     logger.info(
                         "Created clip %d: content_item=%s asset=%s",
-                        idx, clip_item.id, asset.id,
+                        idx,
+                        clip_item.id,
+                        asset.id,
                     )
 
                 finally:

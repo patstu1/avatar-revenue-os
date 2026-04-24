@@ -3,6 +3,7 @@
 Evaluates content items across 6 quality dimensions. Returns decomposed scores,
 blocking issues, and a recommended QA status (pass/fail/review).
 """
+
 from dataclasses import dataclass
 
 FORMULA_VERSION = "v1"
@@ -78,7 +79,9 @@ def compute_qa_score(inp: QAInput) -> QAResult:
 
     checks["originality_above_threshold"] = scores["originality"] >= ORIGINALITY_THRESHOLD
     if scores["originality"] < ORIGINALITY_THRESHOLD:
-        issues.append(f"Originality {scores['originality']:.2f} below {ORIGINALITY_THRESHOLD} — force rewrite or guarded path")
+        issues.append(
+            f"Originality {scores['originality']:.2f} below {ORIGINALITY_THRESHOLD} — force rewrite or guarded path"
+        )
         recommendations.append("Rewrite with different angle to improve originality")
 
     checks["compliance_above_threshold"] = scores["compliance"] >= COMPLIANCE_THRESHOLD
@@ -91,9 +94,8 @@ def compute_qa_score(inp: QAInput) -> QAResult:
     if scores["brand_alignment"] < 0.5:
         recommendations.append("Content may not align with brand voice guidelines")
 
-    has_blocking_issues = (
-        not inp.has_required_disclosures
-        or (inp.is_sponsored_content and not inp.has_sponsor_metadata)
+    has_blocking_issues = not inp.has_required_disclosures or (
+        inp.is_sponsored_content and not inp.has_sponsor_metadata
     )
 
     if has_blocking_issues:

@@ -1,4 +1,5 @@
 """Email Campaign Worker — send nurture sequences, weekly digests, and monetization emails."""
+
 from __future__ import annotations
 
 import asyncio
@@ -31,13 +32,22 @@ async def _send_pending_emails():
     total_failed = 0
 
     async with get_async_session_factory()() as db:
-        pending = (await db.execute(
-            select(EmailSendRequest).where(
-                EmailSendRequest.status == "queued",
-                EmailSendRequest.is_active.is_(True),
-                EmailSendRequest.retry_count < 3,
-            ).order_by(EmailSendRequest.created_at).limit(100)
-        )).scalars().all()
+        pending = (
+            (
+                await db.execute(
+                    select(EmailSendRequest)
+                    .where(
+                        EmailSendRequest.status == "queued",
+                        EmailSendRequest.is_active.is_(True),
+                        EmailSendRequest.retry_count < 3,
+                    )
+                    .order_by(EmailSendRequest.created_at)
+                    .limit(100)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         for req in pending:
             try:
@@ -80,6 +90,7 @@ async def _send_pending_emails():
                     generate_lead_magnet,
                     identify_lead_magnet_opportunities,
                 )
+
                 opportunities = await identify_lead_magnet_opportunities(db, bid)
                 for opp in opportunities[:1]:
                     result = await generate_lead_magnet(db, bid, opp["topic"], opp["magnet_type"])
@@ -131,19 +142,31 @@ async def _sync_inbox_impl(connection_id: str | None = None) -> dict:
     async with async_session_factory() as db:
         # Get connections
         if connection_id:
-            connections = (await db.execute(
-                select(InboxConnection).where(
-                    InboxConnection.id == uuid.UUID(connection_id),
-                    InboxConnection.is_active.is_(True),
+            connections = (
+                (
+                    await db.execute(
+                        select(InboxConnection).where(
+                            InboxConnection.id == uuid.UUID(connection_id),
+                            InboxConnection.is_active.is_(True),
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
         else:
-            connections = (await db.execute(
-                select(InboxConnection).where(
-                    InboxConnection.status.in_(["active", "error"]),
-                    InboxConnection.is_active.is_(True),
+            connections = (
+                (
+                    await db.execute(
+                        select(InboxConnection).where(
+                            InboxConnection.status.in_(["active", "error"]),
+                            InboxConnection.is_active.is_(True),
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
 
         # Env fallback: auto-create connection if none exist
         if not connections:
@@ -151,15 +174,22 @@ async def _sync_inbox_impl(connection_id: str | None = None) -> dict:
             user = os.environ.get("IMAP_USER", "")
             pw = os.environ.get("IMAP_PASSWORD", "")
             if not (host and user and pw):
-                return {"synced": 0, "error": "No inbox configured. Set IMAP_HOST/IMAP_USER/IMAP_PASSWORD or create InboxConnection."}
+                return {
+                    "synced": 0,
+                    "error": "No inbox configured. Set IMAP_HOST/IMAP_USER/IMAP_PASSWORD or create InboxConnection.",
+                }
 
             org = (await db.execute(select(Organization).limit(1))).scalar_one_or_none()
             if not org:
                 return {"synced": 0, "error": "No organization in database"}
 
             conn = InboxConnection(
-                org_id=org.id, email_address=user, display_name="Primary Inbox",
-                provider="imap", host=host, port=int(os.environ.get("IMAP_PORT", "993")),
+                org_id=org.id,
+                email_address=user,
+                display_name="Primary Inbox",
+                provider="imap",
+                host=host,
+                port=int(os.environ.get("IMAP_PORT", "993")),
                 status="active",
             )
             db.add(conn)
@@ -244,6 +274,7 @@ async def _sync_one_inbox(db, conn) -> dict:
     if auth_method == "xoauth2":
         # OAuth2 SASL flow — used for Microsoft 365 / Gmail
         from packages.clients.microsoft_oauth import ensure_valid_token
+
         try:
             access_token = await ensure_valid_token(db, conn)
         except Exception as e:
@@ -289,9 +320,9 @@ async def _sync_one_inbox(db, conn) -> dict:
             mid = msg.get("Message-ID", "") or f"gen-{hashlib.sha256(raw[:1000]).hexdigest()[:32]}"
 
             # Dedup
-            exists = (await db.execute(
-                select(EmailMessage.id).where(EmailMessage.provider_message_id == mid)
-            )).scalar_one_or_none()
+            exists = (
+                await db.execute(select(EmailMessage.id).where(EmailMessage.provider_message_id == mid))
+            ).scalar_one_or_none()
             if exists:
                 continue
 
@@ -328,6 +359,7 @@ async def _sync_one_inbox(db, conn) -> dict:
 
             # Thread resolution
             import re
+
             _clean_subj = re.sub(r"^(Re|Fwd|Fw)\s*:\s*", "", subject, flags=re.IGNORECASE).strip()
             _subj_hash = hashlib.sha256(_clean_subj.encode()).hexdigest()[:24]
             if references:
@@ -337,21 +369,30 @@ async def _sync_one_inbox(db, conn) -> dict:
             else:
                 thread_key = "subj:" + _subj_hash
 
-            thread = (await db.execute(
-                select(EmailThread).where(
-                    EmailThread.inbox_connection_id == conn.id,
-                    EmailThread.provider_thread_id == thread_key,
+            thread = (
+                await db.execute(
+                    select(EmailThread).where(
+                        EmailThread.inbox_connection_id == conn.id,
+                        EmailThread.provider_thread_id == thread_key,
+                    )
                 )
-            )).scalar_one_or_none()
+            ).scalar_one_or_none()
 
             if not thread:
                 thread = EmailThread(
-                    inbox_connection_id=conn.id, org_id=conn.org_id,
-                    provider_thread_id=thread_key, subject=subject,
-                    direction=direction, from_email=from_email, from_name=from_name,
-                    to_emails=to_list, first_message_at=message_date,
-                    last_message_at=message_date, sales_stage="new_lead",
-                    reply_status="pending", message_count=0,
+                    inbox_connection_id=conn.id,
+                    org_id=conn.org_id,
+                    provider_thread_id=thread_key,
+                    subject=subject,
+                    direction=direction,
+                    from_email=from_email,
+                    from_name=from_name,
+                    to_emails=to_list,
+                    first_message_at=message_date,
+                    last_message_at=message_date,
+                    sales_stage="new_lead",
+                    reply_status="pending",
+                    message_count=0,
                 )
                 db.add(thread)
                 await db.flush()
@@ -364,13 +405,25 @@ async def _sync_one_inbox(db, conn) -> dict:
                     thread.direction = "mixed"
 
             email_msg = EmailMessage(
-                thread_id=thread.id, inbox_connection_id=conn.id, org_id=conn.org_id,
-                provider_message_id=mid, in_reply_to=in_reply_to, references=references,
-                direction=direction, from_email=from_email, from_name=from_name,
-                to_emails=to_list, cc_emails=cc_list, subject=subject,
-                body_text=body_text, body_html=body_html, snippet=snippet,
+                thread_id=thread.id,
+                inbox_connection_id=conn.id,
+                org_id=conn.org_id,
+                provider_message_id=mid,
+                in_reply_to=in_reply_to,
+                references=references,
+                direction=direction,
+                from_email=from_email,
+                from_name=from_name,
+                to_emails=to_list,
+                cc_emails=cc_list,
+                subject=subject,
+                body_text=body_text,
+                body_html=body_html,
+                snippet=snippet,
                 message_date=message_date,
-                has_attachments=any(p.get_content_disposition() == "attachment" for p in msg.walk()) if msg.is_multipart() else False,
+                has_attachments=any(p.get_content_disposition() == "attachment" for p in msg.walk())
+                if msg.is_multipart()
+                else False,
                 size_bytes=len(raw),
             )
             db.add(email_msg)
@@ -380,16 +433,20 @@ async def _sync_one_inbox(db, conn) -> dict:
             ingested += 1
 
             # Link contact
-            contact = (await db.execute(
-                select(CrmContact).where(CrmContact.email == from_email.lower()).limit(1)
-            )).scalar_one_or_none()
+            contact = (
+                await db.execute(select(CrmContact).where(CrmContact.email == from_email.lower()).limit(1))
+            ).scalar_one_or_none()
 
             if not contact:
                 brand = (await db.execute(select(Brand).limit(1))).scalar_one_or_none()
                 if brand:
                     contact = CrmContact(
-                        brand_id=brand.id, email=from_email.lower(), name=from_name or "",
-                        source="email_inbound", lifecycle_stage="lead", sync_status="synced",
+                        brand_id=brand.id,
+                        email=from_email.lower(),
+                        name=from_name or "",
+                        source="email_inbound",
+                        lifecycle_stage="lead",
+                        sync_status="synced",
                     )
                     db.add(contact)
                     await db.flush()
@@ -399,12 +456,16 @@ async def _sync_one_inbox(db, conn) -> dict:
 
             # Link lead
             if contact and not thread.lead_opportunity_id:
-                lead = (await db.execute(
-                    select(LeadOpportunity).where(
-                        LeadOpportunity.is_active.is_(True),
-                        LeadOpportunity.message_text.ilike(f"%{contact.email}%"),
-                    ).limit(1)
-                )).scalar_one_or_none()
+                lead = (
+                    await db.execute(
+                        select(LeadOpportunity)
+                        .where(
+                            LeadOpportunity.is_active.is_(True),
+                            LeadOpportunity.message_text.ilike(f"%{contact.email}%"),
+                        )
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
                 if lead:
                     thread.lead_opportunity_id = lead.id
 
@@ -413,12 +474,15 @@ async def _sync_one_inbox(db, conn) -> dict:
                 cls_result = classify_email(subject, body_text or snippet)
 
                 ec = EmailClassification(
-                    message_id=email_msg.id, thread_id=thread.id,
-                    intent=cls_result.intent, confidence=cls_result.confidence,
+                    message_id=email_msg.id,
+                    thread_id=thread.id,
+                    intent=cls_result.intent,
+                    confidence=cls_result.confidence,
                     rationale=cls_result.rationale,
                     secondary_intent=cls_result.secondary_intent,
                     secondary_confidence=cls_result.secondary_confidence,
-                    classifier_version="keyword_v1", reply_mode=cls_result.reply_mode,
+                    classifier_version="keyword_v1",
+                    reply_mode=cls_result.reply_mode,
                 )
                 db.add(ec)
                 await db.flush()
@@ -431,17 +495,25 @@ async def _sync_one_inbox(db, conn) -> dict:
                 if new_stage:
                     thread.sales_stage = new_stage
                     if thread.lead_opportunity_id:
-                        lead = (await db.execute(
-                            select(LeadOpportunity).where(LeadOpportunity.id == thread.lead_opportunity_id)
-                        )).scalar_one_or_none()
+                        lead = (
+                            await db.execute(
+                                select(LeadOpportunity).where(LeadOpportunity.id == thread.lead_opportunity_id)
+                            )
+                        ).scalar_one_or_none()
                         if lead:
                             lead.sales_stage = new_stage
-                    db.add(SalesStageTransition(
-                        thread_id=thread.id, lead_opportunity_id=thread.lead_opportunity_id,
-                        org_id=conn.org_id, from_stage=current, to_stage=new_stage,
-                        trigger_type="email_inbound", trigger_id=str(email_msg.id),
-                        rationale=f"{cls_result.intent} ({cls_result.confidence:.0%})",
-                    ))
+                    db.add(
+                        SalesStageTransition(
+                            thread_id=thread.id,
+                            lead_opportunity_id=thread.lead_opportunity_id,
+                            org_id=conn.org_id,
+                            from_stage=current,
+                            to_stage=new_stage,
+                            trigger_type="email_inbound",
+                            trigger_id=str(email_msg.id),
+                            rationale=f"{cls_result.intent} ({cls_result.confidence:.0%})",
+                        )
+                    )
 
                 # Reply if we were contacted first
                 if in_reply_to and current == "contacted" and not new_stage:
@@ -450,7 +522,7 @@ async def _sync_one_inbox(db, conn) -> dict:
                 # Let the policy engine decide auto_send / draft / escalate / suppress.
                 # (Previously we pre-filtered unknown/escalation/unsubscribe here; now the
                 # policy engine handles all of that with full audit trace.)
-                lead_first = (from_name.split()[0] if from_name else "")
+                lead_first = from_name.split()[0] if from_name else ""
                 lead_co = ""
                 if contact:
                     lead_first = (contact.name or "").split()[0] or lead_first

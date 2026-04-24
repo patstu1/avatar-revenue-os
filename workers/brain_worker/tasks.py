@@ -1,4 +1,5 @@
 """Brain Architecture Phase A — recurring Celery tasks."""
+
 from __future__ import annotations
 
 import uuid
@@ -122,6 +123,7 @@ def recompute_audience_states():
 
 # ── Brain Phase B tasks ───────────────────────────────────────────────
 
+
 async def _recompute_brain_decisions():
     from apps.api.services import brain_phase_b_service as svc
     from apps.api.services.action_dispatcher import dispatch_autonomous_actions
@@ -143,15 +145,11 @@ async def _recompute_brain_decisions():
     for bid in brand_ids:
         try:
             async with get_async_session_factory()() as db:
-                brand = (await db.execute(
-                    select(Brand).where(Brand.id == bid)
-                )).scalar_one_or_none()
+                brand = (await db.execute(select(Brand).where(Brand.id == bid))).scalar_one_or_none()
                 if not brand or not brand.organization_id:
                     continue
 
-                actions = await surface_intelligence_actions(
-                    db, brand.organization_id, bid
-                )
+                actions = await surface_intelligence_actions(db, brand.organization_id, bid)
                 await db.commit()
                 if actions:
                     logger.info(
@@ -167,14 +165,10 @@ async def _recompute_brain_decisions():
     for bid in brand_ids:
         try:
             async with get_async_session_factory()() as db:
-                brand = (await db.execute(
-                    select(Brand).where(Brand.id == bid)
-                )).scalar_one_or_none()
+                brand = (await db.execute(select(Brand).where(Brand.id == bid))).scalar_one_or_none()
                 if brand and brand.organization_id and brand.organization_id not in surfaced_orgs:
                     surfaced_orgs.add(brand.organization_id)
-                    dispatch_result = await dispatch_autonomous_actions(
-                        db, brand.organization_id
-                    )
+                    dispatch_result = await dispatch_autonomous_actions(db, brand.organization_id)
                     await db.commit()
                     logger.info(
                         "brain.autonomous_dispatch",
@@ -191,6 +185,7 @@ def recompute_brain_decisions():
 
 
 # ── Brain Phase C tasks ───────────────────────────────────────────────
+
 
 async def _recompute_agent_mesh():
     from apps.api.services import brain_phase_c_service as svc
@@ -213,6 +208,7 @@ def recompute_agent_mesh():
 
 
 # ── Brain Phase D tasks ───────────────────────────────────────────────
+
 
 async def _recompute_meta_monitoring():
     from apps.api.services import brain_phase_d_service as svc

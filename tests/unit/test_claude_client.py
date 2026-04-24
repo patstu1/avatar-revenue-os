@@ -1,4 +1,5 @@
 """Unit tests for Claude copilot client."""
+
 import pytest
 
 from packages.clients.claude_client import (
@@ -38,8 +39,13 @@ def test_system_prompt_contains_grounding_rules():
 
 
 def test_system_prompt_contains_response_modes():
-    for mode in ("GROUNDED_ANSWER", "INSUFFICIENT_CONTEXT", "BLOCKED_BY_MISSING_CREDENTIALS",
-                  "RECOMMENDATION_ONLY", "OPERATOR_ACTION_SUMMARY"):
+    for mode in (
+        "GROUNDED_ANSWER",
+        "INSUFFICIENT_CONTEXT",
+        "BLOCKED_BY_MISSING_CREDENTIALS",
+        "RECOMMENDATION_ONLY",
+        "OPERATOR_ACTION_SUMMARY",
+    ):
         assert mode in SYSTEM_PROMPT
 
 

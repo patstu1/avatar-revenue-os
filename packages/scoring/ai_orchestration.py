@@ -4,6 +4,7 @@ Routes AI tasks to the optimal model based on task type, quality requirements,
 cost constraints, and historical performance data. Implements quality gates
 that auto-reject and regenerate low-quality output.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -46,7 +47,7 @@ class ModelProfile:
     cost_per_1k_input: float
     cost_per_1k_output: float
     avg_latency_ms: float
-    quality_score: float        # 0–1 empirical quality
+    quality_score: float  # 0–1 empirical quality
     max_context_tokens: int
     capabilities: set[str]
     rate_limit_rpm: int
@@ -65,9 +66,12 @@ class ModelProfile:
     def record_task(self, task_type: str, quality: float, latency_ms: float, succeeded: bool, cost: float) -> None:
         if task_type not in self.task_performance:
             self.task_performance[task_type] = TaskPerformance(
-                task_type=task_type, avg_quality_score=quality,
-                avg_latency_ms=latency_ms, success_rate=1.0 if succeeded else 0.0,
-                sample_count=0, cost_efficiency=quality / max(cost, 0.0001),
+                task_type=task_type,
+                avg_quality_score=quality,
+                avg_latency_ms=latency_ms,
+                success_rate=1.0 if succeeded else 0.0,
+                sample_count=0,
+                cost_efficiency=quality / max(cost, 0.0001),
             )
         self.task_performance[task_type].update(quality, latency_ms, succeeded, cost)
 
@@ -82,13 +86,12 @@ class ModelProfile:
 # ---------------------------------------------------------------------------
 
 MODEL_REGISTRY: dict[str, ModelProfile] = {
-
     # ── TEXT ────────────────────────────────────────────────────────────
     "claude-sonnet-4": ModelProfile(
         model_id="claude-sonnet-4",
         provider="anthropic",
-        cost_per_1k_input=0.003,    # $3 / 1M tokens
-        cost_per_1k_output=0.015,   # $15 / 1M tokens
+        cost_per_1k_input=0.003,  # $3 / 1M tokens
+        cost_per_1k_output=0.015,  # $15 / 1M tokens
         avg_latency_ms=2800,
         quality_score=0.97,
         max_context_tokens=200_000,
@@ -110,30 +113,29 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
         model_id="deepseek-chat",
         provider="deepseek",
         cost_per_1k_input=0.00028,  # $0.28 / 1M tokens
-        cost_per_1k_output=0.00042, # $0.42 / 1M tokens (non-cache)
+        cost_per_1k_output=0.00042,  # $0.42 / 1M tokens (non-cache)
         avg_latency_ms=1200,
         quality_score=0.85,
         max_context_tokens=128_000,
         capabilities={"text", "code", "data_scanning", "seo", "hashtags", "bulk_text"},
         rate_limit_rpm=6000,
     ),
-
     # ── IMAGE ──────────────────────────────────────────────────────────
     "gpt-image-1": ModelProfile(
         model_id="gpt-image-1",
         provider="openai",
-        cost_per_1k_input=0.040,    # ~$0.04 per image (1024×1024 high)
+        cost_per_1k_input=0.040,  # ~$0.04 per image (1024×1024 high)
         cost_per_1k_output=0.0,
         avg_latency_ms=12_000,
         quality_score=0.96,
-        max_context_tokens=4096,    # prompt limit ~4K chars
+        max_context_tokens=4096,  # prompt limit ~4K chars
         capabilities={"image", "hero_images", "ad_creatives", "product_shots"},
         rate_limit_rpm=500,
     ),
     "imagen-4-fast": ModelProfile(
         model_id="imagen-4-fast",
         provider="google",
-        cost_per_1k_input=0.020,    # ~$0.02 per image
+        cost_per_1k_input=0.020,  # ~$0.02 per image
         cost_per_1k_output=0.0,
         avg_latency_ms=6_000,
         quality_score=0.89,
@@ -144,7 +146,7 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
     "flux-pro-v1.1": ModelProfile(
         model_id="flux-pro-v1.1",
         provider="fal",
-        cost_per_1k_input=0.055,    # ~$0.055 per image
+        cost_per_1k_input=0.055,  # ~$0.055 per image
         cost_per_1k_output=0.0,
         avg_latency_ms=8_000,
         quality_score=0.90,
@@ -152,12 +154,11 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
         capabilities={"image", "artistic_styles", "variety_images"},
         rate_limit_rpm=800,
     ),
-
     # ── VIDEO ──────────────────────────────────────────────────────────
     "runway-gen4-turbo": ModelProfile(
         model_id="runway-gen4-turbo",
         provider="runway",
-        cost_per_1k_input=0.096,    # ~$0.48 / 5-sec clip → $0.096/sec
+        cost_per_1k_input=0.096,  # ~$0.48 / 5-sec clip → $0.096/sec
         cost_per_1k_output=0.0,
         avg_latency_ms=90_000,
         quality_score=0.95,
@@ -168,7 +169,7 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
     "kling-v2": ModelProfile(
         model_id="kling-v2",
         provider="kling",
-        cost_per_1k_input=0.070,    # ~$0.07/sec
+        cost_per_1k_input=0.070,  # ~$0.07/sec
         cost_per_1k_output=0.0,
         avg_latency_ms=120_000,
         quality_score=0.87,
@@ -179,7 +180,7 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
     "wan-2.2": ModelProfile(
         model_id="wan-2.2",
         provider="fal",
-        cost_per_1k_input=0.030,    # ~$0.03/sec — cheapest
+        cost_per_1k_input=0.030,  # ~$0.03/sec — cheapest
         cost_per_1k_output=0.0,
         avg_latency_ms=150_000,
         quality_score=0.78,
@@ -190,7 +191,7 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
     "higgsfield-cinema": ModelProfile(
         model_id="higgsfield-cinema",
         provider="higgsfield",
-        cost_per_1k_input=0.120,    # premium cinematic
+        cost_per_1k_input=0.120,  # premium cinematic
         cost_per_1k_output=0.0,
         avg_latency_ms=180_000,
         quality_score=0.93,
@@ -198,23 +199,22 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
         capabilities={"video", "cinematic", "camera_movement", "multi_character", "speech_video"},
         rate_limit_rpm=30,
     ),
-
     # ── AVATAR ─────────────────────────────────────────────────────────
     "heygen-avatar": ModelProfile(
         model_id="heygen-avatar",
         provider="heygen",
-        cost_per_1k_input=0.050,    # ~$29/mo creator plan, ~$0.05/min effective
+        cost_per_1k_input=0.050,  # ~$29/mo creator plan, ~$0.05/min effective
         cost_per_1k_output=0.0,
         avg_latency_ms=180_000,
         quality_score=0.93,
-        max_context_tokens=3000,    # script char limit
+        max_context_tokens=3000,  # script char limit
         capabilities={"avatar", "lip_sync", "talking_head", "interactive_streaming"},
         rate_limit_rpm=30,
     ),
     "d-id-talks": ModelProfile(
         model_id="d-id-talks",
         provider="d-id",
-        cost_per_1k_input=0.025,    # budget: ~$0.025/min pay-per-use
+        cost_per_1k_input=0.025,  # budget: ~$0.025/min pay-per-use
         cost_per_1k_output=0.0,
         avg_latency_ms=120_000,
         quality_score=0.80,
@@ -233,12 +233,11 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
         capabilities={"avatar", "lip_sync", "async_video", "personalized_video"},
         rate_limit_rpm=20,
     ),
-
     # ── VOICE ──────────────────────────────────────────────────────────
     "elevenlabs-v2": ModelProfile(
         model_id="elevenlabs-v2",
         provider="elevenlabs",
-        cost_per_1k_input=0.240,    # ~$0.24 / 1K chars (scale plan)
+        cost_per_1k_input=0.240,  # ~$0.24 / 1K chars (scale plan)
         cost_per_1k_output=0.0,
         avg_latency_ms=2_500,
         quality_score=0.97,
@@ -249,7 +248,7 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
     "fish-audio-tts": ModelProfile(
         model_id="fish-audio-tts",
         provider="fish_audio",
-        cost_per_1k_input=0.015,    # $15 / 1M chars
+        cost_per_1k_input=0.015,  # $15 / 1M chars
         cost_per_1k_output=0.0,
         avg_latency_ms=1_800,
         quality_score=0.88,
@@ -260,7 +259,7 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
     "voxtral-mini": ModelProfile(
         model_id="voxtral-mini",
         provider="mistral",
-        cost_per_1k_input=0.016,    # $0.016 / 1K chars — ultra budget
+        cost_per_1k_input=0.016,  # $0.016 / 1K chars — ultra budget
         cost_per_1k_output=0.0,
         avg_latency_ms=2_000,
         quality_score=0.79,
@@ -268,29 +267,27 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
         capabilities={"voice", "voice_cloning", "ultra_budget", "bulk_tts"},
         rate_limit_rpm=2000,
     ),
-
     # ── REALTIME VOICE (OpenAI) ────────────────────────────────────────
     "openai-realtime-voice": ModelProfile(
         model_id="openai-realtime-voice",
         provider="openai",
-        cost_per_1k_input=0.100,    # $100/1M input tokens audio
-        cost_per_1k_output=0.200,   # $200/1M output tokens audio
-        avg_latency_ms=500,         # sub-second streaming latency
+        cost_per_1k_input=0.100,  # $100/1M input tokens audio
+        cost_per_1k_output=0.200,  # $200/1M output tokens audio
+        avg_latency_ms=500,  # sub-second streaming latency
         quality_score=0.92,
         max_context_tokens=128_000,
         capabilities={"voice", "realtime_voice", "conversational", "streaming_audio"},
         rate_limit_rpm=200,
     ),
-
     # ── MUSIC ──────────────────────────────────────────────────────────
     "suno-v4": ModelProfile(
         model_id="suno-v4",
         provider="suno",
-        cost_per_1k_input=0.100,    # ~$0.10 per generation on pro plan
+        cost_per_1k_input=0.100,  # ~$0.10 per generation on pro plan
         cost_per_1k_output=0.0,
         avg_latency_ms=30_000,
         quality_score=0.90,
-        max_context_tokens=3000,    # lyrics / description limit
+        max_context_tokens=3000,  # lyrics / description limit
         capabilities={"music", "background_tracks", "jingles", "intros"},
         rate_limit_rpm=60,
     ),
@@ -300,28 +297,28 @@ MODEL_REGISTRY: dict[str, ModelProfile] = {
 # Tier-to-task-type mapping: which models are preferred for each tier
 _TIER_MODEL_PREFERENCES: dict[str, dict[str, list[str]]] = {
     "hero": {
-        "text":   ["claude-sonnet-4"],
-        "image":  ["gpt-image-1", "flux-pro-v1.1"],
-        "video":  ["runway-gen4-turbo", "higgsfield-cinema"],
+        "text": ["claude-sonnet-4"],
+        "image": ["gpt-image-1", "flux-pro-v1.1"],
+        "video": ["runway-gen4-turbo", "higgsfield-cinema"],
         "avatar": ["heygen-avatar"],
-        "voice":  ["elevenlabs-v2"],
-        "music":  ["suno-v4"],
+        "voice": ["elevenlabs-v2"],
+        "music": ["suno-v4"],
     },
     "standard": {
-        "text":   ["gemini-2.5-flash"],
-        "image":  ["imagen-4-fast", "flux-pro-v1.1"],
-        "video":  ["kling-v2"],
+        "text": ["gemini-2.5-flash"],
+        "image": ["imagen-4-fast", "flux-pro-v1.1"],
+        "video": ["kling-v2"],
         "avatar": ["heygen-avatar", "d-id-talks"],
-        "voice":  ["fish-audio-tts"],
-        "music":  ["suno-v4"],
+        "voice": ["fish-audio-tts"],
+        "music": ["suno-v4"],
     },
     "bulk": {
-        "text":   ["deepseek-chat", "gemini-2.5-flash"],
-        "image":  ["imagen-4-fast"],
-        "video":  ["wan-2.2", "kling-v2"],
+        "text": ["deepseek-chat", "gemini-2.5-flash"],
+        "image": ["imagen-4-fast"],
+        "video": ["wan-2.2", "kling-v2"],
         "avatar": ["d-id-talks", "tavus-avatar"],
-        "voice":  ["voxtral-mini", "fish-audio-tts"],
-        "music":  ["suno-v4"],
+        "voice": ["voxtral-mini", "fish-audio-tts"],
+        "music": ["suno-v4"],
     },
 }
 
@@ -329,13 +326,28 @@ _TIER_MODEL_PREFERENCES: dict[str, dict[str, list[str]]] = {
 def _extract_media_type(task_type: str) -> str:
     """Normalise granular task types to a media category."""
     mapping = {
-        "hero_text": "text", "standard_text": "text", "bulk_text": "text",
-        "caption": "text", "script": "text", "hook": "text", "email": "text", "blog": "text",
-        "hero_image": "image", "thumbnail": "image", "social_image": "image",
-        "hero_video": "video", "social_clip": "video", "b_roll": "video", "cinematic": "video",
-        "avatar_video": "avatar", "talking_head": "avatar",
-        "hero_voice": "voice", "voiceover": "voice", "narration": "voice",
-        "background_music": "music", "jingle": "music",
+        "hero_text": "text",
+        "standard_text": "text",
+        "bulk_text": "text",
+        "caption": "text",
+        "script": "text",
+        "hook": "text",
+        "email": "text",
+        "blog": "text",
+        "hero_image": "image",
+        "thumbnail": "image",
+        "social_image": "image",
+        "hero_video": "video",
+        "social_clip": "video",
+        "b_roll": "video",
+        "cinematic": "video",
+        "avatar_video": "avatar",
+        "talking_head": "avatar",
+        "hero_voice": "voice",
+        "voiceover": "voice",
+        "narration": "voice",
+        "background_music": "music",
+        "jingle": "music",
     }
     return mapping.get(task_type, task_type)
 
@@ -347,9 +359,9 @@ def _extract_media_type(task_type: str) -> str:
 
 # Scoring weights by quality tier
 _TIER_WEIGHTS: dict[str, dict[str, float]] = {
-    "hero":     {"quality": 0.50, "cost": 0.05, "latency": 0.05, "load": 0.10, "preference": 0.30},
+    "hero": {"quality": 0.50, "cost": 0.05, "latency": 0.05, "load": 0.10, "preference": 0.30},
     "standard": {"quality": 0.30, "cost": 0.20, "latency": 0.15, "load": 0.10, "preference": 0.25},
-    "bulk":     {"quality": 0.10, "cost": 0.40, "latency": 0.15, "load": 0.15, "preference": 0.20},
+    "bulk": {"quality": 0.10, "cost": 0.40, "latency": 0.15, "load": 0.15, "preference": 0.20},
 }
 
 
@@ -612,7 +624,7 @@ def optimize_batch_routing(
 @dataclass
 class QualityReport:
     content_id: str
-    overall_score: float            # 0–100
+    overall_score: float  # 0–100
     passed: bool
     dimension_scores: dict[str, float]
     issues: list[str]
@@ -658,46 +670,141 @@ def _flesch_reading_ease(text: str) -> float:
     return 206.835 - 1.015 * (num_words / num_sentences) - 84.6 * (num_syllables / num_words)
 
 
-_POWER_WORDS = frozenset([
-    "free", "proven", "secret", "instant", "guaranteed", "exclusive", "limited",
-    "discover", "unlock", "transform", "breakthrough", "ultimate", "now", "today",
-    "easy", "fast", "shocking", "revealed", "urgent", "save", "boost", "skyrocket",
-    "dominate", "massive", "incredible", "results", "insider", "hack", "money",
-    "profit", "growth", "success", "winning", "powerful", "explosive", "unstoppable",
-])
+_POWER_WORDS = frozenset(
+    [
+        "free",
+        "proven",
+        "secret",
+        "instant",
+        "guaranteed",
+        "exclusive",
+        "limited",
+        "discover",
+        "unlock",
+        "transform",
+        "breakthrough",
+        "ultimate",
+        "now",
+        "today",
+        "easy",
+        "fast",
+        "shocking",
+        "revealed",
+        "urgent",
+        "save",
+        "boost",
+        "skyrocket",
+        "dominate",
+        "massive",
+        "incredible",
+        "results",
+        "insider",
+        "hack",
+        "money",
+        "profit",
+        "growth",
+        "success",
+        "winning",
+        "powerful",
+        "explosive",
+        "unstoppable",
+    ]
+)
 
-_EMOTIONAL_TRIGGERS = frozenset([
-    "imagine", "what if", "you deserve", "stop wasting", "tired of", "finally",
-    "never again", "struggling", "dream", "fear", "love", "hate", "freedom",
-    "security", "pain", "pleasure", "wish", "hope", "believe", "trust",
-])
+_EMOTIONAL_TRIGGERS = frozenset(
+    [
+        "imagine",
+        "what if",
+        "you deserve",
+        "stop wasting",
+        "tired of",
+        "finally",
+        "never again",
+        "struggling",
+        "dream",
+        "fear",
+        "love",
+        "hate",
+        "freedom",
+        "security",
+        "pain",
+        "pleasure",
+        "wish",
+        "hope",
+        "believe",
+        "trust",
+    ]
+)
 
-_CTA_PHRASES = frozenset([
-    "click", "sign up", "subscribe", "download", "get started", "buy now",
-    "learn more", "join", "register", "order", "start", "try", "grab",
-    "claim", "shop", "book", "reserve", "apply", "enroll", "watch",
-    "tap", "swipe", "link in bio", "comment below", "drop a",
-    "save this", "share this", "follow for", "dm me",
-])
+_CTA_PHRASES = frozenset(
+    [
+        "click",
+        "sign up",
+        "subscribe",
+        "download",
+        "get started",
+        "buy now",
+        "learn more",
+        "join",
+        "register",
+        "order",
+        "start",
+        "try",
+        "grab",
+        "claim",
+        "shop",
+        "book",
+        "reserve",
+        "apply",
+        "enroll",
+        "watch",
+        "tap",
+        "swipe",
+        "link in bio",
+        "comment below",
+        "drop a",
+        "save this",
+        "share this",
+        "follow for",
+        "dm me",
+    ]
+)
 
-_SPAM_WORDS = frozenset([
-    "!!!",  "100%", "act now", "no obligation", "click here",
-    "congratulations", "winner", "selected", "dear friend", "make money fast",
-])
+_SPAM_WORDS = frozenset(
+    [
+        "!!!",
+        "100%",
+        "act now",
+        "no obligation",
+        "click here",
+        "congratulations",
+        "winner",
+        "selected",
+        "dear friend",
+        "make money fast",
+    ]
+)
 
-_FILLER_PHRASES = frozenset([
-    "in this article", "as we all know", "it goes without saying",
-    "needless to say", "in today's world", "at the end of the day",
-    "it is what it is", "for all intents and purposes",
-])
+_FILLER_PHRASES = frozenset(
+    [
+        "in this article",
+        "as we all know",
+        "it goes without saying",
+        "needless to say",
+        "in today's world",
+        "at the end of the day",
+        "it is what it is",
+        "for all intents and purposes",
+    ]
+)
 
 # Platform-specific ideal readability ranges (Flesch Reading Ease)
 _PLATFORM_READABILITY: dict[str, tuple[float, float]] = {
-    "hook":    (60.0, 90.0),   # simple, punchy
-    "script":  (50.0, 80.0),   # conversational
-    "caption": (55.0, 85.0),   # social-friendly
-    "email":   (50.0, 75.0),   # professional but accessible
-    "blog":    (40.0, 70.0),   # slightly more complex OK
+    "hook": (60.0, 90.0),  # simple, punchy
+    "script": (50.0, 80.0),  # conversational
+    "caption": (55.0, 85.0),  # social-friendly
+    "email": (50.0, 75.0),  # professional but accessible
+    "blog": (40.0, 70.0),  # slightly more complex OK
 }
 
 
@@ -760,7 +867,7 @@ def _score_relevance(text: str, brand_keywords: list[str] | None, target_audienc
 
 
 def _compute_ngrams(words: list[str], n: int) -> list[tuple[str, ...]]:
-    return [tuple(words[i:i + n]) for i in range(len(words) - n + 1)]
+    return [tuple(words[i : i + n]) for i in range(len(words) - n + 1)]
 
 
 def _score_originality(text: str) -> tuple[float, list[str]]:
@@ -840,7 +947,7 @@ def _score_engagement(text: str, content_type: str) -> tuple[float, list[str]]:
     question_count = text.count("?")
     question_score = min(10.0, question_count * 3.0)
 
-    total = (hook_score * 0.4 + emotional_score + power_score + question_score)
+    total = hook_score * 0.4 + emotional_score + power_score + question_score
     total = min(100.0, max(0.0, total))
 
     if hook_score < 50:
@@ -937,11 +1044,14 @@ def score_text_quality(
 
     if not text or not text.strip():
         return QualityReport(
-            content_id=content_id, overall_score=0.0, passed=False,
+            content_id=content_id,
+            overall_score=0.0,
+            passed=False,
             dimension_scores={d: 0.0 for d in _QUALITY_DIMENSION_WEIGHTS},
             issues=["Empty content provided."],
             improvement_suggestions=["Provide actual content to evaluate."],
-            regeneration_recommended=True, estimated_revenue_impact=-5.0,
+            regeneration_recommended=True,
+            estimated_revenue_impact=-5.0,
         )
 
     all_issues: list[str] = []
@@ -1168,7 +1278,7 @@ class Experiment:
     experiment_id: str
     name: str
     variants: list[ExperimentVariant]
-    status: str = "running"     # "running", "concluded", "stopped"
+    status: str = "running"  # "running", "concluded", "stopped"
     start_date: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     min_sample_size: int = 200
     confidence_threshold: float = 0.95
@@ -1214,23 +1324,33 @@ def _norm_ppf(p: float) -> float:
         return 8.0
 
     a = [
-        -3.969683028665376e+01,  2.209460984245205e+02,
-        -2.759285104469687e+02,  1.383577518672690e+02,
-        -3.066479806614716e+01,  2.506628277459239e+00,
+        -3.969683028665376e01,
+        2.209460984245205e02,
+        -2.759285104469687e02,
+        1.383577518672690e02,
+        -3.066479806614716e01,
+        2.506628277459239e00,
     ]
     b = [
-        -5.447609879822406e+01,  1.615858368580409e+02,
-        -1.556989798598866e+02,  6.680131188771972e+01,
-        -1.328068155288572e+01,
+        -5.447609879822406e01,
+        1.615858368580409e02,
+        -1.556989798598866e02,
+        6.680131188771972e01,
+        -1.328068155288572e01,
     ]
     c = [
-        -7.784894002430293e-03, -3.223964580411365e-01,
-        -2.400758277161838e+00, -2.549732539343734e+00,
-         4.374664141464968e+00,  2.938163982698783e+00,
+        -7.784894002430293e-03,
+        -3.223964580411365e-01,
+        -2.400758277161838e00,
+        -2.549732539343734e00,
+        4.374664141464968e00,
+        2.938163982698783e00,
     ]
     d = [
-         7.784695709041462e-03,  3.224671290700398e-01,
-         2.445134137142996e+00,  3.754408661907416e+00,
+        7.784695709041462e-03,
+        3.224671290700398e-01,
+        2.445134137142996e00,
+        3.754408661907416e00,
     ]
 
     p_low = 0.02425
@@ -1238,17 +1358,22 @@ def _norm_ppf(p: float) -> float:
 
     if p < p_low:
         q = math.sqrt(-2.0 * math.log(p))
-        return (((((c[0]*q + c[1])*q + c[2])*q + c[3])*q + c[4])*q + c[5]) / \
-               ((((d[0]*q + d[1])*q + d[2])*q + d[3])*q + 1.0)
+        return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / (
+            (((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0
+        )
     elif p <= p_high:
         q = p - 0.5
         r = q * q
-        return (((((a[0]*r + a[1])*r + a[2])*r + a[3])*r + a[4])*r + a[5]) * q / \
-               (((((b[0]*r + b[1])*r + b[2])*r + b[3])*r + b[4])*r + 1.0)
+        return (
+            (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5])
+            * q
+            / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1.0)
+        )
     else:
         q = math.sqrt(-2.0 * math.log(1.0 - p))
-        return -(((((c[0]*q + c[1])*q + c[2])*q + c[3])*q + c[4])*q + c[5]) / \
-                ((((d[0]*q + d[1])*q + d[2])*q + d[3])*q + 1.0)
+        return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / (
+            (((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0
+        )
 
 
 def compute_experiment_significance(
@@ -1276,9 +1401,7 @@ def compute_experiment_significance(
     p_value = 2.0 * (1.0 - _norm_cdf(abs(z_score)))
 
     # Confidence interval for the difference (p_t - p_c) using unpooled SE
-    se_diff = math.sqrt(
-        (p_c * (1.0 - p_c) / n_c) + (p_t * (1.0 - p_t) / n_t)
-    ) if n_c > 1 and n_t > 1 else se
+    se_diff = math.sqrt((p_c * (1.0 - p_c) / n_c) + (p_t * (1.0 - p_t) / n_t)) if n_c > 1 and n_t > 1 else se
     se_diff = max(se_diff, 1e-10)
     z_95 = 1.96
     ci_lower = (p_t - p_c) - z_95 * se_diff
@@ -1302,13 +1425,11 @@ def compute_experiment_significance(
 
     # Required sample size to detect the observed difference at 80% power, alpha=0.05
     z_alpha = 1.96
-    z_beta = 0.842   # 80% power
+    z_beta = 0.842  # 80% power
     effect = abs(p_t - p_c)
     if effect > 0.0001:
         avg_p = (p_c + p_t) / 2.0
-        required_n = math.ceil(
-            ((z_alpha + z_beta) ** 2 * 2.0 * avg_p * (1.0 - avg_p)) / (effect ** 2)
-        )
+        required_n = math.ceil(((z_alpha + z_beta) ** 2 * 2.0 * avg_p * (1.0 - avg_p)) / (effect**2))
     else:
         required_n = 999_999
 
@@ -1331,9 +1452,7 @@ def compute_experiment_significance(
     revenue_lift_pct = (revenue_lift / rpi_c * 100.0) if rpi_c > 0.0001 else 0.0
 
     # Revenue confidence interval (approximate using same SE scaling)
-    se_rev = math.sqrt(
-        (_variance_estimate(control) / n_c) + (_variance_estimate(treatment) / n_t)
-    )
+    se_rev = math.sqrt((_variance_estimate(control) / n_c) + (_variance_estimate(treatment) / n_t))
     rev_ci_lower = revenue_lift - z_95 * se_rev
     rev_ci_upper = revenue_lift + z_95 * se_rev
 
@@ -1371,7 +1490,7 @@ def _variance_estimate(v: ExperimentVariant) -> float:
     # Without per-event data, approximate variance using Bernoulli-like bound
     p = v.conversion_rate
     avg_rev_per_conv = v.revenue / max(v.conversions, 1)
-    return p * (1.0 - p) * (avg_rev_per_conv ** 2)
+    return p * (1.0 - p) * (avg_rev_per_conv**2)
 
 
 def recommend_experiment_action(experiment: Experiment) -> dict[str, Any]:
@@ -1402,9 +1521,7 @@ def recommend_experiment_action(experiment: Experiment) -> dict[str, Any]:
         return {"action": "error", "reason": "No treatment results computed."}
 
     total_n = experiment.total_impressions
-    min_reached = all(
-        v.impressions >= experiment.min_sample_size for v in experiment.variants
-    )
+    min_reached = all(v.impressions >= experiment.min_sample_size for v in experiment.variants)
 
     # Decision tree
     if best_result["is_significant"] and min_reached:
@@ -1444,9 +1561,7 @@ def recommend_experiment_action(experiment: Experiment) -> dict[str, Any]:
     # Revenue projection if winner is declared
     projected_monthly_revenue_delta = 0.0
     if action == "declare_winner" and best_result["revenue_lift_per_impression"] != 0:
-        avg_monthly_impressions = total_n * 30.0 / max(
-            (datetime.now(timezone.utc) - experiment.start_date).days, 1
-        )
+        avg_monthly_impressions = total_n * 30.0 / max((datetime.now(timezone.utc) - experiment.start_date).days, 1)
         projected_monthly_revenue_delta = best_result["revenue_lift_per_impression"] * avg_monthly_impressions
 
     return {
@@ -1477,11 +1592,13 @@ def create_experiment(
     for i, cfg in enumerate(variant_configs):
         vid = cfg.get("variant_id", f"v{i}")
         vname = cfg.get("name", f"Variant {i}" if i > 0 else "Control")
-        variants.append(ExperimentVariant(
-            variant_id=vid,
-            name=vname,
-            content_params=cfg.get("params", {}),
-        ))
+        variants.append(
+            ExperimentVariant(
+                variant_id=vid,
+                name=vname,
+                content_params=cfg.get("params", {}),
+            )
+        )
     return Experiment(
         experiment_id=uuid.uuid4().hex[:12],
         name=name,

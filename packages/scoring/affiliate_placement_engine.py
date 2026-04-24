@@ -3,6 +3,7 @@
 Placements: link-in-bio, in-caption, pinned-comment, description-top, end-card
 Each placement type is A/B tested and the system learns which converts best per platform.
 """
+
 from __future__ import annotations
 
 import random
@@ -10,11 +11,26 @@ from typing import Any
 
 PLACEMENT_TYPES = [
     {"id": "link_in_bio", "label": "Link in Bio", "platforms": ["tiktok", "instagram"], "injection_point": "cta"},
-    {"id": "in_caption", "label": "In Caption/Description", "platforms": ["youtube", "instagram", "tiktok", "x", "linkedin"], "injection_point": "body"},
-    {"id": "pinned_comment", "label": "Pinned Comment", "platforms": ["youtube", "tiktok", "instagram"], "injection_point": "post_publish"},
+    {
+        "id": "in_caption",
+        "label": "In Caption/Description",
+        "platforms": ["youtube", "instagram", "tiktok", "x", "linkedin"],
+        "injection_point": "body",
+    },
+    {
+        "id": "pinned_comment",
+        "label": "Pinned Comment",
+        "platforms": ["youtube", "tiktok", "instagram"],
+        "injection_point": "post_publish",
+    },
     {"id": "description_top", "label": "Top of Description", "platforms": ["youtube"], "injection_point": "body_top"},
     {"id": "end_card", "label": "End Card / CTA Screen", "platforms": ["youtube"], "injection_point": "cta"},
-    {"id": "story_swipe_up", "label": "Swipe Up / Link Sticker", "platforms": ["instagram", "tiktok"], "injection_point": "media_overlay"},
+    {
+        "id": "story_swipe_up",
+        "label": "Swipe Up / Link Sticker",
+        "platforms": ["instagram", "tiktok"],
+        "injection_point": "media_overlay",
+    },
 ]
 
 DEFAULT_PLATFORM_PLACEMENTS: dict[str, list[str]] = {
@@ -77,7 +93,4 @@ def build_placement_instruction(placement: dict[str, Any], affiliate_link: str, 
 def get_placement_for_experiment(platform: str) -> list[dict[str, Any]]:
     """Generate placement variants for A/B testing."""
     available = DEFAULT_PLATFORM_PLACEMENTS.get(platform.lower(), ["in_caption"])
-    return [
-        {**next((p for p in PLACEMENT_TYPES if p["id"] == pid), {}), "variant_name": pid}
-        for pid in available
-    ]
+    return [{**next((p for p in PLACEMENT_TYPES if p["id"] == pid), {}), "variant_name": pid} for pid in available]

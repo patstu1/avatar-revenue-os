@@ -1,4 +1,5 @@
 """Schemas for system jobs and audit logs."""
+
 import uuid
 from datetime import datetime
 from typing import Optional

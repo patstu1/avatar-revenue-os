@@ -7,6 +7,7 @@ schedules follow-ups, and tracks responses.
 Actual email sending is approval-gated by default (operator reviews before send).
 Can be set to autonomous for known-good templates + high-confidence targets.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -28,7 +29,9 @@ logger = structlog.get_logger()
 
 
 async def draft_sponsor_outreach(
-    db: AsyncSession, brand_id: uuid.UUID, sponsor_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    sponsor_id: uuid.UUID,
 ) -> dict:
     """Draft a complete sponsor outreach email ready to send."""
     sponsor = (await db.execute(select(SponsorProfile).where(SponsorProfile.id == sponsor_id))).scalar_one_or_none()
@@ -38,22 +41,29 @@ async def draft_sponsor_outreach(
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
 
     # Gather performance data for the pitch
-    total_followers = (await db.execute(
-        select(func.coalesce(func.sum(CreatorAccount.follower_count), 0))
-        .where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalar() or 0
+    total_followers = (
+        await db.execute(
+            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(
+                CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True)
+            )
+        )
+    ).scalar() or 0
 
-    top_content = (await db.execute(
-        select(ContentItem.title, PerformanceMetric.impressions)
-        .outerjoin(PerformanceMetric, PerformanceMetric.content_item_id == ContentItem.id)
-        .where(ContentItem.brand_id == brand_id)
-        .order_by(PerformanceMetric.impressions.desc().nullslast()).limit(3)
-    )).all()
+    top_content = (
+        await db.execute(
+            select(ContentItem.title, PerformanceMetric.impressions)
+            .outerjoin(PerformanceMetric, PerformanceMetric.content_item_id == ContentItem.id)
+            .where(ContentItem.brand_id == brand_id)
+            .order_by(PerformanceMetric.impressions.desc().nullslast())
+            .limit(3)
+        )
+    ).all()
 
-    avg_engagement = (await db.execute(
-        select(func.avg(PerformanceMetric.engagement_rate))
-        .where(PerformanceMetric.brand_id == brand_id)
-    )).scalar() or 0
+    avg_engagement = (
+        await db.execute(
+            select(func.avg(PerformanceMetric.engagement_rate)).where(PerformanceMetric.brand_id == brand_id)
+        )
+    ).scalar() or 0
 
     brand_name = brand.name if brand else "Our Brand"
     niche = brand.niche if brand else "content creation"
@@ -111,7 +121,9 @@ Best regards,
 
 
 async def draft_service_proposal(
-    db: AsyncSession, brand_id: uuid.UUID, deal_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    deal_id: uuid.UUID,
 ) -> dict:
     """Draft a service/consulting proposal document from deal data."""
     deal = (await db.execute(select(HighTicketDeal).where(HighTicketDeal.id == deal_id))).scalar_one_or_none()
@@ -122,12 +134,24 @@ async def draft_service_proposal(
     brand_name = brand.name if brand else "Our Team"
 
     scope_items = {
-        "consulting": ["Strategic consultation sessions", "Market analysis and recommendations",
-                        "Implementation roadmap", "Monthly progress reviews"],
-        "content": ["Content strategy development", "Content creation and production",
-                     "Platform optimization", "Performance reporting"],
-        "campaign": ["Campaign strategy and planning", "Creative development",
-                      "Multi-platform execution", "Results tracking and optimization"],
+        "consulting": [
+            "Strategic consultation sessions",
+            "Market analysis and recommendations",
+            "Implementation roadmap",
+            "Monthly progress reviews",
+        ],
+        "content": [
+            "Content strategy development",
+            "Content creation and production",
+            "Platform optimization",
+            "Performance reporting",
+        ],
+        "campaign": [
+            "Campaign strategy and planning",
+            "Creative development",
+            "Multi-platform execution",
+            "Results tracking and optimization",
+        ],
     }
 
     product_type = deal.product_type or "consulting"
@@ -136,9 +160,9 @@ async def draft_service_proposal(
     proposal = f"""PROPOSAL: {product_type.title()} Services
 Prepared for: {deal.customer_name}
 Prepared by: {brand_name}
-Date: {datetime.now(timezone.utc).strftime('%B %d, %Y')}
+Date: {datetime.now(timezone.utc).strftime("%B %d, %Y")}
 
-{'='*50}
+{"=" * 50}
 
 EXECUTIVE SUMMARY
 
@@ -146,15 +170,15 @@ EXECUTIVE SUMMARY
 
 SCOPE OF WORK
 
-{chr(10).join(f'• {item}' for item in scope)}
+{chr(10).join(f"• {item}" for item in scope)}
 
 INVESTMENT
 
 Total: ${deal.deal_value:,.2f}
 
 Payment Structure:
-• 50% upon agreement (${deal.deal_value/2:,.2f})
-• 50% upon completion (${deal.deal_value/2:,.2f})
+• 50% upon agreement (${deal.deal_value / 2:,.2f})
+• 50% upon completion (${deal.deal_value / 2:,.2f})
 
 TIMELINE
 
@@ -184,15 +208,21 @@ We look forward to partnering with {deal.customer_name}.
 
 
 async def draft_follow_up(
-    db: AsyncSession, brand_id: uuid.UUID,
-    *, entity_type: str, entity_id: uuid.UUID, sequence_step: int = 1,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    *,
+    entity_type: str,
+    entity_id: uuid.UUID,
+    sequence_step: int = 1,
 ) -> dict:
     """Draft a follow-up email for a stalled deal or outreach."""
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     brand_name = brand.name if brand else "Our Team"
 
     if entity_type == "sponsor_opportunity":
-        deal = (await db.execute(select(SponsorOpportunity).where(SponsorOpportunity.id == entity_id))).scalar_one_or_none()
+        deal = (
+            await db.execute(select(SponsorOpportunity).where(SponsorOpportunity.id == entity_id))
+        ).scalar_one_or_none()
         name = deal.title if deal else "your team"
         context = "our sponsorship discussion"
     elif entity_type == "high_ticket_deal":
@@ -222,7 +252,8 @@ async def draft_follow_up(
 
 
 async def generate_sponsor_media_kit(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> dict:
     """Generate a media kit / one-pager with brand stats for sponsor pitches."""
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
@@ -230,44 +261,58 @@ async def generate_sponsor_media_kit(
     niche = brand.niche if brand else "Content"
 
     # Aggregate stats
-    total_followers = (await db.execute(
-        select(func.coalesce(func.sum(CreatorAccount.follower_count), 0))
-        .where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalar() or 0
+    total_followers = (
+        await db.execute(
+            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(
+                CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True)
+            )
+        )
+    ).scalar() or 0
 
-    account_count = (await db.execute(
-        select(func.count()).select_from(CreatorAccount)
-        .where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalar() or 0
+    account_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(CreatorAccount)
+            .where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+        )
+    ).scalar() or 0
 
-    content_count = (await db.execute(
-        select(func.count()).select_from(ContentItem)
-        .where(ContentItem.brand_id == brand_id, ContentItem.status == "published")
-    )).scalar() or 0
+    content_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(ContentItem)
+            .where(ContentItem.brand_id == brand_id, ContentItem.status == "published")
+        )
+    ).scalar() or 0
 
-    avg_engagement = (await db.execute(
-        select(func.avg(PerformanceMetric.engagement_rate)).where(PerformanceMetric.brand_id == brand_id)
-    )).scalar() or 0
+    avg_engagement = (
+        await db.execute(
+            select(func.avg(PerformanceMetric.engagement_rate)).where(PerformanceMetric.brand_id == brand_id)
+        )
+    ).scalar() or 0
 
-    total_impressions = (await db.execute(
-        select(func.coalesce(func.sum(PerformanceMetric.impressions), 0)).where(PerformanceMetric.brand_id == brand_id)
-    )).scalar() or 0
+    total_impressions = (
+        await db.execute(
+            select(func.coalesce(func.sum(PerformanceMetric.impressions), 0)).where(
+                PerformanceMetric.brand_id == brand_id
+            )
+        )
+    ).scalar() or 0
 
     # Platform breakdown
-    platforms = (await db.execute(
-        select(CreatorAccount.platform, func.sum(CreatorAccount.follower_count))
-        .where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-        .group_by(CreatorAccount.platform)
-    )).all()
-    platform_breakdown = {
-        (p[0].value if hasattr(p[0], 'value') else str(p[0])): int(p[1] or 0)
-        for p in platforms
-    }
+    platforms = (
+        await db.execute(
+            select(CreatorAccount.platform, func.sum(CreatorAccount.follower_count))
+            .where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            .group_by(CreatorAccount.platform)
+        )
+    ).all()
+    platform_breakdown = {(p[0].value if hasattr(p[0], "value") else str(p[0])): int(p[1] or 0) for p in platforms}
 
-    media_kit = f"""{'='*50}
+    media_kit = f"""{"=" * 50}
 {brand_name.upper()} — MEDIA KIT
 {niche.title()} Content Creator
-{'='*50}
+{"=" * 50}
 
 AUDIENCE
 • Total Reach: {total_followers:,} followers
@@ -277,7 +322,7 @@ AUDIENCE
 • Total Impressions: {total_impressions:,}
 
 PLATFORM BREAKDOWN
-{chr(10).join(f'• {platform.title()}: {followers:,} followers' for platform, followers in platform_breakdown.items())}
+{chr(10).join(f"• {platform.title()}: {followers:,} followers" for platform, followers in platform_breakdown.items())}
 
 PARTNERSHIP OPTIONS
 • Sponsored Content Integration — from ${int(total_followers * 0.01):,}
@@ -295,7 +340,7 @@ CONTACT
 {brand_name}
 {"Email: " + (brand.description or "") if brand and brand.description else ""}
 
-{'='*50}
+{"=" * 50}
 """
 
     return {
@@ -309,9 +354,14 @@ CONTACT
 
 
 async def queue_outreach_sequence(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID,
-    *, target_type: str, target_id: uuid.UUID,
-    draft: dict, auto_send: bool = False,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    *,
+    target_type: str,
+    target_id: uuid.UUID,
+    draft: dict,
+    auto_send: bool = False,
 ) -> dict:
     """Queue an outreach email + follow-up sequence.
 
@@ -320,7 +370,8 @@ async def queue_outreach_sequence(
     """
     # Create the initial send action
     action = await emit_action(
-        db, org_id=org_id,
+        db,
+        org_id=org_id,
         action_type="send_outreach_email",
         title=f"Send: {draft.get('subject', 'Outreach')[:60]}",
         description=f"To: {draft.get('contact_email', 'unknown')}. Review draft and approve send.",
@@ -340,7 +391,8 @@ async def queue_outreach_sequence(
     # Schedule follow-ups (7 days and 14 days later)
     for step, days in [(2, 7), (3, 14)]:
         await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="send_follow_up",
             title=f"Follow-up #{step}: {draft.get('subject', 'Outreach')[:40]}",
             description=f"Scheduled follow-up {days} days after initial outreach.",
@@ -359,9 +411,12 @@ async def queue_outreach_sequence(
         )
 
     await emit_event(
-        db, domain="monetization", event_type="outreach.sequence_queued",
+        db,
+        domain="monetization",
+        event_type="outreach.sequence_queued",
         summary=f"Outreach sequence queued: {draft.get('subject', 'unknown')[:60]}",
-        org_id=org_id, brand_id=brand_id,
+        org_id=org_id,
+        brand_id=brand_id,
         details={"target_type": target_type, "target_id": str(target_id), "steps": 3},
     )
 

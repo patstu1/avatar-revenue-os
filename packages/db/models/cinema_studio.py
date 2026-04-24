@@ -1,4 +1,5 @@
 """Cinema Studio: projects, scenes, characters, style presets, generations."""
+
 import uuid
 from typing import Optional
 
@@ -12,17 +13,13 @@ from packages.db.base import Base
 class StudioProject(Base):
     __tablename__ = "studio_projects"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
     genre: Mapped[str] = mapped_column(String(100), default="drama")
     status: Mapped[str] = mapped_column(String(50), default="draft")
     thumbnail_url: Mapped[Optional[str]] = mapped_column(String(1024))
-    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("offers.id"), index=True
-    )
+    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), index=True)
     target_platform: Mapped[Optional[str]] = mapped_column(String(50))
 
 
@@ -32,9 +29,7 @@ class StudioScene(Base):
     project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("studio_projects.id", ondelete="SET NULL"), index=True
     )
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     negative_prompt: Mapped[Optional[str]] = mapped_column(Text)
@@ -56,9 +51,7 @@ class StudioScene(Base):
 class CharacterBible(Base):
     __tablename__ = "character_bibles"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     gender: Mapped[str] = mapped_column(String(50), default="other")
@@ -77,9 +70,7 @@ class CharacterBible(Base):
 class StylePreset(Base):
     __tablename__ = "style_presets"
 
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), index=True
-    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(100), default="cinematic")
@@ -92,12 +83,12 @@ class StudioGeneration(Base):
     __tablename__ = "studio_generations"
 
     scene_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("studio_scenes.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("studio_scenes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     media_job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("media_jobs.id"), index=True
     )
@@ -116,9 +107,7 @@ class StudioGeneration(Base):
 class StudioActivity(Base):
     __tablename__ = "studio_activity"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     activity_type: Mapped[str] = mapped_column(String(100), nullable=False)
     entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     entity_name: Mapped[str] = mapped_column(String(500), nullable=False)

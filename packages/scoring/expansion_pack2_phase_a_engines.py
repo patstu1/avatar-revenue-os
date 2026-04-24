@@ -1,5 +1,6 @@
 """Expansion Pack 2 Phase A — lead qualification, closer actions, owned offer detection
 (pure functions, no I/O, no SQLAlchemy)."""
+
 from __future__ import annotations
 
 import math
@@ -12,23 +13,61 @@ EP2A = "expansion_pack2_phase_a"
 # ---------------------------------------------------------------------------
 
 _URGENCY_KW: list[str] = [
-    "need", "asap", "urgent", "today", "now", "help", "struggling",
-    "can't", "fix", "problem", "ready", "when can",
+    "need",
+    "asap",
+    "urgent",
+    "today",
+    "now",
+    "help",
+    "struggling",
+    "can't",
+    "fix",
+    "problem",
+    "ready",
+    "when can",
 ]
 
 _BUDGET_KW: list[str] = [
-    "invest", "budget", "spend", "afford", "worth", "pay", "cost",
-    "price", "premium", "serious",
+    "invest",
+    "budget",
+    "spend",
+    "afford",
+    "worth",
+    "pay",
+    "cost",
+    "price",
+    "premium",
+    "serious",
 ]
 
 _SOPHISTICATION_KW: list[str] = [
-    "strategy", "funnel", "roi", "conversion", "cpm", "epc", "scale",
-    "optimize", "proven", "framework", "system", "process", "automate",
+    "strategy",
+    "funnel",
+    "roi",
+    "conversion",
+    "cpm",
+    "epc",
+    "scale",
+    "optimize",
+    "proven",
+    "framework",
+    "system",
+    "process",
+    "automate",
 ]
 
 _TRUST_KW: list[str] = [
-    "recommend", "trust", "follow", "fan", "love", "been watching",
-    "long time", "community", "already", "proof", "results",
+    "recommend",
+    "trust",
+    "follow",
+    "fan",
+    "love",
+    "been watching",
+    "long time",
+    "community",
+    "already",
+    "proof",
+    "results",
 ]
 
 _REQUEST_KW: tuple[str, ...] = ("help", "tool", "template", "checklist", "resource")
@@ -39,9 +78,11 @@ _EDU_KW: tuple[str, ...] = ("how", "tutorial", "guide")
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _h(s: str) -> int:
     """Deterministic hash bucket (0–999), stable across processes."""
     import hashlib
+
     return int(hashlib.md5(s.encode()).hexdigest()[:8], 16) % 1000
 
 
@@ -78,6 +119,7 @@ def _slug(text: str) -> str:
 # ---------------------------------------------------------------------------
 # Engine 1 — Lead Qualification Scorer
 # ---------------------------------------------------------------------------
+
 
 def score_lead(
     lead_source: str,
@@ -244,6 +286,7 @@ def score_lead(
 # Engine 2 — Sales Closer Action Generator
 # ---------------------------------------------------------------------------
 
+
 def generate_closer_actions(
     qualification_tier: str,
     lead_source: str,
@@ -292,30 +335,22 @@ def generate_closer_actions(
             f"Hi! I'd love to explore how {_brand} can help with your {_niche} goals — "
             f"when are you free for a quick discovery call?"
         ),
-        "send_proposal": (
-            f"Here's a custom {_niche} proposal from {_brand} tailored to exactly what you described."
-        ),
+        "send_proposal": (f"Here's a custom {_niche} proposal from {_brand} tailored to exactly what you described."),
         "handle_objection": (
             f"I wanted to address a few common questions about {_brand}'s {_niche} offerings "
             f"before we move forward together."
         ),
         "send_case_study": (
-            f"Check out how {_brand} helped another {_niche} creator achieve real results — "
-            f"full case study inside."
+            f"Check out how {_brand} helped another {_niche} creator achieve real results — full case study inside."
         ),
         "send_pricing": (
-            f"Here's the full {_brand} pricing breakdown for {_niche} — "
-            f"transparent and worth every dollar."
+            f"Here's the full {_brand} pricing breakdown for {_niche} — transparent and worth every dollar."
         ),
-        "premium_service_pitch": (
-            f"I think you're a strong fit for {_brand}'s premium {_niche} program — here's why."
-        ),
+        "premium_service_pitch": (f"I think you're a strong fit for {_brand}'s premium {_niche} program — here's why."),
         "send_testimonials": (
             f"Don't just take our word for it — here's what {_niche} creators are saying about {_brand}."
         ),
-        "offer_trial": (
-            f"Would you like to try {_brand}'s {_niche} solution risk-free before fully committing?"
-        ),
+        "offer_trial": (f"Would you like to try {_brand}'s {_niche} solution risk-free before fully committing?"),
         "qualify_consult": (
             f"Let's hop on a quick call to confirm {_brand} is the perfect fit for your {_niche} situation."
         ),
@@ -356,22 +391,34 @@ def generate_closer_actions(
         if lead_source == "call_booked":
             actions = [
                 _action(
-                    "book_discovery_call", "call", "immediate", 1,
+                    "book_discovery_call",
+                    "call",
+                    "immediate",
+                    1,
                     "Hot lead has already signalled intent by booking — confirm and build rapport immediately.",
                     "Discovery call confirmed; trust established; proposal pathway opened.",
                 ),
                 _action(
-                    "send_proposal", "email", "24h", 2,
+                    "send_proposal",
+                    "email",
+                    "24h",
+                    2,
                     "Strike while hot — deliver a tailored proposal within 24 h of the discovery call.",
                     "Prospect receives a personalised offer before urgency fades.",
                 ),
                 _action(
-                    "handle_objection", "email", "48h", 3,
+                    "handle_objection",
+                    "email",
+                    "48h",
+                    3,
                     "Proactively address blockers to prevent the deal from stalling post-proposal.",
                     "Key objections removed; decision confidence increased.",
                 ),
                 _action(
-                    "send_case_study", "email", "48h", 4,
+                    "send_case_study",
+                    "email",
+                    "48h",
+                    4,
                     "Reinforce social proof after objection handling to lock in conversion.",
                     "Trust deepened; close probability increases.",
                 ),
@@ -379,22 +426,34 @@ def generate_closer_actions(
         elif lead_source in ("dm", "chat"):
             actions = [
                 _action(
-                    "send_pricing", "dm", "immediate", 1,
+                    "send_pricing",
+                    "dm",
+                    "immediate",
+                    1,
                     "DM/chat leads expect fast, direct, transparent responses.",
                     "Pricing clarity delivered; intent captured immediately.",
                 ),
                 _action(
-                    "premium_service_pitch", "dm", "24h", 2,
+                    "premium_service_pitch",
+                    "dm",
+                    "24h",
+                    2,
                     "Upsell to premium tier while intent and channel momentum is highest.",
                     "Higher-AOV conversion opportunity opened.",
                 ),
                 _action(
-                    "book_discovery_call", "call", "24h", 3,
+                    "book_discovery_call",
+                    "call",
+                    "24h",
+                    3,
                     "Move high-value conversation to a higher-signal call environment.",
                     "Stronger qualification and close environment secured.",
                 ),
                 _action(
-                    "send_case_study", "email", "48h", 4,
+                    "send_case_study",
+                    "email",
+                    "48h",
+                    4,
                     "Follow up with tangible proof to reinforce the pitch after call.",
                     "Long-term trust built; converts fence-sitters.",
                 ),
@@ -402,17 +461,26 @@ def generate_closer_actions(
         else:
             actions = [
                 _action(
-                    "book_discovery_call", "email", "immediate", 1,
+                    "book_discovery_call",
+                    "email",
+                    "immediate",
+                    1,
                     "Hot lead requires immediate personal outreach to secure conversation.",
                     "Discovery call booked while interest is at peak.",
                 ),
                 _action(
-                    "send_proposal", "email", "24h", 2,
+                    "send_proposal",
+                    "email",
+                    "24h",
+                    2,
                     "Deliver tailored proposal to capture momentum post-call.",
                     "Lead reviews a personalised offer before urgency window closes.",
                 ),
                 _action(
-                    "send_case_study", "email", "48h", 3,
+                    "send_case_study",
+                    "email",
+                    "48h",
+                    3,
                     "Provide social proof to support the proposal and reduce hesitation.",
                     "Conversion confidence increased; close rate improved.",
                 ),
@@ -422,22 +490,34 @@ def generate_closer_actions(
         if lead_source == "call_booked":
             actions = [
                 _action(
-                    "qualify_consult", "call", "24h", 1,
+                    "qualify_consult",
+                    "call",
+                    "24h",
+                    1,
                     "Warm + call booked — validate budget, timeline, and decision authority before pitching.",
                     "Fit confirmed; wasted pitch cycles avoided.",
                 ),
                 _action(
-                    "send_testimonials", "email", "24h", 2,
+                    "send_testimonials",
+                    "email",
+                    "24h",
+                    2,
                     "Prime prospect with peer social proof ahead of the consult call.",
                     "Credibility raised; objections reduced before call.",
                 ),
                 _action(
-                    "handle_objection", "email", "48h", 3,
+                    "handle_objection",
+                    "email",
+                    "48h",
+                    3,
                     "Address common hesitations post-consult to keep pipeline momentum.",
                     "Lead moves forward with fewer blockers.",
                 ),
                 _action(
-                    "follow_up_chat", "chat", "72h", 4,
+                    "follow_up_chat",
+                    "chat",
+                    "72h",
+                    4,
                     "Light-touch follow-up to keep a warm connection alive through the decision window.",
                     "Lead stays engaged and does not go cold before deciding.",
                 ),
@@ -445,22 +525,34 @@ def generate_closer_actions(
         else:
             actions = [
                 _action(
-                    "send_case_study", "email", "24h", 1,
+                    "send_case_study",
+                    "email",
+                    "24h",
+                    1,
                     "Educate and warm up the lead with relevant {_niche} success stories.",
                     "Lead gains confidence in the solution and brand authority.",
                 ),
                 _action(
-                    "send_testimonials", "email", "48h", 2,
+                    "send_testimonials",
+                    "email",
+                    "48h",
+                    2,
                     "Layer in peer validation to grow trust across the decision window.",
                     "Readiness to buy increases with compounding social proof.",
                 ),
                 _action(
-                    "follow_up_chat", "chat", "72h", 3,
+                    "follow_up_chat",
+                    "chat",
+                    "72h",
+                    3,
                     "Soft re-engagement touch to stay top-of-mind without pressure.",
                     "Lead re-engages and moves toward a decision.",
                 ),
                 _action(
-                    "offer_trial", "email", "72h", 4,
+                    "offer_trial",
+                    "email",
+                    "72h",
+                    4,
                     "Lower the commitment barrier with a trial or risk-reversal offer.",
                     "Primary objection removed; initial commitment secured.",
                 ),
@@ -469,17 +561,26 @@ def generate_closer_actions(
     else:  # cold
         actions = [
             _action(
-                "send_case_study", "email", "48h", 1,
+                "send_case_study",
+                "email",
+                "48h",
+                1,
                 "Plant seeds of awareness and authority with relevant proof for a cold lead.",
                 "Lead begins to recognise brand value and moves toward warm territory.",
             ),
             _action(
-                "follow_up_chat", "chat", "72h", 2,
+                "follow_up_chat",
+                "chat",
+                "72h",
+                2,
                 "Low-cost touch to test whether intent has updated since first contact.",
                 "Dormant interest surfaced; lead re-scored if response received.",
             ),
             _action(
-                "offer_trial", "email", "72h", 3,
+                "offer_trial",
+                "email",
+                "72h",
+                3,
                 "Risk-reversal trial offer lowers entry barrier for hesitant cold leads.",
                 "A fraction of cold leads convert via reduced-commitment pathway.",
             ),
@@ -488,7 +589,10 @@ def generate_closer_actions(
     # ------------------------------------------------------------------ high-AOV sponsor prep
     if avg_offer_aov >= 500.0 and qualification_tier == "hot":
         sponsor_action = _action(
-            "sponsor_negotiation_prep", "call", "immediate", 1,
+            "sponsor_negotiation_prep",
+            "call",
+            "immediate",
+            1,
             f"High AOV (${avg_offer_aov:,.0f}) warrants full sponsorship negotiation preparation "
             f"to maximise deal value before any call.",
             "Negotiation enters with a clear value anchor; deal size protected.",
@@ -504,6 +608,7 @@ def generate_closer_actions(
 # ---------------------------------------------------------------------------
 # Engine 3 — Owned Offer Recommendation Engine
 # ---------------------------------------------------------------------------
+
 
 def detect_offer_opportunities(
     niche: str,
@@ -590,11 +695,7 @@ def detect_offer_opportunities(
         demand = _demand(key)
         first_month_rev = round(demand * float(max(0, total_audience_size)) * 0.001 * price_min, 2)
         confidence = round(
-            _clamp(
-                0.35
-                + demand * 0.45
-                + _clamp(avg_monthly_revenue / 20_000.0) * 0.20
-            ),
+            _clamp(0.35 + demand * 0.45 + _clamp(avg_monthly_revenue / 20_000.0) * 0.20),
             3,
         )
         results.append(
@@ -650,9 +751,7 @@ def detect_offer_opportunities(
                 signal_type="repeated_objection",
                 detected_signal=f"Repeated sales objection: '{objection}'",
                 recommended_offer_type="coaching_program",
-                offer_name_suggestion=(
-                    f"{_brand} {_niche} Coaching: Overcome '{objection[:40].title()}'"
-                ),
+                offer_name_suggestion=(f"{_brand} {_niche} Coaching: Overcome '{objection[:40].title()}'"),
                 price_min=297.0,
                 price_max=1497.0,
                 audience_fit=f"{_niche} prospects who raise the objection: '{objection[:60]}'",
@@ -676,18 +775,12 @@ def detect_offer_opportunities(
             title = str(sig.get("title", "content"))
             _add(
                 signal_type="high_interest_low_conversion",
-                detected_signal=(
-                    f"High engagement ({eng:.1%}) but low revenue (${rev:.0f}) on '{title[:60]}'"
-                ),
+                detected_signal=(f"High engagement ({eng:.1%}) but low revenue (${rev:.0f}) on '{title[:60]}'"),
                 recommended_offer_type="digital_course",
-                offer_name_suggestion=(
-                    f"{_brand} {_niche} Digital Course: {title[:40].title()}"
-                ),
+                offer_name_suggestion=(f"{_brand} {_niche} Digital Course: {title[:40].title()}"),
                 price_min=97.0,
                 price_max=497.0,
-                audience_fit=(
-                    f"{_niche} audience already engaging with '{title[:40]}' content topic"
-                ),
+                audience_fit=(f"{_niche} audience already engaging with '{title[:40]}' content topic"),
                 explanation=(
                     f"Content '{title[:60]}' generates strong engagement ({eng:.1%}) "
                     f"but only ${rev:.0f} in revenue. A digital course built around this "
@@ -711,16 +804,12 @@ def detect_offer_opportunities(
             price_max = 97.0 if offer_type == "membership" else 997.0
             _add(
                 signal_type="high_trust_weak_affiliate",
-                detected_signal=(
-                    f"Segment '{seg_name}': high LTV (${ltv:.0f}) but low affiliate CVR ({cvr:.1%})"
-                ),
+                detected_signal=(f"Segment '{seg_name}': high LTV (${ltv:.0f}) but low affiliate CVR ({cvr:.1%})"),
                 recommended_offer_type=offer_type,
                 offer_name_suggestion=f"{_brand} {seg_name.title()} {offer_label}",
                 price_min=price_min,
                 price_max=price_max,
-                audience_fit=(
-                    f"High-LTV {_niche} segment '{seg_name}' not converting on affiliate offers"
-                ),
+                audience_fit=(f"High-LTV {_niche} segment '{seg_name}' not converting on affiliate offers"),
                 explanation=(
                     f"Segment '{seg_name}' shows high lifetime value (${ltv:.0f}) but "
                     f"low affiliate conversion ({cvr:.1%}). An owned {offer_label.lower()} "
@@ -740,16 +829,13 @@ def detect_offer_opportunities(
             if size > 1000:
                 _add(
                     signal_type="strong_owned_engagement",
-                    detected_signal=(
-                        f"Segment '{seg_name}' has {size:,} members with no existing membership offer"
-                    ),
+                    detected_signal=(f"Segment '{seg_name}' has {size:,} members with no existing membership offer"),
                     recommended_offer_type="membership",
                     offer_name_suggestion=f"{_brand} {_niche} Membership Community",
                     price_min=19.0,
                     price_max=97.0,
                     audience_fit=(
-                        f"Engaged {_niche} audience segment '{seg_name}' "
-                        f"ready for a recurring community product"
+                        f"Engaged {_niche} audience segment '{seg_name}' ready for a recurring community product"
                     ),
                     explanation=(
                         f"Segment '{seg_name}' contains {size:,} members with no membership "
@@ -773,13 +859,9 @@ def detect_offer_opportunities(
             content_id = str(sig.get("content_id", ""))
             _add(
                 signal_type="educational_traffic",
-                detected_signal=(
-                    f"Educational content '{title[:60]}' driving {impressions:,} impressions"
-                ),
+                detected_signal=(f"Educational content '{title[:60]}' driving {impressions:,} impressions"),
                 recommended_offer_type=offer_type,
-                offer_name_suggestion=(
-                    f"{_brand} {_niche} {offer_label}: {title[:40].title()}"
-                ),
+                offer_name_suggestion=(f"{_brand} {_niche} {offer_label}: {title[:40].title()}"),
                 price_min=27.0,
                 price_max=97.0,
                 audience_fit=f"{_niche} audience seeking how-to or tutorial content",
@@ -806,9 +888,7 @@ def detect_offer_opportunities(
                     offer_name_suggestion=f"{_brand} {_niche} Swipe File & Resource Kit",
                     price_min=17.0,
                     price_max=47.0,
-                    audience_fit=(
-                        f"{_niche} audience explicitly asking for resources, tools, or templates"
-                    ),
+                    audience_fit=(f"{_niche} audience explicitly asking for resources, tools, or templates"),
                     explanation=(
                         f"Comment theme '{theme}' signals the audience is actively asking for "
                         f"tangible resources. A swipe file is the fastest, lowest-barrier offer "

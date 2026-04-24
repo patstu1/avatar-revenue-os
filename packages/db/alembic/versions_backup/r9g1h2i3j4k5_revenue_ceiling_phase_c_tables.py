@@ -4,6 +4,7 @@ monetization mix, paid promotion gate.
 Revision ID: r9g1h2i3j4k5
 Revises: q8f0a1b2c3d4
 """
+
 from collections.abc import Sequence
 from typing import Union
 

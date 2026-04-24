@@ -9,6 +9,7 @@ identical to the JSON API.
 This is a deliberately minimal surface — it exists so the revenue
 send-loop can close without waiting for the broader operator UI batch.
 """
+
 from __future__ import annotations
 
 import html
@@ -59,22 +60,23 @@ async def pending_drafts_page(
     ).all()
 
     recent_rows = (
-        await db.execute(
-            select(EmailReplyDraft)
-            .where(
-                EmailReplyDraft.org_id == current_user.organization_id,
-                EmailReplyDraft.status.in_(("approved", "sent", "rejected")),
-                EmailReplyDraft.is_active.is_(True),
+        (
+            await db.execute(
+                select(EmailReplyDraft)
+                .where(
+                    EmailReplyDraft.org_id == current_user.organization_id,
+                    EmailReplyDraft.status.in_(("approved", "sent", "rejected")),
+                    EmailReplyDraft.is_active.is_(True),
+                )
+                .order_by(desc(EmailReplyDraft.created_at))
+                .limit(25)
             )
-            .order_by(desc(EmailReplyDraft.created_at))
-            .limit(25)
         )
-    ).scalars().all()
-
-    cards = "\n".join(
-        _render_draft_card(draft, classification)
-        for draft, classification in pending_rows
+        .scalars()
+        .all()
     )
+
+    cards = "\n".join(_render_draft_card(draft, classification) for draft, classification in pending_rows)
     recent_rows_html = "\n".join(_render_recent_row(draft) for draft in recent_rows)
 
     flash_banner = f'<div class="flash">{html.escape(flash)}</div>' if flash else ""
@@ -97,9 +99,7 @@ async def approve_draft_form(
 ):
     """HTML-form approve action. Redirects back to the pending-drafts page."""
     try:
-        draft = await approve_draft(
-            db, draft_id=uuid.UUID(draft_id), actor=current_user
-        )
+        draft = await approve_draft(db, draft_id=uuid.UUID(draft_id), actor=current_user)
     except ValueError:
         raise HTTPException(400, "Invalid draft id")
     except DraftActionError as exc:
@@ -165,16 +165,8 @@ async def reject_draft_form(
 
 def _render_draft_card(draft: EmailReplyDraft, classification) -> str:
     intent = classification.intent if classification is not None else "unknown"
-    confidence = (
-        f"{float(classification.confidence):.2f}"
-        if classification is not None
-        else "n/a"
-    )
-    mode_source = (
-        draft.decision_trace.get("mode_source")
-        if isinstance(draft.decision_trace, dict)
-        else "n/a"
-    )
+    confidence = f"{float(classification.confidence):.2f}" if classification is not None else "n/a"
+    mode_source = draft.decision_trace.get("mode_source") if isinstance(draft.decision_trace, dict) else "n/a"
     package = draft.package_offered or "n/a"
     created = draft.created_at.isoformat() if draft.created_at else ""
 

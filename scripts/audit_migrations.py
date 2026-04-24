@@ -1,4 +1,5 @@
 """Audit Alembic migration chain — find roots, tips, duplicates, and trace chains."""
+
 import os
 import re
 
@@ -17,7 +18,7 @@ for f in os.listdir(VERSIONS_DIR):
     rev = rev_m.group(1)
 
     down = None
-    tuple_m = re.search(r'down_revision\s*=\s*\(([^)]+)\)', content)
+    tuple_m = re.search(r"down_revision\s*=\s*\(([^)]+)\)", content)
     if tuple_m:
         down = "MERGE:" + tuple_m.group(1).strip()
     elif "down_revision" in content:
@@ -64,6 +65,8 @@ for r, v in revs.items():
         fwd.setdefault(d, []).append(r)
 
 print("\n=== CHAIN from 364023ff491f ===")
+
+
 def trace(start, depth=0, visited=None):
     if visited is None:
         visited = set()
@@ -74,6 +77,7 @@ def trace(start, depth=0, visited=None):
     print(f"{'  ' * depth}{start} ({info.get('file', '?')})")
     for nxt in fwd.get(start, []):
         trace(nxt, depth + 1, visited)
+
 
 if "364023ff491f" in revs:
     trace("364023ff491f")

@@ -1,4 +1,5 @@
 """Unit tests for promote-winner engine — pure functions, no DB."""
+
 import pytest
 
 from packages.scoring.promote_winner_engine import (
@@ -30,8 +31,16 @@ class TestCreateExperiment:
 
     def test_all_experiment_types(self):
         assert len(EXPERIMENT_TYPES) >= 11
-        for t in ("hook", "content_form", "cta_type", "offer_angle", "avatar_vs_non_avatar",
-                   "faceless_vs_face_forward", "short_vs_long", "monetization_path"):
+        for t in (
+            "hook",
+            "content_form",
+            "cta_type",
+            "offer_angle",
+            "avatar_vs_non_avatar",
+            "faceless_vs_face_forward",
+            "short_vs_long",
+            "monetization_path",
+        ):
             assert t in EXPERIMENT_TYPES
 
 
@@ -54,28 +63,71 @@ class TestDetectWinner:
         assert r["status"] == "insufficient_variants"
 
     def test_insufficient_sample(self):
-        r = detect_winner([
-            {"sample_count": 5, "primary_metric_value": 0.1},
-            {"sample_count": 5, "primary_metric_value": 0.05},
-        ], min_sample_size=30)
+        r = detect_winner(
+            [
+                {"sample_count": 5, "primary_metric_value": 0.1},
+                {"sample_count": 5, "primary_metric_value": 0.05},
+            ],
+            min_sample_size=30,
+        )
         assert r["status"] == "insufficient_sample"
         assert "progress_pct" in r
 
     def test_clear_winner(self):
-        r = detect_winner([
-            {"id": "v1", "variant_name": "A", "sample_count": 100, "primary_metric_value": 0.15, "variant_config": {}, "is_control": True, "is_active": True},
-            {"id": "v2", "variant_name": "B", "sample_count": 100, "primary_metric_value": 0.05, "variant_config": {}, "is_control": False, "is_active": True},
-        ], min_sample_size=30, confidence_threshold=0.80)
+        r = detect_winner(
+            [
+                {
+                    "id": "v1",
+                    "variant_name": "A",
+                    "sample_count": 100,
+                    "primary_metric_value": 0.15,
+                    "variant_config": {},
+                    "is_control": True,
+                    "is_active": True,
+                },
+                {
+                    "id": "v2",
+                    "variant_name": "B",
+                    "sample_count": 100,
+                    "primary_metric_value": 0.05,
+                    "variant_config": {},
+                    "is_control": False,
+                    "is_active": True,
+                },
+            ],
+            min_sample_size=30,
+            confidence_threshold=0.80,
+        )
         assert r["status"] == "winner_found"
         assert r["winner"]["variant_name"] == "A"
         assert len(r["losers"]) == 1
         assert r["confidence"] >= 0.80
 
     def test_inconclusive(self):
-        r = detect_winner([
-            {"id": "v1", "variant_name": "A", "sample_count": 30, "primary_metric_value": 0.10, "variant_config": {}, "is_control": True, "is_active": True},
-            {"id": "v2", "variant_name": "B", "sample_count": 30, "primary_metric_value": 0.099, "variant_config": {}, "is_control": False, "is_active": True},
-        ], min_sample_size=30, confidence_threshold=0.95)
+        r = detect_winner(
+            [
+                {
+                    "id": "v1",
+                    "variant_name": "A",
+                    "sample_count": 30,
+                    "primary_metric_value": 0.10,
+                    "variant_config": {},
+                    "is_control": True,
+                    "is_active": True,
+                },
+                {
+                    "id": "v2",
+                    "variant_name": "B",
+                    "sample_count": 30,
+                    "primary_metric_value": 0.099,
+                    "variant_config": {},
+                    "is_control": False,
+                    "is_active": True,
+                },
+            ],
+            min_sample_size=30,
+            confidence_threshold=0.95,
+        )
         assert r["status"] in ("inconclusive", "winner_found")
 
 

@@ -1,4 +1,5 @@
 """Brain Architecture Phase B — service layer for decisions, policies, confidence, cost/upside, arbitration."""
+
 from __future__ import annotations
 
 import uuid
@@ -38,74 +39,109 @@ def _utc_now() -> datetime:
 
 # ── serializer helpers ────────────────────────────────────────────────
 
+
 def _decision_out(d: BrainDecision) -> dict[str, Any]:
     return {
-        "id": d.id, "brand_id": d.brand_id,
-        "decision_class": d.decision_class, "objective": d.objective,
-        "target_scope": d.target_scope, "target_id": d.target_id,
-        "selected_action": d.selected_action, "alternatives_json": d.alternatives_json,
-        "confidence": d.confidence, "policy_mode": d.policy_mode,
-        "expected_upside": d.expected_upside, "expected_cost": d.expected_cost,
-        "downstream_action": d.downstream_action, "inputs_json": d.inputs_json,
-        "explanation": d.explanation, "is_active": d.is_active,
-        "created_at": d.created_at, "updated_at": d.updated_at,
+        "id": d.id,
+        "brand_id": d.brand_id,
+        "decision_class": d.decision_class,
+        "objective": d.objective,
+        "target_scope": d.target_scope,
+        "target_id": d.target_id,
+        "selected_action": d.selected_action,
+        "alternatives_json": d.alternatives_json,
+        "confidence": d.confidence,
+        "policy_mode": d.policy_mode,
+        "expected_upside": d.expected_upside,
+        "expected_cost": d.expected_cost,
+        "downstream_action": d.downstream_action,
+        "inputs_json": d.inputs_json,
+        "explanation": d.explanation,
+        "is_active": d.is_active,
+        "created_at": d.created_at,
+        "updated_at": d.updated_at,
     }
 
 
 def _policy_out(p: PolicyEvaluation) -> dict[str, Any]:
     return {
-        "id": p.id, "brand_id": p.brand_id, "decision_id": p.decision_id,
-        "action_ref": p.action_ref, "policy_mode": p.policy_mode,
-        "reason": p.reason, "approval_needed": p.approval_needed,
-        "hard_stop_rule": p.hard_stop_rule, "rollback_rule": p.rollback_rule,
-        "risk_score": p.risk_score, "cost_impact": p.cost_impact,
-        "inputs_json": p.inputs_json, "explanation": p.explanation,
-        "is_active": p.is_active, "created_at": p.created_at, "updated_at": p.updated_at,
+        "id": p.id,
+        "brand_id": p.brand_id,
+        "decision_id": p.decision_id,
+        "action_ref": p.action_ref,
+        "policy_mode": p.policy_mode,
+        "reason": p.reason,
+        "approval_needed": p.approval_needed,
+        "hard_stop_rule": p.hard_stop_rule,
+        "rollback_rule": p.rollback_rule,
+        "risk_score": p.risk_score,
+        "cost_impact": p.cost_impact,
+        "inputs_json": p.inputs_json,
+        "explanation": p.explanation,
+        "is_active": p.is_active,
+        "created_at": p.created_at,
+        "updated_at": p.updated_at,
     }
 
 
 def _conf_out(c: ConfidenceReport) -> dict[str, Any]:
     return {
-        "id": c.id, "brand_id": c.brand_id, "decision_id": c.decision_id,
+        "id": c.id,
+        "brand_id": c.brand_id,
+        "decision_id": c.decision_id,
         "scope_label": c.scope_label,
-        "confidence_score": c.confidence_score, "confidence_band": c.confidence_band,
+        "confidence_score": c.confidence_score,
+        "confidence_band": c.confidence_band,
         "signal_strength": c.signal_strength,
         "historical_precedent": c.historical_precedent,
-        "saturation_risk": c.saturation_risk, "memory_support": c.memory_support,
+        "saturation_risk": c.saturation_risk,
+        "memory_support": c.memory_support,
         "data_completeness": c.data_completeness,
         "execution_history": c.execution_history,
         "blocker_severity": c.blocker_severity,
         "uncertainty_factors_json": c.uncertainty_factors_json,
-        "explanation": c.explanation, "is_active": c.is_active,
-        "created_at": c.created_at, "updated_at": c.updated_at,
+        "explanation": c.explanation,
+        "is_active": c.is_active,
+        "created_at": c.created_at,
+        "updated_at": c.updated_at,
     }
 
 
 def _uc_out(u: UpsideCostEstimate) -> dict[str, Any]:
     return {
-        "id": u.id, "brand_id": u.brand_id, "decision_id": u.decision_id,
+        "id": u.id,
+        "brand_id": u.brand_id,
+        "decision_id": u.decision_id,
         "scope_label": u.scope_label,
-        "expected_upside": u.expected_upside, "expected_cost": u.expected_cost,
+        "expected_upside": u.expected_upside,
+        "expected_cost": u.expected_cost,
         "expected_payback_days": u.expected_payback_days,
         "operational_burden": u.operational_burden,
         "concentration_risk": u.concentration_risk,
-        "net_value": u.net_value, "inputs_json": u.inputs_json,
-        "explanation": u.explanation, "is_active": u.is_active,
-        "created_at": u.created_at, "updated_at": u.updated_at,
+        "net_value": u.net_value,
+        "inputs_json": u.inputs_json,
+        "explanation": u.explanation,
+        "is_active": u.is_active,
+        "created_at": u.created_at,
+        "updated_at": u.updated_at,
     }
 
 
 def _arb_out(a: ArbitrationReport) -> dict[str, Any]:
     return {
-        "id": a.id, "brand_id": a.brand_id,
+        "id": a.id,
+        "brand_id": a.brand_id,
         "ranked_priorities_json": a.ranked_priorities_json,
         "chosen_winner_class": a.chosen_winner_class,
         "chosen_winner_label": a.chosen_winner_label,
         "rejected_actions_json": a.rejected_actions_json,
         "competing_count": a.competing_count,
         "net_value_chosen": a.net_value_chosen,
-        "inputs_json": a.inputs_json, "explanation": a.explanation,
-        "is_active": a.is_active, "created_at": a.created_at, "updated_at": a.updated_at,
+        "inputs_json": a.inputs_json,
+        "explanation": a.explanation,
+        "is_active": a.is_active,
+        "created_at": a.created_at,
+        "updated_at": a.updated_at,
     }
 
 
@@ -113,42 +149,53 @@ def _arb_out(a: ArbitrationReport) -> dict[str, Any]:
 # List helpers
 # =====================================================================
 
+
 async def list_brain_decisions(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 100) -> list[dict]:
     q = await db.execute(
-        select(BrainDecision).where(BrainDecision.brand_id == brand_id, BrainDecision.is_active.is_(True))
-        .order_by(BrainDecision.created_at.desc()).limit(limit)
+        select(BrainDecision)
+        .where(BrainDecision.brand_id == brand_id, BrainDecision.is_active.is_(True))
+        .order_by(BrainDecision.created_at.desc())
+        .limit(limit)
     )
     return [_decision_out(r) for r in q.scalars().all()]
 
 
 async def list_policy_evaluations(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 100) -> list[dict]:
     q = await db.execute(
-        select(PolicyEvaluation).where(PolicyEvaluation.brand_id == brand_id, PolicyEvaluation.is_active.is_(True))
-        .order_by(PolicyEvaluation.created_at.desc()).limit(limit)
+        select(PolicyEvaluation)
+        .where(PolicyEvaluation.brand_id == brand_id, PolicyEvaluation.is_active.is_(True))
+        .order_by(PolicyEvaluation.created_at.desc())
+        .limit(limit)
     )
     return [_policy_out(r) for r in q.scalars().all()]
 
 
 async def list_confidence_reports(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 100) -> list[dict]:
     q = await db.execute(
-        select(ConfidenceReport).where(ConfidenceReport.brand_id == brand_id, ConfidenceReport.is_active.is_(True))
-        .order_by(ConfidenceReport.created_at.desc()).limit(limit)
+        select(ConfidenceReport)
+        .where(ConfidenceReport.brand_id == brand_id, ConfidenceReport.is_active.is_(True))
+        .order_by(ConfidenceReport.created_at.desc())
+        .limit(limit)
     )
     return [_conf_out(r) for r in q.scalars().all()]
 
 
 async def list_upside_cost_estimates(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 100) -> list[dict]:
     q = await db.execute(
-        select(UpsideCostEstimate).where(UpsideCostEstimate.brand_id == brand_id, UpsideCostEstimate.is_active.is_(True))
-        .order_by(UpsideCostEstimate.created_at.desc()).limit(limit)
+        select(UpsideCostEstimate)
+        .where(UpsideCostEstimate.brand_id == brand_id, UpsideCostEstimate.is_active.is_(True))
+        .order_by(UpsideCostEstimate.created_at.desc())
+        .limit(limit)
     )
     return [_uc_out(r) for r in q.scalars().all()]
 
 
 async def list_arbitration_reports(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 50) -> list[dict]:
     q = await db.execute(
-        select(ArbitrationReport).where(ArbitrationReport.brand_id == brand_id, ArbitrationReport.is_active.is_(True))
-        .order_by(ArbitrationReport.created_at.desc()).limit(limit)
+        select(ArbitrationReport)
+        .where(ArbitrationReport.brand_id == brand_id, ArbitrationReport.is_active.is_(True))
+        .order_by(ArbitrationReport.created_at.desc())
+        .limit(limit)
     )
     return [_arb_out(r) for r in q.scalars().all()]
 
@@ -156,6 +203,7 @@ async def list_arbitration_reports(db: AsyncSession, brand_id: uuid.UUID, *, lim
 # =====================================================================
 # Recompute: full pipeline (decisions → policy → confidence → cost → arbitration)
 # =====================================================================
+
 
 async def recompute_brain_decisions(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, int]:
     _health_map = {"healthy": 1.0, "warning": 0.6, "degraded": 0.35, "critical": 0.15, "suspended": 0.05}
@@ -166,29 +214,33 @@ async def recompute_brain_decisions(db: AsyncSession, brand_id: uuid.UUID) -> di
     accts = accts_q.scalars().all()
 
     acct_states_q = await db.execute(
-        select(AccountStateSnapshot)
-        .where(AccountStateSnapshot.brand_id == brand_id, AccountStateSnapshot.is_active.is_(True))
+        select(AccountStateSnapshot).where(
+            AccountStateSnapshot.brand_id == brand_id, AccountStateSnapshot.is_active.is_(True)
+        )
     )
     acct_states = {str(s.account_id): s for s in acct_states_q.scalars().all()}
 
     opp_states_q = await db.execute(
         select(OpportunityStateSnapshot)
         .where(OpportunityStateSnapshot.brand_id == brand_id, OpportunityStateSnapshot.is_active.is_(True))
-        .order_by(OpportunityStateSnapshot.created_at.desc()).limit(20)
+        .order_by(OpportunityStateSnapshot.created_at.desc())
+        .limit(20)
     )
     opp_states = opp_states_q.scalars().all()
 
     exec_states_q = await db.execute(
         select(ExecutionStateSnapshot)
         .where(ExecutionStateSnapshot.brand_id == brand_id, ExecutionStateSnapshot.is_active.is_(True))
-        .order_by(ExecutionStateSnapshot.created_at.desc()).limit(20)
+        .order_by(ExecutionStateSnapshot.created_at.desc())
+        .limit(20)
     )
     exec_states = exec_states_q.scalars().all()
 
     memory_q = await db.execute(
         select(BrainMemoryEntry)
         .where(BrainMemoryEntry.brand_id == brand_id, BrainMemoryEntry.is_active.is_(True))
-        .order_by(BrainMemoryEntry.created_at.desc()).limit(20)
+        .order_by(BrainMemoryEntry.created_at.desc())
+        .limit(20)
     )
     memories = memory_q.scalars().all()
     memory_support = min(1.0, len(memories) / 10)
@@ -196,11 +248,31 @@ async def recompute_brain_decisions(db: AsyncSession, brand_id: uuid.UUID) -> di
     offers_q = await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))
     offers = offers_q.scalars().all()
 
-    await db.execute(update(BrainDecision).where(BrainDecision.brand_id == brand_id, BrainDecision.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(PolicyEvaluation).where(PolicyEvaluation.brand_id == brand_id, PolicyEvaluation.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(ConfidenceReport).where(ConfidenceReport.brand_id == brand_id, ConfidenceReport.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(UpsideCostEstimate).where(UpsideCostEstimate.brand_id == brand_id, UpsideCostEstimate.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(ArbitrationReport).where(ArbitrationReport.brand_id == brand_id, ArbitrationReport.is_active.is_(True)).values(is_active=False))
+    await db.execute(
+        update(BrainDecision)
+        .where(BrainDecision.brand_id == brand_id, BrainDecision.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(PolicyEvaluation)
+        .where(PolicyEvaluation.brand_id == brand_id, PolicyEvaluation.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(ConfidenceReport)
+        .where(ConfidenceReport.brand_id == brand_id, ConfidenceReport.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(UpsideCostEstimate)
+        .where(UpsideCostEstimate.brand_id == brand_id, UpsideCostEstimate.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(ArbitrationReport)
+        .where(ArbitrationReport.brand_id == brand_id, ArbitrationReport.is_active.is_(True))
+        .values(is_active=False)
+    )
 
     decisions_created = 0
     policies_created = 0
@@ -291,20 +363,25 @@ async def recompute_brain_decisions(db: AsyncSession, brand_id: uuid.UUID) -> di
         decisions_created += 1
 
         pol = PolicyEvaluation(
-            brand_id=brand_id, decision_id=dec.id,
+            brand_id=brand_id,
+            decision_id=dec.id,
             action_ref=f"{dec_result['decision_class']}:account:{a.id}",
-            policy_mode=pol_result["policy_mode"], reason=pol_result["reason"],
+            policy_mode=pol_result["policy_mode"],
+            reason=pol_result["reason"],
             approval_needed=pol_result["approval_needed"],
             hard_stop_rule=pol_result["hard_stop_rule"],
             rollback_rule=pol_result["rollback_rule"],
-            risk_score=pol_result["risk_score"], cost_impact=pol_result["cost_impact"],
-            inputs_json=policy_ctx, explanation=pol_result["explanation"],
+            risk_score=pol_result["risk_score"],
+            cost_impact=pol_result["cost_impact"],
+            inputs_json=policy_ctx,
+            explanation=pol_result["explanation"],
         )
         db.add(pol)
         policies_created += 1
 
         cr = ConfidenceReport(
-            brand_id=brand_id, decision_id=dec.id,
+            brand_id=brand_id,
+            decision_id=dec.id,
             scope_label=f"account:{plat}:{a.id}",
             confidence_score=conf_result["confidence_score"],
             confidence_band=conf_result["confidence_band"],
@@ -322,7 +399,8 @@ async def recompute_brain_decisions(db: AsyncSession, brand_id: uuid.UUID) -> di
         confidence_created += 1
 
         uc = UpsideCostEstimate(
-            brand_id=brand_id, decision_id=dec.id,
+            brand_id=brand_id,
+            decision_id=dec.id,
             scope_label=f"account:{plat}:{a.id}",
             expected_upside=uc_result["expected_upside"],
             expected_cost=uc_result["expected_cost"],
@@ -330,23 +408,36 @@ async def recompute_brain_decisions(db: AsyncSession, brand_id: uuid.UUID) -> di
             operational_burden=uc_result["operational_burden"],
             concentration_risk=uc_result["concentration_risk"],
             net_value=uc_result["net_value"],
-            inputs_json=uc_ctx, explanation=uc_result["explanation"],
+            inputs_json=uc_ctx,
+            explanation=uc_result["explanation"],
         )
         db.add(uc)
         estimates_created += 1
 
         cat_map = {
-            "launch": "new_launch", "scale": "more_output", "monetize": "monetization_fix",
-            "recover": "recovery_action", "suppress": "funnel_fix", "throttle": "funnel_fix",
-            "test": "new_launch", "escalate": "recovery_action",
+            "launch": "new_launch",
+            "scale": "more_output",
+            "monetize": "monetization_fix",
+            "recover": "recovery_action",
+            "suppress": "funnel_fix",
+            "throttle": "funnel_fix",
+            "test": "new_launch",
+            "escalate": "recovery_action",
         }
-        arb_candidates.append({
-            "category": cat_map.get(dec_result["decision_class"], "more_output"),
-            "label": f"{dec_result['decision_class']} — {plat} account {str(a.id)[:8]}",
-            "net_value": uc_result["net_value"],
-            "confidence": conf_result["confidence_score"],
-            "urgency": min(1.0, saturation * 0.5 + fatigue * 0.3 + (0.5 if dec_result["decision_class"] in ("recover", "escalate") else 0)),
-        })
+        arb_candidates.append(
+            {
+                "category": cat_map.get(dec_result["decision_class"], "more_output"),
+                "label": f"{dec_result['decision_class']} — {plat} account {str(a.id)[:8]}",
+                "net_value": uc_result["net_value"],
+                "confidence": conf_result["confidence_score"],
+                "urgency": min(
+                    1.0,
+                    saturation * 0.5
+                    + fatigue * 0.3
+                    + (0.5 if dec_result["decision_class"] in ("recover", "escalate") else 0),
+                ),
+            }
+        )
 
     arb_result = compute_arbitration(arb_candidates)
     arb = ArbitrationReport(

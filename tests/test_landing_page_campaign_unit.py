@@ -1,4 +1,5 @@
 """Unit tests for landing page + campaign engines."""
+
 from packages.scoring.campaign_engine import CAMPAIGN_TYPES, construct_campaign, construct_variant, detect_blockers
 from packages.scoring.landing_page_engine import PAGE_TYPES, generate_page, generate_variant, score_page_quality
 
@@ -6,7 +7,19 @@ from packages.scoring.landing_page_engine import PAGE_TYPES, generate_page, gene
 class TestLandingPageEngine:
     def test_all_page_types(self):
         assert len(PAGE_TYPES) == 11
-        for pt in ("product", "review", "comparison", "advertorial", "presell", "optin", "lead_magnet", "quiz_funnel", "authority", "creator_revenue", "sponsor"):
+        for pt in (
+            "product",
+            "review",
+            "comparison",
+            "advertorial",
+            "presell",
+            "optin",
+            "lead_magnet",
+            "quiz_funnel",
+            "authority",
+            "creator_revenue",
+            "sponsor",
+        ):
             assert pt in PAGE_TYPES
 
     def test_generate_page(self):
@@ -43,11 +56,25 @@ class TestLandingPageEngine:
 class TestCampaignEngine:
     def test_all_campaign_types(self):
         assert len(CAMPAIGN_TYPES) == 8
-        for ct in ("affiliate", "lead_gen", "product_conversion", "creator_revenue", "sponsor", "newsletter_growth", "authority_building", "experiment"):
+        for ct in (
+            "affiliate",
+            "lead_gen",
+            "product_conversion",
+            "creator_revenue",
+            "sponsor",
+            "newsletter_growth",
+            "authority_building",
+            "experiment",
+        ):
             assert ct in CAMPAIGN_TYPES
 
     def test_construct_campaign(self):
-        camp = construct_campaign({"name": "Offer A", "monetization_method": "affiliate", "epc": 2.0, "conversion_rate": 0.04}, {"niche": "tech"}, [{"id": "a1", "platform": "tiktok"}], campaign_type="affiliate")
+        camp = construct_campaign(
+            {"name": "Offer A", "monetization_method": "affiliate", "epc": 2.0, "conversion_rate": 0.04},
+            {"niche": "tech"},
+            [{"id": "a1", "platform": "tiktok"}],
+            campaign_type="affiliate",
+        )
         assert camp["campaign_type"] == "affiliate"
         assert camp["campaign_name"]
         assert camp["truth_label"] == "recommendation_only"
@@ -70,11 +97,22 @@ class TestCampaignEngine:
         assert any(b["blocker_type"] == "no_landing_page" for b in blockers)
 
     def test_no_blocker_for_authority(self):
-        camp = {"target_accounts": ["a1"], "campaign_type": "authority_building", "landing_page_id": None, "monetization_path": "organic"}
+        camp = {
+            "target_accounts": ["a1"],
+            "campaign_type": "authority_building",
+            "landing_page_id": None,
+            "monetization_path": "organic",
+        }
         blockers = detect_blockers(camp, {})
         assert not any(b["blocker_type"] == "no_landing_page" for b in blockers)
 
     def test_suppressed_hook_blocker(self):
-        camp = {"target_accounts": ["a1"], "hook_family": "curiosity", "campaign_type": "affiliate", "landing_page_id": "lp1", "monetization_path": "affiliate"}
+        camp = {
+            "target_accounts": ["a1"],
+            "hook_family": "curiosity",
+            "campaign_type": "affiliate",
+            "landing_page_id": "lp1",
+            "monetization_path": "affiliate",
+        }
         blockers = detect_blockers(camp, {"suppressed_families": ["curiosity"]})
         assert any(b["blocker_type"] == "suppressed_hook" for b in blockers)

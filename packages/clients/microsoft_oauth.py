@@ -22,6 +22,7 @@ Send path:
     uses the access token against smtp.office365.com:587 with XOAUTH2.
     No new scopes needed beyond SMTP.Send (already granted above).
 """
+
 from __future__ import annotations
 
 import base64
@@ -86,18 +87,20 @@ GRAPH_REFRESH_SCOPES = [GRAPH_MAIL_SEND_SCOPE, "offline_access"]
 
 async def _load_app_credentials(db, org_id: str) -> dict:
     """Load client_id / client_secret / tenant_id / redirect_uri from DB."""
-    result = await db.execute(text("""
+    result = await db.execute(
+        text("""
         SELECT api_key_encrypted, api_secret_encrypted, extra_config
           FROM integration_providers
          WHERE organization_id = :org_id
            AND provider_key = 'microsoft_oauth_app'
            AND is_enabled = true
-    """), {"org_id": str(org_id)})
+    """),
+        {"org_id": str(org_id)},
+    )
     row = result.fetchone()
     if not row:
         raise RuntimeError(
-            f"microsoft_oauth_app not configured for org {org_id}. "
-            "Store credentials in integration_providers first."
+            f"microsoft_oauth_app not configured for org {org_id}. Store credentials in integration_providers first."
         )
 
     client_id_enc, client_secret_enc, extra_cfg = row
@@ -315,9 +318,7 @@ async def ensure_valid_token(db, inbox_connection) -> str:
 
     # Need to refresh
     if not inbox_connection.oauth_refresh_token_encrypted:
-        raise RuntimeError(
-            f"InboxConnection {inbox_connection.id} has no refresh_token — user must re-consent"
-        )
+        raise RuntimeError(f"InboxConnection {inbox_connection.id} has no refresh_token — user must re-consent")
 
     refresh_token = _decrypt(inbox_connection.oauth_refresh_token_encrypted)
     result = await refresh_access_token(db, str(inbox_connection.org_id), refresh_token)
@@ -397,9 +398,7 @@ async def get_graph_access_token(db, inbox_connection) -> str:
     not consented to Graph scopes) — caller should trigger re-consent.
     """
     if not inbox_connection.oauth_refresh_token_encrypted:
-        raise RuntimeError(
-            f"InboxConnection {inbox_connection.id} has no refresh_token"
-        )
+        raise RuntimeError(f"InboxConnection {inbox_connection.id} has no refresh_token")
     refresh_token = _decrypt(inbox_connection.oauth_refresh_token_encrypted)
 
     creds = await _load_app_credentials(db, str(inbox_connection.org_id))
@@ -624,6 +623,7 @@ async def send_via_xoauth2_smtp(
     plain = body_text
     if not plain and body_html:
         import re as _re
+
         plain = _re.sub(r"<[^>]+>", "", body_html).strip()
     if plain:
         msg.attach(MIMEText(plain, "plain", "utf-8"))
@@ -642,9 +642,7 @@ async def send_via_xoauth2_smtp(
 
         # Manual AUTH XOAUTH2 (aiosmtplib doesn't ship a built-in helper)
         xoauth2_token = _build_xoauth2_token(username, access_token)
-        code, response = await smtp.execute_command(
-            b"AUTH", b"XOAUTH2", xoauth2_token.encode("ascii")
-        )
+        code, response = await smtp.execute_command(b"AUTH", b"XOAUTH2", xoauth2_token.encode("ascii"))
         if code not in (235,):
             # If the server returned 334, it's asking for a continuation —
             # an empty line means "I don't have more info", and the server

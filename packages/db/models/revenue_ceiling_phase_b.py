@@ -1,4 +1,5 @@
 """Revenue Ceiling Phase B: high-ticket, productization, revenue density, upsell."""
+
 import uuid
 from typing import Optional
 
@@ -14,7 +15,9 @@ class HighTicketOpportunity(Base):
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     opportunity_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    source_offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True, index=True)
+    source_offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True, index=True
+    )
     source_content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
     )
@@ -69,7 +72,9 @@ class UpsellRecommendation(Base):
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     opportunity_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    anchor_offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True, index=True)
+    anchor_offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True, index=True
+    )
     anchor_content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
     )

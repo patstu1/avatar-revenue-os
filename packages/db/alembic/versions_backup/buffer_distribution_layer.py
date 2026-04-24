@@ -4,6 +4,7 @@ Revision ID: buffer_dist_001
 Revises: brain_phase_d_001
 Create Date: 2026-03-31
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
@@ -19,7 +20,13 @@ def upgrade() -> None:
         "buffer_profiles",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("creator_account_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("creator_accounts.id"), nullable=True, index=True),
+        sa.Column(
+            "creator_account_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("creator_accounts.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("platform", sa.String(50), nullable=False, index=True),
         sa.Column("buffer_profile_id", sa.String(255), nullable=True, unique=True, index=True),
         sa.Column("display_name", sa.String(255), nullable=False),
@@ -36,9 +43,27 @@ def upgrade() -> None:
         "buffer_publish_jobs",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("buffer_profile_id_fk", postgresql.UUID(as_uuid=True), sa.ForeignKey("buffer_profiles.id"), nullable=False, index=True),
-        sa.Column("content_item_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("content_items.id"), nullable=True, index=True),
-        sa.Column("distribution_plan_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("distribution_plans.id"), nullable=True, index=True),
+        sa.Column(
+            "buffer_profile_id_fk",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("buffer_profiles.id"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "content_item_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("content_items.id"),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
+            "distribution_plan_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("distribution_plans.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("platform", sa.String(50), nullable=False, index=True),
         sa.Column("publish_mode", sa.String(30), server_default="queue", index=True),
         sa.Column("status", sa.String(30), server_default="pending", index=True),
@@ -56,7 +81,9 @@ def upgrade() -> None:
     op.create_table(
         "buffer_publish_attempts",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("buffer_publish_jobs.id"), nullable=False, index=True),
+        sa.Column(
+            "job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("buffer_publish_jobs.id"), nullable=False, index=True
+        ),
         sa.Column("attempt_number", sa.Integer, server_default="1"),
         sa.Column("request_payload_json", postgresql.JSONB, nullable=True),
         sa.Column("response_status_code", sa.Integer, nullable=True),
@@ -87,7 +114,13 @@ def upgrade() -> None:
         "buffer_blockers",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("buffer_profile_id_fk", postgresql.UUID(as_uuid=True), sa.ForeignKey("buffer_profiles.id"), nullable=True, index=True),
+        sa.Column(
+            "buffer_profile_id_fk",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("buffer_profiles.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("blocker_type", sa.String(80), nullable=False, index=True),
         sa.Column("severity", sa.String(30), server_default="high", index=True),
         sa.Column("description", sa.Text, nullable=False),

@@ -1,4 +1,5 @@
 """Revenue Intelligence Service — bridges scoring engines to API endpoints."""
+
 import statistics
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -27,9 +28,7 @@ from packages.scoring.revenue_intelligence import (
 logger = structlog.get_logger()
 
 
-async def get_revenue_forecast(
-    db: AsyncSession, brand_id: uuid.UUID, horizon_days: int = 30
-) -> dict:
+async def get_revenue_forecast(db: AsyncSession, brand_id: uuid.UUID, horizon_days: int = 30) -> dict:
     """Build revenue forecast from historical data."""
     ninety_days_ago = datetime.now(timezone.utc) - timedelta(days=90)
 
@@ -37,9 +36,7 @@ async def get_revenue_forecast(
         await db.execute(
             select(
                 func.date(PerformanceMetric.measured_at).label("day"),
-                func.coalesce(func.sum(PerformanceMetric.revenue), 0.0).label(
-                    "revenue"
-                ),
+                func.coalesce(func.sum(PerformanceMetric.revenue), 0.0).label("revenue"),
             )
             .where(
                 PerformanceMetric.brand_id == brand_id,
@@ -69,9 +66,7 @@ async def get_revenue_forecast(
     }
 
 
-async def get_revenue_anomalies(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict]:
+async def get_revenue_anomalies(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
     """Detect revenue anomalies from recent data."""
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
 
@@ -79,9 +74,7 @@ async def get_revenue_anomalies(
         await db.execute(
             select(
                 func.date(PerformanceMetric.measured_at).label("day"),
-                func.coalesce(func.sum(PerformanceMetric.revenue), 0.0).label(
-                    "revenue"
-                ),
+                func.coalesce(func.sum(PerformanceMetric.revenue), 0.0).label("revenue"),
             )
             .where(
                 PerformanceMetric.brand_id == brand_id,
@@ -122,12 +115,8 @@ async def get_offer_rankings(
 ) -> list[dict]:
     """Rank offers by expected revenue for a given context."""
     offers = (
-        await db.execute(
-            select(Offer).where(
-                Offer.brand_id == brand_id, Offer.is_active.is_(True)
-            )
-        )
-    ).scalars().all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
+    )
 
     if not offers:
         return []
@@ -148,23 +137,21 @@ async def get_offer_rankings(
         )
 
     accounts = (
-        await db.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == brand_id,
-                CreatorAccount.is_active.is_(True),
+        (
+            await db.execute(
+                select(CreatorAccount).where(
+                    CreatorAccount.brand_id == brand_id,
+                    CreatorAccount.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     total_followers = sum(a.follower_count for a in accounts) if accounts else 0
-    avg_engagement = (
-        statistics.mean([a.ctr for a in accounts]) if accounts else 0.02
-    )
-    avg_conv = (
-        statistics.mean([a.conversion_rate for a in accounts])
-        if accounts
-        else 0.01
-    )
+    avg_engagement = statistics.mean([a.ctr for a in accounts]) if accounts else 0.02
+    avg_conv = statistics.mean([a.conversion_rate for a in accounts]) if accounts else 0.01
 
     segment = AudienceSegment(
         segment_id="primary",
@@ -192,18 +179,20 @@ async def get_offer_rankings(
     ]
 
 
-async def get_content_ltv_analysis(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 20
-) -> list[dict]:
+async def get_content_ltv_analysis(db: AsyncSession, brand_id: uuid.UUID, limit: int = 20) -> list[dict]:
     """Compute LTV predictions for active content."""
     items = (
-        await db.execute(
-            select(ContentItem)
-            .where(ContentItem.brand_id == brand_id)
-            .order_by(ContentItem.created_at.desc())
-            .limit(limit)
+        (
+            await db.execute(
+                select(ContentItem)
+                .where(ContentItem.brand_id == brand_id)
+                .order_by(ContentItem.created_at.desc())
+                .limit(limit)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     results = []
     for item in items:
@@ -211,12 +200,8 @@ async def get_content_ltv_analysis(
             await db.execute(
                 select(
                     func.date(PerformanceMetric.measured_at).label("day"),
-                    func.coalesce(
-                        func.sum(PerformanceMetric.revenue), 0.0
-                    ).label("revenue"),
-                    func.coalesce(
-                        func.sum(PerformanceMetric.impressions), 0
-                    ).label("impressions"),
+                    func.coalesce(func.sum(PerformanceMetric.revenue), 0.0).label("revenue"),
+                    func.coalesce(func.sum(PerformanceMetric.impressions), 0).label("impressions"),
                 )
                 .where(PerformanceMetric.content_item_id == item.id)
                 .group_by(func.date(PerformanceMetric.measured_at))
@@ -260,26 +245,24 @@ async def get_content_ltv_analysis(
     return sorted(results, key=lambda x: x["projected_90d"], reverse=True)
 
 
-async def get_revenue_ceiling(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict:
+async def get_revenue_ceiling(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     """Compute revenue ceiling analysis."""
     accounts = (
-        await db.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == brand_id,
-                CreatorAccount.is_active.is_(True),
+        (
+            await db.execute(
+                select(CreatorAccount).where(
+                    CreatorAccount.brand_id == brand_id,
+                    CreatorAccount.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     offers = (
-        await db.execute(
-            select(Offer).where(
-                Offer.brand_id == brand_id, Offer.is_active.is_(True)
-            )
-        )
-    ).scalars().all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
+    )
 
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
     monthly_rev = (
@@ -293,9 +276,7 @@ async def get_revenue_ceiling(
 
     monthly_impressions = (
         await db.execute(
-            select(
-                func.coalesce(func.sum(PerformanceMetric.impressions), 0)
-            ).where(
+            select(func.coalesce(func.sum(PerformanceMetric.impressions), 0)).where(
                 PerformanceMetric.brand_id == brand_id,
                 PerformanceMetric.measured_at >= thirty_days_ago,
             )
@@ -303,18 +284,12 @@ async def get_revenue_ceiling(
     ).scalar() or 0
 
     avg_rpm = (float(monthly_rev) / max(monthly_impressions, 1)) * 1000
-    avg_conv = (
-        statistics.mean([a.conversion_rate for a in accounts])
-        if accounts
-        else 0.01
-    )
+    avg_conv = statistics.mean([a.conversion_rate for a in accounts]) if accounts else 0.01
 
     account_data = [
         {
             "account_id": str(a.id),
-            "platform": (
-                a.platform.value if hasattr(a.platform, "value") else str(a.platform)
-            ),
+            "platform": (a.platform.value if hasattr(a.platform, "value") else str(a.platform)),
             "follower_count": a.follower_count,
             "posting_capacity_per_day": a.posting_capacity_per_day,
             "avg_engagement_rate": a.ctr,
@@ -352,9 +327,7 @@ async def get_revenue_ceiling(
     }
 
 
-async def get_revenue_health(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict:
+async def get_revenue_health(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     """Compute overall revenue health score from last 30 days of data."""
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
 
@@ -362,9 +335,7 @@ async def get_revenue_health(
         await db.execute(
             select(
                 func.date(PerformanceMetric.measured_at).label("day"),
-                func.coalesce(func.sum(PerformanceMetric.revenue), 0.0).label(
-                    "revenue"
-                ),
+                func.coalesce(func.sum(PerformanceMetric.revenue), 0.0).label("revenue"),
             )
             .where(
                 PerformanceMetric.brand_id == brand_id,
@@ -405,16 +376,20 @@ async def get_attribution_for_conversion(
         return {"error": "conversion_not_found"}
 
     touchpoint_events = (
-        await db.execute(
-            select(AttributionEvent)
-            .where(
-                AttributionEvent.brand_id == brand_id,
-                AttributionEvent.tracking_id == conversion.tracking_id,
-                AttributionEvent.event_at <= conversion.event_at,
+        (
+            await db.execute(
+                select(AttributionEvent)
+                .where(
+                    AttributionEvent.brand_id == brand_id,
+                    AttributionEvent.tracking_id == conversion.tracking_id,
+                    AttributionEvent.event_at <= conversion.event_at,
+                )
+                .order_by(AttributionEvent.event_at)
             )
-            .order_by(AttributionEvent.event_at)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     if not touchpoint_events:
         return {
@@ -467,16 +442,20 @@ async def get_optimal_schedule(
     ninety_days_ago = datetime.now(timezone.utc) - timedelta(days=90)
 
     metrics = (
-        await db.execute(
-            select(PerformanceMetric)
-            .where(
-                PerformanceMetric.brand_id == brand_id,
-                PerformanceMetric.measured_at >= ninety_days_ago,
+        (
+            await db.execute(
+                select(PerformanceMetric)
+                .where(
+                    PerformanceMetric.brand_id == brand_id,
+                    PerformanceMetric.measured_at >= ninety_days_ago,
+                )
+                .order_by(PerformanceMetric.measured_at.desc())
+                .limit(500)
             )
-            .order_by(PerformanceMetric.measured_at.desc())
-            .limit(500)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     historical_performance = [
         {

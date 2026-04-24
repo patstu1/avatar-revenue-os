@@ -13,6 +13,7 @@ from packages.scoring.brain_phase_b_engine import (
 
 # ── Master Decision Engine ────────────────────────────────────────────
 
+
 class TestComputeBrainDecision:
     def test_blocker_escalates(self):
         r = compute_brain_decision({"has_blocker": True})
@@ -73,11 +74,20 @@ class TestComputeBrainDecision:
 
     def test_output_fields(self):
         r = compute_brain_decision({})
-        for key in ["decision_class", "objective", "selected_action", "alternatives", "downstream_action", "confidence", "explanation"]:
+        for key in [
+            "decision_class",
+            "objective",
+            "selected_action",
+            "alternatives",
+            "downstream_action",
+            "confidence",
+            "explanation",
+        ]:
             assert key in r
 
 
 # ── Policy Engine ─────────────────────────────────────────────────────
+
 
 class TestComputePolicyEvaluation:
     def test_operator_override(self):
@@ -125,21 +135,29 @@ class TestComputePolicyEvaluation:
 
 # ── Confidence Engine ─────────────────────────────────────────────────
 
+
 class TestComputeConfidenceReport:
     def test_high_confidence(self):
-        r = compute_confidence_report({
-            "signal_strength": 0.9, "historical_precedent": 0.8,
-            "data_completeness": 0.9, "execution_history": 0.8,
-            "memory_support": 0.7,
-        })
+        r = compute_confidence_report(
+            {
+                "signal_strength": 0.9,
+                "historical_precedent": 0.8,
+                "data_completeness": 0.9,
+                "execution_history": 0.8,
+                "memory_support": 0.7,
+            }
+        )
         assert r["confidence_band"] in ("high", "very_high")
         assert r["confidence_score"] >= 0.7
 
     def test_low_confidence(self):
-        r = compute_confidence_report({
-            "signal_strength": 0.1, "historical_precedent": 0.1,
-            "data_completeness": 0.1,
-        })
+        r = compute_confidence_report(
+            {
+                "signal_strength": 0.1,
+                "historical_precedent": 0.1,
+                "data_completeness": 0.1,
+            }
+        )
         assert r["confidence_band"] in ("low", "very_low")
 
     def test_saturation_reduces_confidence(self):
@@ -167,20 +185,30 @@ class TestComputeConfidenceReport:
 
 # ── Cost / Upside Estimation ─────────────────────────────────────────
 
+
 class TestComputeUpsideCostEstimate:
     def test_positive_net(self):
-        r = compute_upside_cost_estimate({
-            "revenue_potential": 10.0, "conversion_rate": 0.05,
-            "traffic_estimate": 5000, "content_cost": 5, "tool_cost": 2,
-        })
+        r = compute_upside_cost_estimate(
+            {
+                "revenue_potential": 10.0,
+                "conversion_rate": 0.05,
+                "traffic_estimate": 5000,
+                "content_cost": 5,
+                "tool_cost": 2,
+            }
+        )
         assert r["expected_upside"] > 0
         assert r["net_value"] > 0
 
     def test_negative_net_high_cost(self):
-        r = compute_upside_cost_estimate({
-            "revenue_potential": 0.5, "conversion_rate": 0.01,
-            "traffic_estimate": 100, "content_cost": 100,
-        })
+        r = compute_upside_cost_estimate(
+            {
+                "revenue_potential": 0.5,
+                "conversion_rate": 0.01,
+                "traffic_estimate": 100,
+                "content_cost": 100,
+            }
+        )
         assert r["net_value"] < 0
 
     def test_payback_days(self):
@@ -199,6 +227,7 @@ class TestComputeUpsideCostEstimate:
 
 # ── Priority Arbitration ─────────────────────────────────────────────
 
+
 class TestComputeArbitration:
     def test_empty_candidates(self):
         r = compute_arbitration([])
@@ -206,37 +235,59 @@ class TestComputeArbitration:
         assert r["competing_count"] == 0
 
     def test_single_candidate_wins(self):
-        r = compute_arbitration([{"category": "new_launch", "label": "Launch X", "net_value": 100, "confidence": 0.8, "urgency": 0.6}])
+        r = compute_arbitration(
+            [{"category": "new_launch", "label": "Launch X", "net_value": 100, "confidence": 0.8, "urgency": 0.6}]
+        )
         assert r["chosen_winner_class"] == "new_launch"
         assert r["competing_count"] == 1
 
     def test_recovery_beats_output(self):
-        r = compute_arbitration([
-            {"category": "recovery_action", "label": "Fix failure", "net_value": 50, "confidence": 0.7, "urgency": 0.9},
-            {"category": "more_output", "label": "Post more", "net_value": 60, "confidence": 0.7, "urgency": 0.3},
-        ])
+        r = compute_arbitration(
+            [
+                {
+                    "category": "recovery_action",
+                    "label": "Fix failure",
+                    "net_value": 50,
+                    "confidence": 0.7,
+                    "urgency": 0.9,
+                },
+                {"category": "more_output", "label": "Post more", "net_value": 60, "confidence": 0.7, "urgency": 0.3},
+            ]
+        )
         assert r["chosen_winner_class"] == "recovery_action"
 
     def test_rejected_has_reasons(self):
-        r = compute_arbitration([
-            {"category": "new_launch", "label": "A", "net_value": 100, "confidence": 0.8, "urgency": 0.5},
-            {"category": "more_output", "label": "B", "net_value": 50, "confidence": 0.5, "urgency": 0.3},
-        ])
+        r = compute_arbitration(
+            [
+                {"category": "new_launch", "label": "A", "net_value": 100, "confidence": 0.8, "urgency": 0.5},
+                {"category": "more_output", "label": "B", "net_value": 50, "confidence": 0.5, "urgency": 0.3},
+            ]
+        )
         assert len(r["rejected_actions"]) == 1
         assert "reason" in r["rejected_actions"][0]
 
     def test_ranked_priorities_ordered(self):
-        r = compute_arbitration([
-            {"category": "new_launch", "label": "A", "net_value": 100, "confidence": 0.8, "urgency": 0.5},
-            {"category": "funnel_fix", "label": "B", "net_value": 80, "confidence": 0.8, "urgency": 0.7},
-            {"category": "sponsor_action", "label": "C", "net_value": 40, "confidence": 0.6, "urgency": 0.3},
-        ])
+        r = compute_arbitration(
+            [
+                {"category": "new_launch", "label": "A", "net_value": 100, "confidence": 0.8, "urgency": 0.5},
+                {"category": "funnel_fix", "label": "B", "net_value": 80, "confidence": 0.8, "urgency": 0.7},
+                {"category": "sponsor_action", "label": "C", "net_value": 40, "confidence": 0.6, "urgency": 0.3},
+            ]
+        )
         assert r["ranked_priorities"][0]["rank"] == 1
         assert r["competing_count"] == 3
 
     def test_high_urgency_recovery_wins(self):
-        r = compute_arbitration([
-            {"category": "recovery_action", "label": "Critical fix", "net_value": 50, "confidence": 0.7, "urgency": 1.0},
-            {"category": "new_launch", "label": "Big launch", "net_value": 55, "confidence": 0.8, "urgency": 0.2},
-        ])
+        r = compute_arbitration(
+            [
+                {
+                    "category": "recovery_action",
+                    "label": "Critical fix",
+                    "net_value": 50,
+                    "confidence": 0.7,
+                    "urgency": 1.0,
+                },
+                {"category": "new_launch", "label": "Big launch", "net_value": 55, "confidence": 0.8, "urgency": 0.2},
+            ]
+        )
         assert r["chosen_winner_class"] == "recovery_action"

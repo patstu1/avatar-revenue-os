@@ -1,4 +1,5 @@
 """Autonomous Phase C workers — funnel, paid operator, sponsor, retention, recovery."""
+
 from __future__ import annotations
 
 import structlog
@@ -85,6 +86,7 @@ def run_recovery_autonomy(self) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_c_worker.tasks.execute_approved_actions")
 def execute_approved_actions(self) -> dict:
     """Pick up all approved Phase C actions across brands and execute them."""
+
     async def _go():
         return await _run_per_brand(lifecycle.execute_approved_actions)
 
@@ -95,6 +97,7 @@ def execute_approved_actions(self) -> dict:
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_c_worker.tasks.notify_operators")
 def notify_operators(self) -> dict:
     """Collect operator_review items across brands and dispatch notifications."""
+
     async def _go():
         return await _run_per_brand(lifecycle.notify_operator_review_items)
 

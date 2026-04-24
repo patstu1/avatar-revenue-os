@@ -3,6 +3,7 @@
 Analyzes top-performing content -> generates lead magnets via AI -> creates real PDFs ->
 builds & deploys landing pages -> manages email nurture sequences -> tracks subscriber revenue.
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,20 +24,56 @@ from packages.media.storage import get_storage
 logger = logging.getLogger(__name__)
 
 LEAD_MAGNET_TYPES = [
-    {"type": "checklist", "prompt_suffix": "Create a concise, actionable checklist (10-15 items) that someone can use immediately."},
+    {
+        "type": "checklist",
+        "prompt_suffix": "Create a concise, actionable checklist (10-15 items) that someone can use immediately.",
+    },
     {"type": "guide", "prompt_suffix": "Create a short guide (800-1200 words) with practical steps and examples."},
     {"type": "template", "prompt_suffix": "Create a fill-in-the-blank template that saves the reader hours of work."},
-    {"type": "cheatsheet", "prompt_suffix": "Create a one-page cheatsheet with the most important facts, formulas, or steps."},
+    {
+        "type": "cheatsheet",
+        "prompt_suffix": "Create a one-page cheatsheet with the most important facts, formulas, or steps.",
+    },
     {"type": "swipe_file", "prompt_suffix": "Create a swipe file of 10-15 proven examples they can model."},
 ]
 
 EMAIL_NURTURE_SEQUENCE = [
-    {"day": 0, "type": "welcome", "subject_template": "Here's your {magnet_type}: {topic}", "purpose": "Deliver the lead magnet + set expectations"},
-    {"day": 2, "type": "value", "subject_template": "The #1 mistake people make with {topic}", "purpose": "Deliver pure value, build trust"},
-    {"day": 5, "type": "monetize", "subject_template": "The tool that changed everything for me ({topic})", "purpose": "Soft sell of affiliate offer"},
-    {"day": 7, "type": "value", "subject_template": "Advanced {topic} strategy most people miss", "purpose": "More value, maintain engagement"},
-    {"day": 10, "type": "monetize", "subject_template": "{topic}: Limited time offer inside", "purpose": "Direct offer with urgency"},
-    {"day": 14, "type": "value", "subject_template": "Quick {topic} win you can do today", "purpose": "Re-engage, provide quick value"},
+    {
+        "day": 0,
+        "type": "welcome",
+        "subject_template": "Here's your {magnet_type}: {topic}",
+        "purpose": "Deliver the lead magnet + set expectations",
+    },
+    {
+        "day": 2,
+        "type": "value",
+        "subject_template": "The #1 mistake people make with {topic}",
+        "purpose": "Deliver pure value, build trust",
+    },
+    {
+        "day": 5,
+        "type": "monetize",
+        "subject_template": "The tool that changed everything for me ({topic})",
+        "purpose": "Soft sell of affiliate offer",
+    },
+    {
+        "day": 7,
+        "type": "value",
+        "subject_template": "Advanced {topic} strategy most people miss",
+        "purpose": "More value, maintain engagement",
+    },
+    {
+        "day": 10,
+        "type": "monetize",
+        "subject_template": "{topic}: Limited time offer inside",
+        "purpose": "Direct offer with urgency",
+    },
+    {
+        "day": 14,
+        "type": "value",
+        "subject_template": "Quick {topic} win you can do today",
+        "purpose": "Re-engage, provide quick value",
+    },
 ]
 
 
@@ -180,7 +217,7 @@ async def _generate_content_via_llm(
 Target audience: {target_audience}
 Brand: {brand_name}
 Type: {magnet_type}
-{magnet_config['prompt_suffix']}
+{magnet_config["prompt_suffix"]}
 
 IMPORTANT: Structure your response as clearly separated sections. Use this exact format:
 
@@ -227,10 +264,12 @@ def _parse_sections(text: str) -> list[dict[str, str]]:
         if stripped.startswith("## "):
             # Flush previous section
             if current_heading:
-                sections.append({
-                    "heading": current_heading,
-                    "body": "\n".join(current_body_lines).strip(),
-                })
+                sections.append(
+                    {
+                        "heading": current_heading,
+                        "body": "\n".join(current_body_lines).strip(),
+                    }
+                )
             current_heading = stripped[3:].strip()
             current_body_lines = []
         elif stripped.startswith("# ") and not current_heading:
@@ -242,17 +281,21 @@ def _parse_sections(text: str) -> list[dict[str, str]]:
 
     # Flush last section
     if current_heading:
-        sections.append({
-            "heading": current_heading,
-            "body": "\n".join(current_body_lines).strip(),
-        })
+        sections.append(
+            {
+                "heading": current_heading,
+                "body": "\n".join(current_body_lines).strip(),
+            }
+        )
 
     # Fallback: if no markdown headings found, treat entire text as one section
     if not sections and text.strip():
-        sections.append({
-            "heading": "Overview",
-            "body": text.strip(),
-        })
+        sections.append(
+            {
+                "heading": "Overview",
+                "body": text.strip(),
+            }
+        )
 
     return sections
 
@@ -264,33 +307,47 @@ def _parse_sections(text: str) -> list[dict[str, str]]:
 
 async def identify_lead_magnet_opportunities(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     """Analyze top-performing content to identify lead magnet topics."""
-    top_content = list((await db.execute(
-        select(ContentItem).join(PerformanceMetric, PerformanceMetric.content_item_id == ContentItem.id).where(
-            ContentItem.brand_id == brand_id,
-            ContentItem.status == "published",
-        ).order_by(PerformanceMetric.impressions.desc()).limit(10)
-    )).scalars().all())
+    top_content = list(
+        (
+            await db.execute(
+                select(ContentItem)
+                .join(PerformanceMetric, PerformanceMetric.content_item_id == ContentItem.id)
+                .where(
+                    ContentItem.brand_id == brand_id,
+                    ContentItem.status == "published",
+                )
+                .order_by(PerformanceMetric.impressions.desc())
+                .limit(10)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     opportunities = []
     for ci in top_content:
-        existing = (await db.execute(
-            select(LandingPage).where(
-                LandingPage.brand_id == brand_id,
-                LandingPage.page_type == "lead_magnet",
-                LandingPage.headline.contains(ci.title[:50]),
+        existing = (
+            await db.execute(
+                select(LandingPage).where(
+                    LandingPage.brand_id == brand_id,
+                    LandingPage.page_type == "lead_magnet",
+                    LandingPage.headline.contains(ci.title[:50]),
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
         if existing:
             continue
 
         magnet_type = LEAD_MAGNET_TYPES[hash(ci.title) % len(LEAD_MAGNET_TYPES)]
-        opportunities.append({
-            "content_item_id": str(ci.id),
-            "topic": ci.title,
-            "platform": ci.platform,
-            "magnet_type": magnet_type["type"],
-            "prompt_suffix": magnet_type["prompt_suffix"],
-        })
+        opportunities.append(
+            {
+                "content_item_id": str(ci.id),
+                "topic": ci.title,
+                "platform": ci.platform,
+                "magnet_type": magnet_type["type"],
+                "prompt_suffix": magnet_type["prompt_suffix"],
+            }
+        )
 
     return opportunities[:3]
 
@@ -311,14 +368,18 @@ async def generate_lead_magnet(db: AsyncSession, brand_id: uuid.UUID, topic: str
     prompt = f"""Create a lead magnet about: {topic}
 
 Type: {magnet_type}
-{magnet_config['prompt_suffix']}
+{magnet_config["prompt_suffix"]}
 
 Format the output clearly with headers and bullet points.
 Make it genuinely valuable — this is what convinces people to join the email list.
 """
 
     system = "You are an expert content marketer creating high-value lead magnets that convert visitors to email subscribers."
-    result = await client.generate(prompt, max_tokens=2048, system=system) if hasattr(client, 'generate') else {"success": False}
+    result = (
+        await client.generate(prompt, max_tokens=2048, system=system)
+        if hasattr(client, "generate")
+        else {"success": False}
+    )
 
     if not result.get("success"):
         return {"success": False, "error": result.get("error", "AI generation failed")}

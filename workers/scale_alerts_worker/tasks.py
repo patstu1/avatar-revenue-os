@@ -1,4 +1,5 @@
 """Scale alerts recurring workers: alert, candidate, blocker, readiness, notification recompute."""
+
 from __future__ import annotations
 
 import asyncio
@@ -178,15 +179,30 @@ def process_notification_deliveries(self) -> dict:
                 nd.delivered_at = datetime.now(timezone.utc).isoformat()
                 nd.last_error = None
                 delivered += 1
-                logger.info("notification.delivered", channel=nd.channel, alert_id=str(nd.alert_id), brand_id=str(nd.brand_id))
+                logger.info(
+                    "notification.delivered", channel=nd.channel, alert_id=str(nd.alert_id), brand_id=str(nd.brand_id)
+                )
             else:
                 nd.last_error = err
                 if nd.attempts >= MAX_DELIVERY_ATTEMPTS:
                     nd.status = "failed"
                     failed += 1
-                    logger.error("notification.terminal_failure", channel=nd.channel, alert_id=str(nd.alert_id), brand_id=str(nd.brand_id), attempts=nd.attempts, last_error=err)
+                    logger.error(
+                        "notification.terminal_failure",
+                        channel=nd.channel,
+                        alert_id=str(nd.alert_id),
+                        brand_id=str(nd.brand_id),
+                        attempts=nd.attempts,
+                        last_error=err,
+                    )
                 else:
                     nd.status = "pending"
-                    logger.warning("notification.retry_pending", channel=nd.channel, alert_id=str(nd.alert_id), attempts=nd.attempts, last_error=err)
+                    logger.warning(
+                        "notification.retry_pending",
+                        channel=nd.channel,
+                        alert_id=str(nd.alert_id),
+                        attempts=nd.attempts,
+                        last_error=err,
+                    )
         db.commit()
     return {"processed": processed, "delivered": delivered, "failed_terminal": failed}

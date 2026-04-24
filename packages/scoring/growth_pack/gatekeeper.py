@@ -2,15 +2,21 @@
 
 Business inputs mix first-class DB counts with proxies where list/email telemetry
 is not modeled — see docs/16-growth-pack-architecture.md."""
+
 from __future__ import annotations
 
 from typing import Any
 
 from packages.scoring.growth_commander import COMMANDER_SOURCE, rank_commands
 
-EXPANSION_TYPES = frozenset({
-    "launch_account", "shift_platform", "shift_niche", "increase_output",
-})
+EXPANSION_TYPES = frozenset(
+    {
+        "launch_account",
+        "shift_platform",
+        "shift_niche",
+        "increase_output",
+    }
+)
 
 
 def compute_gatekeeper_inputs(
@@ -34,7 +40,7 @@ def compute_gatekeeper_inputs(
     # Owned-audience readiness: trust + audience_segments estimated_size (first-class count proxy);
     # no dedicated email/SMS subscriber table — segment rollups are the system signal when present.
     seg = int(audience_segment_total_estimated_size or 0)
-    segment_boost = min(35.0, (seg ** 0.5) * 1.8) if seg > 0 else 0.0
+    segment_boost = min(35.0, (seg**0.5) * 1.8) if seg > 0 else 0.0
     owned_audience_readiness_score = min(
         100.0,
         trust_avg * 0.5 + segment_boost + min(15.0, offer_count * 4.0),
@@ -101,16 +107,25 @@ def pick_primary_gate(
         return ("overlap", "High same-platform topic overlap — consolidate or differentiate before new launches.")
     offers = int(gatekeeper.get("offer_count") or 0)
     if offers < 2 and gatekeeper.get("expansion_favored"):
-        return ("monetization", "Offer catalog is thin while expansion is margin-favored — improve monetization depth first.")
+        return (
+            "monetization",
+            "Offer catalog is thin while expansion is margin-favored — improve monetization depth first.",
+        )
     oa = float(gatekeeper.get("owned_audience_readiness_score") or 100)
     if oa < 38:
-        return ("owned_audience", "Owned-audience capture readiness is below threshold — strengthen capture before new rented reach.")
+        return (
+            "owned_audience",
+            "Owned-audience capture readiness is below threshold — strengthen capture before new rented reach.",
+        )
     bw = float(gatekeeper.get("operator_bandwidth_score") or 100)
     if bw < 28:
         return ("capacity", "Operator bandwidth proxy indicates capacity constraints — hold net-new expansion.")
     sp = float(gatekeeper.get("sponsor_inventory_readiness_score") or 100)
     if sp < 22 and offers >= 2 and gatekeeper.get("expansion_favored"):
-        return ("monetization", "Sponsor inventory is thin for brand-safe expansion — build sponsor pipeline or diversify monetization.")
+        return (
+            "monetization",
+            "Sponsor inventory is thin for brand-safe expansion — build sponsor pipeline or diversify monetization.",
+        )
     return ("none", "")
 
 
@@ -184,20 +199,25 @@ def gatekeeper_blocker_rows(gate_key: str, explanation: str, gatekeeper: dict[st
     if gate_key == "none":
         return []
     severity = "critical" if gate_key in ("funnel", "capacity", "overlap") else "high"
-    rows = [{
-        "blocker_type": f"gatekeeper_{gate_key}",
-        "severity": severity,
-        "affected_scope_type": "portfolio",
-        "affected_scope_id": None,
-        "reason": explanation,
-        "recommended_fix": "Clear primary gate before executing deferred expansion commands.",
-        "expected_impact_json": {"gate_key": gate_key, "gatekeeper_scores": {
-            "owned_audience": gatekeeper.get("owned_audience_readiness_score"),
-            "sponsor_inventory": gatekeeper.get("sponsor_inventory_readiness_score"),
-            "operator_bandwidth": gatekeeper.get("operator_bandwidth_score"),
-            "upside_pressure": gatekeeper.get("upside_pressure_score"),
-        }},
-        "confidence_score": 0.88,
-        "urgency_score": 92.0 if severity == "critical" else 78.0,
-    }]
+    rows = [
+        {
+            "blocker_type": f"gatekeeper_{gate_key}",
+            "severity": severity,
+            "affected_scope_type": "portfolio",
+            "affected_scope_id": None,
+            "reason": explanation,
+            "recommended_fix": "Clear primary gate before executing deferred expansion commands.",
+            "expected_impact_json": {
+                "gate_key": gate_key,
+                "gatekeeper_scores": {
+                    "owned_audience": gatekeeper.get("owned_audience_readiness_score"),
+                    "sponsor_inventory": gatekeeper.get("sponsor_inventory_readiness_score"),
+                    "operator_bandwidth": gatekeeper.get("operator_bandwidth_score"),
+                    "upside_pressure": gatekeeper.get("upside_pressure_score"),
+                },
+            },
+            "confidence_score": 0.88,
+            "urgency_score": 92.0 if severity == "critical" else 78.0,
+        }
+    ]
     return rows

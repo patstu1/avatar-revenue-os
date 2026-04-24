@@ -9,6 +9,7 @@ Usage:
 
 Requires: database seeded (python scripts/seed.py first)
 """
+
 import asyncio
 import sys
 import uuid
@@ -36,18 +37,26 @@ async def main():
         org_id = org_row[0]
         print(f"  Organization: {org_id}")
 
-        brand_row = (await db.execute(text(
-            "SELECT id, name FROM brands WHERE organization_id = :oid AND is_active = true LIMIT 1"
-        ), {"oid": org_id})).fetchone()
+        brand_row = (
+            await db.execute(
+                text("SELECT id, name FROM brands WHERE organization_id = :oid AND is_active = true LIMIT 1"),
+                {"oid": org_id},
+            )
+        ).fetchone()
         if not brand_row:
             print("FAIL: No active brands.")
             return
         brand_id, brand_name = brand_row
         print(f"  Brand: {brand_name} ({brand_id})")
 
-        account_row = (await db.execute(text(
-            "SELECT id, platform, handle FROM creator_accounts WHERE brand_id = :bid AND is_active = true LIMIT 1"
-        ), {"bid": brand_id})).fetchone()
+        account_row = (
+            await db.execute(
+                text(
+                    "SELECT id, platform, handle FROM creator_accounts WHERE brand_id = :bid AND is_active = true LIMIT 1"
+                ),
+                {"bid": brand_id},
+            )
+        ).fetchone()
         if not account_row:
             print("FAIL: No active creator accounts for this brand.")
             return
@@ -59,6 +68,7 @@ async def main():
         print("\n=== STEP 1: Create ContentBrief ===")
         try:
             from packages.db.models.content import ContentBrief
+
             brief = ContentBrief(
                 brand_id=brand_id,
                 creator_account_id=account_id,
@@ -89,6 +99,7 @@ async def main():
         print("\n=== STEP 2: Create Script ===")
         try:
             from packages.db.models.content import Script
+
             script = Script(
                 brand_id=brand_id,
                 brief_id=brief.id,
@@ -119,6 +130,7 @@ async def main():
         try:
             from packages.db.enums import JobStatus
             from packages.db.models.content import MediaJob
+
             media_job = MediaJob(
                 brand_id=brand_id,
                 script_id=script.id,

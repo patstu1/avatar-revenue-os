@@ -18,6 +18,7 @@ No new business logic lives here. If a rule changes (qualification
 threshold, outreach cadence, rewrite constraint), it changes in the
 canonical service, not in this wrapper layer.
 """
+
 from __future__ import annotations
 
 import csv
@@ -73,17 +74,10 @@ async def bulk_import_leads_with_avenue(
     # Resolve the org's first active brand (lead attribution is
     # brand-scoped in the existing schema).
     brand = (
-        await db.execute(
-            select(Brand).where(
-                Brand.organization_id == org_id, Brand.is_active.is_(True)
-            ).limit(1)
-        )
+        await db.execute(select(Brand).where(Brand.organization_id == org_id, Brand.is_active.is_(True)).limit(1))
     ).scalar_one_or_none()
     if brand is None:
-        raise ValueError(
-            "No active brand for organization — create a brand "
-            "before importing leads."
-        )
+        raise ValueError("No active brand for organization — create a brand before importing leads.")
 
     imported = 0
     skipped = 0
@@ -154,10 +148,7 @@ async def bulk_import_leads_with_avenue(
         db,
         domain="conversion",
         event_type="lead.bulk_imported",
-        summary=(
-            f"Bulk-imported {imported} leads for avenue={avenue_slug} "
-            f"(skipped={skipped})"
-        ),
+        summary=(f"Bulk-imported {imported} leads for avenue={avenue_slug} (skipped={skipped})"),
         org_id=org_id,
         brand_id=brand.id,
         entity_type="brand",
@@ -201,8 +192,13 @@ async def parse_csv_rows(raw_csv: str) -> list[dict[str, Any]]:
 
 VALID_TIERS = ("hot", "warm", "cold", "parked", "disqualified")
 VALID_INTENTS = (
-    "offer_request", "pricing_question", "objection", "positive",
-    "not_interested", "referral", "unclear",
+    "offer_request",
+    "pricing_question",
+    "objection",
+    "positive",
+    "not_interested",
+    "referral",
+    "unclear",
 )
 
 
@@ -230,31 +226,24 @@ async def qualify_lead(
     Emits: ``lead.qualified``.
     """
     if intent not in VALID_INTENTS:
-        raise ValueError(
-            f"intent must be one of {VALID_INTENTS}, got {intent!r}"
-        )
+        raise ValueError(f"intent must be one of {VALID_INTENTS}, got {intent!r}")
     if tier not in VALID_TIERS:
-        raise ValueError(
-            f"tier must be one of {VALID_TIERS}, got {tier!r}"
-        )
+        raise ValueError(f"tier must be one of {VALID_TIERS}, got {tier!r}")
 
-    target = (
-        await db.execute(
-            select(SponsorTarget).where(SponsorTarget.id == lead_id)
-        )
-    ).scalar_one_or_none()
+    target = (await db.execute(select(SponsorTarget).where(SponsorTarget.id == lead_id))).scalar_one_or_none()
     if target is None:
         raise KeyError(f"Lead {lead_id} not found")
 
-    brand = (
-        await db.execute(select(Brand).where(Brand.id == target.brand_id))
-    ).scalar_one_or_none()
+    brand = (await db.execute(select(Brand).where(Brand.id == target.brand_id))).scalar_one_or_none()
     if brand is None or brand.organization_id != org_id:
         raise PermissionError("Lead belongs to another organization")
 
     tier_score = {
-        "hot": 0.90, "warm": 0.70, "cold": 0.40,
-        "parked": 0.20, "disqualified": 0.05,
+        "hot": 0.90,
+        "warm": 0.70,
+        "cold": 0.40,
+        "parked": 0.20,
+        "disqualified": 0.05,
     }[tier]
 
     target.fit_score = tier_score
@@ -277,10 +266,7 @@ async def qualify_lead(
         db,
         domain="conversion",
         event_type="lead.qualified",
-        summary=(
-            f"Lead {target.target_company_name[:60]} → tier={tier} "
-            f"intent={intent}"
-        ),
+        summary=(f"Lead {target.target_company_name[:60]} → tier={tier} intent={intent}"),
         org_id=org_id,
         brand_id=brand.id,
         entity_type="sponsor_target",
@@ -336,11 +322,7 @@ async def launch_outreach_for_segment(
     Emits ``outreach.launched`` one per batch.
     """
     brand = (
-        await db.execute(
-            select(Brand).where(
-                Brand.organization_id == org_id, Brand.is_active.is_(True)
-            ).limit(1)
-        )
+        await db.execute(select(Brand).where(Brand.organization_id == org_id, Brand.is_active.is_(True)).limit(1))
     ).scalar_one_or_none()
     if brand is None:
         raise ValueError("No active brand for organization")
@@ -373,6 +355,7 @@ async def launch_outreach_for_segment(
     # sequence rows so the worker picks them up on its next poll.
     try:
         from workers.outreach_worker import tasks as outreach_tasks
+
         can_enqueue = True
     except Exception:
         outreach_tasks = None  # type: ignore
@@ -412,7 +395,9 @@ async def launch_outreach_for_segment(
         if can_enqueue and outreach_tasks is not None:
             try:
                 outreach_tasks.send_outreach_email.delay(
-                    str(seq.id), str(brand.id), str(org_id),
+                    str(seq.id),
+                    str(brand.id),
+                    str(org_id),
                 )
             except Exception as enq_exc:
                 logger.warning(
@@ -428,10 +413,7 @@ async def launch_outreach_for_segment(
         db,
         domain="conversion",
         event_type="outreach.launched",
-        summary=(
-            f"Outreach launched: {scheduled} lead(s) on avenue={avenue_slug} "
-            f"(sequence={sequence_template_slug})"
-        ),
+        summary=(f"Outreach launched: {scheduled} lead(s) on avenue={avenue_slug} (sequence={sequence_template_slug})"),
         org_id=org_id,
         brand_id=brand.id,
         entity_type="brand",
@@ -469,23 +451,23 @@ async def pause_outreach_for_avenue(
     handed to celery may complete.
     """
     brand = (
-        await db.execute(
-            select(Brand).where(
-                Brand.organization_id == org_id, Brand.is_active.is_(True)
-            ).limit(1)
-        )
+        await db.execute(select(Brand).where(Brand.organization_id == org_id, Brand.is_active.is_(True)).limit(1))
     ).scalar_one_or_none()
     if brand is None:
         raise ValueError("No active brand for organization")
     if not (avenue_slug or sequence_ids):
         raise ValueError("Must provide avenue_slug OR sequence_ids")
 
-    q = select(SponsorOutreachSequence).join(
-        SponsorTarget,
-        SponsorTarget.id == SponsorOutreachSequence.sponsor_target_id,
-    ).where(
-        SponsorTarget.brand_id == brand.id,
-        SponsorOutreachSequence.is_active.is_(True),
+    q = (
+        select(SponsorOutreachSequence)
+        .join(
+            SponsorTarget,
+            SponsorTarget.id == SponsorOutreachSequence.sponsor_target_id,
+        )
+        .where(
+            SponsorTarget.brand_id == brand.id,
+            SponsorOutreachSequence.is_active.is_(True),
+        )
     )
     if sequence_ids:
         q = q.where(SponsorOutreachSequence.id.in_(sequence_ids))
@@ -537,9 +519,7 @@ async def rewrite_draft(
     """Replace a draft's subject/body, preserving the prior version in
     ``rewrite_history_json``. Does not send — status stays ``pending``."""
     if draft.status not in ("pending", "approved", "rejected"):
-        raise ValueError(
-            f"Cannot rewrite draft in status={draft.status}"
-        )
+        raise ValueError(f"Cannot rewrite draft in status={draft.status}")
 
     prior = {
         "at": datetime.now(timezone.utc).isoformat(),
@@ -601,11 +581,10 @@ async def force_send_draft(
     {id}/approve endpoint first if it's still pending.
     """
     if draft.status != "approved":
-        raise ValueError(
-            f"Only approved drafts can be force-sent; current status={draft.status}"
-        )
+        raise ValueError(f"Only approved drafts can be force-sent; current status={draft.status}")
 
     from apps.api.services.reply_engine import send_approved_drafts
+
     result = await send_approved_drafts(db, draft.org_id)
 
     # send_approved_drafts processes ALL approved drafts for the org —
@@ -646,27 +625,18 @@ async def route_lead_to_proposal(
         create_proposal as svc_create,
     )
 
-    target = (
-        await db.execute(
-            select(SponsorTarget).where(SponsorTarget.id == lead_id)
-        )
-    ).scalar_one_or_none()
+    target = (await db.execute(select(SponsorTarget).where(SponsorTarget.id == lead_id))).scalar_one_or_none()
     if target is None:
         raise KeyError(f"Lead {lead_id} not found")
 
-    brand = (
-        await db.execute(select(Brand).where(Brand.id == target.brand_id))
-    ).scalar_one_or_none()
+    brand = (await db.execute(select(Brand).where(Brand.id == target.brand_id))).scalar_one_or_none()
     if brand is None or brand.organization_id != org_id:
         raise PermissionError("Lead belongs to another organization")
 
     contact = target.contact_info or {}
     recipient_email = (contact.get("email") or "").strip().lower()
     if not recipient_email:
-        raise ValueError(
-            f"Lead {lead_id} has no contact email — update the lead "
-            "before routing to proposal."
-        )
+        raise ValueError(f"Lead {lead_id} has no contact email — update the lead before routing to proposal.")
 
     li_inputs: list[LineItemInput] = []
     for i, li in enumerate(line_items):

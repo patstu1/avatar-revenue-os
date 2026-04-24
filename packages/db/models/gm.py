@@ -1,4 +1,5 @@
 """GM (General Manager) AI models — strategic conversation and blueprint storage."""
+
 from __future__ import annotations
 
 import uuid
@@ -17,19 +18,27 @@ class GMSession(Base):
     __tablename__ = "gm_sessions"
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
     )
     title: Mapped[str] = mapped_column(String(255), default="GM Strategy Session")
     status: Mapped[str] = mapped_column(String(30), default="active")  # active, archived
-    machine_phase: Mapped[str | None] = mapped_column(String(40))  # pre_ignition, configuring, first_launch, warmup, scaling, compounding
+    machine_phase: Mapped[str | None] = mapped_column(
+        String(40)
+    )  # pre_ignition, configuring, first_launch, warmup, scaling, compounding
     message_count: Mapped[int] = mapped_column(Integer, default=0)
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     active_blueprint_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True,
+        UUID(as_uuid=True),
+        nullable=True,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -40,13 +49,16 @@ class GMMessage(Base):
     __tablename__ = "gm_messages"
 
     session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("gm_sessions.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("gm_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # user, gm
     content: Mapped[str] = mapped_column(Text, nullable=False)
     message_type: Mapped[str] = mapped_column(
-        String(30), default="conversation",
+        String(30),
+        default="conversation",
     )  # conversation, blueprint_presentation, blueprint_revision, execution_report, machine_scan
     blueprint_data: Mapped[dict | None] = mapped_column(JSONB)  # structured blueprint if this message contains one
     machine_state_snapshot: Mapped[dict | None] = mapped_column(JSONB)  # machine state at time of message
@@ -60,16 +72,21 @@ class GMBlueprint(Base):
     __tablename__ = "gm_blueprints"
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("gm_sessions.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("gm_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     version: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(
-        String(30), default="proposed",
+        String(30),
+        default="proposed",
     )  # proposed, approved, executing, completed, superseded
 
     # The 6 blueprint sections
@@ -96,12 +113,16 @@ class GMConversation(Base):
     __tablename__ = "gm_conversations"
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("brands.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     messages: Mapped[dict | None] = mapped_column(JSONB, default=list)
     actions_log: Mapped[dict | None] = mapped_column(JSONB, default=list)

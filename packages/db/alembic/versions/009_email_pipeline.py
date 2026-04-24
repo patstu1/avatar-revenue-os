@@ -9,6 +9,7 @@ pattern from 008_autonomy_grants) so re-runs on partially-migrated DBs
 do not fail. The pre-existing multi-head situation in the alembic chain
 (005_media_jobs_v2 still a side tip) is deliberately NOT touched here.
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -92,8 +93,18 @@ def upgrade() -> None:
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
             sa.UniqueConstraint("inbox_connection_id", "provider_thread_id", name="uq_thread_inbox_provider"),
         )
-        for col in ("inbox_connection_id", "org_id", "provider_thread_id", "contact_id", "lead_opportunity_id",
-                    "direction", "sales_stage", "latest_classification", "reply_status", "from_email"):
+        for col in (
+            "inbox_connection_id",
+            "org_id",
+            "provider_thread_id",
+            "contact_id",
+            "lead_opportunity_id",
+            "direction",
+            "sales_stage",
+            "latest_classification",
+            "reply_status",
+            "from_email",
+        ):
             op.create_index(f"ix_email_threads_{col}", "email_threads", [col])
 
     # 3. email_messages
@@ -154,7 +165,9 @@ def upgrade() -> None:
             *_base_cols(),
             sa.Column("thread_id", UUID(as_uuid=True), sa.ForeignKey("email_threads.id"), nullable=False),
             sa.Column("message_id", UUID(as_uuid=True), sa.ForeignKey("email_messages.id"), nullable=False),
-            sa.Column("classification_id", UUID(as_uuid=True), sa.ForeignKey("email_classifications.id"), nullable=True),
+            sa.Column(
+                "classification_id", UUID(as_uuid=True), sa.ForeignKey("email_classifications.id"), nullable=True
+            ),
             sa.Column("org_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
             sa.Column("to_email", sa.String(255), nullable=False),
             sa.Column("subject", sa.String(1000), nullable=False, server_default=""),

@@ -1,4 +1,5 @@
 """Autonomous Execution Phase A — signal scanning, auto queue, warm-up, output & maturity."""
+
 from __future__ import annotations
 
 import uuid
@@ -42,6 +43,7 @@ from packages.scoring.signal_scanning_engine import (
 # ---------------------------------------------------------------------------
 # Helper serializers
 # ---------------------------------------------------------------------------
+
 
 def _scan_run_out(r: SignalScanRun) -> dict[str, Any]:
     return {
@@ -221,6 +223,7 @@ def _ramp_event_out(e: OutputRampEvent) -> dict[str, Any]:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -241,24 +244,14 @@ def _age_hours(dt: Any | None) -> float:
 
 
 async def _brand_niche(db: AsyncSession, brand_id: uuid.UUID) -> str:
-    brand = (
-        await db.execute(select(Brand).where(Brand.id == brand_id))
-    ).scalar_one_or_none()
+    brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if brand and brand.niche:
         return brand.niche
     return "general"
 
 
 async def _brand_offers(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
-    rows = list(
-        (
-            await db.execute(
-                select(Offer).where(Offer.brand_id == brand_id).limit(100)
-            )
-        )
-        .scalars()
-        .all()
-    )
+    rows = list((await db.execute(select(Offer).where(Offer.brand_id == brand_id).limit(100))).scalars().all())
     result: list[dict[str, Any]] = []
     for o in rows:
         kws = []
@@ -268,9 +261,7 @@ async def _brand_offers(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str,
     return result
 
 
-async def _active_accounts(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[CreatorAccount]:
+async def _active_accounts(db: AsyncSession, brand_id: uuid.UUID) -> list[CreatorAccount]:
     return list(
         (
             await db.execute(
@@ -286,9 +277,7 @@ async def _active_accounts(
 
 async def _platform_policies_rows(db: AsyncSession) -> list[PlatformWarmupPolicy]:
     return list(
-        (await db.execute(select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True))))
-        .scalars()
-        .all()
+        (await db.execute(select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True)))).scalars().all()
     )
 
 
@@ -379,9 +368,7 @@ def _account_to_engine_dict(
     }
 
 
-async def _latest_maturity_map(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[uuid.UUID, AccountMaturityReport]:
+async def _latest_maturity_map(db: AsyncSession, brand_id: uuid.UUID) -> dict[uuid.UUID, AccountMaturityReport]:
     rows = list(
         (
             await db.execute(
@@ -403,7 +390,9 @@ async def _latest_maturity_map(
 
 
 async def _perf_metrics_for_account(
-    db: AsyncSession, account_id: uuid.UUID, days: int = 28,
+    db: AsyncSession,
+    account_id: uuid.UUID,
+    days: int = 28,
 ) -> dict[str, Any]:
     cutoff = _utc_now() - timedelta(days=days)
     rows = list(
@@ -441,16 +430,20 @@ async def _perf_metrics_for_account(
 
 
 async def _perf_history_for_account(
-    db: AsyncSession, account_id: uuid.UUID, weeks: int = 8,
+    db: AsyncSession,
+    account_id: uuid.UUID,
+    weeks: int = 8,
 ) -> list[dict[str, Any]]:
     cutoff = _utc_now() - timedelta(weeks=weeks)
     rows = list(
         (
             await db.execute(
-                select(PerformanceMetric).where(
+                select(PerformanceMetric)
+                .where(
                     PerformanceMetric.creator_account_id == account_id,
                     PerformanceMetric.measured_at >= cutoff,
-                ).order_by(PerformanceMetric.measured_at.asc())
+                )
+                .order_by(PerformanceMetric.measured_at.asc())
             )
         )
         .scalars()
@@ -466,12 +459,14 @@ async def _perf_history_for_account(
     for wk, items in sorted(week_buckets.items()):
         total_views = sum(i.views for i in items)
         total_eng = sum(i.likes + i.comments + i.shares for i in items)
-        history.append({
-            "week_number": wk,
-            "posts_count": len(items),
-            "engagement_rate": total_eng / total_views if total_views > 0 else 0.0,
-            "follower_delta": sum(i.followers_gained for i in items),
-        })
+        history.append(
+            {
+                "week_number": wk,
+                "posts_count": len(items),
+                "engagement_rate": total_eng / total_views if total_views > 0 else 0.0,
+                "follower_delta": sum(i.followers_gained for i in items),
+            }
+        )
     return history
 
 
@@ -479,40 +474,38 @@ async def _perf_history_for_account(
 # Gather raw signals from existing discovery & market_timing tables
 # ---------------------------------------------------------------------------
 
+
 async def _gather_raw_signals(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict[str, Any]]:
     """Pull TrendSignals, TopicSignals, and MacroSignalEvents into a list of
     raw signal dicts consumable by score_signal_batch."""
     raw: list[dict[str, Any]] = []
 
     trend_rows = list(
-        (
-            await db.execute(
-                select(TrendSignal).where(TrendSignal.brand_id == brand_id).limit(200)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(TrendSignal).where(TrendSignal.brand_id == brand_id).limit(200))).scalars().all()
     )
     for t in trend_rows:
         meta = t.metadata_blob or {}
-        raw.append({
-            "title": t.keyword,
-            "description": f"Trend signal ({t.signal_type}): {t.keyword}",
-            "age_hours": _age_hours(getattr(t, "created_at", None)),
-            "keywords": [t.keyword] + meta.get("keywords", []),
-            "metrics": {
-                "search_volume_delta": t.volume,
-                "engagement_velocity": t.velocity,
-            },
-            "competitive_pressure": 0.3,
-            "data_completeness": 0.6 if t.volume > 0 else 0.3,
-            "source": "trend_api",
-            "signal_type": None,
-            "_origin": "trend_signal",
-            "_origin_id": str(t.id),
-        })
+        raw.append(
+            {
+                "title": t.keyword,
+                "description": f"Trend signal ({t.signal_type}): {t.keyword}",
+                "age_hours": _age_hours(getattr(t, "created_at", None)),
+                "keywords": [t.keyword] + meta.get("keywords", []),
+                "metrics": {
+                    "search_volume_delta": t.volume,
+                    "engagement_velocity": t.velocity,
+                },
+                "competitive_pressure": 0.3,
+                "data_completeness": 0.6 if t.volume > 0 else 0.3,
+                "source": "trend_api",
+                "signal_type": None,
+                "_origin": "trend_signal",
+                "_origin_id": str(t.id),
+            }
+        )
 
     topic_rows = list(
         (
@@ -528,29 +521,30 @@ async def _gather_raw_signals(
     )
     for ts in topic_rows:
         rd = ts.raw_data or {}
-        raw.append({
-            "title": rd.get("title", ts.signal_type),
-            "description": rd.get("description", f"Topic signal: {ts.signal_type}"),
-            "age_hours": _age_hours(getattr(ts, "created_at", None)),
-            "keywords": rd.get("keywords", [ts.signal_type]),
-            "metrics": {
-                "engagement_velocity": ts.signal_value,
-            },
-            "competitive_pressure": 0.2,
-            "data_completeness": 0.5,
-            "source": ts.signal_source or "internal_analytics",
-            "signal_type": None,
-            "_origin": "topic_signal",
-            "_origin_id": str(ts.id),
-        })
+        raw.append(
+            {
+                "title": rd.get("title", ts.signal_type),
+                "description": rd.get("description", f"Topic signal: {ts.signal_type}"),
+                "age_hours": _age_hours(getattr(ts, "created_at", None)),
+                "keywords": rd.get("keywords", [ts.signal_type]),
+                "metrics": {
+                    "engagement_velocity": ts.signal_value,
+                },
+                "competitive_pressure": 0.2,
+                "data_completeness": 0.5,
+                "source": ts.signal_source or "internal_analytics",
+                "signal_type": None,
+                "_origin": "topic_signal",
+                "_origin_id": str(ts.id),
+            }
+        )
 
     macro_rows = list(
         (
             await db.execute(
-                select(MacroSignalEvent).where(
-                    (MacroSignalEvent.brand_id == brand_id)
-                    | (MacroSignalEvent.brand_id.is_(None))
-                ).limit(200)
+                select(MacroSignalEvent)
+                .where((MacroSignalEvent.brand_id == brand_id) | (MacroSignalEvent.brand_id.is_(None)))
+                .limit(200)
             )
         )
         .scalars()
@@ -558,19 +552,21 @@ async def _gather_raw_signals(
     )
     for m in macro_rows:
         meta = m.signal_metadata_json or {}
-        raw.append({
-            "title": meta.get("title", m.signal_type),
-            "description": meta.get("description", f"Macro event via {m.source_name}"),
-            "age_hours": _age_hours(m.observed_at or getattr(m, "created_at", None)),
-            "keywords": meta.get("keywords", [m.signal_type]),
-            "metrics": meta.get("metrics", {}),
-            "competitive_pressure": float(meta.get("competitive_pressure", 0.4)),
-            "data_completeness": float(meta.get("data_completeness", 0.5)),
-            "source": "social_listening",
-            "signal_type": None,
-            "_origin": "macro_signal_event",
-            "_origin_id": str(m.id),
-        })
+        raw.append(
+            {
+                "title": meta.get("title", m.signal_type),
+                "description": meta.get("description", f"Macro event via {m.source_name}"),
+                "age_hours": _age_hours(m.observed_at or getattr(m, "created_at", None)),
+                "keywords": meta.get("keywords", [m.signal_type]),
+                "metrics": meta.get("metrics", {}),
+                "competitive_pressure": float(meta.get("competitive_pressure", 0.4)),
+                "data_completeness": float(meta.get("data_completeness", 0.5)),
+                "source": "social_listening",
+                "signal_type": None,
+                "_origin": "macro_signal_event",
+                "_origin_id": str(m.id),
+            }
+        )
 
     return raw
 
@@ -578,6 +574,7 @@ async def _gather_raw_signals(
 # ---------------------------------------------------------------------------
 # Signal Scanning
 # ---------------------------------------------------------------------------
+
 
 async def run_signal_scan(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     start = _utc_now()
@@ -634,7 +631,9 @@ async def run_signal_scan(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, An
 
 
 async def list_signal_scans(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 50,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    limit: int = 50,
 ) -> list[dict[str, Any]]:
     rows = list(
         (
@@ -652,7 +651,9 @@ async def list_signal_scans(
 
 
 async def list_signal_events(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     rows = list(
         (
@@ -676,15 +677,19 @@ async def list_signal_events(
 # Auto Queue Builder
 # ---------------------------------------------------------------------------
 
+
 async def rebuild_auto_queue(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     actionable_rows = list(
         (
             await db.execute(
-                select(NormalizedSignalEvent).where(
+                select(NormalizedSignalEvent)
+                .where(
                     NormalizedSignalEvent.brand_id == brand_id,
                     NormalizedSignalEvent.is_actionable.is_(True),
                     NormalizedSignalEvent.is_active.is_(True),
-                ).order_by(NormalizedSignalEvent.urgency_score.desc()).limit(200)
+                )
+                .order_by(NormalizedSignalEvent.urgency_score.desc())
+                .limit(200)
             )
         )
         .scalars()
@@ -697,16 +702,18 @@ async def rebuild_auto_queue(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
 
     scored_signals: list[dict[str, Any]] = []
     for evt in actionable_rows:
-        scored_signals.append({
-            "signal_type": evt.signal_type,
-            "source": evt.signal_source,
-            "normalized_title": evt.normalized_title,
-            "urgency_score": evt.urgency_score,
-            "monetization_relevance": evt.monetization_relevance,
-            "confidence": evt.confidence,
-            "raw_signal": evt.raw_payload_json or {},
-            "_event_id": str(evt.id),
-        })
+        scored_signals.append(
+            {
+                "signal_type": evt.signal_type,
+                "source": evt.signal_source,
+                "normalized_title": evt.normalized_title,
+                "urgency_score": evt.urgency_score,
+                "monetization_relevance": evt.monetization_relevance,
+                "confidence": evt.confidence,
+                "raw_signal": evt.raw_payload_json or {},
+                "_event_id": str(evt.id),
+            }
+        )
 
     account_dicts: list[dict[str, Any]] = []
     for acct in accounts:
@@ -773,7 +780,9 @@ async def rebuild_auto_queue(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
 
 
 async def list_auto_queue(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     rows = list(
         (
@@ -796,6 +805,7 @@ async def list_auto_queue(
 # ---------------------------------------------------------------------------
 # Account Warm-Up
 # ---------------------------------------------------------------------------
+
 
 async def recompute_warmup(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     accounts = await _active_accounts(db, brand_id)
@@ -850,15 +860,19 @@ async def recompute_warmup(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, A
 
 
 async def list_warmup_plans(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
-                select(AccountWarmupPlan).where(
+                select(AccountWarmupPlan)
+                .where(
                     AccountWarmupPlan.brand_id == brand_id,
                     AccountWarmupPlan.is_active.is_(True),
-                ).limit(limit)
+                )
+                .limit(limit)
             )
         )
         .scalars()
@@ -870,6 +884,7 @@ async def list_warmup_plans(
 # ---------------------------------------------------------------------------
 # Account Output
 # ---------------------------------------------------------------------------
+
 
 async def recompute_account_output(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     warmup_plans = list(
@@ -893,9 +908,7 @@ async def recompute_account_output(db: AsyncSession, brand_id: uuid.UUID) -> dic
     for plan in warmup_plans:
         if plan.account_id not in accounts_map:
             acct = (
-                await db.execute(
-                    select(CreatorAccount).where(CreatorAccount.id == plan.account_id)
-                )
+                await db.execute(select(CreatorAccount).where(CreatorAccount.id == plan.account_id))
             ).scalar_one_or_none()
             if acct:
                 accounts_map[plan.account_id] = acct
@@ -959,7 +972,9 @@ async def recompute_account_output(db: AsyncSession, brand_id: uuid.UUID) -> dic
             monetization_response_score=0.0,
             account_health_score=output_result.get("health_score", 0.0),
             saturation_score=acct.saturation_score,
-            confidence=output_result.get("confidence", 0.5) if isinstance(output_result.get("confidence"), (int, float)) else 0.5,
+            confidence=output_result.get("confidence", 0.5)
+            if isinstance(output_result.get("confidence"), (int, float))
+            else 0.5,
             explanation=output_result.get("explanation", ""),
         )
         db.add(report)
@@ -979,7 +994,9 @@ async def recompute_account_output(db: AsyncSession, brand_id: uuid.UUID) -> dic
             health_score=maturity_result["health_score"],
             transition_reason=maturity_result.get("explanation", ""),
             next_expected_transition=None,
-            confidence=maturity_result.get("confidence", 0.5) if isinstance(maturity_result.get("confidence"), (int, float)) else 0.5,
+            confidence=maturity_result.get("confidence", 0.5)
+            if isinstance(maturity_result.get("confidence"), (int, float))
+            else 0.5,
             explanation=maturity_result.get("explanation", ""),
         )
         db.add(mat_report)
@@ -1016,15 +1033,19 @@ async def recompute_account_output(db: AsyncSession, brand_id: uuid.UUID) -> dic
 
 
 async def list_account_output(
-    db: AsyncSession, brand_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
-                select(AccountOutputReport).where(
+                select(AccountOutputReport)
+                .where(
                     AccountOutputReport.brand_id == brand_id,
                     AccountOutputReport.is_active.is_(True),
-                ).limit(limit)
+                )
+                .limit(limit)
             )
         )
         .scalars()
@@ -1037,8 +1058,10 @@ async def list_account_output(
 # Platform Warmup Policies
 # ---------------------------------------------------------------------------
 
+
 async def list_account_maturity(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> list[dict[str, Any]]:
     rows = list(
         (
@@ -1061,6 +1084,7 @@ list_account_warmup = list_warmup_plans
 # ---------------------------------------------------------------------------
 # Platform Warmup Policies
 # ---------------------------------------------------------------------------
+
 
 async def list_platform_warmup_policies(
     db: AsyncSession,

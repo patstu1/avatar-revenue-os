@@ -1,4 +1,5 @@
 """Pydantic schemas for Live Execution Phase 2 + Buffer Expansion."""
+
 from __future__ import annotations
 
 import uuid
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 
 # ── Webhook / Event Ingestion ──────────────────────────────────────────
 
+
 class WebhookEventCreate(BaseModel):
     source: str
     source_category: str = "unknown"
@@ -16,6 +18,7 @@ class WebhookEventCreate(BaseModel):
     external_event_id: str | None = None
     raw_payload: dict[str, Any] | None = None
     idempotency_key: str | None = None
+
 
 class WebhookEventOut(BaseModel):
     id: uuid.UUID
@@ -29,8 +32,10 @@ class WebhookEventOut(BaseModel):
     error_message: str | None = None
     idempotency_key: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
+
 
 class ExternalEventIngestionOut(BaseModel):
     id: uuid.UUID
@@ -45,11 +50,13 @@ class ExternalEventIngestionOut(BaseModel):
     status: str
     error_message: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Sequence Trigger Actions ───────────────────────────────────────────
+
 
 class SequenceTriggerActionOut(BaseModel):
     id: uuid.UUID
@@ -63,11 +70,13 @@ class SequenceTriggerActionOut(BaseModel):
     error_message: str | None = None
     retry_count: int
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Payment Connector ──────────────────────────────────────────────────
+
 
 class PaymentConnectorSyncOut(BaseModel):
     id: uuid.UUID
@@ -81,11 +90,13 @@ class PaymentConnectorSyncOut(BaseModel):
     credential_status: str
     error_message: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Platform Analytics Sync ────────────────────────────────────────────
+
 
 class PlatformAnalyticsSyncOut(BaseModel):
     id: uuid.UUID
@@ -101,11 +112,13 @@ class PlatformAnalyticsSyncOut(BaseModel):
     blocker_state: str | None = None
     operator_action: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Ad Reporting Imports ───────────────────────────────────────────────
+
 
 class AdReportingImportOut(BaseModel):
     id: uuid.UUID
@@ -124,11 +137,13 @@ class AdReportingImportOut(BaseModel):
     blocker_state: str | None = None
     operator_action: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Buffer Execution Truth ─────────────────────────────────────────────
+
 
 class BufferExecutionTruthOut(BaseModel):
     id: uuid.UUID
@@ -144,8 +159,10 @@ class BufferExecutionTruthOut(BaseModel):
     conflict_description: str | None = None
     operator_action: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
+
 
 class BufferExecutionEventOut(BaseModel):
     id: uuid.UUID
@@ -155,11 +172,13 @@ class BufferExecutionEventOut(BaseModel):
     from_state: str | None = None
     to_state: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Buffer Retries ─────────────────────────────────────────────────────
+
 
 class BufferRetryRecordOut(BaseModel):
     id: uuid.UUID
@@ -173,11 +192,13 @@ class BufferRetryRecordOut(BaseModel):
     escalated: bool
     error_message: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Buffer Capability Checks ──────────────────────────────────────────
+
 
 class BufferCapabilityCheckOut(BaseModel):
     id: uuid.UUID
@@ -192,11 +213,13 @@ class BufferCapabilityCheckOut(BaseModel):
     blocker_summary: str | None = None
     operator_action: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Shared ─────────────────────────────────────────────────────────────
+
 
 class RecomputeSummaryOut(BaseModel):
     rows_processed: int = 0

@@ -9,6 +9,7 @@ Tiers:
     manual_approval   — hold for human approval
     block             — reject, create operator action
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -61,11 +62,11 @@ async def _load_rules(db: AsyncSession, brand_id: uuid.UUID) -> list[PublishPoli
 
 @dataclass
 class PublishPolicyResult:
-    tier: str                       # auto_publish | sample_review | manual_approval | block
-    rule_id: uuid.UUID | None    # Which rule matched
-    rule_name: str                  # Human-readable name
-    sample_flagged: bool            # If sample_review, was this item selected?
-    explanation: str                # Why this tier was chosen
+    tier: str  # auto_publish | sample_review | manual_approval | block
+    rule_id: uuid.UUID | None  # Which rule matched
+    rule_name: str  # Human-readable name
+    sample_flagged: bool  # If sample_review, was this item selected?
+    explanation: str  # Why this tier was chosen
     factors: dict = field(default_factory=dict)  # All evaluated factors for audit
 
 

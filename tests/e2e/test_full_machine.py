@@ -11,6 +11,7 @@ Categories:
   - missing_binary: system binary (e.g. ffmpeg) not installed
   - intentionally_gated: test requires manual precondition
 """
+
 from __future__ import annotations
 
 import json
@@ -178,15 +179,19 @@ async def test_native_publish_fallback(db):
     mock_aggregator.name = "buffer"
     mock_aggregator.publish = AsyncMock(return_value=agg_result)
 
-    with patch.dict(
-        "packages.clients.distributor_router.NATIVE_ADAPTERS",
-        {"youtube": native_raiser},
-    ), patch(
-        "packages.clients.distributor_router._load_native_credentials",
-        return_value={"access_token": "fake"},
-    ), patch(
-        "packages.clients.distributor_router.get_priority_order",
-        return_value=[mock_aggregator],
+    with (
+        patch.dict(
+            "packages.clients.distributor_router.NATIVE_ADAPTERS",
+            {"youtube": native_raiser},
+        ),
+        patch(
+            "packages.clients.distributor_router._load_native_credentials",
+            return_value={"access_token": "fake"},
+        ),
+        patch(
+            "packages.clients.distributor_router.get_priority_order",
+            return_value=[mock_aggregator],
+        ),
     ):
         result = await route_and_publish(db, mock_job, mock_content, mock_account, org_id)
 
@@ -216,11 +221,16 @@ async def test_ffmpeg_video_cutting():
         # Generate a 2-second test pattern video
         subprocess.run(
             [
-                "ffmpeg", "-y",
-                "-f", "lavfi",
-                "-i", "testsrc=duration=2:size=320x240:rate=30",
-                "-c:v", "libx264",
-                "-pix_fmt", "yuv420p",
+                "ffmpeg",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=duration=2:size=320x240:rate=30",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
                 source_path,
             ],
             capture_output=True,
@@ -310,12 +320,15 @@ async def test_stripe_webhook_revenue(db, api, seed, webhook_payloads):
         "payload": payload,
     }
 
-    with patch(
-        "apps.api.routers.webhooks.StripeWebhookVerifier.verify",
-        return_value=mock_verify_result,
-    ), patch(
-        "apps.api.services.monetization_bridge.record_service_payment_to_ledger",
-        new_callable=AsyncMock,
+    with (
+        patch(
+            "apps.api.routers.webhooks.StripeWebhookVerifier.verify",
+            return_value=mock_verify_result,
+        ),
+        patch(
+            "apps.api.services.monetization_bridge.record_service_payment_to_ledger",
+            new_callable=AsyncMock,
+        ),
     ):
         resp = await api.post(
             "/webhooks/stripe",
@@ -332,21 +345,35 @@ async def test_stripe_webhook_revenue(db, api, seed, webhook_payloads):
 
     # Verify the webhook event was recorded
     from packages.db.models.live_execution_phase2 import WebhookEvent
-    events = (await db.execute(
-        select(WebhookEvent).where(
-            WebhookEvent.source == "stripe",
-            WebhookEvent.external_event_id == event_id,
+
+    events = (
+        (
+            await db.execute(
+                select(WebhookEvent).where(
+                    WebhookEvent.source == "stripe",
+                    WebhookEvent.external_event_id == event_id,
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(events) >= 1, "WebhookEvent was not created"
 
     # Verify revenue processing was invoked
     from packages.db.models.creator_revenue import CreatorRevenueEvent
-    rev_events = (await db.execute(
-        select(CreatorRevenueEvent).where(
-            CreatorRevenueEvent.brand_id == uuid.UUID(seed.brand_id),
+
+    rev_events = (
+        (
+            await db.execute(
+                select(CreatorRevenueEvent).where(
+                    CreatorRevenueEvent.brand_id == uuid.UUID(seed.brand_id),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(rev_events) >= 1, "CreatorRevenueEvent was not created"
     assert rev_events[0].revenue == amount_cents / 100.0
 
@@ -429,20 +456,20 @@ async def test_strategy_adjustment(db, seed):
     brand_id = uuid.UUID(seed.brand_id)
 
     # Get the existing account (created during seed)
-    accounts = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id)
-    )).scalars().all()
+    accounts = (await db.execute(select(CreatorAccount).where(CreatorAccount.brand_id == brand_id))).scalars().all()
 
     if not accounts:
         pytest.skip("SKIP:intentionally_gated:No creator accounts from seed fixture — seed may have changed")
 
     # Insert winning patterns with different scores
     patterns = []
-    for i, (name, score) in enumerate([
-        ("Hook Pattern A", 3.0),
-        ("CTA Pattern B", 1.5),
-        ("Angle Pattern C", 6.0),  # 2x average -> should get 2 briefs
-    ]):
+    for i, (name, score) in enumerate(
+        [
+            ("Hook Pattern A", 3.0),
+            ("CTA Pattern B", 1.5),
+            ("Angle Pattern C", 6.0),  # 2x average -> should get 2 briefs
+        ]
+    ):
         pattern = WinningPatternMemory(
             brand_id=brand_id,
             pattern_type="content_structure",
@@ -460,7 +487,11 @@ async def test_strategy_adjustment(db, seed):
 
     # Call the strategy function
     briefs_created = await _generate_winner_briefs(
-        db, brand_id, patterns, accounts, offers=[],
+        db,
+        brand_id,
+        patterns,
+        accounts,
+        offers=[],
     )
 
     # Average score = (3 + 1.5 + 6) / 3 = 3.5
@@ -471,28 +502,29 @@ async def test_strategy_adjustment(db, seed):
     assert briefs_created >= 3, f"Expected at least 3 briefs, got {briefs_created}"
 
     # Verify briefs were actually created in DB
-    new_briefs = (await db.execute(
-        select(ContentBrief).where(
-            ContentBrief.brand_id == brand_id,
-            ContentBrief.status == "draft",
+    new_briefs = (
+        (
+            await db.execute(
+                select(ContentBrief).where(
+                    ContentBrief.brand_id == brand_id,
+                    ContentBrief.status == "draft",
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
-    strategy_briefs = [b for b in new_briefs if b.brief_metadata and b.brief_metadata.get("source") == "strategy_adjustment_worker"]
+    strategy_briefs = [
+        b for b in new_briefs if b.brief_metadata and b.brief_metadata.get("source") == "strategy_adjustment_worker"
+    ]
     assert len(strategy_briefs) >= 3, f"Expected at least 3 strategy briefs in DB, got {len(strategy_briefs)}"
 
     # Verify proportionality: the high-score pattern should have more briefs
-    high_score_briefs = [
-        b for b in strategy_briefs
-        if b.brief_metadata.get("pattern_id") == str(patterns[2].id)
-    ]
-    low_score_briefs = [
-        b for b in strategy_briefs
-        if b.brief_metadata.get("pattern_id") == str(patterns[1].id)
-    ]
+    high_score_briefs = [b for b in strategy_briefs if b.brief_metadata.get("pattern_id") == str(patterns[2].id)]
+    low_score_briefs = [b for b in strategy_briefs if b.brief_metadata.get("pattern_id") == str(patterns[1].id)]
     assert len(high_score_briefs) >= len(low_score_briefs), (
-        f"High-score pattern should have >= briefs than low-score: "
-        f"{len(high_score_briefs)} vs {len(low_score_briefs)}"
+        f"High-score pattern should have >= briefs than low-score: {len(high_score_briefs)} vs {len(low_score_briefs)}"
     )
 
 
@@ -510,9 +542,7 @@ async def test_gm_chat_creates_records(db, seed):
     org_id = uuid.UUID(seed.org_id)
 
     # Count existing briefs
-    existing = (await db.execute(
-        select(ContentBrief).where(ContentBrief.brand_id == brand_id)
-    )).scalars().all()
+    existing = (await db.execute(select(ContentBrief).where(ContentBrief.brand_id == brand_id))).scalars().all()
     existing_count = len(existing)
 
     # Mock Anthropic to return a tool_use response, then a text response
@@ -586,19 +616,14 @@ async def test_gm_chat_creates_records(db, seed):
             )
 
     # Verify a new ContentBrief was created
-    all_briefs = (await db.execute(
-        select(ContentBrief).where(ContentBrief.brand_id == brand_id)
-    )).scalars().all()
+    all_briefs = (await db.execute(select(ContentBrief).where(ContentBrief.brand_id == brand_id))).scalars().all()
 
     assert len(all_briefs) > existing_count, (
         f"Expected new brief to be created. Before: {existing_count}, After: {len(all_briefs)}"
     )
 
     # Find the GM-created brief
-    gm_briefs = [
-        b for b in all_briefs
-        if b.brief_metadata and b.brief_metadata.get("source") == "gm_conversation"
-    ]
+    gm_briefs = [b for b in all_briefs if b.brief_metadata and b.brief_metadata.get("source") == "gm_conversation"]
     assert len(gm_briefs) >= 1, "No GM-created brief found"
     assert "market analysis" in gm_briefs[0].title.lower() or "Market Analysis" in gm_briefs[0].title
 
@@ -626,6 +651,7 @@ async def test_trend_express_publish():
     ):
         # Simulate what the trend worker would do
         from workers.publishing_worker.tasks import express_publish
+
         express_publish.delay(content_item_id, brand_id, "trend_reactive")
 
     assert len(dispatched_tasks) == 1

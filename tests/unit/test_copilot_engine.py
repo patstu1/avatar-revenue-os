@@ -1,4 +1,5 @@
 """Unit tests for Operator Copilot engine."""
+
 from packages.scoring.copilot_engine import (
     QUICK_PROMPTS,
     TRUTH_LEVELS,
@@ -42,7 +43,13 @@ def test_build_quick_status_with_blockers():
 def test_build_operator_actions_empty():
     assert (
         build_operator_actions(
-            [], [], [], [], [], [], [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
         )
         == []
     )

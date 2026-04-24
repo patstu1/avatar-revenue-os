@@ -4,6 +4,7 @@ Revision ID: m3a4b5c6d7e8
 Revises: k1f6g7h8i9j0
 Create Date: 2026-03-29
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -35,13 +36,17 @@ def upgrade() -> None:
     op.add_column("growth_commands", sa.Column("created_in_run_id", sa.UUID(), nullable=True))
     op.create_foreign_key(
         "fk_growth_commands_created_in_run_id",
-        "growth_commands", "growth_command_runs",
-        ["created_in_run_id"], ["id"],
+        "growth_commands",
+        "growth_command_runs",
+        ["created_in_run_id"],
+        ["id"],
     )
     op.create_foreign_key(
         "fk_growth_commands_superseded_by_run_id",
-        "growth_commands", "growth_command_runs",
-        ["superseded_by_run_id"], ["id"],
+        "growth_commands",
+        "growth_command_runs",
+        ["superseded_by_run_id"],
+        ["id"],
     )
     op.create_index("ix_growth_commands_created_in_run_id", "growth_commands", ["created_in_run_id"])
     op.create_index("ix_growth_commands_superseded_at", "growth_commands", ["superseded_at"])

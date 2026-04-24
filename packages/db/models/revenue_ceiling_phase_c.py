@@ -1,4 +1,5 @@
 """Revenue Ceiling Phase C: recurring revenue, sponsor inventory, trust, monetization mix, paid promotion."""
+
 import uuid
 from typing import Optional
 

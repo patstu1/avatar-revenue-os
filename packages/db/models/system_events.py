@@ -10,6 +10,7 @@ Events are lightweight, append-only, and queryable. They allow:
 - Recovery layer to detect and respond to failures
 - Memory layer to build context over time
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -27,85 +28,76 @@ class SystemEvent(Base):
     Every meaningful state change emits one of these. Consumers (dashboards,
     intelligence, recovery, memory) read from this table to stay coordinated.
     """
+
     __tablename__ = "system_events"
 
     # --- Who / What ---
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), index=True
     )
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), index=True
-    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), index=True)
 
     # --- Event Classification ---
     event_domain: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True,
-        comment="Top-level domain: content, publishing, monetization, intelligence, orchestration, governance, recovery"
+        String(50),
+        nullable=False,
+        index=True,
+        comment="Top-level domain: content, publishing, monetization, intelligence, orchestration, governance, recovery",
     )
     event_type: Mapped[str] = mapped_column(
-        String(100), nullable=False, index=True,
-        comment="Specific event: content.state_changed, job.completed, offer.activated, gate.blocked, etc."
+        String(100),
+        nullable=False,
+        index=True,
+        comment="Specific event: content.state_changed, job.completed, offer.activated, gate.blocked, etc.",
     )
     event_severity: Mapped[str] = mapped_column(
-        String(20), default="info", index=True,
-        comment="info, warning, error, critical"
+        String(20), default="info", index=True, comment="info, warning, error, critical"
     )
 
     # --- Entity Reference ---
     entity_type: Mapped[Optional[str]] = mapped_column(
-        String(100), index=True,
-        comment="The type of object this event is about: content_item, media_job, offer, brand, etc."
+        String(100),
+        index=True,
+        comment="The type of object this event is about: content_item, media_job, offer, brand, etc.",
     )
     entity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), index=True,
-        comment="The specific object ID this event references"
+        UUID(as_uuid=True), index=True, comment="The specific object ID this event references"
     )
 
     # --- State Transition ---
     previous_state: Mapped[Optional[str]] = mapped_column(
         String(50), comment="State before this event (null for creation events)"
     )
-    new_state: Mapped[Optional[str]] = mapped_column(
-        String(50), comment="State after this event"
-    )
+    new_state: Mapped[Optional[str]] = mapped_column(String(50), comment="State after this event")
 
     # --- Actor ---
     actor_type: Mapped[str] = mapped_column(
-        String(20), default="system",
-        comment="system, human, worker, scheduler, webhook"
+        String(20), default="system", comment="system, human, worker, scheduler, webhook"
     )
-    actor_id: Mapped[Optional[str]] = mapped_column(
-        String(255), comment="User ID, worker name, or webhook source"
-    )
+    actor_id: Mapped[Optional[str]] = mapped_column(String(255), comment="User ID, worker name, or webhook source")
 
     # --- Payload ---
     summary: Mapped[str] = mapped_column(
-        String(500), nullable=False,
-        comment="Human-readable one-line summary of what happened"
+        String(500), nullable=False, comment="Human-readable one-line summary of what happened"
     )
     details: Mapped[Optional[dict]] = mapped_column(
-        JSONB, default=dict,
-        comment="Structured payload with event-specific data"
+        JSONB, default=dict, comment="Structured payload with event-specific data"
     )
 
     # --- Correlation ---
     correlation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), index=True,
-        comment="Groups related events in a workflow (e.g., content creation flow)"
+        UUID(as_uuid=True), index=True, comment="Groups related events in a workflow (e.g., content creation flow)"
     )
     parent_event_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("system_events.id"),
-        comment="Causal chain: which event triggered this one"
+        UUID(as_uuid=True), ForeignKey("system_events.id"), comment="Causal chain: which event triggered this one"
     )
 
     # --- Consumption ---
     requires_action: Mapped[bool] = mapped_column(
-        default=False,
-        comment="True if this event needs operator attention (surfaces in control layer)"
+        default=False, comment="True if this event needs operator attention (surfaces in control layer)"
     )
     action_taken: Mapped[bool] = mapped_column(
-        default=False,
-        comment="True once an operator or system has addressed this event"
+        default=False, comment="True once an operator or system has addressed this event"
     )
     action_taken_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     action_taken_by: Mapped[Optional[str]] = mapped_column(String(255))
@@ -125,34 +117,32 @@ class OperatorAction(Base):
     and consumed by the control layer UI. Each action is tied to a specific
     entity and has a clear execution path.
     """
+
     __tablename__ = "operator_actions"
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
     )
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), index=True
-    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), index=True)
 
     # --- What to do ---
     action_type: Mapped[str] = mapped_column(
-        String(100), nullable=False, index=True,
-        comment="approve_content, retry_job, activate_offer, resolve_blocker, review_alert, etc."
+        String(100),
+        nullable=False,
+        index=True,
+        comment="approve_content, retry_job, activate_offer, resolve_blocker, review_alert, etc.",
     )
     title: Mapped[str] = mapped_column(
-        String(300), nullable=False,
-        comment="Human-readable action title for the control layer"
+        String(300), nullable=False, comment="Human-readable action title for the control layer"
     )
     description: Mapped[Optional[str]] = mapped_column(
         Text, comment="Detailed explanation of what this action does and why"
     )
     priority: Mapped[str] = mapped_column(
-        String(20), default="medium", index=True,
-        comment="critical, high, medium, low"
+        String(20), default="medium", index=True, comment="critical, high, medium, low"
     )
     category: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True,
-        comment="blocker, approval, opportunity, failure, health, monetization"
+        String(50), nullable=False, index=True, comment="blocker, approval, opportunity, failure, health, monetization"
     )
 
     # --- Target ---
@@ -161,8 +151,7 @@ class OperatorAction(Base):
 
     # --- Source ---
     source_event_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("system_events.id"),
-        comment="The system event that generated this action"
+        UUID(as_uuid=True), ForeignKey("system_events.id"), comment="The system event that generated this action"
     )
     source_module: Mapped[Optional[str]] = mapped_column(
         String(100), comment="Which module generated this: quality_governor, gatekeeper, recovery_engine, etc."
@@ -170,35 +159,29 @@ class OperatorAction(Base):
 
     # --- Execution ---
     status: Mapped[str] = mapped_column(
-        String(30), default="pending", index=True,
-        comment="pending, in_progress, completed, dismissed, expired"
+        String(30), default="pending", index=True, comment="pending, in_progress, completed, dismissed, expired"
     )
     action_payload: Mapped[Optional[dict]] = mapped_column(
-        JSONB, default=dict,
-        comment="Data needed to execute this action (API endpoint, params, etc.)"
+        JSONB, default=dict, comment="Data needed to execute this action (API endpoint, params, etc.)"
     )
-    result: Mapped[Optional[dict]] = mapped_column(
-        JSONB, default=dict,
-        comment="Outcome after action was taken"
-    )
+    result: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, comment="Outcome after action was taken")
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     completed_by: Mapped[Optional[str]] = mapped_column(String(255))
 
     # --- Outcome ---
     outcome_score: Mapped[Optional[float]] = mapped_column(
-        Float, nullable=True,
-        comment="Post-execution outcome: >0 = positive impact, <0 = negative, NULL = not yet measured"
+        Float,
+        nullable=True,
+        comment="Post-execution outcome: >0 = positive impact, <0 = negative, NULL = not yet measured",
     )
     was_auto_approved: Mapped[bool] = mapped_column(
-        Boolean, default=False,
-        comment="True if this action was auto-promoted from assisted to autonomous via brand_autonomy_grants"
+        Boolean,
+        default=False,
+        comment="True if this action was auto-promoted from assisted to autonomous via brand_autonomy_grants",
     )
 
     # --- Expiry ---
-    expires_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
-        comment="Auto-expire stale actions"
-    )
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), comment="Auto-expire stale actions")
 
     __table_args__ = (
         Index("ix_operator_actions_pending", "status", "priority"),
@@ -212,6 +195,7 @@ class SystemHealthSnapshot(Base):
     Written every few minutes by a health-check worker. Gives the dashboard
     real-time system state without expensive aggregation queries on every page load.
     """
+
     __tablename__ = "system_health_snapshots"
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
@@ -261,6 +245,4 @@ class SystemHealthSnapshot(Base):
     # --- Raw Detail ---
     details: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
 
-    __table_args__ = (
-        Index("ix_health_snapshots_org_created", "organization_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_health_snapshots_org_created", "organization_id", "created_at"),)

@@ -98,9 +98,7 @@ OperatorUser = Annotated[User, Depends(RequireRole(UserRole.OPERATOR))]
 ViewerUser = Annotated[User, Depends(RequireRole(UserRole.VIEWER))]
 
 
-async def require_brand_access(
-    brand_id: uuid.UUID, user: User, db: AsyncSession
-) -> Brand:
+async def require_brand_access(brand_id: uuid.UUID, user: User, db: AsyncSession) -> Brand:
     """Shared org-scope safety helper.
 
     Verifies the brand exists and belongs to the user's organization.
@@ -109,9 +107,7 @@ async def require_brand_access(
     Raises HTTPException 403 if the brand is not accessible.
     Returns the Brand ORM object if access is granted.
     """
-    brand = (
-        await db.execute(select(Brand).where(Brand.id == brand_id))
-    ).scalar_one_or_none()
+    brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand or brand.organization_id != user.organization_id:
         logger.warning(
             "org_scope.access_denied",

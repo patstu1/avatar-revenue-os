@@ -3,6 +3,7 @@
 Scores content ideas by expected revenue rather than just engagement.
 Expected revenue = offer_payout * historical_CVR * estimated_impressions * monetization_density.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -39,11 +40,21 @@ CONTENT_TYPE_REVENUE_MULTIPLIERS = {
 }
 
 NICHE_CPM_ESTIMATES = {
-    "personal_finance": 18.0, "make_money_online": 22.0, "health_fitness": 10.0,
-    "tech_reviews": 14.0, "ai_tools": 16.0, "crypto": 25.0,
-    "real_estate": 20.0, "self_improvement": 8.0, "business_entrepreneurship": 15.0,
-    "cooking_recipes": 6.0, "gaming": 5.0, "beauty_skincare": 12.0,
-    "travel": 10.0, "education_courses": 16.0, "software_saas": 22.0,
+    "personal_finance": 18.0,
+    "make_money_online": 22.0,
+    "health_fitness": 10.0,
+    "tech_reviews": 14.0,
+    "ai_tools": 16.0,
+    "crypto": 25.0,
+    "real_estate": 20.0,
+    "self_improvement": 8.0,
+    "business_entrepreneurship": 15.0,
+    "cooking_recipes": 6.0,
+    "gaming": 5.0,
+    "beauty_skincare": 12.0,
+    "travel": 10.0,
+    "education_courses": 16.0,
+    "software_saas": 22.0,
 }
 
 

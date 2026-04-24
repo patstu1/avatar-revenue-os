@@ -1,4 +1,5 @@
 """DB-backed integration tests for Creator Revenue Avenues Phase A."""
+
 from __future__ import annotations
 
 import uuid
@@ -39,12 +40,18 @@ async def test_recompute_opportunities_creates_records(db_session: AsyncSession,
     result = await recompute_opportunities(db_session, BRAND_ID)
     assert result["created"] > 0
 
-    opps = list((await db_session.execute(
-        select(CreatorRevenueOpportunity).where(
-            CreatorRevenueOpportunity.brand_id == BRAND_ID,
-            CreatorRevenueOpportunity.is_active.is_(True),
+    opps = list(
+        (
+            await db_session.execute(
+                select(CreatorRevenueOpportunity).where(
+                    CreatorRevenueOpportunity.brand_id == BRAND_ID,
+                    CreatorRevenueOpportunity.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     assert len(opps) >= 1
     assert all(o.confidence > 0 for o in opps)
 
@@ -56,12 +63,18 @@ async def test_recompute_ugc_services_creates_records(db_session: AsyncSession, 
     result = await recompute_ugc_services(db_session, BRAND_ID)
     assert result["created"] > 0
 
-    actions = list((await db_session.execute(
-        select(UgcServiceAction).where(
-            UgcServiceAction.brand_id == BRAND_ID,
-            UgcServiceAction.is_active.is_(True),
+    actions = list(
+        (
+            await db_session.execute(
+                select(UgcServiceAction).where(
+                    UgcServiceAction.brand_id == BRAND_ID,
+                    UgcServiceAction.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     assert len(actions) >= 1
     for a in actions:
         assert a.service_type is not None
@@ -75,12 +88,18 @@ async def test_recompute_service_consulting_creates_records(db_session: AsyncSes
     result = await recompute_service_consulting(db_session, BRAND_ID)
     assert result["created"] > 0
 
-    actions = list((await db_session.execute(
-        select(ServiceConsultingAction).where(
-            ServiceConsultingAction.brand_id == BRAND_ID,
-            ServiceConsultingAction.is_active.is_(True),
+    actions = list(
+        (
+            await db_session.execute(
+                select(ServiceConsultingAction).where(
+                    ServiceConsultingAction.brand_id == BRAND_ID,
+                    ServiceConsultingAction.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     assert len(actions) >= 1
     for a in actions:
         assert a.service_type is not None
@@ -94,12 +113,18 @@ async def test_recompute_premium_access_creates_records(db_session: AsyncSession
     result = await recompute_premium_access(db_session, BRAND_ID)
     assert result["created"] > 0
 
-    actions = list((await db_session.execute(
-        select(PremiumAccessAction).where(
-            PremiumAccessAction.brand_id == BRAND_ID,
-            PremiumAccessAction.is_active.is_(True),
+    actions = list(
+        (
+            await db_session.execute(
+                select(PremiumAccessAction).where(
+                    PremiumAccessAction.brand_id == BRAND_ID,
+                    PremiumAccessAction.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     assert len(actions) >= 1
     for a in actions:
         assert a.offer_type is not None
@@ -113,12 +138,18 @@ async def test_recompute_blockers_detects_issues(db_session: AsyncSession, seed_
     result = await recompute_blockers(db_session, BRAND_ID)
     assert result["created"] > 0
 
-    blockers = list((await db_session.execute(
-        select(CreatorRevenueBlocker).where(
-            CreatorRevenueBlocker.brand_id == BRAND_ID,
-            CreatorRevenueBlocker.is_active.is_(True),
+    blockers = list(
+        (
+            await db_session.execute(
+                select(CreatorRevenueBlocker).where(
+                    CreatorRevenueBlocker.brand_id == BRAND_ID,
+                    CreatorRevenueBlocker.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     assert len(blockers) >= 1
     for b in blockers:
         assert b.blocker_type is not None
@@ -140,9 +171,11 @@ async def test_revenue_event_persistence(db_session: AsyncSession, seed_brand):
     db_session.add(event)
     await db_session.commit()
 
-    events = list((await db_session.execute(
-        select(CreatorRevenueEvent).where(CreatorRevenueEvent.brand_id == BRAND_ID)
-    )).scalars().all())
+    events = list(
+        (await db_session.execute(select(CreatorRevenueEvent).where(CreatorRevenueEvent.brand_id == BRAND_ID)))
+        .scalars()
+        .all()
+    )
     assert len(events) == 1
     assert events[0].profit == 1300.0
     assert events[0].client_name == "Test Client"
@@ -153,28 +186,46 @@ async def test_idempotent_recompute_replaces_old(db_session: AsyncSession, seed_
     from apps.api.services.creator_revenue_service import recompute_opportunities
 
     await recompute_opportunities(db_session, BRAND_ID)
-    first_opps = list((await db_session.execute(
-        select(CreatorRevenueOpportunity).where(
-            CreatorRevenueOpportunity.brand_id == BRAND_ID,
-            CreatorRevenueOpportunity.is_active.is_(True),
+    first_opps = list(
+        (
+            await db_session.execute(
+                select(CreatorRevenueOpportunity).where(
+                    CreatorRevenueOpportunity.brand_id == BRAND_ID,
+                    CreatorRevenueOpportunity.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     first_count = len(first_opps)
 
     await recompute_opportunities(db_session, BRAND_ID)
-    second_opps = list((await db_session.execute(
-        select(CreatorRevenueOpportunity).where(
-            CreatorRevenueOpportunity.brand_id == BRAND_ID,
-            CreatorRevenueOpportunity.is_active.is_(True),
+    second_opps = list(
+        (
+            await db_session.execute(
+                select(CreatorRevenueOpportunity).where(
+                    CreatorRevenueOpportunity.brand_id == BRAND_ID,
+                    CreatorRevenueOpportunity.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     assert len(second_opps) == first_count
 
-    all_opps = list((await db_session.execute(
-        select(CreatorRevenueOpportunity).where(
-            CreatorRevenueOpportunity.brand_id == BRAND_ID,
+    all_opps = list(
+        (
+            await db_session.execute(
+                select(CreatorRevenueOpportunity).where(
+                    CreatorRevenueOpportunity.brand_id == BRAND_ID,
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     inactive = [o for o in all_opps if not o.is_active]
     assert len(inactive) >= first_count
 
@@ -186,17 +237,29 @@ async def test_opportunity_links_to_ugc_action(db_session: AsyncSession, seed_br
     await recompute_opportunities(db_session, BRAND_ID)
     await recompute_ugc_services(db_session, BRAND_ID)
 
-    opps = list((await db_session.execute(
-        select(CreatorRevenueOpportunity).where(
-            CreatorRevenueOpportunity.brand_id == BRAND_ID,
-            CreatorRevenueOpportunity.is_active.is_(True),
+    opps = list(
+        (
+            await db_session.execute(
+                select(CreatorRevenueOpportunity).where(
+                    CreatorRevenueOpportunity.brand_id == BRAND_ID,
+                    CreatorRevenueOpportunity.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
-    ugc = list((await db_session.execute(
-        select(UgcServiceAction).where(
-            UgcServiceAction.brand_id == BRAND_ID,
-            UgcServiceAction.is_active.is_(True),
+        .scalars()
+        .all()
+    )
+    ugc = list(
+        (
+            await db_session.execute(
+                select(UgcServiceAction).where(
+                    UgcServiceAction.brand_id == BRAND_ID,
+                    UgcServiceAction.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     assert len(opps) >= 1
     assert len(ugc) >= 1

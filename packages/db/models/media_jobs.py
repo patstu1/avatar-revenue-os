@@ -7,6 +7,7 @@ result regardless of provider.
 
 NOTE: This model MUST stay in sync with migration 005_expand_media_jobs_table.
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -23,52 +24,77 @@ class MediaJob(Base):
 
     # ── Ownership / context ──────────────────────────────────────────
     brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("brands.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     org_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=True, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
     )
     script_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("scripts.id"), nullable=True, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("scripts.id"),
+        nullable=True,
+        index=True,
     )
     content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("content_items.id"),
+        nullable=True,
+        index=True,
     )
 
     # ── Job classification ───────────────────────────────────────────
     job_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True,
+        String(50),
+        nullable=False,
+        index=True,
         comment="voice | avatar | video | image | music",
     )
     status: Mapped[str] = mapped_column(
-        String(50), nullable=False, server_default="dispatched", index=True,
+        String(50),
+        nullable=False,
+        server_default="dispatched",
+        index=True,
         comment="dispatched | processing | completed | failed",
     )
     quality_tier: Mapped[str] = mapped_column(
-        String(50), server_default="standard", nullable=False,
+        String(50),
+        server_default="standard",
+        nullable=False,
     )
     provider: Mapped[Optional[str]] = mapped_column(
-        String(100), nullable=True, index=True,
+        String(100),
+        nullable=True,
+        index=True,
         comment="Provider key assigned by integration_manager (e.g. heygen, elevenlabs, runway)",
     )
     provider_job_id: Mapped[Optional[str]] = mapped_column(
-        String(500), nullable=True, index=True, unique=True,
+        String(500),
+        nullable=True,
+        index=True,
+        unique=True,
         comment="External job/request ID from the provider",
     )
 
     # ── Payloads ─────────────────────────────────────────────────────
     input_payload: Mapped[Optional[dict]] = mapped_column(
-        JSONB, nullable=True,
+        JSONB,
+        nullable=True,
         comment="Full request payload sent to provider",
     )
     output_payload: Mapped[Optional[dict]] = mapped_column(
-        JSONB, nullable=True,
+        JSONB,
+        nullable=True,
         comment="Full response/callback payload from provider",
     )
     output_url: Mapped[Optional[str]] = mapped_column(
-        String(2048), nullable=True,
+        String(2048),
+        nullable=True,
         comment="URL of the generated media asset",
     )
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -80,10 +106,12 @@ class MediaJob(Base):
     dispatched_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     next_pipeline_task: Mapped[Optional[str]] = mapped_column(
-        String(500), nullable=True,
+        String(500),
+        nullable=True,
         comment="Celery task path to call on completion",
     )
     next_pipeline_args: Mapped[Optional[dict]] = mapped_column(
-        JSONB, nullable=True,
+        JSONB,
+        nullable=True,
         comment="Args to pass to next_pipeline_task",
     )

@@ -3,6 +3,7 @@
 Compares content against existing library using keyword overlap.
 Full embedding-based similarity requires AI provider credentials.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -68,17 +69,23 @@ def compute_similarity(inp: SimilarityInput) -> SimilarityResult:
         combined = 0.6 * kw_sim + 0.4 * title_sim
 
         scores.append(combined)
-        details.append({
-            "content_id": item_id,
-            "keyword_similarity": round(kw_sim, 4),
-            "title_similarity": round(title_sim, 4),
-            "combined_similarity": round(combined, 4),
-        })
+        details.append(
+            {
+                "content_id": item_id,
+                "keyword_similarity": round(kw_sim, 4),
+                "title_similarity": round(title_sim, 4),
+                "combined_similarity": round(combined, 4),
+            }
+        )
 
     if not scores:
         return SimilarityResult(
-            is_too_similar=False, max_similarity_score=0.0, avg_similarity_score=0.0,
-            compared_against_count=0, most_similar_id=None, details=[],
+            is_too_similar=False,
+            max_similarity_score=0.0,
+            avg_similarity_score=0.0,
+            compared_against_count=0,
+            most_similar_id=None,
+            details=[],
             threshold_used=SIMILARITY_THRESHOLD,
             explanation="No existing content to compare against.",
         )

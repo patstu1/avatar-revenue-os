@@ -92,7 +92,10 @@ def test_knowledge_graph_no_duplicate_nodes():
     nodes, edges = build_knowledge_graph_entries(
         "finance",
         [{"platform": "youtube", "geography": "US"}, {"platform": "youtube", "geography": "US"}],
-        [], [], [], [],
+        [],
+        [],
+        [],
+        [],
     )
     platform_nodes = [n for n in nodes if n["node_type"] == "platform" and n["label"] == "youtube"]
     assert len(platform_nodes) == 1
@@ -104,16 +107,34 @@ def test_roadmap_includes_winner_clones():
         [{"platform": "youtube"}],
         [{"id": "o1"}],
         [{"content_id": "c1", "title": "Top video", "win_score": 0.9, "revenue": 500}],
-        [], [], [], None, 70.0,
+        [],
+        [],
+        [],
+        None,
+        70.0,
     )
     assert any("clone winner" in i["title"].lower() for i in items)
 
 
 def test_roadmap_includes_leak_fix():
     items = generate_roadmap(
-        "finance", [], [], [],
-        [{"leak_type": "high_views_low_clicks", "estimated_leaked_revenue": 200, "estimated_recoverable": 100, "recommended_fix": "Fix hooks", "root_cause": "CTR low"}],
-        [], [], None, 70.0,
+        "finance",
+        [],
+        [],
+        [],
+        [
+            {
+                "leak_type": "high_views_low_clicks",
+                "estimated_leaked_revenue": 200,
+                "estimated_recoverable": 100,
+                "recommended_fix": "Fix hooks",
+                "root_cause": "CTR low",
+            }
+        ],
+        [],
+        [],
+        None,
+        70.0,
     )
     assert any("fix leak" in i["title"].lower() for i in items)
 
@@ -124,19 +145,43 @@ def test_roadmap_capped_at_10():
         [{"platform": "youtube"}] * 5,
         [{"id": f"o{i}"} for i in range(5)],
         [{"content_id": f"c{i}", "title": f"Win {i}", "win_score": 0.8, "revenue": 300} for i in range(10)],
-        [{"leak_type": "leak", "estimated_leaked_revenue": 50, "estimated_recoverable": 20, "recommended_fix": "Fix", "root_cause": "Bug"} for _ in range(5)],
-        [], [{"target_geography": "EU", "target_language": "en", "estimated_revenue_potential": 1000, "rationale": "Expand"}],
-        "add_experimental_account", 40.0,
+        [
+            {
+                "leak_type": "leak",
+                "estimated_leaked_revenue": 50,
+                "estimated_recoverable": 20,
+                "recommended_fix": "Fix",
+                "root_cause": "Bug",
+            }
+            for _ in range(5)
+        ],
+        [],
+        [
+            {
+                "target_geography": "EU",
+                "target_language": "en",
+                "estimated_revenue_potential": 1000,
+                "rationale": "Expand",
+            }
+        ],
+        "add_experimental_account",
+        40.0,
     )
     assert len(items) <= 10
 
 
 def test_capital_allocation_9_targets():
     allocs = compute_capital_allocation(
-        total_budget=1000, total_revenue=5000, total_profit=2000,
-        accounts=[{"platform": "youtube"}], offers=[{"id": "o1"}],
-        leak_count=2, paid_candidate_count=1, geo_rec_count=1,
-        trust_avg=60, scale_rec_key="add_experimental_account",
+        total_budget=1000,
+        total_revenue=5000,
+        total_profit=2000,
+        accounts=[{"platform": "youtube"}],
+        offers=[{"id": "o1"}],
+        leak_count=2,
+        paid_candidate_count=1,
+        geo_rec_count=1,
+        trust_avg=60,
+        scale_rec_key="add_experimental_account",
     )
     assert len(allocs) == 9
     types = {a["allocation_target_type"] for a in allocs}
@@ -156,6 +201,10 @@ def test_capital_allocation_9_targets():
 def test_capital_allocation_leak_heavy_shifts_to_funnel():
     base = compute_capital_allocation(1000, 5000, 2000, [{"platform": "yt"}], [{"id": "o1"}], 0, 0, 0, 70, None)
     heavy = compute_capital_allocation(1000, 5000, 2000, [{"platform": "yt"}], [{"id": "o1"}], 10, 0, 0, 70, None)
-    base_funnel = next(a["recommended_allocation_pct"] for a in base if a["allocation_target_type"] == "funnel_optimization")
-    heavy_funnel = next(a["recommended_allocation_pct"] for a in heavy if a["allocation_target_type"] == "funnel_optimization")
+    base_funnel = next(
+        a["recommended_allocation_pct"] for a in base if a["allocation_target_type"] == "funnel_optimization"
+    )
+    heavy_funnel = next(
+        a["recommended_allocation_pct"] for a in heavy if a["allocation_target_type"] == "funnel_optimization"
+    )
     assert heavy_funnel > base_funnel

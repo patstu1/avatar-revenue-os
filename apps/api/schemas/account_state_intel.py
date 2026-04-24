@@ -1,4 +1,5 @@
 """Pydantic schemas for Account-State Intelligence."""
+
 from __future__ import annotations
 
 import uuid

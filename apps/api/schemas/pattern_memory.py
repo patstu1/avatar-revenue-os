@@ -1,4 +1,5 @@
 """Pydantic schemas for Winning-Pattern Memory."""
+
 from __future__ import annotations
 
 import uuid

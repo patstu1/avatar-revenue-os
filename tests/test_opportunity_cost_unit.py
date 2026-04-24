@@ -1,4 +1,5 @@
 """Unit tests for opportunity-cost ranking engine — pure functions, no DB."""
+
 import pytest
 
 from packages.scoring.opportunity_cost_engine import (
@@ -15,15 +16,29 @@ from packages.scoring.opportunity_cost_engine import (
 class TestActionTypes:
     def test_all_10_types(self):
         assert len(ACTION_TYPES) == 10
-        for t in ("push_volume", "launch_account", "switch_content_form", "promote_winner",
-                   "kill_weak_lane", "activate_monetization", "fix_blocker", "run_experiment",
-                   "upgrade_provider", "publish_asset"):
+        for t in (
+            "push_volume",
+            "launch_account",
+            "switch_content_form",
+            "promote_winner",
+            "kill_weak_lane",
+            "activate_monetization",
+            "fix_blocker",
+            "run_experiment",
+            "upgrade_provider",
+            "publish_asset",
+        ):
             assert t in ACTION_TYPES
 
 
 class TestCandidateGeneration:
     def test_generates_from_accounts(self):
-        state = {"accounts": [{"id": "a1", "name": "acct1", "state": "scaling"}, {"id": "a2", "name": "acct2", "state": "weak"}]}
+        state = {
+            "accounts": [
+                {"id": "a1", "name": "acct1", "state": "scaling"},
+                {"id": "a2", "name": "acct2", "state": "weak"},
+            ]
+        }
         candidates = generate_candidates(state)
         types = {c["action_type"] for c in candidates}
         assert "push_volume" in types

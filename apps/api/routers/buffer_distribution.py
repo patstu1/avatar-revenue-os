@@ -1,4 +1,5 @@
 """Buffer Distribution Layer — API endpoints for profiles, publish jobs, sync, blockers."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -29,9 +30,12 @@ async def _require_brand(brand_id: uuid.UUID, current_user, db):
 
 # ── Buffer Profiles (brand-scoped) ────────────────────────────────────
 
+
 @router.get("/{brand_id}/buffer-profiles", response_model=list[BufferProfileOut])
 async def list_buffer_profiles(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -45,8 +49,10 @@ async def list_buffer_profiles(
 
 @router.post("/{brand_id}/buffer-profiles", response_model=BufferProfileOut, status_code=status.HTTP_201_CREATED)
 async def create_buffer_profile(
-    brand_id: uuid.UUID, body: BufferProfileCreate,
-    current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    body: BufferProfileCreate,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await _require_brand(brand_id, current_user, db)
     try:
@@ -59,10 +65,13 @@ async def create_buffer_profile(
 
 # ── Buffer Profile Update (root-scoped) ──────────────────────────────
 
+
 @router_root.patch("/buffer-profiles/{profile_id}", response_model=BufferProfileOut)
 async def update_buffer_profile(
-    profile_id: uuid.UUID, body: BufferProfileUpdate,
-    current_user: OperatorUser, db: DBSession,
+    profile_id: uuid.UUID,
+    body: BufferProfileUpdate,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     try:
         result = await svc.update_buffer_profile(db, profile_id, body.model_dump(exclude_unset=True))
@@ -77,9 +86,12 @@ async def update_buffer_profile(
 
 # ── Buffer Publish Jobs (brand-scoped) ────────────────────────────────
 
+
 @router.get("/{brand_id}/buffer-publish-jobs", response_model=list[BufferPublishJobOut])
 async def list_publish_jobs(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -93,7 +105,9 @@ async def list_publish_jobs(
 
 @router.post("/{brand_id}/buffer-publish-jobs/recompute", response_model=RecomputeSummaryOut)
 async def recompute_publish_jobs(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -110,9 +124,12 @@ async def recompute_publish_jobs(
 
 # ── Buffer Job Submit (root-scoped) ───────────────────────────────────
 
+
 @router_root.post("/buffer-publish-jobs/{job_id}/submit", response_model=RecomputeSummaryOut)
 async def submit_publish_job(
-    job_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    job_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     try:
         result = await svc.submit_job_to_buffer(db, job_id)
@@ -127,9 +144,12 @@ async def submit_publish_job(
 
 # ── Buffer Status Sync (brand-scoped) ─────────────────────────────────
 
+
 @router.post("/{brand_id}/buffer-status-sync/recompute", response_model=RecomputeSummaryOut)
 async def recompute_status_sync(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -146,9 +166,12 @@ async def recompute_status_sync(
 
 # ── Buffer Blockers (brand-scoped) ────────────────────────────────────
 
+
 @router.get("/{brand_id}/buffer-blockers", response_model=list[BufferBlockerOut])
 async def list_buffer_blockers(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)

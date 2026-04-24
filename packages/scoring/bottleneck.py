@@ -3,6 +3,7 @@
 Classifies the primary bottleneck for an entity (account, topic, offer, funnel)
 across 14 categories. Deterministic, rules-based, explainable.
 """
+
 from dataclasses import dataclass
 from enum import Enum
 
@@ -64,66 +65,112 @@ def classify_bottleneck(inp: BottleneckInput) -> BottleneckResult:
 
     # Check each bottleneck dimension (higher score = worse bottleneck)
     if inp.opportunity_score < 0.3 and inp.impressions > 0:
-        scores.append(("weak_opportunity_selection", 0.9 - inp.opportunity_score,
-                       "Low opportunity scores — topic selection needs improvement"))
+        scores.append(
+            (
+                "weak_opportunity_selection",
+                0.9 - inp.opportunity_score,
+                "Low opportunity scores — topic selection needs improvement",
+            )
+        )
 
     if inp.avg_watch_pct < 0.3 and inp.views > 0:
-        scores.append(("weak_hook_retention", 0.8 - inp.avg_watch_pct,
-                       f"Avg watch {inp.avg_watch_pct:.0%} — hook/retention is weak"))
+        scores.append(
+            (
+                "weak_hook_retention",
+                0.8 - inp.avg_watch_pct,
+                f"Avg watch {inp.avg_watch_pct:.0%} — hook/retention is weak",
+            )
+        )
 
     if inp.ctr < 0.02 and inp.impressions > 0:
-        scores.append(("weak_ctr", 0.8 - min(inp.ctr * 20, 0.8),
-                       f"CTR {inp.ctr:.2%} below 2% threshold"))
+        scores.append(("weak_ctr", 0.8 - min(inp.ctr * 20, 0.8), f"CTR {inp.ctr:.2%} below 2% threshold"))
 
     if inp.offer_fit_score < 0.4:
-        scores.append(("weak_offer_fit", 0.7 - inp.offer_fit_score,
-                       f"Offer fit {inp.offer_fit_score:.2f} — offer doesn't match audience"))
+        scores.append(
+            (
+                "weak_offer_fit",
+                0.7 - inp.offer_fit_score,
+                f"Offer fit {inp.offer_fit_score:.2f} — offer doesn't match audience",
+            )
+        )
 
     if inp.clicks > 10 and inp.conversions == 0:
-        scores.append(("weak_landing_page", 0.8,
-                       f"{inp.clicks} clicks, 0 conversions — landing page likely failing"))
+        scores.append(("weak_landing_page", 0.8, f"{inp.clicks} clicks, 0 conversions — landing page likely failing"))
 
     if inp.conversion_rate < 0.01 and inp.clicks > 20:
-        scores.append(("weak_conversion", 0.8 - min(inp.conversion_rate * 50, 0.5),
-                       f"Conversion rate {inp.conversion_rate:.2%} — funnel is leaking"))
+        scores.append(
+            (
+                "weak_conversion",
+                0.8 - min(inp.conversion_rate * 50, 0.5),
+                f"Conversion rate {inp.conversion_rate:.2%} — funnel is leaking",
+            )
+        )
 
     if inp.aov < 15 and inp.conversions > 0:
-        scores.append(("weak_aov", 0.6 - min(inp.aov / 50, 0.5),
-                       f"AOV ${inp.aov:.2f} — consider higher-value offers"))
+        scores.append(("weak_aov", 0.6 - min(inp.aov / 50, 0.5), f"AOV ${inp.aov:.2f} — consider higher-value offers"))
 
     if inp.ltv_estimate < 20 and inp.conversions > 5:
-        scores.append(("weak_ltv", 0.6 - min(inp.ltv_estimate / 100, 0.5),
-                       f"LTV ${inp.ltv_estimate:.2f} — no repeat revenue path"))
+        scores.append(
+            (
+                "weak_ltv",
+                0.6 - min(inp.ltv_estimate / 100, 0.5),
+                f"LTV ${inp.ltv_estimate:.2f} — no repeat revenue path",
+            )
+        )
 
     if inp.posting_capacity_used_pct > 0.9:
-        scores.append(("weak_scale_capacity", inp.posting_capacity_used_pct - 0.5,
-                       f"Using {inp.posting_capacity_used_pct:.0%} of posting capacity — at limit"))
+        scores.append(
+            (
+                "weak_scale_capacity",
+                inp.posting_capacity_used_pct - 0.5,
+                f"Using {inp.posting_capacity_used_pct:.0%} of posting capacity — at limit",
+            )
+        )
 
     if inp.fatigue_score > 0.5:
-        scores.append(("audience_fatigue", inp.fatigue_score,
-                       f"Fatigue score {inp.fatigue_score:.2f} — audience is tiring of this content"))
+        scores.append(
+            (
+                "audience_fatigue",
+                inp.fatigue_score,
+                f"Fatigue score {inp.fatigue_score:.2f} — audience is tiring of this content",
+            )
+        )
 
     if inp.similarity_score > 0.7:
-        scores.append(("content_similarity", inp.similarity_score - 0.3,
-                       f"Similarity {inp.similarity_score:.2f} — content too repetitive"))
+        scores.append(
+            (
+                "content_similarity",
+                inp.similarity_score - 0.3,
+                f"Similarity {inp.similarity_score:.2f} — content too repetitive",
+            )
+        )
 
     if inp.platform_match_score < 0.4:
-        scores.append(("platform_mismatch", 0.7 - inp.platform_match_score,
-                       f"Platform match {inp.platform_match_score:.2f} — wrong platform for this content"))
+        scores.append(
+            (
+                "platform_mismatch",
+                0.7 - inp.platform_match_score,
+                f"Platform match {inp.platform_match_score:.2f} — wrong platform for this content",
+            )
+        )
 
     if inp.trust_score < 0.4 and inp.impressions > 0:
-        scores.append(("trust_deficit", 0.7 - inp.trust_score,
-                       f"Trust score {inp.trust_score:.2f} — audience trust low"))
+        scores.append(
+            ("trust_deficit", 0.7 - inp.trust_score, f"Trust score {inp.trust_score:.2f} — audience trust low")
+        )
 
     if inp.offer_fit_score > 0.5 and inp.conversion_rate > 0.02 and inp.revenue == 0 and inp.impressions > 0:
-        scores.append(("monetization_mismatch", 0.5,
-                       "Good fit and conversion but low revenue — monetization method may be wrong"))
+        scores.append(
+            ("monetization_mismatch", 0.5, "Good fit and conversion but low revenue — monetization method may be wrong")
+        )
 
     if not scores:
         if inp.impressions < 100:
             scores.append(("weak_opportunity_selection", 0.3, "Insufficient data — need more content published"))
         else:
-            scores.append(("weak_opportunity_selection", 0.1, "No clear bottleneck detected — system performing acceptably"))
+            scores.append(
+                ("weak_opportunity_selection", 0.1, "No clear bottleneck detected — system performing acceptably")
+            )
 
     scores.sort(key=lambda x: -x[1])
     primary = scores[0]

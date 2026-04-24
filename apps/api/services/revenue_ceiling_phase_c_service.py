@@ -1,5 +1,6 @@
 """Revenue Ceiling Phase C — recurring revenue, sponsor inventory, trust conversion,
 monetization mix, paid promotion."""
+
 from __future__ import annotations
 
 import uuid
@@ -65,22 +66,14 @@ async def recompute_recurring_revenue(db: AsyncSession, brand_id: uuid.UUID) -> 
 
     # Active offers — payout_amount is the key signal
     offers = list(
-        (
-            await db.execute(
-                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
     offer_dicts = [
         {
             "id": str(o.id),
             "name": o.name,
             "payout_amount": float(o.payout_amount or 0),
-            "monetization_method": getattr(
-                o.monetization_method, "value", str(o.monetization_method)
-            ),
+            "monetization_method": getattr(o.monetization_method, "value", str(o.monetization_method)),
         }
         for o in offers
     ]
@@ -88,9 +81,7 @@ async def recompute_recurring_revenue(db: AsyncSession, brand_id: uuid.UUID) -> 
     # Audience size from creator accounts
     aud_scalar = (
         await db.execute(
-            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(
-                CreatorAccount.brand_id == brand_id
-            )
+            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(CreatorAccount.brand_id == brand_id)
         )
     ).scalar()
     audience_size = int(aud_scalar or 0)
@@ -129,9 +120,7 @@ async def recompute_recurring_revenue(db: AsyncSession, brand_id: uuid.UUID) -> 
     )
     r = _strip_meta(result)
 
-    await db.execute(
-        delete(RecurringRevenueModel).where(RecurringRevenueModel.brand_id == brand_id)
-    )
+    await db.execute(delete(RecurringRevenueModel).where(RecurringRevenueModel.brand_id == brand_id))
     db.add(
         RecurringRevenueModel(
             brand_id=brand_id,
@@ -156,13 +145,7 @@ async def recompute_sponsor_inventory(db: AsyncSession, brand_id: uuid.UUID) -> 
 
     # Content items (limit 100)
     items = list(
-        (
-            await db.execute(
-                select(ContentItem).where(ContentItem.brand_id == brand_id).limit(100)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(100))).scalars().all()
     )
 
     # Per-item performance aggregates
@@ -177,16 +160,12 @@ async def recompute_sponsor_inventory(db: AsyncSession, brand_id: uuid.UUID) -> 
             .group_by(PerformanceMetric.content_item_id)
         )
     ).all()
-    perf_map: dict[uuid.UUID, tuple[int, float]] = {
-        row[0]: (int(row[1]), float(row[2])) for row in agg_rows
-    }
+    perf_map: dict[uuid.UUID, tuple[int, float]] = {row[0]: (int(row[1]), float(row[2])) for row in agg_rows}
 
     # Brand-level audience size
     aud_scalar = (
         await db.execute(
-            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(
-                CreatorAccount.brand_id == brand_id
-            )
+            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(CreatorAccount.brand_id == brand_id)
         )
     ).scalar()
     audience_size = int(aud_scalar or 0)
@@ -207,9 +186,7 @@ async def recompute_sponsor_inventory(db: AsyncSession, brand_id: uuid.UUID) -> 
     scored_pairs: list[tuple[ContentItem, dict[str, Any]]] = []
     for ci in items:
         imp, eng = perf_map.get(ci.id, (0, 0.04))
-        ct_raw = (
-            getattr(ci.content_type, "value", str(ci.content_type)) if ci.content_type else ""
-        )
+        ct_raw = getattr(ci.content_type, "value", str(ci.content_type)) if ci.content_type else ""
         ct = _CONTENT_TYPE_MAP.get(ct_raw, "short_form")
         row = score_sponsor_inventory_item(
             content_item_id=str(ci.id),
@@ -238,11 +215,7 @@ async def recompute_sponsor_inventory(db: AsyncSession, brand_id: uuid.UUID) -> 
 
     # Delete stale rows
     await db.execute(delete(SponsorInventory).where(SponsorInventory.brand_id == brand_id))
-    await db.execute(
-        delete(SponsorPackageRecommendation).where(
-            SponsorPackageRecommendation.brand_id == brand_id
-        )
-    )
+    await db.execute(delete(SponsorPackageRecommendation).where(SponsorPackageRecommendation.brand_id == brand_id))
 
     # Insert per-item inventory rows
     for ci, row in scored_pairs:
@@ -283,26 +256,19 @@ async def recompute_trust_conversion(db: AsyncSession, brand_id: uuid.UUID) -> d
     # Average quality score from QA reports (composite_score is the closest proxy)
     quality_scalar = (
         await db.execute(
-            select(func.coalesce(func.avg(QAReport.composite_score), 0.5)).where(
-                QAReport.brand_id == brand_id
-            )
+            select(func.coalesce(func.avg(QAReport.composite_score), 0.5)).where(QAReport.brand_id == brand_id)
         )
     ).scalar()
     avg_quality = float(quality_scalar or 0.5)
 
     # Content item count
     content_count_scalar = (
-        await db.execute(
-            select(func.count(ContentItem.id)).where(ContentItem.brand_id == brand_id)
-        )
+        await db.execute(select(func.count(ContentItem.id)).where(ContentItem.brand_id == brand_id))
     ).scalar()
     content_count = int(content_count_scalar or 0)
 
     # Derive trust signals from brand metadata and content volume
-    has_testimonials = (
-        bool(brand.tone_of_voice and "testimonial" in brand.tone_of_voice.lower())
-        or content_count > 5
-    )
+    has_testimonials = bool(brand.tone_of_voice and "testimonial" in brand.tone_of_voice.lower()) or content_count > 5
     has_case_studies = content_count > 10
     social_proof_count = min(50, content_count)
     has_media_features = brand.description is not None
@@ -331,9 +297,7 @@ async def recompute_trust_conversion(db: AsyncSession, brand_id: uuid.UUID) -> d
     )
     r = _strip_meta(result)
 
-    await db.execute(
-        delete(TrustConversionReport).where(TrustConversionReport.brand_id == brand_id)
-    )
+    await db.execute(delete(TrustConversionReport).where(TrustConversionReport.brand_id == brand_id))
     db.add(
         TrustConversionReport(
             brand_id=brand_id,
@@ -356,17 +320,9 @@ async def recompute_monetization_mix(db: AsyncSession, brand_id: uuid.UUID) -> d
 
     # Active offers — needed for active_offer_types and fallback mix
     offers = list(
-        (
-            await db.execute(
-                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
-    active_offer_types = list(
-        {getattr(o.monetization_method, "value", str(o.monetization_method)) for o in offers}
-    )
+    active_offer_types = list({getattr(o.monetization_method, "value", str(o.monetization_method)) for o in offers})
 
     # Aggregate revenue by monetization method via ContentItem → PerformanceMetric
     agg_rows = (
@@ -383,9 +339,7 @@ async def recompute_monetization_mix(db: AsyncSession, brand_id: uuid.UUID) -> d
     ).all()
 
     revenue_by_method: dict[str, float] = {
-        str(row[0] or "other"): float(row[1])
-        for row in agg_rows
-        if float(row[1]) > 0
+        str(row[0] or "other"): float(row[1]) for row in agg_rows if float(row[1]) > 0
     }
 
     # Fallback: equal weight splits across active offer types when no revenue data
@@ -398,9 +352,7 @@ async def recompute_monetization_mix(db: AsyncSession, brand_id: uuid.UUID) -> d
     # Audience size
     aud_scalar = (
         await db.execute(
-            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(
-                CreatorAccount.brand_id == brand_id
-            )
+            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(CreatorAccount.brand_id == brand_id)
         )
     ).scalar()
     audience_size = int(aud_scalar or 0)
@@ -414,9 +366,7 @@ async def recompute_monetization_mix(db: AsyncSession, brand_id: uuid.UUID) -> d
     )
     r = _strip_meta(result)
 
-    await db.execute(
-        delete(MonetizationMixReport).where(MonetizationMixReport.brand_id == brand_id)
-    )
+    await db.execute(delete(MonetizationMixReport).where(MonetizationMixReport.brand_id == brand_id))
     db.add(
         MonetizationMixReport(
             brand_id=brand_id,
@@ -434,22 +384,14 @@ async def recompute_monetization_mix(db: AsyncSession, brand_id: uuid.UUID) -> d
     return {"monetization_mix_rows": 1}
 
 
-async def recompute_paid_promotion_candidates(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_paid_promotion_candidates(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     # All content items for brand (limit 200)
     items = list(
-        (
-            await db.execute(
-                select(ContentItem).where(ContentItem.brand_id == brand_id).limit(200)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(200))).scalars().all()
     )
 
     # Per-item aggregated performance
@@ -471,9 +413,7 @@ async def recompute_paid_promotion_candidates(
 
     now = datetime.now(timezone.utc)
 
-    await db.execute(
-        delete(PaidPromotionCandidate).where(PaidPromotionCandidate.brand_id == brand_id)
-    )
+    await db.execute(delete(PaidPromotionCandidate).where(PaidPromotionCandidate.brand_id == brand_id))
 
     n = 0
     eligible_count = 0
@@ -644,11 +584,7 @@ async def get_sponsor_inventory(db: AsyncSession, brand_id: uuid.UUID) -> list[d
     ids = [r.content_item_id for r in rows if r.content_item_id]
     titles: dict[str, str] = {}
     if ids:
-        title_rows = (
-            await db.execute(
-                select(ContentItem.id, ContentItem.title).where(ContentItem.id.in_(ids))
-            )
-        ).all()
+        title_rows = (await db.execute(select(ContentItem.id, ContentItem.title).where(ContentItem.id.in_(ids)))).all()
         titles = {str(ci_id): t for ci_id, t in title_rows}
     out: list[dict[str, Any]] = []
     for r in rows:
@@ -658,9 +594,7 @@ async def get_sponsor_inventory(db: AsyncSession, brand_id: uuid.UUID) -> list[d
     return out
 
 
-async def get_sponsor_package_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_sponsor_package_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -705,9 +639,7 @@ async def get_monetization_mix(db: AsyncSession, brand_id: uuid.UUID) -> list[di
     return [_mmr_dict(r) for r in rows]
 
 
-async def get_paid_promotion_candidates(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_paid_promotion_candidates(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -722,11 +654,7 @@ async def get_paid_promotion_candidates(
     if not rows:
         return []
     ids = [r.content_item_id for r in rows]
-    title_rows = (
-        await db.execute(
-            select(ContentItem.id, ContentItem.title).where(ContentItem.id.in_(ids))
-        )
-    ).all()
+    title_rows = (await db.execute(select(ContentItem.id, ContentItem.title).where(ContentItem.id.in_(ids)))).all()
     titles = {str(ci_id): t for ci_id, t in title_rows}
     out: list[dict[str, Any]] = []
     for r in rows:

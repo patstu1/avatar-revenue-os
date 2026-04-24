@@ -25,6 +25,7 @@ The calibration context replaces:
 - Fixed price bands (500, 2500, 5000)
   → derived from actual offer payout distribution
 """
+
 from __future__ import annotations
 
 import statistics
@@ -93,24 +94,22 @@ def get_calibration_context(
     return {
         # Follower thresholds (replaces 500, 1000, 5000, 10000, 25000, 50000)
         "follower_norm": follower_norm,
-        "follower_low": max(1, int(portfolio_avg_followers * 0.1)),   # Replaces 500
-        "follower_mid": max(1, int(portfolio_avg_followers * 0.5)),   # Replaces 5000
-        "follower_high": max(1, int(portfolio_avg_followers)),         # Replaces 10000
-        "follower_top": max(1, int(portfolio_max_followers * 0.8)),    # Replaces 50000
+        "follower_low": max(1, int(portfolio_avg_followers * 0.1)),  # Replaces 500
+        "follower_mid": max(1, int(portfolio_avg_followers * 0.5)),  # Replaces 5000
+        "follower_high": max(1, int(portfolio_avg_followers)),  # Replaces 10000
+        "follower_top": max(1, int(portfolio_max_followers * 0.8)),  # Replaces 50000
         "portfolio_total_followers": portfolio_total_followers,
         "portfolio_max_followers": portfolio_max_followers,
         "portfolio_avg_followers": portfolio_avg_followers,
-
         # Revenue thresholds (replaces 100, 500, 1000, 5000, 10000)
         "revenue_norm": revenue_norm,
         "source_norm": source_norm,
-        "revenue_low": max(1, total_revenue * 0.01),   # Replaces 100
-        "revenue_mid": max(1, total_revenue * 0.1),    # Replaces 1000
-        "revenue_high": max(1, total_revenue * 0.3),   # Replaces 5000
-        "revenue_top": max(1, total_revenue * 0.5),    # Replaces 10000
+        "revenue_low": max(1, total_revenue * 0.01),  # Replaces 100
+        "revenue_mid": max(1, total_revenue * 0.1),  # Replaces 1000
+        "revenue_high": max(1, total_revenue * 0.3),  # Replaces 5000
+        "revenue_top": max(1, total_revenue * 0.5),  # Replaces 10000
         "total_revenue": total_revenue,
         "rev_per_follower": rev_per_follower,
-
         # Price bands (replaces 500, 2500, 5000)
         "price_band_low": price_band_low,
         "price_band_mid": price_band_mid,
@@ -118,12 +117,10 @@ def get_calibration_context(
         "price_band_premium": price_band_premium,
         "max_payout": max_payout,
         "avg_payout": avg_payout,
-
         # Normalization divisors (replaces /1000, /5000, /10000, /50000)
         "impression_norm": impression_norm,
         "content_norm": content_norm,
         "deal_norm": deal_norm,
-
         # Portfolio scale indicators
         "account_count": len(accounts),
         "offer_count": len(offers),
@@ -159,10 +156,10 @@ def dynamic_price_band(price: float, ctx: dict) -> str:
     Usage: dynamic_price_band(offer.payout, ctx)
     Instead of: "premium" if price > 5000 else "high" if price > 2500 else "mid"
     """
-    if price >= ctx.get("price_band_premium", float('inf')):
+    if price >= ctx.get("price_band_premium", float("inf")):
         return "premium"
-    if price >= ctx.get("price_band_high", float('inf')):
+    if price >= ctx.get("price_band_high", float("inf")):
         return "high"
-    if price >= ctx.get("price_band_mid", float('inf')):
+    if price >= ctx.get("price_band_mid", float("inf")):
         return "mid"
     return "entry"

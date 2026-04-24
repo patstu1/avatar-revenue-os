@@ -1,4 +1,5 @@
 """Pydantic schemas for MXP Deal Desk."""
+
 from __future__ import annotations
 
 from datetime import datetime

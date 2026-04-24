@@ -3,6 +3,7 @@
 Revision ID: pattern_meta_001
 Revises: pattern_mem_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 

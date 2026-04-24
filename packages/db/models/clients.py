@@ -11,6 +11,7 @@ and the start of fulfillment by persisting:
 
 Schema is narrow — no speculative fields. All four tables are org-scoped.
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -41,10 +42,9 @@ class Client(Base):
     """A paying B2B customer. Created exactly once per (org_id, primary_email)
     when the first successful payment is captured.
     """
+
     __tablename__ = "clients"
-    __table_args__ = (
-        UniqueConstraint("org_id", "primary_email", name="uq_clients_org_email"),
-    )
+    __table_args__ = (UniqueConstraint("org_id", "primary_email", name="uq_clients_org_email"),)
 
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
@@ -65,9 +65,7 @@ class Client(Base):
         UUID(as_uuid=True), ForeignKey("payments.id"), nullable=True, index=True
     )
 
-    status: Mapped[str] = mapped_column(
-        String(30), default="active", nullable=False, index=True
-    )
+    status: Mapped[str] = mapped_column(String(30), default="active", nullable=False, index=True)
     activated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     last_paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     total_paid_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -81,23 +79,15 @@ class Client(Base):
     # Batch 11: retention / renewal / reactivation fields.
     # retention_state values: active / renewal_due / renewal_overdue /
     #                        lapsed / churned / expansion_candidate
-    retention_state: Mapped[str] = mapped_column(
-        String(30), default="active", nullable=False, index=True
-    )
-    next_renewal_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    last_retention_check_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    retention_state: Mapped[str] = mapped_column(String(30), default="active", nullable=False, index=True)
+    next_renewal_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_retention_check_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     churn_risk_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     # Set to True by client_activation for clients whose source proposal
     # carries a recurring-package slug; keeps the retention scanner
     # scoped only to clients whose business model expects renewal.
     is_recurring: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    recurring_period_days: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True
-    )
+    recurring_period_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
@@ -110,6 +100,7 @@ class ClientOnboardingEvent(Base):
     meaningful event: onboarding.started, intake.sent, reminder sent,
     intake.completed, etc.
     """
+
     __tablename__ = "client_onboarding_events"
 
     client_id: Mapped[uuid.UUID] = mapped_column(
@@ -151,10 +142,9 @@ class IntakeRequest(Base):
     uses to access the public form endpoint (no auth required — token IS
     the auth).
     """
+
     __tablename__ = "intake_requests"
-    __table_args__ = (
-        UniqueConstraint("token", name="uq_intake_requests_token"),
-    )
+    __table_args__ = (UniqueConstraint("token", name="uq_intake_requests_token"),)
 
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
@@ -171,9 +161,7 @@ class IntakeRequest(Base):
 
     token: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
 
-    status: Mapped[str] = mapped_column(
-        String(30), default="pending", nullable=False, index=True
-    )
+    status: Mapped[str] = mapped_column(String(30), default="pending", nullable=False, index=True)
 
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     instructions: Mapped[str] = mapped_column(Text, default="")
@@ -203,6 +191,7 @@ class IntakeSubmission(Base):
     Incomplete submissions still persist so the operator can chase the
     missing fields.
     """
+
     __tablename__ = "intake_submissions"
 
     intake_request_id: Mapped[uuid.UUID] = mapped_column(
@@ -240,6 +229,7 @@ class ClientRetentionEvent(Base):
     retention book reads a canonical history, not scattered
     event_bus emissions.
     """
+
     __tablename__ = "client_retention_events"
 
     org_id: Mapped[uuid.UUID] = mapped_column(
@@ -256,18 +246,12 @@ class ClientRetentionEvent(Base):
     previous_state: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     new_state: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
 
-    triggered_by_actor_type: Mapped[str] = mapped_column(
-        String(30), default="system", nullable=False
-    )
+    triggered_by_actor_type: Mapped[str] = mapped_column(String(30), default="system", nullable=False)
     triggered_by_actor_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Linkage to the proposals created when a renew/upsell fires.
-    source_proposal_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
-    target_proposal_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    source_proposal_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    target_proposal_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     # Batch 12: promoted to first-class so credit/adjustment rollups
     # (SUM amount_cents WHERE event_type='high_ticket.credit_issued') do
@@ -293,13 +277,15 @@ class ClientHighTicketProfile(Base):
     them without JSONB extraction. Rare-access context
     (attendees, team members, notes) stays in JSONB.
     """
+
     __tablename__ = "client_high_ticket_profiles"
-    __table_args__ = (
-        UniqueConstraint("client_id", name="uq_htp_client"),
-    )
+    __table_args__ = (UniqueConstraint("client_id", name="uq_htp_client"),)
 
     client_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False, unique=True,
+        UUID(as_uuid=True),
+        ForeignKey("clients.id"),
+        nullable=False,
+        unique=True,
     )
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
@@ -307,28 +293,16 @@ class ClientHighTicketProfile(Base):
 
     # status values: discovery_pending / sow_drafted / sow_sent /
     #                sow_signed / kickoff_scheduled / kickoff_complete
-    status: Mapped[str] = mapped_column(
-        String(30), default="discovery_pending", nullable=False, index=True
-    )
+    status: Mapped[str] = mapped_column(String(30), default="discovery_pending", nullable=False, index=True)
 
-    discovery_call_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True
-    )
-    discovery_attendees_json: Mapped[Optional[dict]] = mapped_column(
-        JSONB, nullable=True
-    )
+    discovery_call_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    discovery_attendees_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     sow_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
-    sow_sent_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True
-    )
+    sow_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     sow_signer_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    sow_countersigned_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    sow_countersigned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     counterparty_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    kickoff_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True
-    )
+    kickoff_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     kickoff_team_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

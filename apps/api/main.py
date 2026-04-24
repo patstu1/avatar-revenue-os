@@ -1,4 +1,5 @@
 """AI Avatar Revenue OS — FastAPI Application."""
+
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -221,6 +222,7 @@ if settings.sentry_dsn:
     from sentry_sdk.integrations.celery import CeleryIntegration
     from sentry_sdk.integrations.fastapi import FastApiIntegration
     from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
         integrations=[FastApiIntegration(), SqlalchemyIntegration(), CeleryIntegration()],
@@ -252,7 +254,9 @@ app.include_router(expansion_pack2_phase_c.router, prefix="/api/v1/brands", tags
 app.include_router(avatars.router, prefix="/api/v1/avatars", tags=["Avatars"])
 app.include_router(offers.router, prefix="/api/v1/offers", tags=["Offers"])
 app.include_router(accounts.router, prefix="/api/v1/accounts", tags=["Creator Accounts"])
-app.include_router(microsoft_inbox_oauth.router, prefix="/api/v1", tags=["Microsoft Inbox OAuth"])  # registered BEFORE oauth.router so /oauth/callback/microsoft is not caught by the generic /callback/{platform} route
+app.include_router(
+    microsoft_inbox_oauth.router, prefix="/api/v1", tags=["Microsoft Inbox OAuth"]
+)  # registered BEFORE oauth.router so /oauth/callback/microsoft is not caught by the generic /callback/{platform} route
 app.include_router(oauth.router, prefix="/api/v1/oauth", tags=["OAuth Connections"])
 app.include_router(content.router, prefix="/api/v1/content", tags=["Content Pipeline"])
 app.include_router(decisions.router, prefix="/api/v1/decisions", tags=["Decisions"])
@@ -275,35 +279,97 @@ app.include_router(mxp_reputation.router, prefix="/api/v1/brands", tags=["Reputa
 app.include_router(mxp_market_timing.router, prefix="/api/v1/brands", tags=["Market Timing"])
 app.include_router(mxp_kill_ledger.router, prefix="/api/v1/brands", tags=["Kill Ledger"])
 app.include_router(autonomous_execution.router, prefix="/api/v1/brands", tags=["Autonomous Execution"])
-app.include_router(autonomous_phase_a.router, prefix="/api/v1/brands", tags=["Autonomous Phase A: Signal Scan, Queue, Warmup"])
-app.include_router(autonomous_phase_b.router, prefix="/api/v1/brands", tags=["Autonomous Phase B: Policies, Runner, Distribution, Monetization, Suppression"])
-app.include_router(autonomous_phase_c.router, prefix="/api/v1/brands", tags=["Autonomous Phase C: Funnel, Paid, Sponsor, Retention, Recovery"])
-app.include_router(autonomous_phase_d.router, prefix="/api/v1/brands", tags=["Autonomous Phase D: Agents, Pressure, Overrides, Blockers, Escalations"])
-app.include_router(brain_phase_a.router, prefix="/api/v1/brands", tags=["Brain Phase A: Memory, Account/Opportunity/Execution/Audience States"])
-app.include_router(brain_phase_b.router, prefix="/api/v1/brands", tags=["Brain Phase B: Decisions, Policies, Confidence, Cost/Upside, Arbitration"])
-app.include_router(brain_phase_c.router, prefix="/api/v1/brands", tags=["Brain Phase C: Agent Mesh, Workflows, Context Bus, Memory Binding"])
-app.include_router(brain_phase_d.router, prefix="/api/v1/brands", tags=["Brain Phase D: Meta-Monitoring, Self-Correction, Readiness, Escalation"])
-app.include_router(buffer_distribution.router, prefix="/api/v1/brands", tags=["Buffer Distribution: Profiles, Publish, Sync, Blockers"])
-app.include_router(buffer_distribution.router_root, prefix="/api/v1", tags=["Buffer Distribution: Profile Update, Job Submit"])
-app.include_router(live_execution.router, prefix="/api/v1/brands", tags=["Live Execution: Analytics, Conversions, Experiments, CRM, Email, SMS"])
-app.include_router(live_execution_phase2.router, prefix="/api/v1/brands", tags=["Live Execution Phase 2: Webhooks, Triggers, Connectors, Buffer Expansion"])
+app.include_router(
+    autonomous_phase_a.router, prefix="/api/v1/brands", tags=["Autonomous Phase A: Signal Scan, Queue, Warmup"]
+)
+app.include_router(
+    autonomous_phase_b.router,
+    prefix="/api/v1/brands",
+    tags=["Autonomous Phase B: Policies, Runner, Distribution, Monetization, Suppression"],
+)
+app.include_router(
+    autonomous_phase_c.router,
+    prefix="/api/v1/brands",
+    tags=["Autonomous Phase C: Funnel, Paid, Sponsor, Retention, Recovery"],
+)
+app.include_router(
+    autonomous_phase_d.router,
+    prefix="/api/v1/brands",
+    tags=["Autonomous Phase D: Agents, Pressure, Overrides, Blockers, Escalations"],
+)
+app.include_router(
+    brain_phase_a.router,
+    prefix="/api/v1/brands",
+    tags=["Brain Phase A: Memory, Account/Opportunity/Execution/Audience States"],
+)
+app.include_router(
+    brain_phase_b.router,
+    prefix="/api/v1/brands",
+    tags=["Brain Phase B: Decisions, Policies, Confidence, Cost/Upside, Arbitration"],
+)
+app.include_router(
+    brain_phase_c.router,
+    prefix="/api/v1/brands",
+    tags=["Brain Phase C: Agent Mesh, Workflows, Context Bus, Memory Binding"],
+)
+app.include_router(
+    brain_phase_d.router,
+    prefix="/api/v1/brands",
+    tags=["Brain Phase D: Meta-Monitoring, Self-Correction, Readiness, Escalation"],
+)
+app.include_router(
+    buffer_distribution.router, prefix="/api/v1/brands", tags=["Buffer Distribution: Profiles, Publish, Sync, Blockers"]
+)
+app.include_router(
+    buffer_distribution.router_root, prefix="/api/v1", tags=["Buffer Distribution: Profile Update, Job Submit"]
+)
+app.include_router(
+    live_execution.router,
+    prefix="/api/v1/brands",
+    tags=["Live Execution: Analytics, Conversions, Experiments, CRM, Email, SMS"],
+)
+app.include_router(
+    live_execution_phase2.router,
+    prefix="/api/v1/brands",
+    tags=["Live Execution Phase 2: Webhooks, Triggers, Connectors, Buffer Expansion"],
+)
 app.include_router(webhooks.router, prefix="/api/v1", tags=["Webhooks: Stripe, Shopify, Media Providers"])
 app.include_router(cold_outreach_tracking.router, tags=["Cold Outreach Tracking"])
 app.include_router(leads.router, prefix="/api/v1", tags=["Lead Capture: Public offer page submissions"])
-app.include_router(email_pipeline.router, prefix="/api/v1", tags=["Email Pipeline: Threads, Classification, Reply Drafts"])
+app.include_router(
+    email_pipeline.router, prefix="/api/v1", tags=["Email Pipeline: Threads, Classification, Reply Drafts"]
+)
 # microsoft_inbox_oauth moved above oauth.router to prevent /oauth/callback/{platform} from swallowing /oauth/callback/microsoft
 # landing_pages.public_router removed — not present in container's landing_pages module
-app.include_router(creator_revenue.router, prefix="/api/v1/brands", tags=["Creator Revenue: Opportunities, UGC, Consulting, Premium Access"])
-app.include_router(provider_registry.router, prefix="/api/v1/brands", tags=["Provider Registry: Inventory, Readiness, Dependencies, Blockers"])
+app.include_router(
+    creator_revenue.router,
+    prefix="/api/v1/brands",
+    tags=["Creator Revenue: Opportunities, UGC, Consulting, Premium Access"],
+)
+app.include_router(
+    provider_registry.router,
+    prefix="/api/v1/brands",
+    tags=["Provider Registry: Inventory, Readiness, Dependencies, Blockers"],
+)
 app.include_router(copilot.router, prefix="/api/v1/brands", tags=["Operator Copilot"])
 app.include_router(copilot.router_root, prefix="/api/v1", tags=["Operator Copilot"])
-app.include_router(gatekeeper.router, prefix="/api/v1/brands", tags=["AI Gatekeeper: Completion, Truth, Closure, Tests, Dependencies, Contradictions"])
+app.include_router(
+    gatekeeper.router,
+    prefix="/api/v1/brands",
+    tags=["AI Gatekeeper: Completion, Truth, Closure, Tests, Dependencies, Contradictions"],
+)
 app.include_router(expansion_advisor.router, prefix="/api/v1/brands", tags=["Account Expansion Advisor"])
 app.include_router(content_form.router, prefix="/api/v1/brands", tags=["Content Form Selection"])
 app.include_router(content_routing.router, prefix="/api/v1/brands", tags=["Content Routing: Tiered Provider Routing"])
 app.include_router(pattern_memory.router, prefix="/api/v1/brands", tags=["Pattern Memory: Winning Patterns"])
-app.include_router(promote_winner.router, prefix="/api/v1/brands", tags=["Promote-Winner: Experiments, Winners, Losers, Promotion Rules"])
-app.include_router(capital_allocator.router, prefix="/api/v1/brands", tags=["Capital Allocator: Budget, Provider Tier, Starvation"])
+app.include_router(
+    promote_winner.router,
+    prefix="/api/v1/brands",
+    tags=["Promote-Winner: Experiments, Winners, Losers, Promotion Rules"],
+)
+app.include_router(
+    capital_allocator.router, prefix="/api/v1/brands", tags=["Capital Allocator: Budget, Provider Tier, Starvation"]
+)
 app.include_router(account_state_intel.router, prefix="/api/v1/brands", tags=["Account-State Intelligence"])
 app.include_router(quality_governor.router, prefix="/api/v1/brands", tags=["Quality Governor"])
 app.include_router(objection_mining.router, prefix="/api/v1/brands", tags=["Objection Mining"])
@@ -319,7 +385,9 @@ app.include_router(workflow_builder.router, prefix="/api/v1", tags=["Enterprise 
 app.include_router(hyperscale.router, prefix="/api/v1", tags=["Hyper-Scale Execution"])
 app.include_router(integrations_listening.router, prefix="/api/v1", tags=["Integrations + Listening"])
 app.include_router(executive_intel.router, prefix="/api/v1", tags=["Executive Intelligence"])
-app.include_router(affiliate_enterprise.router, prefix="/api/v1", tags=["Enterprise Affiliate Governance + Owned Program"])
+app.include_router(
+    affiliate_enterprise.router, prefix="/api/v1", tags=["Enterprise Affiliate Governance + Owned Program"]
+)
 app.include_router(offer_lab.router, prefix="/api/v1/brands", tags=["Offer Lab"])
 app.include_router(revenue_leak_detector.router, prefix="/api/v1/brands", tags=["Revenue Leak Detector"])
 app.include_router(digital_twin.router, prefix="/api/v1/brands", tags=["Digital Twin / Simulation"])
@@ -331,22 +399,34 @@ app.include_router(cinema_studio.router, prefix="/api/v1/brands", tags=["Cinema 
 app.include_router(ws_live.router, prefix="/api/v1", tags=["WebSocket: Live Revenue Streaming"])
 app.include_router(revenue_intelligence.router, prefix="/api/v1/brands", tags=["Revenue Intelligence: Elite"])
 app.include_router(revenue_avenues.router, prefix="/api/v1/brands", tags=["Revenue Avenues: SaaS, Pipeline, Launches"])
-app.include_router(monetization.router, prefix="/api/v1/monetization", tags=["Monetization Machine: Credits, Plans, Packs, Telemetry"])
+app.include_router(
+    monetization.router, prefix="/api/v1/monetization", tags=["Monetization Machine: Credits, Plans, Packs, Telemetry"]
+)
 app.include_router(onboarding.router, prefix="/api/v1/onboarding", tags=["Onboarding"])
-app.include_router(revenue_machine.router, prefix="/api/v1/monetization", tags=["Revenue Machine: Operating Model, Readiness, Triggers"])
+app.include_router(
+    revenue_machine.router,
+    prefix="/api/v1/monetization",
+    tags=["Revenue Machine: Operating Model, Readiness, Triggers"],
+)
 app.include_router(control_layer.router, prefix="/api/v1", tags=["Control Layer: Operator Command Surface"])
 app.include_router(intelligence_hub.router, prefix="/api/v1", tags=["Intelligence Hub: Unified Intelligence Surface"])
 app.include_router(monetization_hub.router, prefix="/api/v1", tags=["Monetization Hub: Revenue Operations"])
 app.include_router(orchestration_hub.router, prefix="/api/v1", tags=["Orchestration Hub: Jobs, Workers, Providers"])
 app.include_router(governance_hub.router, prefix="/api/v1", tags=["Governance Hub: Approvals, Permissions, Memory"])
 app.include_router(revenue_maximizer.router, prefix="/api/v1", tags=["Revenue Maximizer: Maximum Revenue Engine"])
-app.include_router(growth_hub.router, prefix="/api/v1", tags=["Growth Hub: Audience, Sponsors, Services, Quality, Adaptation"])
+app.include_router(
+    growth_hub.router, prefix="/api/v1", tags=["Growth Hub: Audience, Sponsors, Services, Quality, Adaptation"]
+)
 app.include_router(gm_ai.router, prefix="/api/v1", tags=["GM AI: Strategic Operating Brain"])
 app.include_router(gm_chat.router, prefix="/api/v1", tags=["GM Chat: Conversational Strategic GM"])
 app.include_router(portfolio_command.router, prefix="/api/v1", tags=["Portfolio Command Center"])
 app.include_router(integrations_dashboard.router, prefix="/api/v1", tags=["Integrations Dashboard"])
 app.include_router(brain_ops.router, prefix="/api/v1", tags=["Brain Operations: Runtime State"])
-app.include_router(ai_command.router, prefix="/api/v1/brands", tags=["AI Command Center: Provider Stack, Quality, Experiments, Budget, Health, Activity"])
+app.include_router(
+    ai_command.router,
+    prefix="/api/v1/brands",
+    tags=["AI Command Center: Provider Stack, Quality, Experiments, Budget, Health, Activity"],
+)
 # --- Local media file serving (fallback when S3 is not configured) ---
 
 if not os.getenv("S3_BUCKET"):

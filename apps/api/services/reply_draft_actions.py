@@ -15,6 +15,7 @@ Each call:
 No schema changes — rejection metadata rides in the existing
 ``decision_trace`` JSONB rather than introducing new columns.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -53,9 +54,7 @@ async def approve_draft(
     draft = await _load_active_draft(db, draft_id)
 
     if draft.status != "pending":
-        raise DraftActionError(
-            f"draft is {draft.status}, not pending", current_status=draft.status
-        )
+        raise DraftActionError(f"draft is {draft.status}, not pending", current_status=draft.status)
 
     now = datetime.now(timezone.utc)
     prior_status = draft.status
@@ -126,9 +125,7 @@ async def reject_draft(
     draft = await _load_active_draft(db, draft_id)
 
     if draft.status not in ("pending", "approved"):
-        raise DraftActionError(
-            f"draft is {draft.status}, cannot reject", current_status=draft.status
-        )
+        raise DraftActionError(f"draft is {draft.status}, cannot reject", current_status=draft.status)
 
     now = datetime.now(timezone.utc)
     prior_status = draft.status
@@ -192,11 +189,7 @@ async def reject_draft(
 
 
 async def _load_active_draft(db: AsyncSession, draft_id: uuid.UUID) -> EmailReplyDraft:
-    draft = (
-        await db.execute(
-            select(EmailReplyDraft).where(EmailReplyDraft.id == draft_id)
-        )
-    ).scalar_one_or_none()
+    draft = (await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == draft_id))).scalar_one_or_none()
     if draft is None or not draft.is_active:
         raise DraftActionError("draft not found", current_status="missing")
     return draft

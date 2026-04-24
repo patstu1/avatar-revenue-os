@@ -1,4 +1,5 @@
 """Objection Mining — detect, cluster, score, and route buyer resistance."""
+
 import uuid
 from typing import Optional
 
@@ -15,7 +16,9 @@ class ObjectionSignal(Base):
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     source_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     source_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
     offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True)
     objection_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -44,7 +47,9 @@ class ObjectionResponse(Base):
     __tablename__ = "om_objection_responses"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    cluster_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("om_objection_clusters.id"), nullable=False, index=True)
+    cluster_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("om_objection_clusters.id"), nullable=False, index=True
+    )
     response_type: Mapped[str] = mapped_column(String(60), nullable=False)
     response_angle: Mapped[str] = mapped_column(Text, nullable=False)
     target_channel: Mapped[str] = mapped_column(String(60), nullable=False)

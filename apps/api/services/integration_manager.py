@@ -6,6 +6,7 @@ encrypted in the integration_providers table and loaded at runtime.
 Encryption: Fernet (AES-128-CBC + HMAC-SHA256) derived from API_SECRET_KEY
 via PBKDF2.  Falls back to .env as a transition — with deprecation warnings.
 """
+
 from __future__ import annotations
 
 import base64
@@ -69,6 +70,7 @@ def _decrypt(encrypted: str) -> str:
 
 # ── Legacy XOR helpers (read-only, for migration) ──────────────────────────
 
+
 def _get_xor_key() -> bytes:
     secret = os.getenv("API_SECRET_KEY", "default-dev-key-not-for-production")
     return hashlib.sha256(secret.encode()).digest()
@@ -79,7 +81,7 @@ def _decrypt_xor_legacy(encrypted: str) -> str:
         return ""
     key = _get_xor_key()
     data = base64.b64decode(encrypted.encode())
-    decrypted = bytes(a ^ b for a, b in zip(data, (key * ((len(data) // len(key)) + 1))[:len(data)]))
+    decrypted = bytes(a ^ b for a, b in zip(data, (key * ((len(data) // len(key)) + 1))[: len(data)]))
     return decrypted.decode()
 
 
@@ -122,33 +124,103 @@ PROVIDER_ENV_KEYS: dict[str, str] = {
 DEFAULT_PROVIDERS = [
     # LLM
     {"key": "claude", "name": "Claude Sonnet 4.6", "category": "llm", "tier": "hero", "cost": 0.003, "priority": 1},
-    {"key": "gemini_flash", "name": "Gemini 2.5 Flash", "category": "llm", "tier": "standard", "cost": 0.0003, "priority": 5},
+    {
+        "key": "gemini_flash",
+        "name": "Gemini 2.5 Flash",
+        "category": "llm",
+        "tier": "standard",
+        "cost": 0.0003,
+        "priority": 5,
+    },
     {"key": "deepseek", "name": "DeepSeek V3.2", "category": "llm", "tier": "bulk", "cost": 0.00028, "priority": 10},
     {"key": "groq", "name": "Groq", "category": "llm", "tier": "bulk", "cost": 0.0001, "priority": 8},
     # Image
     {"key": "openai_image", "name": "GPT Image 1.5", "category": "image", "tier": "hero", "cost": 0.04, "priority": 1},
-    {"key": "imagen4", "name": "Google Imagen 4 Fast", "category": "image", "tier": "standard", "cost": 0.02, "priority": 5},
-    {"key": "flux", "name": "Flux 2 Pro (via fal.ai)", "category": "image", "tier": "standard", "cost": 0.055, "priority": 8},
+    {
+        "key": "imagen4",
+        "name": "Google Imagen 4 Fast",
+        "category": "image",
+        "tier": "standard",
+        "cost": 0.02,
+        "priority": 5,
+    },
+    {
+        "key": "flux",
+        "name": "Flux 2 Pro (via fal.ai)",
+        "category": "image",
+        "tier": "standard",
+        "cost": 0.055,
+        "priority": 8,
+    },
     # Video
-    {"key": "kling", "name": "Kling AI (via fal.ai)", "category": "video", "tier": "standard", "cost": 0.07, "priority": 5},
+    {
+        "key": "kling",
+        "name": "Kling AI (via fal.ai)",
+        "category": "video",
+        "tier": "standard",
+        "cost": 0.07,
+        "priority": 5,
+    },
     {"key": "runway", "name": "Runway Gen-4 Turbo", "category": "video", "tier": "hero", "cost": 0.10, "priority": 1},
     # Avatar
     {"key": "heygen", "name": "HeyGen", "category": "avatar", "tier": "hero", "cost": 0.033, "priority": 1},
     {"key": "did", "name": "D-ID", "category": "avatar", "tier": "standard", "cost": 0.02, "priority": 5},
     # Voice
     {"key": "elevenlabs", "name": "ElevenLabs", "category": "voice", "tier": "hero", "cost": 0.0003, "priority": 1},
-    {"key": "fish_audio", "name": "Fish Audio", "category": "voice", "tier": "standard", "cost": 0.000015, "priority": 5},
-    {"key": "voxtral", "name": "Voxtral TTS (Mistral)", "category": "voice", "tier": "bulk", "cost": 0.000016, "priority": 10},
+    {
+        "key": "fish_audio",
+        "name": "Fish Audio",
+        "category": "voice",
+        "tier": "standard",
+        "cost": 0.000015,
+        "priority": 5,
+    },
+    {
+        "key": "voxtral",
+        "name": "Voxtral TTS (Mistral)",
+        "category": "voice",
+        "tier": "bulk",
+        "cost": 0.000016,
+        "priority": 10,
+    },
     # Publishing
     {"key": "buffer", "name": "Buffer", "category": "publishing", "tier": "standard", "cost": 0, "priority": 1},
     {"key": "publer", "name": "Publer", "category": "publishing", "tier": "standard", "cost": 0, "priority": 5},
     {"key": "ayrshare", "name": "Ayrshare", "category": "publishing", "tier": "standard", "cost": 0, "priority": 10},
     # Analytics
-    {"key": "youtube_analytics", "name": "YouTube Analytics", "category": "analytics", "tier": "standard", "cost": 0, "priority": 1},
-    {"key": "tiktok_analytics", "name": "TikTok Analytics", "category": "analytics", "tier": "standard", "cost": 0, "priority": 1},
-    {"key": "instagram_analytics", "name": "Instagram Graph API", "category": "analytics", "tier": "standard", "cost": 0, "priority": 1},
+    {
+        "key": "youtube_analytics",
+        "name": "YouTube Analytics",
+        "category": "analytics",
+        "tier": "standard",
+        "cost": 0,
+        "priority": 1,
+    },
+    {
+        "key": "tiktok_analytics",
+        "name": "TikTok Analytics",
+        "category": "analytics",
+        "tier": "standard",
+        "cost": 0,
+        "priority": 1,
+    },
+    {
+        "key": "instagram_analytics",
+        "name": "Instagram Graph API",
+        "category": "analytics",
+        "tier": "standard",
+        "cost": 0,
+        "priority": 1,
+    },
     # Trends
-    {"key": "serpapi", "name": "SerpAPI (Google Trends)", "category": "trends", "tier": "standard", "cost": 0.005, "priority": 1},
+    {
+        "key": "serpapi",
+        "name": "SerpAPI (Google Trends)",
+        "category": "trends",
+        "tier": "standard",
+        "cost": 0.005,
+        "priority": 1,
+    },
     # Email
     {"key": "smtp", "name": "SMTP Email", "category": "email", "tier": "standard", "cost": 0, "priority": 1},
     {"key": "imap", "name": "IMAP Inbox", "category": "inbox", "tier": "standard", "cost": 0, "priority": 1},
@@ -165,23 +237,27 @@ async def seed_provider_catalog(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """
     created = 0
     for p in DEFAULT_PROVIDERS:
-        existing = (await db.execute(
-            select(IntegrationProvider).where(
-                IntegrationProvider.organization_id == org_id,
-                IntegrationProvider.provider_key == p["key"],
+        existing = (
+            await db.execute(
+                select(IntegrationProvider).where(
+                    IntegrationProvider.organization_id == org_id,
+                    IntegrationProvider.provider_key == p["key"],
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
         if not existing:
-            db.add(IntegrationProvider(
-                organization_id=org_id,
-                provider_key=p["key"],
-                provider_name=p["name"],
-                provider_category=p["category"],
-                quality_tier=p["tier"],
-                cost_per_unit=p["cost"],
-                priority_order=p["priority"],
-                health_status="unconfigured",
-            ))
+            db.add(
+                IntegrationProvider(
+                    organization_id=org_id,
+                    provider_key=p["key"],
+                    provider_name=p["name"],
+                    provider_category=p["category"],
+                    quality_tier=p["tier"],
+                    cost_per_unit=p["cost"],
+                    priority_order=p["priority"],
+                    health_status="unconfigured",
+                )
+            )
             created += 1
     await db.flush()
 
@@ -199,12 +275,14 @@ async def _auto_migrate_env_credentials(db: AsyncSession, org_id: uuid.UUID) -> 
         if not env_value:
             continue
 
-        provider = (await db.execute(
-            select(IntegrationProvider).where(
-                IntegrationProvider.organization_id == org_id,
-                IntegrationProvider.provider_key == provider_key,
+        provider = (
+            await db.execute(
+                select(IntegrationProvider).where(
+                    IntegrationProvider.organization_id == org_id,
+                    IntegrationProvider.provider_key == provider_key,
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
 
         if not provider:
             continue
@@ -229,17 +307,24 @@ async def _auto_migrate_env_credentials(db: AsyncSession, org_id: uuid.UUID) -> 
 
 
 async def set_credential(
-    db: AsyncSession, org_id: uuid.UUID, provider_key: str,
-    *, api_key: str | None = None, api_secret: str | None = None,
-    oauth_token: str | None = None, extra_config: dict | None = None,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    provider_key: str,
+    *,
+    api_key: str | None = None,
+    api_secret: str | None = None,
+    oauth_token: str | None = None,
+    extra_config: dict | None = None,
 ) -> dict:
     """Set or update credentials for a provider. Encrypts before storage."""
-    provider = (await db.execute(
-        select(IntegrationProvider).where(
-            IntegrationProvider.organization_id == org_id,
-            IntegrationProvider.provider_key == provider_key,
+    provider = (
+        await db.execute(
+            select(IntegrationProvider).where(
+                IntegrationProvider.organization_id == org_id,
+                IntegrationProvider.provider_key == provider_key,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if not provider:
         return {"error": f"Provider '{provider_key}' not found. Run seed_provider_catalog first."}
@@ -266,13 +351,15 @@ async def get_credential(db: AsyncSession, org_id: uuid.UUID, provider_key: str)
     Primary: encrypted DB credential.
     Fallback: .env variable (with deprecation warning).
     """
-    provider = (await db.execute(
-        select(IntegrationProvider).where(
-            IntegrationProvider.organization_id == org_id,
-            IntegrationProvider.provider_key == provider_key,
-            IntegrationProvider.is_enabled.is_(True),
+    provider = (
+        await db.execute(
+            select(IntegrationProvider).where(
+                IntegrationProvider.organization_id == org_id,
+                IntegrationProvider.provider_key == provider_key,
+                IntegrationProvider.is_enabled.is_(True),
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if provider and provider.api_key_encrypted:
         return _decrypt(provider.api_key_encrypted)
@@ -281,23 +368,29 @@ async def get_credential(db: AsyncSession, org_id: uuid.UUID, provider_key: str)
     # If the key is missing, the operator needs to configure it through
     # Settings > Integrations.
     if not provider:
-        logger.warning("credential_missing", provider=provider_key, hint="Provider not found in integration_providers table")
+        logger.warning(
+            "credential_missing", provider=provider_key, hint="Provider not found in integration_providers table"
+        )
     else:
         logger.warning("credential_not_configured", provider=provider_key, hint="Configure via Settings > Integrations")
     return None
 
 
 async def get_credential_full(
-    db: AsyncSession, org_id: uuid.UUID, provider_key: str,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    provider_key: str,
 ) -> dict:
     """Get decrypted API key + oauth_token + extra_config for a provider."""
-    provider = (await db.execute(
-        select(IntegrationProvider).where(
-            IntegrationProvider.organization_id == org_id,
-            IntegrationProvider.provider_key == provider_key,
-            IntegrationProvider.is_enabled.is_(True),
+    provider = (
+        await db.execute(
+            select(IntegrationProvider).where(
+                IntegrationProvider.organization_id == org_id,
+                IntegrationProvider.provider_key == provider_key,
+                IntegrationProvider.is_enabled.is_(True),
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     result: dict = {"api_key": None, "oauth_token": None, "extra_config": {}}
 
@@ -349,8 +442,10 @@ async def list_providers(db: AsyncSession, org_id: uuid.UUID, category: str | No
 
 
 async def get_provider_for_task(
-    db: AsyncSession, org_id: uuid.UUID,
-    category: str, quality_tier: str = "standard",
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    category: str,
+    quality_tier: str = "standard",
 ) -> dict | None:
     """Get the best available provider for a task category + quality tier.
 
@@ -360,14 +455,22 @@ async def get_provider_for_task(
     3. Sort by priority_order (lower = preferred)
     4. Return the top one
     """
-    providers = (await db.execute(
-        select(IntegrationProvider).where(
-            IntegrationProvider.organization_id == org_id,
-            IntegrationProvider.provider_category == category,
-            IntegrationProvider.is_enabled.is_(True),
-            IntegrationProvider.health_status.in_(["configured", "healthy"]),
-        ).order_by(IntegrationProvider.priority_order)
-    )).scalars().all()
+    providers = (
+        (
+            await db.execute(
+                select(IntegrationProvider)
+                .where(
+                    IntegrationProvider.organization_id == org_id,
+                    IntegrationProvider.provider_category == category,
+                    IntegrationProvider.is_enabled.is_(True),
+                    IntegrationProvider.health_status.in_(["configured", "healthy"]),
+                )
+                .order_by(IntegrationProvider.priority_order)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     if not providers:
         return None
@@ -394,6 +497,7 @@ async def get_provider_for_task(
 
 
 # ── One-time migration: re-encrypt XOR → Fernet ───────────────────────────
+
 
 async def migrate_xor_to_fernet(db: AsyncSession) -> dict:
     """Re-encrypt all credentials from legacy XOR to Fernet.

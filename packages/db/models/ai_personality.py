@@ -4,6 +4,7 @@ Each account can have an AI personality that maintains consistent identity, back
 appearance, voice, and memory across all content. This builds parasocial relationships
 with audiences, driving 5-10x higher affiliate conversion.
 """
+
 import uuid
 from typing import Optional
 
@@ -16,9 +17,12 @@ from packages.db.base import Base
 
 class AIPersonality(Base):
     """Core personality definition — who this character IS."""
+
     __tablename__ = "ai_personalities"
 
-    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True, unique=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True, unique=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
 
     # Identity
@@ -65,9 +69,12 @@ class AIPersonality(Base):
 
 class PersonalityMemory(Base):
     """What the personality remembers — references to past content, running themes, audience interactions."""
+
     __tablename__ = "ai_personality_memories"
 
-    personality_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ai_personalities.id"), nullable=False, index=True)
+    personality_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ai_personalities.id"), nullable=False, index=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
 
     memory_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
@@ -76,20 +83,27 @@ class PersonalityMemory(Base):
     importance_score: Mapped[float] = mapped_column(Float, default=0.5)
     usage_count: Mapped[int] = mapped_column(Integer, default=0)
     last_referenced_at: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
-    source_content_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True)
+    source_content_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True
+    )
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class PersonalityEvolution(Base):
     """Track how the personality evolves over time — opinion changes, new expertise, audience feedback."""
+
     __tablename__ = "ai_personality_evolution"
 
-    personality_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ai_personalities.id"), nullable=False, index=True)
+    personality_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ai_personalities.id"), nullable=False, index=True
+    )
     evolution_type: Mapped[str] = mapped_column(String(40), nullable=False)
     before_state: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     after_state: Mapped[str] = mapped_column(Text, nullable=False)
     trigger: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True)
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True
+    )
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

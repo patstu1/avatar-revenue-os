@@ -1,4 +1,5 @@
 """Onboarding service — quick-start helpers for the free→value→spend path."""
+
 from __future__ import annotations
 
 import re
@@ -252,7 +253,9 @@ async def get_onboarding_status(
 
     # --- Brands ---
     brand_count_result = await db.execute(
-        select(func.count()).select_from(Brand).where(
+        select(func.count())
+        .select_from(Brand)
+        .where(
             Brand.organization_id == organization_id,
             Brand.is_active == True,  # noqa: E712
         )
@@ -275,7 +278,9 @@ async def get_onboarding_status(
         brand_ids = [r[0] for r in brand_ids_result.fetchall()]
 
         account_count_result = await db.execute(
-            select(func.count()).select_from(CreatorAccount).where(
+            select(func.count())
+            .select_from(CreatorAccount)
+            .where(
                 CreatorAccount.brand_id.in_(brand_ids),
                 CreatorAccount.is_active == True,  # noqa: E712
             )
@@ -283,7 +288,9 @@ async def get_onboarding_status(
         account_count = account_count_result.scalar() or 0
 
         offer_result = await db.execute(
-            select(func.count()).select_from(Offer).where(
+            select(func.count())
+            .select_from(Offer)
+            .where(
                 Offer.brand_id.in_(brand_ids),
                 Offer.is_active == True,  # noqa: E712
             )
@@ -291,7 +298,9 @@ async def get_onboarding_status(
         offer_count = offer_result.scalar() or 0
 
         content_result = await db.execute(
-            select(func.count()).select_from(ContentBrief).where(
+            select(func.count())
+            .select_from(ContentBrief)
+            .where(
                 ContentBrief.brand_id.in_(brand_ids),
             )
         )
@@ -299,8 +308,11 @@ async def get_onboarding_status(
 
         # Canonical "publishing connected" check: mapped Buffer profiles
         from packages.db.models.buffer_distribution import BufferProfile
+
         bp_result = await db.execute(
-            select(func.count()).select_from(BufferProfile).where(
+            select(func.count())
+            .select_from(BufferProfile)
+            .where(
                 BufferProfile.brand_id.in_(brand_ids),
                 BufferProfile.is_active == True,  # noqa: E712
             )
@@ -309,13 +321,18 @@ async def get_onboarding_status(
 
     # --- Integrations / Provider keys configured ---
     from apps.api.services import secrets_service
+
     db_keys = await secrets_service.get_all_keys(db, organization_id)
     providers_from_db = len([k for k, v in db_keys.items() if v])
 
     # Check critical env vars as fallback
     critical_env_keys = [
-        "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_AI_API_KEY",
-        "ELEVENLABS_API_KEY", "HEYGEN_API_KEY", "BUFFER_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "GOOGLE_AI_API_KEY",
+        "ELEVENLABS_API_KEY",
+        "HEYGEN_API_KEY",
+        "BUFFER_API_KEY",
         "STRIPE_API_KEY",
     ]
     providers_from_env = len([k for k in critical_env_keys if os.environ.get(k, "")])
@@ -345,9 +362,21 @@ async def get_onboarding_status(
     # Build checklist
     total_channels = account_count + buffer_profile_count
     checklist = [
-        {"key": "providers", "label": "Connect AI Providers", "done": has_providers, "count": providers_configured, "priority": 1},
+        {
+            "key": "providers",
+            "label": "Connect AI Providers",
+            "done": has_providers,
+            "count": providers_configured,
+            "priority": 1,
+        },
         {"key": "brands", "label": "Create Brands / Projects", "done": has_brands, "count": brand_count, "priority": 2},
-        {"key": "accounts", "label": "Connect Publishing Channels", "done": has_publishing, "count": total_channels, "priority": 3},
+        {
+            "key": "accounts",
+            "label": "Connect Publishing Channels",
+            "done": has_publishing,
+            "count": total_channels,
+            "priority": 3,
+        },
         {"key": "offers", "label": "Add Revenue Offers", "done": has_offers, "count": offer_count, "priority": 4},
         {"key": "content", "label": "Generate Content", "done": has_content, "count": content_count, "priority": 5},
     ]

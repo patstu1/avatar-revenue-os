@@ -1,4 +1,5 @@
 """Autonomous execution Phase C — funnel, paid operator, sponsor, retention, recovery."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -35,7 +36,9 @@ async def _require_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
 
 @router.get("/{brand_id}/funnel-execution", response_model=list[FunnelExecutionRunOut])
 async def list_funnel_execution(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -47,7 +50,9 @@ async def list_funnel_execution(
 
 @router.post("/{brand_id}/funnel-execution/recompute", response_model=RecomputeSummaryOut)
 async def recompute_funnel_execution(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -64,7 +69,9 @@ async def recompute_funnel_execution(
 
 @router.get("/{brand_id}/paid-operator", response_model=PaidOperatorBundleOut)
 async def list_paid_operator(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -76,7 +83,9 @@ async def list_paid_operator(
 
 @router.post("/{brand_id}/paid-operator/recompute", response_model=RecomputeSummaryOut)
 async def recompute_paid_operator(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -96,7 +105,9 @@ async def recompute_paid_operator(
 
 @router.get("/{brand_id}/sponsor-autonomy", response_model=list[SponsorAutonomousActionOut])
 async def list_sponsor_autonomy(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -108,7 +119,9 @@ async def list_sponsor_autonomy(
 
 @router.post("/{brand_id}/sponsor-autonomy/recompute", response_model=RecomputeSummaryOut)
 async def recompute_sponsor_autonomy(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -125,7 +138,9 @@ async def recompute_sponsor_autonomy(
 
 @router.get("/{brand_id}/retention-autonomy", response_model=list[RetentionAutomationActionOut])
 async def list_retention_autonomy(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -137,7 +152,9 @@ async def list_retention_autonomy(
 
 @router.post("/{brand_id}/retention-autonomy/recompute", response_model=RecomputeSummaryOut)
 async def recompute_retention_autonomy(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -154,7 +171,9 @@ async def recompute_retention_autonomy(
 
 @router.get("/{brand_id}/recovery-autonomy", response_model=RecoveryAutonomyBundleOut)
 async def list_recovery_autonomy(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -166,7 +185,9 @@ async def list_recovery_autonomy(
 
 @router.post("/{brand_id}/recovery-autonomy/recompute", response_model=RecomputeSummaryOut)
 async def recompute_recovery_autonomy(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -188,6 +209,7 @@ async def recompute_recovery_autonomy(
 # Lifecycle PATCH — advance execution_status for any Phase C module
 # ---------------------------------------------------------------------------
 
+
 @router.patch(
     "/{brand_id}/phase-c/{module}/{record_id}/status",
     response_model=AdvanceStatusOut,
@@ -203,7 +225,11 @@ async def advance_action_status(
     await _require_brand(brand_id, current_user, db)
     try:
         return await lifecycle.advance_execution_status(
-            db, module, record_id, body.target_status, body.operator_notes,
+            db,
+            module,
+            record_id,
+            body.target_status,
+            body.operator_notes,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -212,6 +238,7 @@ async def advance_action_status(
 # ---------------------------------------------------------------------------
 # Paid performance ingestion — replace synthetic with real ad metrics
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/{brand_id}/paid-operator/{run_id}/performance",
@@ -227,7 +254,9 @@ async def ingest_paid_performance(
     await _require_brand(brand_id, current_user, db)
     try:
         return await lifecycle.ingest_paid_performance(
-            db, run_id, body.dict(),
+            db,
+            run_id,
+            body.dict(),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -236,6 +265,7 @@ async def ingest_paid_performance(
 # ---------------------------------------------------------------------------
 # Batch execute all approved actions for a brand
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/{brand_id}/phase-c/execute-approved",
@@ -256,6 +286,7 @@ async def batch_execute_approved(
 # ---------------------------------------------------------------------------
 # Operator notification — collect and dispatch review items
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/{brand_id}/phase-c/notify-operator",

@@ -1,4 +1,5 @@
 """Niche research worker — recompute niche scores with trend signals for all brands."""
+
 from __future__ import annotations
 
 import logging
@@ -24,9 +25,7 @@ def recompute_niche_scores(self) -> dict:
     total_niches_scored = 0
 
     with Session(engine) as session:
-        brands = session.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        ).scalars().all()
+        brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
 
         for brand in brands:
             try:

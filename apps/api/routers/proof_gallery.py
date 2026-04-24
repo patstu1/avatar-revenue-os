@@ -3,6 +3,7 @@
 Returns proof videos, offer packages, and cluster capabilities.
 No auth required — this is what you send to prospects.
 """
+
 from typing import Optional
 
 from fastapi import APIRouter
@@ -62,8 +63,12 @@ async def proof_gallery(db: DBSession, cluster: Optional[str] = None):
     """Public proof gallery — videos, offers, and cluster info for outbound pitches."""
 
     # Get proof assets
-    q = select(ContentItem, Asset).join(Asset, Asset.id == ContentItem.video_asset_id).where(
-        ContentItem.status == "proof_ready",
+    q = (
+        select(ContentItem, Asset)
+        .join(Asset, Asset.id == ContentItem.video_asset_id)
+        .where(
+            ContentItem.status == "proof_ready",
+        )
     )
     if cluster:
         q = q.where(ContentItem.tags.contains([cluster]))
@@ -73,14 +78,16 @@ async def proof_gallery(db: DBSession, cluster: Optional[str] = None):
     proof_assets = []
     for ci, asset in rows:
         meta = asset.metadata_blob or {}
-        proof_assets.append(ProofAsset(
-            id=str(ci.id),
-            cluster=meta.get("cluster", "general"),
-            title=ci.title.replace("[PROOF] ", ""),
-            video_url=asset.file_path,
-            cover_url=meta.get("cover_url"),
-            duration_seconds=asset.duration_seconds or 0,
-        ))
+        proof_assets.append(
+            ProofAsset(
+                id=str(ci.id),
+                cluster=meta.get("cluster", "general"),
+                title=ci.title.replace("[PROOF] ", ""),
+                video_url=asset.file_path,
+                cover_url=meta.get("cover_url"),
+                duration_seconds=asset.duration_seconds or 0,
+            )
+        )
 
     # Get B2B offers
     oq = select(Offer).where(Offer.is_active.is_(True), Offer.payout_amount > 0).order_by(Offer.payout_amount)
@@ -93,18 +100,18 @@ async def proof_gallery(db: DBSession, cluster: Optional[str] = None):
             b = (await db.execute(select(Brand).where(Brand.id == o.brand_id))).scalar_one_or_none()
             brand_cache[o.brand_id] = b
         brand = brand_cache.get(o.brand_id)
-        offers.append(OfferPackage(
-            id=str(o.id),
-            name=o.name,
-            description=o.description or "",
-            price=o.payout_amount,
-            cluster=brand.niche if brand else "general",
-        ))
+        offers.append(
+            OfferPackage(
+                id=str(o.id),
+                name=o.name,
+                description=o.description or "",
+                price=o.payout_amount,
+                cluster=brand.niche if brand else "general",
+            )
+        )
 
     # Get cluster info
-    brands = (await db.execute(
-        select(Brand).where(Brand.is_active.is_(True))
-    )).scalars().all()
+    brands = (await db.execute(select(Brand).where(Brand.is_active.is_(True)))).scalars().all()
 
     REVENUE_ROLES = {
         "beauty": "B2B proof + affiliate",
@@ -115,26 +122,38 @@ async def proof_gallery(db: DBSession, cluster: Optional[str] = None):
     }
 
     from packages.db.models.buffer_distribution import BufferProfile
+
     clusters = []
     for b in brands:
-        channel_count = (await db.execute(
-            select(BufferProfile).where(BufferProfile.brand_id == b.id, BufferProfile.is_active.is_(True))
-        )).scalars().all()
-        proof_count = len([p for p in proof_assets if any(
-            t in (b.niche or "").lower() or t in b.name.lower().replace(" ", "_")
-            for t in [p.cluster]
-        )])
+        channel_count = (
+            (
+                await db.execute(
+                    select(BufferProfile).where(BufferProfile.brand_id == b.id, BufferProfile.is_active.is_(True))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        proof_count = len(
+            [
+                p
+                for p in proof_assets
+                if any(t in (b.niche or "").lower() or t in b.name.lower().replace(" ", "_") for t in [p.cluster])
+            ]
+        )
         brand_offers = [o for o in offers if o.cluster == b.niche]
 
-        clusters.append(ClusterInfo(
-            name=b.name,
-            brand=b.name,
-            niche=b.niche or "general",
-            revenue_role=REVENUE_ROLES.get(b.niche, "content production"),
-            channels=len(channel_count),
-            proof_count=proof_count,
-            offers=brand_offers,
-        ))
+        clusters.append(
+            ClusterInfo(
+                name=b.name,
+                brand=b.name,
+                niche=b.niche or "general",
+                revenue_role=REVENUE_ROLES.get(b.niche, "content production"),
+                channels=len(channel_count),
+                proof_count=proof_count,
+                offers=brand_offers,
+            )
+        )
 
     return ProofGalleryResponse(
         clusters=clusters,

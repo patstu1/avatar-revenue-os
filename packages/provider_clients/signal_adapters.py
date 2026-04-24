@@ -3,6 +3,7 @@
 Adapters ingest signals from various sources into the unified topic_candidates
 and trend_signals tables. Each adapter implements the SignalAdapter protocol.
 """
+
 import asyncio
 import uuid
 from abc import ABC, abstractmethod
@@ -61,16 +62,18 @@ class InternalPerformanceAdapter(SignalAdapter):
             )
             for m in metrics:
                 if m.revenue > 0:
-                    signals.append(RawSignal(
-                        source_type="internal_performance",
-                        title=f"High-revenue content signal (${m.revenue:.2f})",
-                        keywords=[],
-                        platform=m.platform.value if hasattr(m.platform, 'value') else str(m.platform),
-                        volume=m.views,
-                        velocity=m.engagement_rate,
-                        buyer_intent_score=min(m.ctr * 10, 1.0),
-                        metadata={"content_item_id": str(m.content_item_id), "revenue": m.revenue},
-                    ))
+                    signals.append(
+                        RawSignal(
+                            source_type="internal_performance",
+                            title=f"High-revenue content signal (${m.revenue:.2f})",
+                            keywords=[],
+                            platform=m.platform.value if hasattr(m.platform, "value") else str(m.platform),
+                            volume=m.views,
+                            velocity=m.engagement_rate,
+                            buyer_intent_score=min(m.ctr * 10, 1.0),
+                            metadata={"content_item_id": str(m.content_item_id), "revenue": m.revenue},
+                        )
+                    )
         return signals
 
 
@@ -99,13 +102,15 @@ class InternalCommentsAdapter(SignalAdapter):
                 .all()
             )
             for c in comments:
-                signals.append(RawSignal(
-                    source_type="internal_comments",
-                    title=f"Purchase intent: {c.comment_text[:80]}",
-                    keywords=[],
-                    buyer_intent_score=0.7,
-                    metadata={"comment_id": str(c.id), "intent": c.intent_classification},
-                ))
+                signals.append(
+                    RawSignal(
+                        source_type="internal_comments",
+                        title=f"Purchase intent: {c.comment_text[:80]}",
+                        keywords=[],
+                        buyer_intent_score=0.7,
+                        metadata={"comment_id": str(c.id), "intent": c.intent_classification},
+                    )
+                )
         return signals
 
 
@@ -119,17 +124,19 @@ class ManualSeedAdapter(SignalAdapter):
         topics = config.get("topics", [])
         signals = []
         for t in topics:
-            signals.append(RawSignal(
-                source_type="manual_seed",
-                title=t.get("title", ""),
-                keywords=t.get("keywords", []),
-                description=t.get("description", ""),
-                category=t.get("category", ""),
-                volume=t.get("volume", 0),
-                velocity=t.get("velocity", 0.0),
-                buyer_intent_score=t.get("buyer_intent", 0.5),
-                metadata=t.get("metadata", {}),
-            ))
+            signals.append(
+                RawSignal(
+                    source_type="manual_seed",
+                    title=t.get("title", ""),
+                    keywords=t.get("keywords", []),
+                    description=t.get("description", ""),
+                    category=t.get("category", ""),
+                    volume=t.get("volume", 0),
+                    velocity=t.get("velocity", 0.0),
+                    buyer_intent_score=t.get("buyer_intent", 0.5),
+                    metadata=t.get("metadata", {}),
+                )
+            )
         return signals
 
 
@@ -141,6 +148,7 @@ def _run_async(coro):
         loop = None
     if loop and loop.is_running():
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             return pool.submit(asyncio.run, coro).result(timeout=60)
     return asyncio.run(coro)
@@ -177,14 +185,16 @@ class GenericTrendFeedAdapter(SignalAdapter):
                     result = await GoogleTrendsClient().fetch_daily_trends(geo=region)
                     if result.get("success"):
                         for item in result.get("data", []):
-                            collected.append(RawSignal(
-                                source_type="google_trends",
-                                title=item.get("title", ""),
-                                keywords=item.get("related_queries", []),
-                                platform="google",
-                                volume=int(item.get("traffic", "0").replace(",", "").replace("+", "") or 0),
-                                metadata=item,
-                            ))
+                            collected.append(
+                                RawSignal(
+                                    source_type="google_trends",
+                                    title=item.get("title", ""),
+                                    keywords=item.get("related_queries", []),
+                                    platform="google",
+                                    volume=int(item.get("traffic", "0").replace(",", "").replace("+", "") or 0),
+                                    metadata=item,
+                                )
+                            )
                 except Exception as e:
                     logger.warning("trend_feed.google_trends_error", error=str(e))
 
@@ -194,14 +204,16 @@ class GenericTrendFeedAdapter(SignalAdapter):
                     result = await client.fetch_trending(region=region)
                     if result.get("success"):
                         for item in result.get("data", []):
-                            collected.append(RawSignal(
-                                source_type="youtube_trending",
-                                title=item.get("title", ""),
-                                keywords=item.get("tags", []),
-                                platform="youtube",
-                                volume=item.get("views", 0),
-                                metadata=item,
-                            ))
+                            collected.append(
+                                RawSignal(
+                                    source_type="youtube_trending",
+                                    title=item.get("title", ""),
+                                    keywords=item.get("tags", []),
+                                    platform="youtube",
+                                    volume=item.get("views", 0),
+                                    metadata=item,
+                                )
+                            )
                 except Exception as e:
                     logger.warning("trend_feed.youtube_error", error=str(e))
 
@@ -210,15 +222,17 @@ class GenericTrendFeedAdapter(SignalAdapter):
                     result = await RedditTrendingClient().fetch_niche_trends(subreddits)
                     if result.get("success"):
                         for item in result.get("data", []):
-                            collected.append(RawSignal(
-                                source_type="reddit_rising",
-                                title=item.get("title", ""),
-                                keywords=[],
-                                platform="reddit",
-                                volume=item.get("score", 0),
-                                velocity=float(item.get("num_comments", 0)),
-                                metadata=item,
-                            ))
+                            collected.append(
+                                RawSignal(
+                                    source_type="reddit_rising",
+                                    title=item.get("title", ""),
+                                    keywords=[],
+                                    platform="reddit",
+                                    volume=item.get("score", 0),
+                                    velocity=float(item.get("num_comments", 0)),
+                                    metadata=item,
+                                )
+                            )
                 except Exception as e:
                     logger.warning("trend_feed.reddit_error", error=str(e))
 
@@ -227,14 +241,16 @@ class GenericTrendFeedAdapter(SignalAdapter):
                     result = await TikTokTrendClient().fetch_trending_hashtags(country=region)
                     if result.get("success"):
                         for item in result.get("data", []):
-                            collected.append(RawSignal(
-                                source_type="tiktok_hashtag",
-                                title=item.get("hashtag", ""),
-                                keywords=[item.get("hashtag", "")],
-                                platform="tiktok",
-                                volume=item.get("video_count", 0),
-                                metadata=item,
-                            ))
+                            collected.append(
+                                RawSignal(
+                                    source_type="tiktok_hashtag",
+                                    title=item.get("hashtag", ""),
+                                    keywords=[item.get("hashtag", "")],
+                                    platform="tiktok",
+                                    volume=item.get("video_count", 0),
+                                    metadata=item,
+                                )
+                            )
                 except Exception as e:
                     logger.warning("trend_feed.tiktok_error", error=str(e))
 
@@ -271,15 +287,17 @@ class GenericOfferInventoryAdapter(SignalAdapter):
                 if result.get("success"):
                     for offer in result.get("data", []):
                         name = offer.get("Name", "") or offer.get("name", "")
-                        collected.append(RawSignal(
-                            source_type="impact_offer",
-                            title=name or "Impact campaign",
-                            keywords=[],
-                            category="affiliate",
-                            platform="impact",
-                            buyer_intent_score=0.6,
-                            metadata=offer,
-                        ))
+                        collected.append(
+                            RawSignal(
+                                source_type="impact_offer",
+                                title=name or "Impact campaign",
+                                keywords=[],
+                                category="affiliate",
+                                platform="impact",
+                                buyer_intent_score=0.6,
+                                metadata=offer,
+                            )
+                        )
             except Exception as e:
                 logger.warning("offer_inventory.impact_error", error=str(e))
 
@@ -289,15 +307,17 @@ class GenericOfferInventoryAdapter(SignalAdapter):
                 if result.get("success"):
                     data = result.get("data", "")
                     if isinstance(data, str) and data.strip():
-                        collected.append(RawSignal(
-                            source_type="shareasale_merchants",
-                            title="ShareASale merchant listings",
-                            keywords=[],
-                            category="affiliate",
-                            platform="shareasale",
-                            buyer_intent_score=0.5,
-                            metadata={"raw_response": data[:2000]},
-                        ))
+                        collected.append(
+                            RawSignal(
+                                source_type="shareasale_merchants",
+                                title="ShareASale merchant listings",
+                                keywords=[],
+                                category="affiliate",
+                                platform="shareasale",
+                                buyer_intent_score=0.5,
+                                metadata={"raw_response": data[:2000]},
+                            )
+                        )
             except Exception as e:
                 logger.warning("offer_inventory.shareasale_error", error=str(e))
 

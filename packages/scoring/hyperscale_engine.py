@@ -1,4 +1,5 @@
 """Hyper-Scale Execution Engine — partitioning, burst, degradation, ceilings. Pure functions."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -58,14 +59,18 @@ def plan_degradation(capacity: dict[str, Any], burst: dict[str, Any]) -> dict[st
     actions = []
 
     if capacity.get("health_status") == "critical":
-        actions.append({"action": "pause_bulk_generation", "reason": "Queue depth critical — pause non-hero generation"})
+        actions.append(
+            {"action": "pause_bulk_generation", "reason": "Queue depth critical — pause non-hero generation"}
+        )
         actions.append({"action": "downgrade_provider_tier", "reason": "Switch all non-hero to cheapest provider"})
     elif capacity.get("health_status") == "degraded":
         actions.append({"action": "throttle_new_tasks", "reason": "Queue congested — reduce intake rate"})
         actions.append({"action": "defer_experiments", "reason": "Pause experiment tasks until queue normalizes"})
 
     if burst.get("burst_detected"):
-        actions.append({"action": "activate_burst_mode", "reason": f"Burst detected at {burst.get('peak_qps', 0):.1f} QPS"})
+        actions.append(
+            {"action": "activate_burst_mode", "reason": f"Burst detected at {burst.get('peak_qps', 0):.1f} QPS"}
+        )
 
     return {
         "degradation_needed": len(actions) > 0,
@@ -107,12 +112,14 @@ def balance_market_workload(allocations: list[dict[str, Any]]) -> list[dict[str,
         used = a.get("used_capacity", 0)
         utilization = used / max(alloc, 1)
         headroom = max(0, alloc - used)
-        balanced.append({
-            **a,
-            "utilization_pct": round(utilization * 100, 1),
-            "headroom": headroom,
-            "status": "overloaded" if utilization > 1.0 else "busy" if utilization > 0.8 else "healthy",
-        })
+        balanced.append(
+            {
+                **a,
+                "utilization_pct": round(utilization * 100, 1),
+                "headroom": headroom,
+                "status": "overloaded" if utilization > 1.0 else "busy" if utilization > 0.8 else "healthy",
+            }
+        )
 
     return sorted(balanced, key=lambda b: -b["utilization_pct"])
 

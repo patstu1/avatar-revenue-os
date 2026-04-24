@@ -1,4 +1,5 @@
 """Integration tests for Autonomous Execution Phase A API persistence (DB-backed)."""
+
 import pytest
 
 from tests.conftest import create_brand_with_offer, register_and_login
@@ -10,7 +11,8 @@ async def test_signal_scan_recompute_and_list(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/signal-scans/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/signal-scans/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
     data = post.json()
@@ -29,7 +31,8 @@ async def test_auto_queue_rebuild_and_list(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/auto-queue/rebuild", headers=headers,
+        f"/api/v1/brands/{bid}/auto-queue/rebuild",
+        headers=headers,
     )
     assert post.status_code == 200
     data = post.json()
@@ -47,7 +50,8 @@ async def test_warmup_recompute_and_list(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/account-warmup/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/account-warmup/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
     data = post.json()
@@ -68,7 +72,8 @@ async def test_account_output_recompute_and_list(api_client, sample_org_data):
     await api_client.post(f"/api/v1/brands/{bid}/account-warmup/recompute", headers=headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/account-output/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/account-output/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
 

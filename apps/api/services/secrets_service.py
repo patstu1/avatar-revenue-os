@@ -1,4 +1,5 @@
 """Service for encrypted provider API key storage and retrieval."""
+
 import base64
 import hashlib
 import os
@@ -119,9 +120,7 @@ async def save_key(
     return secret
 
 
-async def get_key(
-    db: AsyncSession, organization_id: uuid.UUID, provider_name: str
-) -> Optional[str]:
+async def get_key(db: AsyncSession, organization_id: uuid.UUID, provider_name: str) -> Optional[str]:
     stmt = select(ProviderSecret).where(
         ProviderSecret.organization_id == organization_id,
         ProviderSecret.provider_name == provider_name,
@@ -133,9 +132,7 @@ async def get_key(
     return None
 
 
-async def delete_key(
-    db: AsyncSession, organization_id: uuid.UUID, provider_name: str
-) -> bool:
+async def delete_key(db: AsyncSession, organization_id: uuid.UUID, provider_name: str) -> bool:
     stmt = delete(ProviderSecret).where(
         ProviderSecret.organization_id == organization_id,
         ProviderSecret.provider_name == provider_name,
@@ -144,12 +141,8 @@ async def delete_key(
     return result.rowcount > 0
 
 
-async def get_all_keys(
-    db: AsyncSession, organization_id: uuid.UUID
-) -> dict[str, str]:
-    stmt = select(ProviderSecret).where(
-        ProviderSecret.organization_id == organization_id
-    )
+async def get_all_keys(db: AsyncSession, organization_id: uuid.UUID) -> dict[str, str]:
+    stmt = select(ProviderSecret).where(ProviderSecret.organization_id == organization_id)
     result = await db.execute(stmt)
     secrets = result.scalars().all()
     return {s.provider_name: decrypt_value(s.encrypted_value) for s in secrets}

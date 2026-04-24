@@ -1,4 +1,5 @@
 """Autonomous Execution Phase C: funnel, paid operator, sponsor, retention, recovery, self-healing."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -13,9 +14,7 @@ from packages.db.base import Base
 class FunnelExecutionRun(Base):
     __tablename__ = "funnel_execution_runs"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     funnel_action: Mapped[str] = mapped_column(String(120), nullable=False)
     target_funnel_path: Mapped[str] = mapped_column(String(500), nullable=False)
     cta_path: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -32,9 +31,7 @@ class FunnelExecutionRun(Base):
 class PaidOperatorRun(Base):
     __tablename__ = "paid_operator_runs"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     paid_action: Mapped[str] = mapped_column(String(120), nullable=False)
     budget_band: Mapped[str] = mapped_column(String(80), nullable=False)
     expected_cac: Mapped[float] = mapped_column(Float, default=0.0)
@@ -56,9 +53,7 @@ class PaidOperatorRun(Base):
 class PaidOperatorDecision(Base):
     __tablename__ = "paid_operator_decisions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     paid_operator_run_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("paid_operator_runs.id"), nullable=False, index=True
     )
@@ -76,9 +71,7 @@ class PaidOperatorDecision(Base):
 class SponsorAutonomousAction(Base):
     __tablename__ = "sponsor_autonomous_actions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     sponsor_action: Mapped[str] = mapped_column(String(120), nullable=False)
     package_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     target_category: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -94,9 +87,7 @@ class SponsorAutonomousAction(Base):
 class RetentionAutomationAction(Base):
     __tablename__ = "retention_automation_actions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     retention_action: Mapped[str] = mapped_column(String(120), nullable=False)
     target_segment: Mapped[str] = mapped_column(String(200), nullable=False)
     cohort_key: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
@@ -110,9 +101,7 @@ class RetentionAutomationAction(Base):
 class RecoveryEscalation(Base):
     __tablename__ = "recovery_escalations"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     incident_type: Mapped[str] = mapped_column(String(120), nullable=False)
     escalation_requirement: Mapped[str] = mapped_column(String(80), nullable=False)
     severity: Mapped[str] = mapped_column(String(50), default="medium")
@@ -128,9 +117,7 @@ class RecoveryEscalation(Base):
 class SelfHealingAction(Base):
     __tablename__ = "self_healing_actions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     recovery_escalation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("recovery_escalations.id"), nullable=True, index=True
     )

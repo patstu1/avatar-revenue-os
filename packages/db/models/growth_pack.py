@@ -1,4 +1,5 @@
 """Revenue Growth Commander / Portfolio Launch pack — persisted plans and reports."""
+
 import uuid
 from typing import Optional
 
@@ -112,8 +113,12 @@ class CrossAccountCannibalizationReport(Base):
     __tablename__ = "cross_account_cannibalization_reports"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    account_a_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False)
-    account_b_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False)
+    account_a_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False
+    )
+    account_b_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False
+    )
     overlap_score: Mapped[float] = mapped_column(Float, default=0.0)
     audience_overlap_score: Mapped[float] = mapped_column(Float, default=0.0)
     topic_overlap_score: Mapped[float] = mapped_column(Float, default=0.0)

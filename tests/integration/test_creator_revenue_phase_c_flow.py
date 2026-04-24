@@ -1,4 +1,5 @@
 """DB-backed integration tests for Creator Revenue Avenues Phase C."""
+
 from __future__ import annotations
 
 import uuid
@@ -25,10 +26,18 @@ async def seed_brand(db: AsyncSession):
     brand_id = uuid.uuid4()
     db.add(Organization(id=org_id, name=f"TestOrg-{org_id.hex[:8]}", slug=f"testorg-{org_id.hex[:8]}"))
     await db.flush()
-    db.add(Brand(id=brand_id, organization_id=org_id, name="CRPhaseCTestBrand", slug=f"crc-{brand_id.hex[:8]}", niche="tech"))
+    db.add(
+        Brand(
+            id=brand_id, organization_id=org_id, name="CRPhaseCTestBrand", slug=f"crc-{brand_id.hex[:8]}", niche="tech"
+        )
+    )
     await db.flush()
     for i in range(25):
-        db.add(ContentItem(brand_id=brand_id, title=f"TestContent-{i}", content_type=ContentType.SHORT_VIDEO, status="approved"))
+        db.add(
+            ContentItem(
+                brand_id=brand_id, title=f"TestContent-{i}", content_type=ContentType.SHORT_VIDEO, status="approved"
+            )
+        )
     db.add(Offer(brand_id=brand_id, name="TestOffer", monetization_method=MonetizationMethod.PRODUCT))
     await db.flush()
     return brand_id
@@ -37,6 +46,7 @@ async def seed_brand(db: AsyncSession):
 @pytest.mark.asyncio
 async def test_merch_recompute(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_merch, recompute_merch
+
     result = await recompute_merch(db, seed_brand)
     assert result["created"] >= 1
     items = await list_merch(db, seed_brand)
@@ -49,6 +59,7 @@ async def test_merch_recompute(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_merch_idempotent(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_merch, recompute_merch
+
     await recompute_merch(db, seed_brand)
     first = await list_merch(db, seed_brand)
     await recompute_merch(db, seed_brand)
@@ -60,6 +71,7 @@ async def test_merch_idempotent(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_live_events_recompute(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_live_events, recompute_live_events
+
     result = await recompute_live_events(db, seed_brand)
     assert result["created"] >= 1
     items = await list_live_events(db, seed_brand)
@@ -71,6 +83,7 @@ async def test_live_events_recompute(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_live_events_idempotent(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_live_events, recompute_live_events
+
     await recompute_live_events(db, seed_brand)
     first = await list_live_events(db, seed_brand)
     await recompute_live_events(db, seed_brand)
@@ -85,6 +98,7 @@ async def test_owned_affiliate_program_recompute(db: AsyncSession, seed_brand):
         list_owned_affiliate_program,
         recompute_owned_affiliate_program,
     )
+
     result = await recompute_owned_affiliate_program(db, seed_brand)
     assert result["created"] >= 1
     items = await list_owned_affiliate_program(db, seed_brand)
@@ -99,6 +113,7 @@ async def test_owned_affiliate_idempotent(db: AsyncSession, seed_brand):
         list_owned_affiliate_program,
         recompute_owned_affiliate_program,
     )
+
     await recompute_owned_affiliate_program(db, seed_brand)
     first = await list_owned_affiliate_program(db, seed_brand)
     await recompute_owned_affiliate_program(db, seed_brand)
@@ -110,6 +125,7 @@ async def test_owned_affiliate_idempotent(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_blockers_include_phase_c(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_blockers, recompute_blockers
+
     result = await recompute_blockers(db, seed_brand)
     assert result["created"] >= 1
     items = await list_blockers(db, seed_brand)
@@ -120,6 +136,7 @@ async def test_blockers_include_phase_c(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_revenue_event_for_phase_c(db: AsyncSession, seed_brand):
     from packages.db.models.creator_revenue import CreatorRevenueEvent
+
     event = CreatorRevenueEvent(
         brand_id=seed_brand,
         avenue_type="merch",

@@ -1,4 +1,5 @@
 """Unit tests for Platform Registry Engine — execution truth and readiness."""
+
 from packages.scoring.platform_registry_engine import (
     BUFFER_SUPPORTED_PLATFORMS,
     PLATFORM_BY_KEY,
@@ -12,9 +13,21 @@ from packages.scoring.platform_registry_engine import (
 
 
 def test_all_platforms_have_required_fields():
-    required = {"platform_key", "display_name", "priority", "content_role", "supported_forms",
-                "monetization_suitability", "constraints", "buffer_supported", "publish_mode",
-                "execution_truth", "analytics_source", "expansion_suitability", "credential_env"}
+    required = {
+        "platform_key",
+        "display_name",
+        "priority",
+        "content_role",
+        "supported_forms",
+        "monetization_suitability",
+        "constraints",
+        "buffer_supported",
+        "publish_mode",
+        "execution_truth",
+        "analytics_source",
+        "expansion_suitability",
+        "credential_env",
+    }
     for p in PLATFORM_REGISTRY:
         for f in required:
             assert f in p, f"Platform {p['platform_key']} missing field: {f}"
@@ -128,7 +141,9 @@ def test_unknown_platform_readiness():
 
 def test_every_platform_has_execution_truth():
     for p in PLATFORM_REGISTRY:
-        assert p["execution_truth"] in ("live_when_configured", "recommendation_only"), f"{p['platform_key']} has bad truth: {p['execution_truth']}"
+        assert p["execution_truth"] in ("live_when_configured", "recommendation_only"), (
+            f"{p['platform_key']} has bad truth: {p['execution_truth']}"
+        )
 
 
 def test_every_platform_has_publish_mode():

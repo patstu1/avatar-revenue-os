@@ -19,6 +19,7 @@ overridden earlier), and ``escalate`` for the 3rd. The service itself
 doesn't enforce doctrine — callers (GM write endpoint, beat task)
 pass ``action_class`` so the audit row captures the reason.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -75,9 +76,7 @@ async def send_reminder(
 
     now = datetime.now(timezone.utc)
     # 1h guard — prevent re-fire from overlapping beat runs / operator clicks
-    if proposal.dunning_last_sent_at and (
-        now - proposal.dunning_last_sent_at < timedelta(hours=1)
-    ):
+    if proposal.dunning_last_sent_at and (now - proposal.dunning_last_sent_at < timedelta(hours=1)):
         return {
             "sent": False,
             "reason": "debounce_1h",
@@ -105,10 +104,13 @@ async def send_reminder(
     link_url = None
     link = (
         await db.execute(
-            select(PaymentLink).where(
+            select(PaymentLink)
+            .where(
                 PaymentLink.proposal_id == proposal.id,
                 PaymentLink.is_active.is_(True),
-            ).order_by(PaymentLink.created_at.desc()).limit(1)
+            )
+            .order_by(PaymentLink.created_at.desc())
+            .limit(1)
         )
     ).scalar_one_or_none()
     if link is not None:
@@ -116,9 +118,7 @@ async def send_reminder(
 
     amount_display = None
     if proposal.total_amount_cents:
-        amount_display = (
-            f"${proposal.total_amount_cents / 100:,.2f} {proposal.currency.upper()}"
-        )
+        amount_display = f"${proposal.total_amount_cents / 100:,.2f} {proposal.currency.upper()}"
 
     built = build_dunning_reminder(
         display_name=display_name,
@@ -171,9 +171,7 @@ async def send_reminder(
 
     proposal.dunning_reminders_sent = next_n
     proposal.dunning_last_sent_at = now
-    proposal.dunning_status = (
-        "max_reached" if next_n >= MAX_REMINDERS else "in_progress"
-    )
+    proposal.dunning_status = "max_reached" if next_n >= MAX_REMINDERS else "in_progress"
     await db.flush()
 
     await emit_event(
@@ -206,6 +204,7 @@ async def send_reminder(
     if next_n >= MAX_REMINDERS:
         try:
             from packages.db.models.gm_control import GMEscalation
+
             db.add(
                 GMEscalation(
                     org_id=proposal.org_id,
@@ -256,14 +255,12 @@ async def chase_unpaid_proposals(db: AsyncSession) -> dict:
 
     # Proposals in status=sent, not yet paid, not max-reached, with sent_at
     # older than 24h (cadence floor).
-    q = (
-        select(Proposal).where(
-            Proposal.status == "sent",
-            Proposal.is_active.is_(True),
-            Proposal.dunning_status.in_(("none", "in_progress")),
-            Proposal.sent_at.isnot(None),
-            Proposal.sent_at < now - timedelta(hours=24),
-        )
+    q = select(Proposal).where(
+        Proposal.status == "sent",
+        Proposal.is_active.is_(True),
+        Proposal.dunning_status.in_(("none", "in_progress")),
+        Proposal.sent_at.isnot(None),
+        Proposal.sent_at < now - timedelta(hours=24),
     )
     rows = (await db.execute(q)).scalars().all()
     scanned = len(rows)
@@ -272,7 +269,7 @@ async def chase_unpaid_proposals(db: AsyncSession) -> dict:
         # Determine whether this proposal is DUE for its next reminder.
         sent_at = p.sent_at or now
         elapsed = now - sent_at
-        next_idx = (p.dunning_reminders_sent or 0)  # 0→fire #1, 1→fire #2, 2→fire #3
+        next_idx = p.dunning_reminders_sent or 0  # 0→fire #1, 1→fire #2, 2→fire #3
         if next_idx >= MAX_REMINDERS:
             skipped += 1
             continue
@@ -282,8 +279,7 @@ async def chase_unpaid_proposals(db: AsyncSession) -> dict:
             continue
 
         try:
-            result = await send_reminder(db, proposal=p, actor_type="system",
-                                          actor_id="beat.chase_unpaid_proposals")
+            result = await send_reminder(db, proposal=p, actor_type="system", actor_id="beat.chase_unpaid_proposals")
             if result.get("sent"):
                 sent += 1
             else:
@@ -299,6 +295,9 @@ async def chase_unpaid_proposals(db: AsyncSession) -> dict:
     await db.commit()
     logger.info(
         "dunning.beat_scan_complete",
-        scanned=scanned, sent=sent, skipped=skipped, errors=errors,
+        scanned=scanned,
+        sent=sent,
+        skipped=skipped,
+        errors=errors,
     )
     return {"scanned": scanned, "sent": sent, "skipped": skipped, "errors": errors}

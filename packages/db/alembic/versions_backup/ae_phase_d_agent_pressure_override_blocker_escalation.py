@@ -4,6 +4,7 @@ Revision ID: ae04phase_d_001
 Revises: ae03phase_c_002
 Create Date: 2026-03-31
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
@@ -35,7 +36,9 @@ def upgrade() -> None:
     op.create_table(
         "agent_messages",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("agent_run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("agent_runs.id"), nullable=False, index=True),
+        sa.Column(
+            "agent_run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("agent_runs.id"), nullable=False, index=True
+        ),
         sa.Column("sender_agent", sa.String(120), nullable=False),
         sa.Column("receiver_agent", sa.String(120), nullable=True),
         sa.Column("message_type", sa.String(80), nullable=False),
@@ -131,8 +134,20 @@ def upgrade() -> None:
         "operator_commands",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("escalation_event_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("escalation_events.id"), nullable=True, index=True),
-        sa.Column("blocker_report_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("blocker_detection_reports.id"), nullable=True, index=True),
+        sa.Column(
+            "escalation_event_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("escalation_events.id"),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
+            "blocker_report_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("blocker_detection_reports.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("command_text", sa.Text, nullable=False),
         sa.Column("command_type", sa.String(120), nullable=False),
         sa.Column("urgency", sa.String(50), server_default="medium"),

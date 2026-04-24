@@ -1,4 +1,5 @@
 """Unit tests for enterprise affiliate engine."""
+
 from packages.scoring.affiliate_enterprise_engine import (
     detect_partner_fraud,
     evaluate_governance,
@@ -11,19 +12,33 @@ from packages.scoring.affiliate_enterprise_engine import (
 
 class TestGovernance:
     def test_banned_merchant(self):
-        v = evaluate_governance({"merchant_name": "BadCo", "product_category": "tech", "commission_rate": 10}, [], [{"entity_type": "merchant", "entity_name": "BadCo", "reason": "fraud"}])
+        v = evaluate_governance(
+            {"merchant_name": "BadCo", "product_category": "tech", "commission_rate": 10},
+            [],
+            [{"entity_type": "merchant", "entity_name": "BadCo", "reason": "fraud"}],
+        )
         assert any(x["violation_type"] == "banned_merchant" for x in v)
 
     def test_banned_category(self):
-        v = evaluate_governance({"merchant_name": "GoodCo", "product_category": "gambling", "commission_rate": 10}, [], [{"entity_type": "category", "entity_name": "gambling", "reason": "policy"}])
+        v = evaluate_governance(
+            {"merchant_name": "GoodCo", "product_category": "gambling", "commission_rate": 10},
+            [],
+            [{"entity_type": "category", "entity_name": "gambling", "reason": "policy"}],
+        )
         assert any(x["violation_type"] == "banned_category" for x in v)
 
     def test_commission_too_high(self):
-        v = evaluate_governance({"merchant_name": "X", "product_category": "tech", "commission_rate": 80}, [{"rule_type": "max_commission_rate", "rule_value": {"max": 50}}], [])
+        v = evaluate_governance(
+            {"merchant_name": "X", "product_category": "tech", "commission_rate": 80},
+            [{"rule_type": "max_commission_rate", "rule_value": {"max": 50}}],
+            [],
+        )
         assert any(x["violation_type"] == "commission_too_high" for x in v)
 
     def test_clean_offer(self):
-        v = evaluate_governance({"merchant_name": "Good", "product_category": "tech", "commission_rate": 10, "approved": True}, [], [])
+        v = evaluate_governance(
+            {"merchant_name": "Good", "product_category": "tech", "commission_rate": 10, "approved": True}, [], []
+        )
         assert len(v) == 0
 
 
@@ -48,7 +63,11 @@ class TestRiskFlags:
 class TestMerchantRanking:
     def test_ranks_by_performance(self):
         merchants = [{"id": "m1", "merchant_name": "A"}, {"id": "m2", "merchant_name": "B"}]
-        offers = [{"merchant_id": "m1", "epc": 4.0, "trust_score": 0.8}, {"merchant_id": "m1", "epc": 3.0, "trust_score": 0.7}, {"merchant_id": "m2", "epc": 0.5, "trust_score": 0.3}]
+        offers = [
+            {"merchant_id": "m1", "epc": 4.0, "trust_score": 0.8},
+            {"merchant_id": "m1", "epc": 3.0, "trust_score": 0.7},
+            {"merchant_id": "m2", "epc": 0.5, "trust_score": 0.3},
+        ]
         ranked = rank_merchants(merchants, offers)
         assert ranked[0]["merchant_name"] == "A"
 
@@ -64,12 +83,16 @@ class TestNetworkRanking:
 
 class TestPartnerScoring:
     def test_good_partner(self):
-        r = score_partner({"total_conversions": 100, "conversion_quality": 0.8, "fraud_risk": 0.05, "total_revenue_generated": 5000})
+        r = score_partner(
+            {"total_conversions": 100, "conversion_quality": 0.8, "fraud_risk": 0.05, "total_revenue_generated": 5000}
+        )
         assert r["partner_score"] > 0.5
         assert r["recommended_status"] == "active"
 
     def test_bad_partner(self):
-        r = score_partner({"total_conversions": 2, "conversion_quality": 0.1, "fraud_risk": 0.8, "total_revenue_generated": 10})
+        r = score_partner(
+            {"total_conversions": 2, "conversion_quality": 0.1, "fraud_risk": 0.8, "total_revenue_generated": 10}
+        )
         assert r["recommended_status"] in ("warning", "suppressed")
 
 

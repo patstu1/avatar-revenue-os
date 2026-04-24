@@ -1,4 +1,5 @@
 """Pydantic schemas for Quality Governor."""
+
 from __future__ import annotations
 
 import uuid

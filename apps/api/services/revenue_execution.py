@@ -6,6 +6,7 @@ This service translates intelligence into real system actions with
 Every action has: source engine, confidence, expected upside, risk score,
 approval requirement, execution state, audit trail.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -22,9 +23,9 @@ from apps.api.services.event_bus import emit_action, emit_event
 logger = structlog.get_logger()
 
 # Autonomy levels
-SURFACE_ONLY = "surface"     # Create action for operator review
-ASSISTED = "assisted"        # Prepare action, require approval
-AUTONOMOUS = "autonomous"    # Execute automatically if confidence + governance allow
+SURFACE_ONLY = "surface"  # Create action for operator review
+ASSISTED = "assisted"  # Prepare action, require approval
+AUTONOMOUS = "autonomous"  # Execute automatically if confidence + governance allow
 
 # Action definitions with default autonomy levels
 ACTION_REGISTRY = {
@@ -53,8 +54,11 @@ ACTION_REGISTRY = {
 
 
 async def execute_revenue_actions(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID,
-    *, autonomy_override: str | None = None,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    *,
+    autonomy_override: str | None = None,
 ) -> dict:
     """Master execution function: run all engines, produce actions with governance.
 
@@ -84,14 +88,18 @@ async def execute_revenue_actions(
         # Compute confidence from real signals instead of hardcoded thresholds.
         # 4-signal model: data completeness, action history, expected value, risk.
         conf_result = await compute_action_confidence(
-            db, brand_id, action_type,
+            db,
+            brand_id,
+            action_type,
             expected_value=expected_value,
             risk_score=risk_score,
         )
         confidence = conf_result["confidence"]
 
         result = await _create_governed_action(
-            db, org_id=org_id, brand_id=brand_id,
+            db,
+            org_id=org_id,
+            brand_id=brand_id,
             action_type=action_type,
             title=action_data.get("description", action_type)[:200],
             expected_value=expected_value,
@@ -106,7 +114,9 @@ async def execute_revenue_actions(
     # --- Process leak repairs ---
     for leak in leaks[:5]:
         result = await _create_governed_action(
-            db, org_id=org_id, brand_id=brand_id,
+            db,
+            org_id=org_id,
+            brand_id=brand_id,
             action_type=leak.get("action", "repair_leak"),
             title=f"Leak: {leak['leak_type']} — ${leak.get('estimated_lost', 0):.0f}",
             expected_value=leak.get("estimated_lost", 0),
@@ -121,10 +131,15 @@ async def execute_revenue_actions(
         comp_ev = comp.get("source_revenue", 0) * comp.get("expected_uplift_pct", 10) / 100
         comp_action = comp.get("action", "launch_compounding_sequence")
         comp_conf = await compute_action_confidence(
-            db, brand_id, comp_action, expected_value=comp_ev,
+            db,
+            brand_id,
+            comp_action,
+            expected_value=comp_ev,
         )
         result = await _create_governed_action(
-            db, org_id=org_id, brand_id=brand_id,
+            db,
+            org_id=org_id,
+            brand_id=brand_id,
             action_type=comp_action,
             title=comp.get("description", "Compounding opportunity")[:200],
             expected_value=comp_ev,
@@ -138,7 +153,9 @@ async def execute_revenue_actions(
     for supp in suppressions[:3]:
         if supp["type"] != "active_suppression":
             result = await _create_governed_action(
-                db, org_id=org_id, brand_id=brand_id,
+                db,
+                org_id=org_id,
+                brand_id=brand_id,
                 action_type="suppress_losing_offer",
                 title=f"Suppress: {supp.get('name', supp.get('family_key', 'unknown'))}",
                 expected_value=0,
@@ -152,9 +169,12 @@ async def execute_revenue_actions(
 
     # Emit summary event
     await emit_event(
-        db, domain="monetization", event_type="revenue.execution_cycle",
+        db,
+        domain="monetization",
+        event_type="revenue.execution_cycle",
         summary=f"Revenue execution: {len(executed)} auto, {len(awaiting_approval)} assisted, {len(surfaced)} surfaced",
-        org_id=org_id, brand_id=brand_id,
+        org_id=org_id,
+        brand_id=brand_id,
         details={"autonomous": len(executed), "assisted": len(awaiting_approval), "surfaced": len(surfaced)},
     )
 
@@ -167,10 +187,18 @@ async def execute_revenue_actions(
 
 
 async def _create_governed_action(
-    db: AsyncSession, *, org_id: uuid.UUID, brand_id: uuid.UUID,
-    action_type: str, title: str, expected_value: float, confidence: float,
-    level: str, source_engine: str,
-    entity_type: str | None = None, entity_id: str | None = None,
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    action_type: str,
+    title: str,
+    expected_value: float,
+    confidence: float,
+    level: str,
+    source_engine: str,
+    entity_type: str | None = None,
+    entity_id: str | None = None,
 ) -> dict:
     """Create a governed action with the appropriate autonomy tier."""
     reg = ACTION_REGISTRY.get(action_type, {"default_level": SURFACE_ONLY, "min_confidence": 0.5})
@@ -190,7 +218,8 @@ async def _create_governed_action(
             was_auto_approved = True
 
     action = await emit_action(
-        db, org_id=org_id,
+        db,
+        org_id=org_id,
         action_type=action_type,
         title=title,
         description=f"Expected value: ${expected_value:.0f}. Confidence: {confidence:.0%}. Engine: {source_engine}.",

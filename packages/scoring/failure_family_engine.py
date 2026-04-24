@@ -2,6 +2,7 @@
 
 Pure functions. No I/O.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -9,9 +10,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 FAMILY_TYPES = [
-    "hook_type", "content_form", "offer_angle", "cta_style",
-    "platform_mismatch", "publish_timing", "avatar_mode",
-    "creative_structure", "monetization_path",
+    "hook_type",
+    "content_form",
+    "offer_angle",
+    "cta_style",
+    "platform_mismatch",
+    "publish_timing",
+    "avatar_mode",
+    "creative_structure",
+    "monetization_path",
 ]
 
 SUPPRESSION_THRESHOLD = 3
@@ -49,15 +56,17 @@ def cluster_failures(
     for key, members in groups.items():
         ftype, fkey = key.split(":", 1)
         avg_fail = sum(float(m.get("fail_score", 0) or 0) for m in members) / max(1, len(members))
-        families.append({
-            "family_type": ftype,
-            "family_key": fkey,
-            "failure_count": len(members),
-            "avg_fail_score": round(avg_fail, 3),
-            "members": members,
-            "first_seen_at": min((m.get("created_at") for m in members if m.get("created_at")), default=None),
-            "last_seen_at": max((m.get("created_at") for m in members if m.get("created_at")), default=None),
-        })
+        families.append(
+            {
+                "family_type": ftype,
+                "family_key": fkey,
+                "failure_count": len(members),
+                "avg_fail_score": round(avg_fail, 3),
+                "members": members,
+                "first_seen_at": min((m.get("created_at") for m in members if m.get("created_at")), default=None),
+                "last_seen_at": max((m.get("created_at") for m in members if m.get("created_at")), default=None),
+            }
+        )
 
     return sorted(families, key=lambda f: (-f["failure_count"], -f["avg_fail_score"]))
 
@@ -69,11 +78,13 @@ def detect_repeat_failures(
     repeats = []
     for f in families:
         if f["failure_count"] >= SUPPRESSION_THRESHOLD:
-            repeats.append({
-                **f,
-                "should_suppress": True,
-                "mode": "persistent" if f["failure_count"] >= PERSISTENT_THRESHOLD else "temporary",
-            })
+            repeats.append(
+                {
+                    **f,
+                    "should_suppress": True,
+                    "mode": "persistent" if f["failure_count"] >= PERSISTENT_THRESHOLD else "temporary",
+                }
+            )
     return repeats
 
 
@@ -92,15 +103,17 @@ def build_suppression_rules(
         days = PERSISTENT_DAYS if mode == "persistent" else TEMPORARY_DAYS
         expires = now + timedelta(days=days)
 
-        rules.append({
-            "family_type": f["family_type"],
-            "family_key": f["family_key"],
-            "suppression_mode": mode,
-            "retest_after_days": days,
-            "expires_at": expires,
-            "reason": f"{f['family_type']}:{f['family_key']} failed {f['failure_count']} times (avg score {f['avg_fail_score']:.2f})",
-            "recommended_alternative": ALTERNATIVE_MAP.get(f["family_type"], "Try a different approach"),
-        })
+        rules.append(
+            {
+                "family_type": f["family_type"],
+                "family_key": f["family_key"],
+                "suppression_mode": mode,
+                "retest_after_days": days,
+                "expires_at": expires,
+                "reason": f"{f['family_type']}:{f['family_key']} failed {f['failure_count']} times (avg score {f['avg_fail_score']:.2f})",
+                "recommended_alternative": ALTERNATIVE_MAP.get(f["family_type"], "Try a different approach"),
+            }
+        )
 
     return rules
 
@@ -115,12 +128,14 @@ def check_suppression_decay(
     for r in rules:
         exp = r.get("expires_at")
         if exp and exp <= now:
-            expired.append({
-                "family_type": r["family_type"],
-                "family_key": r["family_key"],
-                "reason": "suppression_expired",
-                "recommendation": f"Retest {r['family_type']}:{r['family_key']} — suppression period ended",
-            })
+            expired.append(
+                {
+                    "family_type": r["family_type"],
+                    "family_key": r["family_key"],
+                    "reason": "suppression_expired",
+                    "recommendation": f"Retest {r['family_type']}:{r['family_key']} — suppression period ended",
+                }
+            )
     return expired
 
 
@@ -149,5 +164,6 @@ def get_active_suppressions(
             "retest_after": str(r.get("expires_at", "")),
             "alternative": ALTERNATIVE_MAP.get(r["family_type"], ""),
         }
-        for r in active_rules if r.get("is_active", True)
+        for r in active_rules
+        if r.get("is_active", True)
     ]

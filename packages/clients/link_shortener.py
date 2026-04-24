@@ -11,6 +11,7 @@ Usage:
     # Get click counts
     stats = await shortener.get_click_count("https://dub.sh/abc123")
 """
+
 from __future__ import annotations
 
 import logging
@@ -150,7 +151,13 @@ class LinkShortener:
                 )
                 if r.status_code == 200:
                     data = r.json()
-                    total = data if isinstance(data, int) else sum(d.get("clicks", 0) for d in data) if isinstance(data, list) else 0
+                    total = (
+                        data
+                        if isinstance(data, int)
+                        else sum(d.get("clicks", 0) for d in data)
+                        if isinstance(data, list)
+                        else 0
+                    )
                     return {"success": True, "clicks": total, "backend": "dub", "data": data}
                 return {"success": False, "error": f"HTTP {r.status_code}"}
         except Exception as e:

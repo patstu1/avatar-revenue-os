@@ -1,4 +1,5 @@
 """Integration tests for Phase 5 scale APIs and persistence."""
+
 import pytest
 
 

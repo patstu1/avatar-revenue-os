@@ -8,6 +8,7 @@ RULES (first-touch):
 - No multiple links, no image-heavy layout
 - One CTA only
 """
+
 from __future__ import annotations
 
 import os
@@ -29,6 +30,7 @@ DOMAIN = os.environ.get("DOMAIN", "proofhook.com")
 # Env vars (override defaults):
 #   PROOFHOOK_CHECKOUT_BASE  e.g. "https://buy.stripe.com/test_abc"
 #   PROOFHOOK_INTAKE_BASE    e.g. "https://proofhook.com/start"
+
 
 def package_checkout_url(slug: str | None) -> str:
     """Return the secure checkout URL for a package slug (no trailing slash)."""
@@ -209,7 +211,7 @@ def _plain_html(body_text: str, sender_name: str = "Patrick") -> str:
     Just a clean message that renders well in every email client.
     """
     # Convert newlines to <br> for HTML
-    body_html = body_text.replace("\n\n", "</p><p style=\"margin:0 0 14px;\">").replace("\n", "<br>")
+    body_html = body_text.replace("\n\n", '</p><p style="margin:0 0 14px;">').replace("\n", "<br>")
 
     return f"""<!DOCTYPE html>
 <html>
@@ -251,16 +253,10 @@ def build_first_touch(
     has_company = bool(company and company.strip())
 
     if has_company:
-        subject = template["subject_with_company"].format(
-            first_name=first_name, company=company
-        )
-        body = template["body"].format(
-            first_name=first_name, company=company
-        )
+        subject = template["subject_with_company"].format(first_name=first_name, company=company)
+        body = template["body"].format(first_name=first_name, company=company)
     else:
-        subject = template["subject_without_company"].format(
-            first_name=first_name
-        )
+        subject = template["subject_without_company"].format(first_name=first_name)
         body = template["body_no_company"].format(first_name=first_name)
 
     full_text = f"Hi {first_name},\n\n{body}\n\n{sender_name}\nProofHook"
@@ -276,6 +272,7 @@ def build_first_touch(
 # ---------------------------------------------------------------------------
 # Follow-up / proof email (email 2+) — can include branding + package info
 # ---------------------------------------------------------------------------
+
 
 def build_proof_email(
     *,
@@ -307,10 +304,7 @@ def build_proof_email(
     for b in pkg["bullets"]:
         body += f"  - {b}\n"
 
-    body += (
-        f"\nYou can see the full breakdown here: {proof_url}\n\n"
-        f"Worth a look?"
-    )
+    body += f"\nYou can see the full breakdown here: {proof_url}\n\nWorth a look?"
 
     html = _plain_html(body, sender_name=sender_name)
 

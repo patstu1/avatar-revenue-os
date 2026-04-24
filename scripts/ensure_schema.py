@@ -6,6 +6,7 @@ Uses SQLAlchemy create_all(checkfirst=True) which:
   - Never fails on duplicates
 Then applies any missing columns on existing tables.
 """
+
 import os
 import sys
 
@@ -65,11 +66,13 @@ with engine.connect() as conn:
             conn.commit()
 
     # Stamp alembic to head only if table is empty or freshly created
-    conn.execute(text("""
+    conn.execute(
+        text("""
         CREATE TABLE IF NOT EXISTS alembic_version (
             version_num VARCHAR(32) NOT NULL
         )
-    """))
+    """)
+    )
     conn.commit()
     existing_version = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).scalar()
     if existing_version:

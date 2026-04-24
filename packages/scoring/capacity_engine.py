@@ -1,4 +1,5 @@
 """Capacity engine — detect bottlenecks, overproduction, and allocate queues by ROI."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -58,9 +59,7 @@ def compute_capacity_reports(
         utilization = used / current if current > 0 else 0.0
 
         is_bottleneck = utilization >= _BOTTLENECK_THRESHOLD
-        is_overproduction = (
-            utilization >= _OVERPRODUCTION_THRESHOLD and not is_bottleneck
-        )
+        is_overproduction = utilization >= _OVERPRODUCTION_THRESHOLD and not is_bottleneck
 
         if is_bottleneck:
             recommended_volume = current * 0.90
@@ -72,10 +71,7 @@ def compute_capacity_reports(
         elif is_overproduction:
             recommended_volume = current * 0.80
             recommended_throttle = 0.85
-            bottleneck_reason = (
-                f"Utilization {utilization:.1%} in overproduction zone. "
-                "Quality may degrade."
-            )
+            bottleneck_reason = f"Utilization {utilization:.1%} in overproduction zone. Quality may degrade."
         else:
             headroom = current - used
             recommended_volume = min(current, used + headroom * 0.6)
@@ -99,10 +95,7 @@ def compute_capacity_reports(
             conf_base += 0.10
         conf = _clamp(conf_base)
 
-        explanation = (
-            f"{cap_type}: {used:.0f}/{current:.0f} used "
-            f"({utilization:.1%} util). "
-        )
+        explanation = f"{cap_type}: {used:.0f}/{current:.0f} used ({utilization:.1%} util). "
         if is_bottleneck:
             explanation += f"BOTTLENECK — throttle to {recommended_throttle}. "
         elif is_overproduction:
@@ -110,43 +103,46 @@ def compute_capacity_reports(
         else:
             explanation += "Within safe range. "
         explanation += (
-            f"Recommended volume {recommended_volume:.0f}. "
-            f"Expected profit delta ${expected_profit_impact:+.2f}."
+            f"Recommended volume {recommended_volume:.0f}. Expected profit delta ${expected_profit_impact:+.2f}."
         )
 
-        reports.append({
-            "capacity_type": cap_type,
-            "current_capacity": round(current, 2),
-            "used_capacity": round(used, 2),
-            "utilization_pct": round(_clamp(utilization, 0.0, 10.0), 4),
-            "recommended_volume": round(recommended_volume, 2),
-            "recommended_throttle": recommended_throttle,
-            "expected_profit_impact": expected_profit_impact,
-            "bottleneck_reason": bottleneck_reason,
-            "confidence": round(conf, 4),
-            "explanation": explanation,
-            "constrained_scope": {
-                "ceiling": ceiling,
-                "cap_type": cap_type,
-            },
-            CAP: True,
-        })
+        reports.append(
+            {
+                "capacity_type": cap_type,
+                "current_capacity": round(current, 2),
+                "used_capacity": round(used, 2),
+                "utilization_pct": round(_clamp(utilization, 0.0, 10.0), 4),
+                "recommended_volume": round(recommended_volume, 2),
+                "recommended_throttle": recommended_throttle,
+                "expected_profit_impact": expected_profit_impact,
+                "bottleneck_reason": bottleneck_reason,
+                "confidence": round(conf, 4),
+                "explanation": explanation,
+                "constrained_scope": {
+                    "ceiling": ceiling,
+                    "cap_type": cap_type,
+                },
+                CAP: True,
+            }
+        )
 
     if not reports:
-        reports.append({
-            "capacity_type": "none",
-            "current_capacity": 0.0,
-            "used_capacity": 0.0,
-            "utilization_pct": 0.0,
-            "recommended_volume": 0.0,
-            "recommended_throttle": None,
-            "expected_profit_impact": 0.0,
-            "bottleneck_reason": "No capacity data provided.",
-            "confidence": 0.2,
-            "explanation": "No capacity data to evaluate.",
-            "constrained_scope": {},
-            CAP: True,
-        })
+        reports.append(
+            {
+                "capacity_type": "none",
+                "current_capacity": 0.0,
+                "used_capacity": 0.0,
+                "utilization_pct": 0.0,
+                "recommended_volume": 0.0,
+                "recommended_throttle": None,
+                "expected_profit_impact": 0.0,
+                "bottleneck_reason": "No capacity data provided.",
+                "confidence": 0.2,
+                "explanation": "No capacity data to evaluate.",
+                "constrained_scope": {},
+                CAP: True,
+            }
+        )
 
     return reports
 
@@ -201,10 +197,7 @@ def allocate_queues(
         elif remaining > 0:
             allocated = remaining
             deferred = requested - remaining
-            reason = (
-                f"Partially allocated — only {remaining:.0f} available of "
-                f"{requested:.0f} requested in {cap_type}."
-            )
+            reason = f"Partially allocated — only {remaining:.0f} available of {requested:.0f} requested in {cap_type}."
         else:
             allocated = 0.0
             deferred = requested
@@ -218,14 +211,16 @@ def allocate_queues(
             f"{reason}"
         )
 
-        results.append({
-            "queue_name": q_name,
-            "priority_score": round(priority_score, 4),
-            "allocated_capacity": round(allocated, 2),
-            "deferred_capacity": round(deferred, 2),
-            "reason": reason,
-            "explanation": explanation,
-            CAP: True,
-        })
+        results.append(
+            {
+                "queue_name": q_name,
+                "priority_score": round(priority_score, 4),
+                "allocated_capacity": round(allocated, 2),
+                "deferred_capacity": round(deferred, 2),
+                "reason": reason,
+                "explanation": explanation,
+                CAP: True,
+            }
+        )
 
     return results

@@ -1,4 +1,5 @@
 """Expansion Pack 2 Phase C: referral, competitive gap, sponsor sales, profit guardrail."""
+
 import uuid
 from typing import Optional
 
@@ -12,13 +13,9 @@ from packages.db.base import Base
 class ReferralProgramRecommendation(Base):
     __tablename__ = "referral_program_recommendations"
 
-    __table_args__ = (
-        UniqueConstraint("brand_id", "customer_segment", name="uq_referral_brand_segment"),
-    )
+    __table_args__ = (UniqueConstraint("brand_id", "customer_segment", name="uq_referral_brand_segment"),)
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     customer_segment: Mapped[str] = mapped_column(String(255), nullable=False)
     recommendation_type: Mapped[str] = mapped_column(String(80), nullable=False)
     referral_bonus: Mapped[float] = mapped_column(Float, default=0.0)
@@ -37,9 +34,7 @@ class CompetitiveGapReport(Base):
         UniqueConstraint("brand_id", "competitor_name", "offer_id", name="uq_gap_brand_competitor_offer"),
     )
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True, index=True
     )
@@ -55,13 +50,9 @@ class CompetitiveGapReport(Base):
 class SponsorTarget(Base):
     __tablename__ = "sponsor_targets"
 
-    __table_args__ = (
-        UniqueConstraint("brand_id", "target_company_name", name="uq_sponsor_brand_company"),
-    )
+    __table_args__ = (UniqueConstraint("brand_id", "target_company_name", name="uq_sponsor_brand_company"),)
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     target_company_name: Mapped[str] = mapped_column(String(255), nullable=False)
     industry: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     contact_info: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
@@ -75,9 +66,7 @@ class SponsorTarget(Base):
 class SponsorOutreachSequence(Base):
     __tablename__ = "sponsor_outreach_sequences"
 
-    __table_args__ = (
-        UniqueConstraint("sponsor_target_id", "sequence_name", name="uq_outreach_target_sequence"),
-    )
+    __table_args__ = (UniqueConstraint("sponsor_target_id", "sequence_name", name="uq_outreach_target_sequence"),)
 
     sponsor_target_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sponsor_targets.id"), nullable=False, index=True
@@ -94,13 +83,9 @@ class SponsorOutreachSequence(Base):
 class ProfitGuardrailReport(Base):
     __tablename__ = "profit_guardrail_reports"
 
-    __table_args__ = (
-        UniqueConstraint("brand_id", "metric_name", name="uq_guardrail_brand_metric"),
-    )
+    __table_args__ = (UniqueConstraint("brand_id", "metric_name", name="uq_guardrail_brand_metric"),)
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     metric_name: Mapped[str] = mapped_column(String(255), nullable=False)
     current_value: Mapped[float] = mapped_column(Float, default=0.0)
     threshold_value: Mapped[float] = mapped_column(Float, default=0.0)

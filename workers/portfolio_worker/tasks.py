@@ -1,4 +1,5 @@
 """Portfolio worker tasks — rebalancing, scale decisions, capital allocation."""
+
 from workers.base_task import TrackedTask
 from workers.celery_app import app
 
@@ -25,15 +26,32 @@ def rebalance_portfolios(self) -> dict:
         brands = session.execute(select(Brand.id)).scalars().all()
         pattern_informed = 0
         for bid in brands:
-            clusters = session.query(WinningPatternCluster).filter(
-                WinningPatternCluster.brand_id == bid,
-                WinningPatternCluster.is_active.is_(True),
-            ).all()
+            clusters = (
+                session.query(WinningPatternCluster)
+                .filter(
+                    WinningPatternCluster.brand_id == bid,
+                    WinningPatternCluster.is_active.is_(True),
+                )
+                .all()
+            )
             if not clusters:
                 continue
-            cluster_dicts = [{"cluster_type": c.cluster_type, "platform": c.platform, "cluster_name": c.cluster_name, "avg_win_score": float(c.avg_win_score), "pattern_count": c.pattern_count} for c in clusters]
+            cluster_dicts = [
+                {
+                    "cluster_type": c.cluster_type,
+                    "platform": c.platform,
+                    "cluster_name": c.cluster_name,
+                    "avg_win_score": float(c.avg_win_score),
+                    "pattern_count": c.pattern_count,
+                }
+                for c in clusters
+            ]
             weights = compute_pattern_allocation_weights(cluster_dicts, 1000.0)
-            logger.info("Brand %s: pattern allocation weights = %s", bid, [w["cluster_name"] + ":" + str(w["allocation_pct"]) for w in weights[:3]])
+            logger.info(
+                "Brand %s: pattern allocation weights = %s",
+                bid,
+                [w["cluster_name"] + ":" + str(w["allocation_pct"]) for w in weights[:3]],
+            )
             pattern_informed += 1
 
         return {"status": "completed", "allocations_reviewed": count, "pattern_informed_brands": pattern_informed}
@@ -67,12 +85,16 @@ def evaluate_scale(self, brand_id: str) -> dict:
         if not brand:
             return {"status": "completed", "brand_id": brand_id, "recommendation": "brand_not_found"}
 
-        accounts = session.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == bid,
-                CreatorAccount.is_active.is_(True),
+        accounts = (
+            session.execute(
+                select(CreatorAccount).where(
+                    CreatorAccount.brand_id == bid,
+                    CreatorAccount.is_active.is_(True),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         if not accounts:
             return {"status": "completed", "brand_id": brand_id, "recommendation": "no_active_accounts"}
@@ -84,12 +106,16 @@ def evaluate_scale(self, brand_id: str) -> dict:
         total_impressions = 0
 
         for acct in accounts:
-            metrics = session.execute(
-                select(PerformanceMetric).where(
-                    PerformanceMetric.creator_account_id == acct.id,
-                    PerformanceMetric.measured_at >= cutoff_30d,
+            metrics = (
+                session.execute(
+                    select(PerformanceMetric).where(
+                        PerformanceMetric.creator_account_id == acct.id,
+                        PerformanceMetric.measured_at >= cutoff_30d,
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             impressions = sum(m.impressions or 0 for m in metrics)
             sum(m.views or 0 for m in metrics)
@@ -102,39 +128,45 @@ def evaluate_scale(self, brand_id: str) -> dict:
             ctr = clicks / max(impressions, 1)
             cvr = 0.02 if clicks > 0 else 0.0
 
-            sat_result = compute_saturation(SaturationInput(
-                avg_engagement_last_7d=avg_eng,
-                avg_engagement_last_30d=avg_eng,
-                posts_last_30d=len(metrics),
-            ))
+            sat_result = compute_saturation(
+                SaturationInput(
+                    avg_engagement_last_7d=avg_eng,
+                    avg_engagement_last_30d=avg_eng,
+                    posts_last_30d=len(metrics),
+                )
+            )
 
-            snapshots.append(AccountScaleSnapshot(
-                account_id=str(acct.id),
-                platform=acct.platform.value if hasattr(acct.platform, "value") else str(acct.platform),
-                username=acct.platform_username or str(acct.id)[:8],
-                niche_focus=getattr(acct, "niche_focus", None),
-                sub_niche_focus=getattr(acct, "sub_niche_focus", None),
-                revenue=revenue,
-                profit=revenue * 0.7,
-                profit_per_post=revenue / max(len(metrics), 1),
-                revenue_per_mille=(revenue / max(impressions, 1)) * 1000,
-                ctr=ctr,
-                conversion_rate=cvr,
-                follower_growth_rate=fg / max(30, 1) / 1000.0,
-                fatigue_score=sat_result.fatigue_score,
-                saturation_score=sat_result.saturation_score,
-                originality_drift_score=1.0 - sat_result.originality_score,
-                diminishing_returns_score=sat_result.fatigue_score * 0.5,
-                posting_capacity_per_day=3,
-                account_health=acct.account_health.value if hasattr(acct.account_health, "value") else str(acct.account_health or "healthy"),
-                offer_performance_score=0.5,
-                scale_role=getattr(acct, "scale_role", None),
-                impressions_rollup=impressions,
-            ))
+            snapshots.append(
+                AccountScaleSnapshot(
+                    account_id=str(acct.id),
+                    platform=acct.platform.value if hasattr(acct.platform, "value") else str(acct.platform),
+                    username=acct.platform_username or str(acct.id)[:8],
+                    niche_focus=getattr(acct, "niche_focus", None),
+                    sub_niche_focus=getattr(acct, "sub_niche_focus", None),
+                    revenue=revenue,
+                    profit=revenue * 0.7,
+                    profit_per_post=revenue / max(len(metrics), 1),
+                    revenue_per_mille=(revenue / max(impressions, 1)) * 1000,
+                    ctr=ctr,
+                    conversion_rate=cvr,
+                    follower_growth_rate=fg / max(30, 1) / 1000.0,
+                    fatigue_score=sat_result.fatigue_score,
+                    saturation_score=sat_result.saturation_score,
+                    originality_drift_score=1.0 - sat_result.originality_score,
+                    diminishing_returns_score=sat_result.fatigue_score * 0.5,
+                    posting_capacity_per_day=3,
+                    account_health=acct.account_health.value
+                    if hasattr(acct.account_health, "value")
+                    else str(acct.account_health or "healthy"),
+                    offer_performance_score=0.5,
+                    scale_role=getattr(acct, "scale_role", None),
+                    impressions_rollup=impressions,
+                )
+            )
 
-        offers_raw = session.execute(
-            select(Offer).where(Offer.brand_id == bid, Offer.is_active.is_(True))
-        ).scalars().all()
+        offers_raw = (
+            session.execute(select(Offer).where(Offer.brand_id == bid, Offer.is_active.is_(True))).scalars().all()
+        )
         offer_dicts = [
             {"epc": getattr(o, "epc", 0) or 0, "conversion_rate": getattr(o, "conversion_rate", 0) or 0}
             for o in offers_raw

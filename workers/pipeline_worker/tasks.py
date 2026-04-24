@@ -7,6 +7,7 @@ video/image rendering), the webhook handler calls continue_pipeline to persist t
 and dispatch the next stage. When all media assets are ready, assemble_and_finalize
 gathers them into a content item and marks it ready for publishing.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -436,22 +437,26 @@ def assemble_and_finalize(self, content_item_id: str) -> dict:
         }
 
         for job in completed_jobs:
-            manifest["media_jobs"].append({
-                "id": str(job.id),
-                "job_type": job.job_type,
-                "provider": job.provider,
-                "output_url": job.output_url,
-                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
-            })
+            manifest["media_jobs"].append(
+                {
+                    "id": str(job.id),
+                    "job_type": job.job_type,
+                    "provider": job.provider,
+                    "output_url": job.output_url,
+                    "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                }
+            )
 
         for asset in assets:
-            manifest["assets"].append({
-                "id": str(asset.id),
-                "asset_type": asset.asset_type,
-                "file_path": asset.file_path,
-                "mime_type": asset.mime_type,
-                "storage_provider": asset.storage_provider,
-            })
+            manifest["assets"].append(
+                {
+                    "id": str(asset.id),
+                    "asset_type": asset.asset_type,
+                    "file_path": asset.file_path,
+                    "mime_type": asset.mime_type,
+                    "storage_provider": asset.storage_provider,
+                }
+            )
 
         # ── 5. Update content item to ready_to_publish ───────────────
         content_item.status = "ready_to_publish"
@@ -468,6 +473,7 @@ def assemble_and_finalize(self, content_item_id: str) -> dict:
         publish_dispatched = False
         try:
             from workers.publishing_worker.tasks import publish_content
+
             publish_content.delay(content_item_id)
             publish_dispatched = True
             logger.info("pipeline.publish_dispatched", content_item_id=content_item_id)

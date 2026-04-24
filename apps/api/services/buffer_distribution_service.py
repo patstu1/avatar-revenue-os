@@ -1,4 +1,5 @@
 """Buffer Distribution Layer — service layer for profiles, publish jobs, sync, blockers."""
+
 from __future__ import annotations
 
 import uuid
@@ -27,6 +28,7 @@ from packages.scoring.buffer_engine import (
 
 logger = structlog.get_logger()
 
+
 async def _resolve_buffer_api_key(db: AsyncSession, organization_id: uuid.UUID) -> str:
     """Resolve Buffer API key from the integration_providers table (dashboard-managed).
 
@@ -35,16 +37,19 @@ async def _resolve_buffer_api_key(db: AsyncSession, organization_id: uuid.UUID) 
     the operator needs to configure it through Settings > Integrations.
     """
     from apps.api.services.integration_manager import get_credential
+
     return await get_credential(db, organization_id, "buffer") or ""
 
 
 # ── Profile CRUD ──────────────────────────────────────────────────────
 
+
 async def list_buffer_profiles(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 50) -> list:
     q = await db.execute(
         select(BufferProfile)
         .where(BufferProfile.brand_id == brand_id, BufferProfile.is_active.is_(True))
-        .order_by(BufferProfile.created_at.desc()).limit(limit)
+        .order_by(BufferProfile.created_at.desc())
+        .limit(limit)
     )
     return list(q.scalars().all())
 
@@ -86,11 +91,13 @@ async def update_buffer_profile(db: AsyncSession, profile_id: uuid.UUID, data: d
 
 # ── Publish Jobs ──────────────────────────────────────────────────────
 
+
 async def list_publish_jobs(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 100) -> list:
     q = await db.execute(
         select(BufferPublishJob)
         .where(BufferPublishJob.brand_id == brand_id, BufferPublishJob.is_active.is_(True))
-        .order_by(BufferPublishJob.created_at.desc()).limit(limit)
+        .order_by(BufferPublishJob.created_at.desc())
+        .limit(limit)
     )
     return list(q.scalars().all())
 
@@ -105,16 +112,14 @@ async def recompute_publish_jobs(db: AsyncSession, brand_id: uuid.UUID) -> dict[
     """
     # Verify brand is still active
     from packages.db.models.core import Brand
-    brand_q = await db.execute(
-        select(Brand).where(Brand.id == brand_id, Brand.is_active.is_(True))
-    )
+
+    brand_q = await db.execute(select(Brand).where(Brand.id == brand_id, Brand.is_active.is_(True)))
     brand = brand_q.scalar_one_or_none()
     if not brand:
         return {"jobs_created": 0, "reason": "brand_inactive_or_missing"}
 
     profiles_q = await db.execute(
-        select(BufferProfile)
-        .where(BufferProfile.brand_id == brand_id, BufferProfile.is_active.is_(True))
+        select(BufferProfile).where(BufferProfile.brand_id == brand_id, BufferProfile.is_active.is_(True))
     )
     profiles = profiles_q.scalars().all()
     if not profiles:
@@ -127,20 +132,23 @@ async def recompute_publish_jobs(db: AsyncSession, brand_id: uuid.UUID) -> dict[
             ContentItem.brand_id == brand_id,
             ContentItem.status == "approved",
         )
-        .order_by(ContentItem.created_at.desc()).limit(50)
+        .order_by(ContentItem.created_at.desc())
+        .limit(50)
     )
     content_items = content_q.scalars().all()
     if not content_items:
         return {"jobs_created": 0, "reason": "no_approved_content"}
 
     existing_q = await db.execute(
-        select(BufferPublishJob.content_item_id)
-        .where(BufferPublishJob.brand_id == brand_id, BufferPublishJob.is_active.is_(True))
+        select(BufferPublishJob.content_item_id).where(
+            BufferPublishJob.brand_id == brand_id, BufferPublishJob.is_active.is_(True)
+        )
     )
     existing_content_ids = {r[0] for r in existing_q.all() if r[0]}
 
     # Resolve all video and thumbnail assets in one batch to keep queries bounded
     from packages.db.models.content import Asset
+
     asset_ids: set[uuid.UUID] = set()
     for ci in content_items:
         if ci.video_asset_id:
@@ -211,7 +219,7 @@ async def recompute_publish_jobs(db: AsyncSession, brand_id: uuid.UUID) -> dict[
 
         media_url = _resolve_media_url(ci)
         # Build caption: prefer description, fallback to title
-        caption = (getattr(ci, "description", None) or ci.title or "")
+        caption = getattr(ci, "description", None) or ci.title or ""
 
         # Resolve offer URL → link_url so it gets appended to published caption
         link_url = None
@@ -265,6 +273,7 @@ def _match_profile(content_item: Any, profiles: list[BufferProfile]) -> BufferPr
 
 # ── Submit to Buffer ──────────────────────────────────────────────────
 
+
 async def submit_job_to_buffer(db: AsyncSession, job_id: uuid.UUID) -> dict[str, Any]:
     """Submit a single publish job to Buffer's API.
 
@@ -280,6 +289,7 @@ async def submit_job_to_buffer(db: AsyncSession, job_id: uuid.UUID) -> dict[str,
 
     # Resolve API key: DB first (dashboard), env fallback
     from packages.db.models.core import Brand
+
     brand_q = await db.execute(select(Brand).where(Brand.id == job.brand_id))
     brand = brand_q.scalar_one_or_none()
     org_id = brand.organization_id if brand else None
@@ -326,6 +336,7 @@ async def submit_job_to_buffer(db: AsyncSession, job_id: uuid.UUID) -> dict[str,
     else:
         from packages.clients.external_clients import BufferClient
         from packages.scoring.buffer_engine import validate_publish_payload
+
         client = BufferClient(api_key=buffer_api_key)
 
         payload = job.payload_json or {}
@@ -383,14 +394,16 @@ async def submit_job_to_buffer(db: AsyncSession, job_id: uuid.UUID) -> dict[str,
                 attempt.error_message = result.get("error", "Blocked")
                 job.status = "failed"
                 job.error_message = result.get("error", "Blocked")
-                db.add(BufferBlocker(
-                    brand_id=job.brand_id,
-                    buffer_profile_id_fk=job.buffer_profile_id_fk,
-                    blocker_type="buffer_api_blocked",
-                    severity="critical",
-                    description=result.get("error", "Buffer API blocked"),
-                    operator_action_needed="Check BUFFER_API_KEY configuration.",
-                ))
+                db.add(
+                    BufferBlocker(
+                        brand_id=job.brand_id,
+                        buffer_profile_id_fk=job.buffer_profile_id_fk,
+                        blocker_type="buffer_api_blocked",
+                        severity="critical",
+                        description=result.get("error", "Buffer API blocked"),
+                        operator_action_needed="Check BUFFER_API_KEY configuration.",
+                    )
+                )
             else:
                 attempt.success = False
                 attempt.error_message = result.get("error", "Unknown error")
@@ -411,6 +424,7 @@ async def submit_job_to_buffer(db: AsyncSession, job_id: uuid.UUID) -> dict[str,
 
 
 # ── Status Sync ───────────────────────────────────────────────────────
+
 
 async def sync_published_posts_from_buffer(db: AsyncSession, organization_id: uuid.UUID) -> dict[str, Any]:
     """Pull all posts from Buffer's GraphQL API and write external links + status back into DB.
@@ -466,9 +480,7 @@ async def sync_published_posts_from_buffer(db: AsyncSession, organization_id: uu
             continue
 
         # Find matching BufferPublishJob
-        bpj_q = await db.execute(
-            select(BufferPublishJob).where(BufferPublishJob.buffer_post_id == buf_id)
-        )
+        bpj_q = await db.execute(select(BufferPublishJob).where(BufferPublishJob.buffer_post_id == buf_id))
         bpj = bpj_q.scalar_one_or_none()
         if not bpj:
             continue
@@ -491,9 +503,7 @@ async def sync_published_posts_from_buffer(db: AsyncSession, organization_id: uu
                 )
             )
             await db.execute(
-                sa_update(ContentItem)
-                .where(ContentItem.id == bpj.content_item_id)
-                .values(status="published")
+                sa_update(ContentItem).where(ContentItem.id == bpj.content_item_id).values(status="published")
             )
         synced += 1
 
@@ -509,8 +519,7 @@ async def run_status_sync(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, in
     Currently simulates status transitions for submitted jobs.
     """
     jobs_q = await db.execute(
-        select(BufferPublishJob)
-        .where(
+        select(BufferPublishJob).where(
             BufferPublishJob.brand_id == brand_id,
             BufferPublishJob.is_active.is_(True),
             BufferPublishJob.status.in_(["submitted", "queued", "scheduled"]),
@@ -525,6 +534,7 @@ async def run_status_sync(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, in
 
     # Resolve org to check for DB-stored Buffer API key
     from packages.db.models.core import Brand
+
     brand_row = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     _org_id = brand_row.organization_id if brand_row else None
     _buffer_key = await _resolve_buffer_api_key(db, _org_id) if _org_id else ""
@@ -537,6 +547,7 @@ async def run_status_sync(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, in
                 updated += 1
         else:
             from packages.clients.external_clients import BufferClient
+
             client = BufferClient(api_key=_buffer_key)
 
             if job.buffer_post_id:
@@ -580,11 +591,13 @@ async def run_status_sync(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, in
 
 # ── Blockers ──────────────────────────────────────────────────────────
 
+
 async def list_buffer_blockers(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 50) -> list:
     q = await db.execute(
         select(BufferBlocker)
         .where(BufferBlocker.brand_id == brand_id, BufferBlocker.is_active.is_(True), BufferBlocker.resolved.is_(False))
-        .order_by(BufferBlocker.created_at.desc()).limit(limit)
+        .order_by(BufferBlocker.created_at.desc())
+        .limit(limit)
     )
     return list(q.scalars().all())
 
@@ -612,6 +625,7 @@ async def recompute_blockers(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
 
     # Resolve org to check for DB-stored Buffer API key
     from packages.db.models.core import Brand as _Brand
+
     _brand_row = (await db.execute(select(_Brand).where(_Brand.id == brand_id))).scalar_one_or_none()
     _org_id = _brand_row.organization_id if _brand_row else None
     _has_key = bool(await _resolve_buffer_api_key(db, _org_id)) if _org_id else False
@@ -638,10 +652,12 @@ async def recompute_blockers(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
 
 # ── Status Sync List ──────────────────────────────────────────────────
 
+
 async def list_status_syncs(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 20) -> list:
     q = await db.execute(
         select(BufferStatusSync)
         .where(BufferStatusSync.brand_id == brand_id, BufferStatusSync.is_active.is_(True))
-        .order_by(BufferStatusSync.created_at.desc()).limit(limit)
+        .order_by(BufferStatusSync.created_at.desc())
+        .limit(limit)
     )
     return list(q.scalars().all())

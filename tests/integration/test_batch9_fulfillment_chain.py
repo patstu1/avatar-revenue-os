@@ -11,6 +11,7 @@ Proves:
     (tolerant to SMTP absence in test env).
   - 7 new GM write endpoints are registered, org-scoped, doctrine-gated.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -58,10 +59,15 @@ async def test_avenue_slug_propagates_proposal_to_client(db_session, sample_org_
         org_id=org_id,
         recipient_email="b9avenue@test.com",
         title="Batch9 avenue test",
-        line_items=[LineItemInput(
-            description="item", unit_amount_cents=150000, quantity=1,
-            currency="usd", position=0,
-        )],
+        line_items=[
+            LineItemInput(
+                description="item",
+                unit_amount_cents=150000,
+                quantity=1,
+                currency="usd",
+                position=0,
+            )
+        ],
         avenue_slug="b2b_services",
     )
     assert proposal.avenue_slug == "b2b_services"
@@ -85,9 +91,7 @@ async def test_avenue_slug_propagates_proposal_to_client(db_session, sample_org_
     assert proposal.status == "paid"
     assert proposal.dunning_status == "paid"
 
-    client, is_new, intake = await activate_client_from_payment(
-        db_session, payment=payment
-    )
+    client, is_new, intake = await activate_client_from_payment(db_session, payment=payment)
     assert is_new
     assert client.avenue_slug == "b2b_services"
     assert intake is not None
@@ -96,19 +100,22 @@ async def test_avenue_slug_propagates_proposal_to_client(db_session, sample_org_
 
 
 @pytest.mark.asyncio
-async def test_avenue_slug_back_fills_from_proposal_when_stripe_metadata_missing(
-    db_session, sample_org_data
-):
+async def test_avenue_slug_back_fills_from_proposal_when_stripe_metadata_missing(db_session, sample_org_data):
     org_id = await _ensure_org(db_session, sample_org_data)
     proposal = await create_proposal(
         db_session,
         org_id=org_id,
         recipient_email="b9backfill@test.com",
         title="avenue backfill",
-        line_items=[LineItemInput(
-            description="item", unit_amount_cents=500000, quantity=1,
-            currency="usd", position=0,
-        )],
+        line_items=[
+            LineItemInput(
+                description="item",
+                unit_amount_cents=500000,
+                quantity=1,
+                currency="usd",
+                position=0,
+            )
+        ],
         avenue_slug="high_ticket",
     )
     payment = await record_payment_from_stripe(
@@ -138,9 +145,13 @@ async def test_start_onboarding_tolerates_no_smtp(db_session, sample_org_data):
     failure event rather than crashing."""
     org_id = await _ensure_org(db_session, sample_org_data)
     client = Client(
-        org_id=org_id, primary_email="nosmtp@test.com", display_name="No SMTP",
-        status="active", activated_at=datetime.now(timezone.utc),
-        total_paid_cents=0, avenue_slug="b2b_services",
+        org_id=org_id,
+        primary_email="nosmtp@test.com",
+        display_name="No SMTP",
+        status="active",
+        activated_at=datetime.now(timezone.utc),
+        total_paid_cents=0,
+        avenue_slug="b2b_services",
     )
     db_session.add(client)
     await db_session.flush()
@@ -162,12 +173,16 @@ async def test_start_onboarding_tolerates_no_smtp(db_session, sample_org_data):
 async def test_dunning_refuses_paid_proposal(db_session, sample_org_data):
     org_id = await _ensure_org(db_session, sample_org_data)
     p = Proposal(
-        org_id=org_id, recipient_email="paid@test.com",
-        title="already paid", status="paid", total_amount_cents=100000,
+        org_id=org_id,
+        recipient_email="paid@test.com",
+        title="already paid",
+        status="paid",
+        total_amount_cents=100000,
         sent_at=datetime.now(timezone.utc) - timedelta(days=3),
         paid_at=datetime.now(timezone.utc) - timedelta(days=1),
     )
-    db_session.add(p); await db_session.flush()
+    db_session.add(p)
+    await db_session.flush()
     result = await send_reminder(db_session, proposal=p)
     assert result["sent"] is False
     assert result["reason"] == "proposal_already_paid"
@@ -177,12 +192,17 @@ async def test_dunning_refuses_paid_proposal(db_session, sample_org_data):
 async def test_dunning_refuses_when_max_reached(db_session, sample_org_data):
     org_id = await _ensure_org(db_session, sample_org_data)
     p = Proposal(
-        org_id=org_id, recipient_email="maxed@test.com",
-        title="maxed", status="sent", total_amount_cents=100000,
+        org_id=org_id,
+        recipient_email="maxed@test.com",
+        title="maxed",
+        status="sent",
+        total_amount_cents=100000,
         sent_at=datetime.now(timezone.utc) - timedelta(days=10),
-        dunning_reminders_sent=3, dunning_status="max_reached",
+        dunning_reminders_sent=3,
+        dunning_status="max_reached",
     )
-    db_session.add(p); await db_session.flush()
+    db_session.add(p)
+    await db_session.flush()
     result = await send_reminder(db_session, proposal=p)
     assert result["sent"] is False
     assert result["reason"] == "max_reminders_reached"
@@ -192,11 +212,15 @@ async def test_dunning_refuses_when_max_reached(db_session, sample_org_data):
 async def test_dunning_no_smtp_surfaces_reason(db_session, sample_org_data):
     org_id = await _ensure_org(db_session, sample_org_data)
     p = Proposal(
-        org_id=org_id, recipient_email="nosmtp2@test.com",
-        title="no smtp", status="sent", total_amount_cents=100000,
+        org_id=org_id,
+        recipient_email="nosmtp2@test.com",
+        title="no smtp",
+        status="sent",
+        total_amount_cents=100000,
         sent_at=datetime.now(timezone.utc) - timedelta(days=2),
     )
-    db_session.add(p); await db_session.flush()
+    db_session.add(p)
+    await db_session.flush()
     result = await send_reminder(db_session, proposal=p)
     assert result["sent"] is False
     # Either no_smtp_configured or debounce depending on test fixture state.
@@ -256,42 +280,65 @@ async def test_fulfillment_worker_drain_logic_directly(db_session, sample_org_da
 
     org_id = await _ensure_org(db_session, sample_org_data)
     client = Client(
-        org_id=org_id, primary_email=f"fw_{uuid.uuid4().hex[:8]}@test.com",
-        display_name="fw", status="active",
-        activated_at=datetime.now(timezone.utc), total_paid_cents=150000,
+        org_id=org_id,
+        primary_email=f"fw_{uuid.uuid4().hex[:8]}@test.com",
+        display_name="fw",
+        status="active",
+        activated_at=datetime.now(timezone.utc),
+        total_paid_cents=150000,
     )
-    db_session.add(client); await db_session.flush()
+    db_session.add(client)
+    await db_session.flush()
     project = ClientProject(
-        org_id=org_id, client_id=client.id, title="fw project",
-        status="active", started_at=datetime.now(timezone.utc),
+        org_id=org_id,
+        client_id=client.id,
+        title="fw project",
+        status="active",
+        started_at=datetime.now(timezone.utc),
         avenue_slug="b2b_services",
     )
-    db_session.add(project); await db_session.flush()
+    db_session.add(project)
+    await db_session.flush()
     brief = ProjectBrief(
-        org_id=org_id, project_id=project.id, version=1, status="approved",
-        title="fw brief", approved_at=datetime.now(timezone.utc),
+        org_id=org_id,
+        project_id=project.id,
+        version=1,
+        status="approved",
+        title="fw brief",
+        approved_at=datetime.now(timezone.utc),
         approved_by="test",
     )
-    db_session.add(brief); await db_session.flush()
+    db_session.add(brief)
+    await db_session.flush()
     job = ProductionJob(
-        org_id=org_id, project_id=project.id, brief_id=brief.id,
-        job_type="content_pack", title="fw job", status="queued",
-        started_at=datetime.now(timezone.utc), attempt_count=0,
+        org_id=org_id,
+        project_id=project.id,
+        brief_id=brief.id,
+        job_type="content_pack",
+        title="fw job",
+        status="queued",
+        started_at=datetime.now(timezone.utc),
+        attempt_count=0,
         avenue_slug="b2b_services",
     )
-    db_session.add(job); await db_session.flush()
+    db_session.add(job)
+    await db_session.flush()
 
     # Run the same state-transition logic the worker runs.
     pending = (
-        await db_session.execute(
-            select(ProductionJob).where(
-                ProductionJob.status == "queued",
-                ProductionJob.is_active.is_(True),
-                ProductionJob.picked_up_at.is_(None),
-                ProductionJob.id == job.id,
+        (
+            await db_session.execute(
+                select(ProductionJob).where(
+                    ProductionJob.status == "queued",
+                    ProductionJob.is_active.is_(True),
+                    ProductionJob.picked_up_at.is_(None),
+                    ProductionJob.id == job.id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(pending) == 1
 
     now = datetime.now(timezone.utc)
@@ -305,11 +352,7 @@ async def test_fulfillment_worker_drain_logic_directly(db_session, sample_org_da
     await db_session.flush()
 
     assert picked == 1
-    row = (
-        await db_session.execute(
-            select(ProductionJob).where(ProductionJob.id == job.id)
-        )
-    ).scalar_one()
+    row = (await db_session.execute(select(ProductionJob).where(ProductionJob.id == job.id))).scalar_one()
     assert row.status == "in_progress"
     assert row.picked_up_at is not None
     assert row.worker_id == _WORKER_ID

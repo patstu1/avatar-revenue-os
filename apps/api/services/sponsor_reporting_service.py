@@ -4,6 +4,7 @@ Closes Fu:P → Fu:Y for sponsor_deals. Compiles periodic performance
 reports by aggregating SponsorPlacement.metrics_json for a window,
 then sends the report to the sponsor contact.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -75,10 +76,8 @@ async def compile_report(
         SponsorPlacement.campaign_id == campaign.id,
         SponsorPlacement.is_active.is_(True),
         or_(
-            and_(SponsorPlacement.scheduled_at >= period_start,
-                 SponsorPlacement.scheduled_at <= period_end),
-            and_(SponsorPlacement.delivered_at >= period_start,
-                 SponsorPlacement.delivered_at <= period_end),
+            and_(SponsorPlacement.scheduled_at >= period_start, SponsorPlacement.scheduled_at <= period_end),
+            and_(SponsorPlacement.delivered_at >= period_start, SponsorPlacement.delivered_at <= period_end),
         ),
     )
     placements = list((await db.execute(q)).scalars().all())
@@ -100,7 +99,8 @@ async def compile_report(
     await db.flush()
 
     await emit_event(
-        db, domain="fulfillment",
+        db,
+        domain="fulfillment",
         event_type="sponsor.report.compiled",
         summary=(
             f"Report compiled: {report_type} "
@@ -109,8 +109,10 @@ async def compile_report(
             f"impressions={metrics['impressions']}"
         ),
         org_id=campaign.org_id,
-        entity_type="sponsor_report", entity_id=report.id,
-        actor_type=actor_type, actor_id=actor_id,
+        entity_type="sponsor_report",
+        entity_id=report.id,
+        actor_type=actor_type,
+        actor_id=actor_id,
         details={
             "report_id": str(report.id),
             "campaign_id": str(campaign.id),
@@ -145,6 +147,7 @@ async def send_report(
     send_result = {"success": False, "error": "no_smtp_configured"}
     try:
         from packages.clients.external_clients import SmtpEmailClient
+
         smtp = await SmtpEmailClient.from_db(db, report.org_id)
         if smtp is not None:
             m = report.metrics_json or {}
@@ -163,19 +166,23 @@ async def send_report(
             )
             send_result = await smtp.send_email(
                 to_email=recipient_email,
-                subject=subject, body_text=body,
+                subject=subject,
+                body_text=body,
                 body_html=f"<pre>{body}</pre>",
             )
     except Exception as smtp_exc:
         send_result = {"success": False, "error": str(smtp_exc)[:200]}
 
     await emit_event(
-        db, domain="fulfillment",
+        db,
+        domain="fulfillment",
         event_type="sponsor.report.sent",
         summary=f"Sponsor report sent to {recipient_email}",
         org_id=report.org_id,
-        entity_type="sponsor_report", entity_id=report.id,
-        actor_type=actor_type, actor_id=actor_id,
+        entity_type="sponsor_report",
+        entity_id=report.id,
+        actor_type=actor_type,
+        actor_id=actor_id,
         severity="info" if send_result.get("success") else "warning",
         details={
             "report_id": str(report.id),

@@ -1,4 +1,5 @@
 """Unit tests for causal attribution engine."""
+
 import pytest
 
 from packages.scoring.causal_attribution_engine import (
@@ -47,19 +48,34 @@ class TestCandidateCause:
 
 class TestConfidence:
     def test_experiment_high_confidence(self):
-        c = {"change": {"change_pct": 40, "direction": "lift"}, "driver_type": "experiment_result", "driver_name": "Exp A", "temporal_proximity": 0}
+        c = {
+            "change": {"change_pct": 40, "direction": "lift"},
+            "driver_type": "experiment_result",
+            "driver_name": "Exp A",
+            "temporal_proximity": 0,
+        }
         r = score_causal_confidence(c)
         assert r["confidence"] >= 0.6
         assert "Promote" in r["recommended_action"]
 
     def test_seasonal_low_confidence(self):
-        c = {"change": {"change_pct": 15, "direction": "lift"}, "driver_type": "seasonal_pattern", "driver_name": "Holiday", "temporal_proximity": 1}
+        c = {
+            "change": {"change_pct": 15, "direction": "lift"},
+            "driver_type": "seasonal_pattern",
+            "driver_name": "Holiday",
+            "temporal_proximity": 1,
+        }
         r = score_causal_confidence(c)
         assert r["confidence"] < 0.5
         assert "seasonal" in str(r["competing_explanations"]).lower()
 
     def test_noise_flagged(self):
-        c = {"change": {"change_pct": 3, "direction": "lift"}, "driver_type": "external_event", "driver_name": "Minor", "temporal_proximity": 2}
+        c = {
+            "change": {"change_pct": 3, "direction": "lift"},
+            "driver_type": "external_event",
+            "driver_name": "Minor",
+            "temporal_proximity": 2,
+        }
         r = score_causal_confidence(c)
         assert r["noise_flag"] is True
 
@@ -89,7 +105,11 @@ class TestConfidenceSummary:
         assert "safe to promote" in s["recommendation"]
 
     def test_mostly_noise(self):
-        hypos = [{"confidence": 0.05, "noise_flag": True}, {"confidence": 0.03, "noise_flag": True}, {"confidence": 0.8}]
+        hypos = [
+            {"confidence": 0.05, "noise_flag": True},
+            {"confidence": 0.03, "noise_flag": True},
+            {"confidence": 0.8},
+        ]
         s = build_confidence_summary(hypos)
         assert s["noise_flagged_count"] == 2
 

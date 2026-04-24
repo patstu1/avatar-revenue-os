@@ -2,6 +2,7 @@
 
 Pure functions only (no I/O, no SQLAlchemy). All logic deterministic.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -398,7 +399,13 @@ def select_monetization_route(
     if active_offers:
         avg_rev /= len(active_offers)
 
-    revenue_mult = {"direct_sale": 1.0, "lead_capture": 0.3, "partnership": 0.5, "passive_income": 0.2, "recurring": 0.8}
+    revenue_mult = {
+        "direct_sale": 1.0,
+        "lead_capture": 0.3,
+        "partnership": 0.5,
+        "passive_income": 0.2,
+        "recurring": 0.8,
+    }
     revenue_est = round(avg_rev * revenue_mult.get(route_class, 0.5) * conversion_intent * 10, 2)
 
     confidence = round(_clamp(best_score * 0.6 + health * 0.2 + conversion_intent * 0.2), 4)
@@ -469,44 +476,50 @@ def evaluate_suppressions(
         output = int(acct.get("current_output_per_week", 0))
 
         if health < 0.25 and output > 3:
-            suppressions.append({
-                "suppression_type": "pause_lane",
-                "affected_scope": f"account:{acct.get('account_id')}",
-                "affected_entity_id": acct.get("account_id"),
-                "trigger_reason": f"Account health critically low ({health:.2f}). Output {output}/wk needs pause.",
-                "duration_hours": 168,
-                "lift_condition": "health_score >= 0.4",
-                "confidence": round(_clamp(0.85 - health * 0.3), 4),
-                "explanation": f"Pausing account {acct.get('account_id')} due to low health ({health:.2f}).",
-                EPE: True,
-            })
+            suppressions.append(
+                {
+                    "suppression_type": "pause_lane",
+                    "affected_scope": f"account:{acct.get('account_id')}",
+                    "affected_entity_id": acct.get("account_id"),
+                    "trigger_reason": f"Account health critically low ({health:.2f}). Output {output}/wk needs pause.",
+                    "duration_hours": 168,
+                    "lift_condition": "health_score >= 0.4",
+                    "confidence": round(_clamp(0.85 - health * 0.3), 4),
+                    "explanation": f"Pausing account {acct.get('account_id')} due to low health ({health:.2f}).",
+                    EPE: True,
+                }
+            )
 
         if saturation > 0.8 and output > 5:
             new_output = max(3, int(output * 0.6))
-            suppressions.append({
-                "suppression_type": "reduce_output",
-                "affected_scope": f"account:{acct.get('account_id')}",
-                "affected_entity_id": acct.get("account_id"),
-                "trigger_reason": f"Saturation {saturation:.2f} — reducing from {output} to {new_output}/wk.",
-                "duration_hours": 336,
-                "lift_condition": "saturation_score < 0.5",
-                "confidence": round(_clamp(0.6 + saturation * 0.3), 4),
-                "explanation": f"Reducing output for saturated account {acct.get('account_id')}.",
-                EPE: True,
-            })
+            suppressions.append(
+                {
+                    "suppression_type": "reduce_output",
+                    "affected_scope": f"account:{acct.get('account_id')}",
+                    "affected_entity_id": acct.get("account_id"),
+                    "trigger_reason": f"Saturation {saturation:.2f} — reducing from {output} to {new_output}/wk.",
+                    "duration_hours": 336,
+                    "lift_condition": "saturation_score < 0.5",
+                    "confidence": round(_clamp(0.6 + saturation * 0.3), 4),
+                    "explanation": f"Reducing output for saturated account {acct.get('account_id')}.",
+                    EPE: True,
+                }
+            )
 
         if maturity in ("at_risk", "cooling") and output > 3:
-            suppressions.append({
-                "suppression_type": "suppress_account_expansion",
-                "affected_scope": f"account:{acct.get('account_id')}",
-                "affected_entity_id": acct.get("account_id"),
-                "trigger_reason": f"Account maturity '{maturity}' — blocking expansion.",
-                "duration_hours": None,
-                "lift_condition": "maturity_state in ('stable', 'scaling')",
-                "confidence": 0.80,
-                "explanation": f"Blocking expansion for {maturity} account.",
-                EPE: True,
-            })
+            suppressions.append(
+                {
+                    "suppression_type": "suppress_account_expansion",
+                    "affected_scope": f"account:{acct.get('account_id')}",
+                    "affected_entity_id": acct.get("account_id"),
+                    "trigger_reason": f"Account maturity '{maturity}' — blocking expansion.",
+                    "duration_hours": None,
+                    "lift_condition": "maturity_state in ('stable', 'scaling')",
+                    "confidence": 0.80,
+                    "explanation": f"Blocking expansion for {maturity} account.",
+                    EPE: True,
+                }
+            )
 
     family_perf: dict[str, list[float]] = {}
     for qi in queue_items:
@@ -517,30 +530,34 @@ def evaluate_suppressions(
     for fam, prios in family_perf.items():
         avg_prio = sum(prios) / len(prios) if prios else 0
         if avg_prio < 0.2 and fatigue > 0.6:
-            suppressions.append({
-                "suppression_type": "suppress_content_family",
-                "affected_scope": f"content_family:{fam}",
-                "affected_entity_id": None,
-                "trigger_reason": f"Content family '{fam}' avg priority {avg_prio:.2f} with fatigue {fatigue:.2f}.",
-                "duration_hours": 168,
-                "lift_condition": "content_fatigue_score < 0.3",
-                "confidence": round(_clamp(fatigue * 0.7 + (1.0 - avg_prio) * 0.3), 4),
-                "explanation": f"Suppressing weak content family '{fam}'.",
-                EPE: True,
-            })
+            suppressions.append(
+                {
+                    "suppression_type": "suppress_content_family",
+                    "affected_scope": f"content_family:{fam}",
+                    "affected_entity_id": None,
+                    "trigger_reason": f"Content family '{fam}' avg priority {avg_prio:.2f} with fatigue {fatigue:.2f}.",
+                    "duration_hours": 168,
+                    "lift_condition": "content_fatigue_score < 0.3",
+                    "confidence": round(_clamp(fatigue * 0.7 + (1.0 - avg_prio) * 0.3), 4),
+                    "explanation": f"Suppressing weak content family '{fam}'.",
+                    EPE: True,
+                }
+            )
 
     if revenue_trend == "down" and overall_eng < 0.015:
-        suppressions.append({
-            "suppression_type": "suppress_monetization_path",
-            "affected_scope": "brand:monetization_aggressive",
-            "affected_entity_id": None,
-            "trigger_reason": f"Revenue trending down with low engagement ({overall_eng:.3f}).",
-            "duration_hours": 336,
-            "lift_condition": "revenue_trend != 'down' and engagement_rate >= 0.02",
-            "confidence": 0.70,
-            "explanation": "Suppressing aggressive monetization paths during downturn.",
-            EPE: True,
-        })
+        suppressions.append(
+            {
+                "suppression_type": "suppress_monetization_path",
+                "affected_scope": "brand:monetization_aggressive",
+                "affected_entity_id": None,
+                "trigger_reason": f"Revenue trending down with low engagement ({overall_eng:.3f}).",
+                "duration_hours": 336,
+                "lift_condition": "revenue_trend != 'down' and engagement_rate >= 0.02",
+                "confidence": 0.70,
+                "explanation": "Suppressing aggressive monetization paths during downturn.",
+                EPE: True,
+            }
+        )
 
     return suppressions
 
@@ -644,13 +661,15 @@ def plan_distribution(
         headroom = (max_out - current_out) / max(max_out, 1)
         priority += headroom * 0.15
 
-        target_platforms.append({
-            "platform": plat,
-            "account_id": acct.get("account_id"),
-            "derivatives": derivatives[:3],
-            "priority": round(priority, 4),
-            "headroom": round(headroom, 4),
-        })
+        target_platforms.append(
+            {
+                "platform": plat,
+                "account_id": acct.get("account_id"),
+                "derivatives": derivatives[:3],
+                "priority": round(priority, 4),
+                "headroom": round(headroom, 4),
+            }
+        )
         seen_platforms.add(plat)
 
     target_platforms.sort(key=lambda t: t["priority"], reverse=True)

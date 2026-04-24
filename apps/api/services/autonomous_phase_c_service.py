@@ -1,4 +1,5 @@
 """Autonomous Execution Phase C — funnel, paid operator, sponsor, retention, recovery."""
+
 from __future__ import annotations
 
 import uuid
@@ -175,6 +176,7 @@ def _heal_out(h: SelfHealingAction) -> dict[str, Any]:
 
 # --- Funnel ---
 
+
 async def recompute_funnel_execution(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     guidelines = brand.brand_guidelines if brand else {}
@@ -210,19 +212,21 @@ async def recompute_funnel_execution(db: AsyncSession, brand_id: uuid.UUID) -> d
 
     n = 0
     for row in rows:
-        db.add(FunnelExecutionRun(
-            brand_id=brand_id,
-            funnel_action=row["funnel_action"],
-            target_funnel_path=row["target_funnel_path"],
-            cta_path=row.get("cta_path"),
-            capture_mode=row["capture_mode"],
-            execution_mode=row["execution_mode"],
-            expected_upside=row["expected_upside"],
-            confidence=row["confidence"],
-            explanation=row["explanation"],
-            run_status="active",
-            diagnostics_json=row.get("diagnostics_json"),
-        ))
+        db.add(
+            FunnelExecutionRun(
+                brand_id=brand_id,
+                funnel_action=row["funnel_action"],
+                target_funnel_path=row["target_funnel_path"],
+                cta_path=row.get("cta_path"),
+                capture_mode=row["capture_mode"],
+                execution_mode=row["execution_mode"],
+                expected_upside=row["expected_upside"],
+                confidence=row["confidence"],
+                explanation=row["explanation"],
+                run_status="active",
+                diagnostics_json=row.get("diagnostics_json"),
+            )
+        )
         n += 1
     await db.flush()
     return {"brand_id": str(brand_id), "funnel_runs_created": n}
@@ -230,75 +234,101 @@ async def recompute_funnel_execution(db: AsyncSession, brand_id: uuid.UUID) -> d
 
 async def list_funnel_execution(db: AsyncSession, brand_id: uuid.UUID, limit: int = 100) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(FunnelExecutionRun).where(
-                FunnelExecutionRun.brand_id == brand_id,
-                FunnelExecutionRun.is_active.is_(True),
-            ).order_by(FunnelExecutionRun.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(FunnelExecutionRun)
+                .where(
+                    FunnelExecutionRun.brand_id == brand_id,
+                    FunnelExecutionRun.is_active.is_(True),
+                )
+                .order_by(FunnelExecutionRun.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     return [_funnel_out(r) for r in rows]
 
 
 # --- Paid operator ---
 
+
 async def _collect_winners(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     winners: list[dict[str, Any]] = []
 
     routes = list(
-        (await db.execute(
-            select(MonetizationRoute).where(
-                MonetizationRoute.brand_id == brand_id,
-                MonetizationRoute.is_active.is_(True),
-                MonetizationRoute.confidence >= 0.65,
-            ).limit(20)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(MonetizationRoute)
+                .where(
+                    MonetizationRoute.brand_id == brand_id,
+                    MonetizationRoute.is_active.is_(True),
+                    MonetizationRoute.confidence >= 0.65,
+                )
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
     )
     for mr in routes:
         cid = mr.content_item_id
         eng = float(mr.confidence)
         rev = float(mr.revenue_estimate)
-        winners.append({
-            "content_item_id": str(cid) if cid else None,
-            "autonomous_run_id": None,
-            "engagement_score": eng,
-            "revenue_proxy": max(rev, 60),
-            "days_since_publish": 5,
-        })
+        winners.append(
+            {
+                "content_item_id": str(cid) if cid else None,
+                "autonomous_run_id": None,
+                "engagement_score": eng,
+                "revenue_proxy": max(rev, 60),
+                "days_since_publish": 5,
+            }
+        )
 
     metrics = list(
-        (await db.execute(
-            select(PerformanceMetric).where(PerformanceMetric.brand_id == brand_id).limit(50)
-        )).scalars().all()
+        (await db.execute(select(PerformanceMetric).where(PerformanceMetric.brand_id == brand_id).limit(50)))
+        .scalars()
+        .all()
     )
     for m in metrics:
         eng = float(m.engagement_rate) if m.engagement_rate else float(m.ctr or 0) * 10
         eng = min(1.0, max(0.0, eng))
-        winners.append({
-            "content_item_id": str(m.content_item_id),
-            "autonomous_run_id": None,
-            "engagement_score": eng,
-            "revenue_proxy": float(m.revenue or 0) + 50,
-            "days_since_publish": 7,
-        })
+        winners.append(
+            {
+                "content_item_id": str(m.content_item_id),
+                "autonomous_run_id": None,
+                "engagement_score": eng,
+                "revenue_proxy": float(m.revenue or 0) + 50,
+                "days_since_publish": 7,
+            }
+        )
 
     runs = list(
-        (await db.execute(
-            select(AutonomousRun).where(
-                AutonomousRun.brand_id == brand_id,
-                AutonomousRun.is_active.is_(True),
-                AutonomousRun.run_status == "running",
-            ).limit(10)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(AutonomousRun)
+                .where(
+                    AutonomousRun.brand_id == brand_id,
+                    AutonomousRun.is_active.is_(True),
+                    AutonomousRun.run_status == "running",
+                )
+                .limit(10)
+            )
+        )
+        .scalars()
+        .all()
     )
     for ar in runs:
-        winners.append({
-            "content_item_id": None,
-            "autonomous_run_id": str(ar.id),
-            "engagement_score": 0.7,
-            "revenue_proxy": 120,
-            "days_since_publish": 3,
-        })
+        winners.append(
+            {
+                "content_item_id": None,
+                "autonomous_run_id": str(ar.id),
+                "engagement_score": 0.7,
+                "revenue_proxy": 120,
+                "days_since_publish": 3,
+            }
+        )
 
     return winners
 
@@ -371,17 +401,19 @@ async def recompute_paid_operator(db: AsyncSession, brand_id: uuid.UUID) -> dict
         }
         dec = compute_paid_operator_decision({"run_id": str(run.id)}, perf)
         dec["explanation"] = f"[data_source=synthetic_estimate] {dec['explanation']}"
-        db.add(PaidOperatorDecision(
-            brand_id=brand_id,
-            paid_operator_run_id=run.id,
-            decision_type=dec["decision_type"],
-            budget_band=dec["budget_band"],
-            expected_cac=dec["expected_cac"],
-            expected_roi=dec["expected_roi"],
-            execution_mode=dec["execution_mode"],
-            confidence=dec["confidence"],
-            explanation=dec["explanation"],
-        ))
+        db.add(
+            PaidOperatorDecision(
+                brand_id=brand_id,
+                paid_operator_run_id=run.id,
+                decision_type=dec["decision_type"],
+                budget_band=dec["budget_band"],
+                expected_cac=dec["expected_cac"],
+                expected_roi=dec["expected_roi"],
+                execution_mode=dec["execution_mode"],
+                confidence=dec["confidence"],
+                explanation=dec["explanation"],
+            )
+        )
         decisions_created += 1
 
     if runs_created == 0:
@@ -400,18 +432,22 @@ async def recompute_paid_operator(db: AsyncSession, brand_id: uuid.UUID) -> dict
         db.add(run)
         await db.flush()
         runs_created = 1
-        dec = compute_paid_operator_decision({}, {"cpa_actual": 999, "cpa_target": 50, "spend_7d": 0, "conversions_7d": 0, "roi_actual": 0})
-        db.add(PaidOperatorDecision(
-            brand_id=brand_id,
-            paid_operator_run_id=run.id,
-            decision_type=dec["decision_type"],
-            budget_band=dec["budget_band"],
-            expected_cac=dec["expected_cac"],
-            expected_roi=dec["expected_roi"],
-            execution_mode=dec["execution_mode"],
-            confidence=dec["confidence"],
-            explanation=dec["explanation"],
-        ))
+        dec = compute_paid_operator_decision(
+            {}, {"cpa_actual": 999, "cpa_target": 50, "spend_7d": 0, "conversions_7d": 0, "roi_actual": 0}
+        )
+        db.add(
+            PaidOperatorDecision(
+                brand_id=brand_id,
+                paid_operator_run_id=run.id,
+                decision_type=dec["decision_type"],
+                budget_band=dec["budget_band"],
+                expected_cac=dec["expected_cac"],
+                expected_roi=dec["expected_roi"],
+                execution_mode=dec["execution_mode"],
+                confidence=dec["confidence"],
+                explanation=dec["explanation"],
+            )
+        )
         decisions_created += 1
 
     await db.flush()
@@ -420,20 +456,34 @@ async def recompute_paid_operator(db: AsyncSession, brand_id: uuid.UUID) -> dict
 
 async def list_paid_operator(db: AsyncSession, brand_id: uuid.UUID, limit: int = 100) -> dict[str, Any]:
     runs = list(
-        (await db.execute(
-            select(PaidOperatorRun).where(
-                PaidOperatorRun.brand_id == brand_id,
-                PaidOperatorRun.is_active.is_(True),
-            ).order_by(PaidOperatorRun.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(PaidOperatorRun)
+                .where(
+                    PaidOperatorRun.brand_id == brand_id,
+                    PaidOperatorRun.is_active.is_(True),
+                )
+                .order_by(PaidOperatorRun.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     decisions = list(
-        (await db.execute(
-            select(PaidOperatorDecision).where(
-                PaidOperatorDecision.brand_id == brand_id,
-                PaidOperatorDecision.is_active.is_(True),
-            ).order_by(PaidOperatorDecision.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(PaidOperatorDecision)
+                .where(
+                    PaidOperatorDecision.brand_id == brand_id,
+                    PaidOperatorDecision.is_active.is_(True),
+                )
+                .order_by(PaidOperatorDecision.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     return {
         "runs": [_paid_run_out(r) for r in runs],
@@ -443,35 +493,46 @@ async def list_paid_operator(db: AsyncSession, brand_id: uuid.UUID, limit: int =
 
 # --- Sponsor ---
 
+
 async def recompute_sponsor_autonomy(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     from packages.db.models.offers import SponsorOpportunity, SponsorProfile
 
     # Real inventory completeness — ratio of sponsor profiles with at least one opportunity
-    total_profiles = (await db.execute(
-        select(func.count()).select_from(SponsorProfile).where(SponsorProfile.brand_id == brand_id)
-    )).scalar() or 0
-    profiles_with_opps = (await db.execute(
-        select(func.count(func.distinct(SponsorOpportunity.sponsor_id))).where(
-            SponsorOpportunity.brand_id == brand_id,
+    total_profiles = (
+        await db.execute(select(func.count()).select_from(SponsorProfile).where(SponsorProfile.brand_id == brand_id))
+    ).scalar() or 0
+    profiles_with_opps = (
+        await db.execute(
+            select(func.count(func.distinct(SponsorOpportunity.sponsor_id))).where(
+                SponsorOpportunity.brand_id == brand_id,
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
     inv_completeness = min(1.0, profiles_with_opps / max(total_profiles, 1))
 
     # Real pipeline depth — count of active non-closed opportunities
-    pipeline_count = (await db.execute(
-        select(func.count()).select_from(SponsorOpportunity).where(
-            SponsorOpportunity.brand_id == brand_id,
-            SponsorOpportunity.status.notin_(["closed", "lost"]),
+    pipeline_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(SponsorOpportunity)
+            .where(
+                SponsorOpportunity.brand_id == brand_id,
+                SponsorOpportunity.status.notin_(["closed", "lost"]),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # Renewals — opportunities with status 'renewal' or 'active' (proxy for renewal window)
-    renewals_due = (await db.execute(
-        select(func.count()).select_from(SponsorOpportunity).where(
-            SponsorOpportunity.brand_id == brand_id,
-            SponsorOpportunity.status == "active",
+    renewals_due = (
+        await db.execute(
+            select(func.count())
+            .select_from(SponsorOpportunity)
+            .where(
+                SponsorOpportunity.brand_id == brand_id,
+                SponsorOpportunity.status == "active",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     ctx = {
         "sponsor_inventory_completeness": inv_completeness,
@@ -488,17 +549,19 @@ async def recompute_sponsor_autonomy(db: AsyncSession, brand_id: uuid.UUID) -> d
 
     n = 0
     for a in actions:
-        db.add(SponsorAutonomousAction(
-            brand_id=brand_id,
-            sponsor_action=a["sponsor_action"],
-            package_json=a.get("package_json"),
-            target_category=a["target_category"],
-            target_list_json=a.get("target_list_json"),
-            pipeline_stage=a["pipeline_stage"],
-            expected_deal_value=a["expected_deal_value"],
-            confidence=a["confidence"],
-            explanation=a["explanation"],
-        ))
+        db.add(
+            SponsorAutonomousAction(
+                brand_id=brand_id,
+                sponsor_action=a["sponsor_action"],
+                package_json=a.get("package_json"),
+                target_category=a["target_category"],
+                target_list_json=a.get("target_list_json"),
+                pipeline_stage=a["pipeline_stage"],
+                expected_deal_value=a["expected_deal_value"],
+                confidence=a["confidence"],
+                explanation=a["explanation"],
+            )
+        )
         n += 1
     await db.flush()
     return {"brand_id": str(brand_id), "sponsor_actions_created": n}
@@ -506,17 +569,25 @@ async def recompute_sponsor_autonomy(db: AsyncSession, brand_id: uuid.UUID) -> d
 
 async def list_sponsor_autonomy(db: AsyncSession, brand_id: uuid.UUID, limit: int = 100) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(SponsorAutonomousAction).where(
-                SponsorAutonomousAction.brand_id == brand_id,
-                SponsorAutonomousAction.is_active.is_(True),
-            ).order_by(SponsorAutonomousAction.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(SponsorAutonomousAction)
+                .where(
+                    SponsorAutonomousAction.brand_id == brand_id,
+                    SponsorAutonomousAction.is_active.is_(True),
+                )
+                .order_by(SponsorAutonomousAction.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     return [_sponsor_out(a) for a in rows]
 
 
 # --- Retention ---
+
 
 async def recompute_retention_autonomy(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     agg = (
@@ -543,15 +614,17 @@ async def recompute_retention_autonomy(db: AsyncSession, brand_id: uuid.UUID) ->
 
     n = 0
     for a in actions:
-        db.add(RetentionAutomationAction(
-            brand_id=brand_id,
-            retention_action=a["retention_action"],
-            target_segment=a["target_segment"],
-            cohort_key=a.get("cohort_key"),
-            expected_incremental_value=a["expected_incremental_value"],
-            confidence=a["confidence"],
-            explanation=a["explanation"],
-        ))
+        db.add(
+            RetentionAutomationAction(
+                brand_id=brand_id,
+                retention_action=a["retention_action"],
+                target_segment=a["target_segment"],
+                cohort_key=a.get("cohort_key"),
+                expected_incremental_value=a["expected_incremental_value"],
+                confidence=a["confidence"],
+                explanation=a["explanation"],
+            )
+        )
         n += 1
     await db.flush()
     return {"brand_id": str(brand_id), "retention_actions_created": n}
@@ -559,26 +632,40 @@ async def recompute_retention_autonomy(db: AsyncSession, brand_id: uuid.UUID) ->
 
 async def list_retention_autonomy(db: AsyncSession, brand_id: uuid.UUID, limit: int = 100) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(RetentionAutomationAction).where(
-                RetentionAutomationAction.brand_id == brand_id,
-                RetentionAutomationAction.is_active.is_(True),
-            ).order_by(RetentionAutomationAction.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(RetentionAutomationAction)
+                .where(
+                    RetentionAutomationAction.brand_id == brand_id,
+                    RetentionAutomationAction.is_active.is_(True),
+                )
+                .order_by(RetentionAutomationAction.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     return [_retention_out(a) for a in rows]
 
 
 # --- Recovery + self-healing ---
 
+
 async def recompute_recovery_autonomy(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     supp = list(
-        (await db.execute(
-            select(SuppressionExecution).where(
-                SuppressionExecution.brand_id == brand_id,
-                SuppressionExecution.is_active.is_(True),
-            ).limit(20)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(SuppressionExecution)
+                .where(
+                    SuppressionExecution.brand_id == brand_id,
+                    SuppressionExecution.is_active.is_(True),
+                )
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
     )
     congested = len(supp) >= 5
 
@@ -592,10 +679,12 @@ async def recompute_recovery_autonomy(db: AsyncSession, brand_id: uuid.UUID) -> 
 
     ar = (
         await db.execute(
-            select(AutonomousRun).where(
+            select(AutonomousRun)
+            .where(
                 AutonomousRun.brand_id == brand_id,
                 AutonomousRun.error_message.isnot(None),
-            ).limit(1)
+            )
+            .limit(1)
         )
     ).scalar_one_or_none()
 
@@ -642,17 +731,19 @@ async def recompute_recovery_autonomy(db: AsyncSession, brand_id: uuid.UUID) -> 
         await db.flush()
         esc_n += 1
         heal = compute_self_healing_action(inc)
-        db.add(SelfHealingAction(
-            brand_id=brand_id,
-            recovery_escalation_id=rec.id,
-            incident_type=heal["incident_type"],
-            action_taken=heal["action_taken"],
-            action_mode=heal["action_mode"],
-            escalation_requirement=heal["escalation_requirement"],
-            expected_mitigation=heal["expected_mitigation"],
-            confidence=heal["confidence"],
-            explanation=heal["explanation"],
-        ))
+        db.add(
+            SelfHealingAction(
+                brand_id=brand_id,
+                recovery_escalation_id=rec.id,
+                incident_type=heal["incident_type"],
+                action_taken=heal["action_taken"],
+                action_mode=heal["action_mode"],
+                escalation_requirement=heal["escalation_requirement"],
+                expected_mitigation=heal["expected_mitigation"],
+                confidence=heal["confidence"],
+                explanation=heal["explanation"],
+            )
+        )
         heal_n += 1
 
     if esc_n == 0:
@@ -668,17 +759,19 @@ async def recompute_recovery_autonomy(db: AsyncSession, brand_id: uuid.UUID) -> 
         db.add(rec)
         await db.flush()
         esc_n = 1
-        db.add(SelfHealingAction(
-            brand_id=brand_id,
-            recovery_escalation_id=rec.id,
-            incident_type="healthy_baseline",
-            action_taken="monitor",
-            action_mode="autonomous",
-            escalation_requirement="none",
-            expected_mitigation="Continue scheduled observation",
-            confidence=0.6,
-            explanation="System within guardrails.",
-        ))
+        db.add(
+            SelfHealingAction(
+                brand_id=brand_id,
+                recovery_escalation_id=rec.id,
+                incident_type="healthy_baseline",
+                action_taken="monitor",
+                action_mode="autonomous",
+                escalation_requirement="none",
+                expected_mitigation="Continue scheduled observation",
+                confidence=0.6,
+                explanation="System within guardrails.",
+            )
+        )
         heal_n = 1
 
     await db.flush()
@@ -687,20 +780,34 @@ async def recompute_recovery_autonomy(db: AsyncSession, brand_id: uuid.UUID) -> 
 
 async def list_recovery_autonomy(db: AsyncSession, brand_id: uuid.UUID, limit: int = 100) -> dict[str, Any]:
     esc = list(
-        (await db.execute(
-            select(RecoveryEscalation).where(
-                RecoveryEscalation.brand_id == brand_id,
-                RecoveryEscalation.is_active.is_(True),
-            ).order_by(RecoveryEscalation.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(RecoveryEscalation)
+                .where(
+                    RecoveryEscalation.brand_id == brand_id,
+                    RecoveryEscalation.is_active.is_(True),
+                )
+                .order_by(RecoveryEscalation.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     heal = list(
-        (await db.execute(
-            select(SelfHealingAction).where(
-                SelfHealingAction.brand_id == brand_id,
-                SelfHealingAction.is_active.is_(True),
-            ).order_by(SelfHealingAction.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(SelfHealingAction)
+                .where(
+                    SelfHealingAction.brand_id == brand_id,
+                    SelfHealingAction.is_active.is_(True),
+                )
+                .order_by(SelfHealingAction.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
     return {
         "escalations": [_recovery_out(e) for e in esc],

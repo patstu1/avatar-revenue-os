@@ -1,21 +1,44 @@
 """DB-backed integration tests for Account Expansion Advisor."""
+
 import pytest
 
 
 async def _auth_brand_with_accounts(api_client, sample_org_data):
     await api_client.post("/api/v1/auth/register", json=sample_org_data)
-    login = await api_client.post("/api/v1/auth/login", json={"email": sample_org_data["email"], "password": sample_org_data["password"]})
+    login = await api_client.post(
+        "/api/v1/auth/login", json={"email": sample_org_data["email"], "password": sample_org_data["password"]}
+    )
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
-    brand = await api_client.post("/api/v1/brands/", json={"name": "Expansion Brand", "slug": "expansion-brand", "niche": "fitness"}, headers=headers)
+    brand = await api_client.post(
+        "/api/v1/brands/",
+        json={"name": "Expansion Brand", "slug": "expansion-brand", "niche": "fitness"},
+        headers=headers,
+    )
     bid = brand.json()["id"]
-    await api_client.post("/api/v1/accounts/", json={
-        "brand_id": bid, "platform": "youtube", "platform_username": "@exp_yt",
-        "niche_focus": "fitness", "posting_capacity_per_day": 2, "scale_role": "flagship",
-    }, headers=headers)
-    await api_client.post("/api/v1/offers/", json={
-        "brand_id": bid, "name": "Fitness Offer", "monetization_method": "affiliate",
-        "epc": 2.0, "conversion_rate": 0.03, "payout_amount": 40.0,
-    }, headers=headers)
+    await api_client.post(
+        "/api/v1/accounts/",
+        json={
+            "brand_id": bid,
+            "platform": "youtube",
+            "platform_username": "@exp_yt",
+            "niche_focus": "fitness",
+            "posting_capacity_per_day": 2,
+            "scale_role": "flagship",
+        },
+        headers=headers,
+    )
+    await api_client.post(
+        "/api/v1/offers/",
+        json={
+            "brand_id": bid,
+            "name": "Fitness Offer",
+            "monetization_method": "affiliate",
+            "epc": 2.0,
+            "conversion_rate": 0.03,
+            "payout_amount": 40.0,
+        },
+        headers=headers,
+    )
     return headers, bid
 
 
@@ -80,4 +103,7 @@ async def test_single_account_brand_gets_expand_recommendation(api_client, sampl
     adv = data[0]
     rec = adv["evidence"]["recommendation_key"]
     from packages.scoring.expansion_advisor_engine import HOLD_REC_KEYS
-    assert adv["should_add_account_now"] is True or rec in HOLD_REC_KEYS, f"Unexpected: should_add={adv['should_add_account_now']}, rec={rec}"
+
+    assert adv["should_add_account_now"] is True or rec in HOLD_REC_KEYS, (
+        f"Unexpected: should_add={adv['should_add_account_now']}, rec={rec}"
+    )

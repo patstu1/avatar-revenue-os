@@ -1,4 +1,5 @@
 """Service layer for Live Execution Phase 2 + Buffer Expansion."""
+
 from __future__ import annotations
 
 import os
@@ -50,8 +51,11 @@ def _row_to_dict(row) -> dict[str, Any]:
 
 # ── A. Webhook Events ──────────────────────────────────────────────────
 
+
 async def ingest_webhook_event(
-    db: AsyncSession, brand_id_opt: uuid.UUID | None, data: dict[str, Any],
+    db: AsyncSession,
+    brand_id_opt: uuid.UUID | None,
+    data: dict[str, Any],
 ) -> dict[str, Any]:
     idem_key = data.get("idempotency_key")
     if idem_key:
@@ -91,6 +95,7 @@ async def list_webhook_events(db: AsyncSession, brand_id: uuid.UUID) -> list[dic
 
 # ── B. External Event Ingestions ───────────────────────────────────────
 
+
 async def list_event_ingestions(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     q = (
         select(ExternalEventIngestion)
@@ -103,19 +108,21 @@ async def list_event_ingestions(db: AsyncSession, brand_id: uuid.UUID) -> list[d
 
 
 async def recompute_event_ingestions(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
-    await db.execute(
-        delete(ExternalEventIngestion).where(ExternalEventIngestion.brand_id == brand_id)
-    )
+    await db.execute(delete(ExternalEventIngestion).where(ExternalEventIngestion.brand_id == brand_id))
 
-    q = select(
-        WebhookEvent.source,
-        WebhookEvent.source_category,
-        func.count().label("total"),
-        func.count().filter(WebhookEvent.processed.is_(True)).label("processed"),
-    ).where(
-        WebhookEvent.brand_id == brand_id,
-        WebhookEvent.is_active.is_(True),
-    ).group_by(WebhookEvent.source, WebhookEvent.source_category)
+    q = (
+        select(
+            WebhookEvent.source,
+            WebhookEvent.source_category,
+            func.count().label("total"),
+            func.count().filter(WebhookEvent.processed.is_(True)).label("processed"),
+        )
+        .where(
+            WebhookEvent.brand_id == brand_id,
+            WebhookEvent.is_active.is_(True),
+        )
+        .group_by(WebhookEvent.source, WebhookEvent.source_category)
+    )
 
     agg_rows = (await db.execute(q)).all()
     created = 0
@@ -146,6 +153,7 @@ async def recompute_event_ingestions(db: AsyncSession, brand_id: uuid.UUID) -> d
 
 
 # ── C. Sequence Triggers ──────────────────────────────────────────────
+
 
 async def list_sequence_triggers(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     q = (
@@ -188,6 +196,7 @@ async def process_sequence_triggers(db: AsyncSession, brand_id: uuid.UUID) -> di
 
 # ── D. Payment Syncs ──────────────────────────────────────────────────
 
+
 async def list_payment_syncs(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     q = (
         select(PaymentConnectorSync)
@@ -200,7 +209,9 @@ async def list_payment_syncs(db: AsyncSession, brand_id: uuid.UUID) -> list[dict
 
 
 async def run_payment_sync(
-    db: AsyncSession, brand_id: uuid.UUID, provider: str = "stripe",
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    provider: str = "stripe",
 ) -> dict[str, Any]:
     api_key_present = bool(os.environ.get(f"{provider.upper()}_API_KEY", ""))
     readiness = evaluate_payment_sync_readiness(provider, api_key_present)
@@ -218,10 +229,12 @@ async def run_payment_sync(
     if api_key_present:
         if provider == "stripe":
             from packages.clients.external_clients import StripePaymentClient
+
             client = StripePaymentClient()
             result = await client.fetch_recent_charges()
         elif provider == "shopify":
             from packages.clients.external_clients import ShopifyOrderClient
+
             client = ShopifyOrderClient()
             result = await client.fetch_recent_orders()
         else:
@@ -236,15 +249,16 @@ async def run_payment_sync(
             row.status = "completed"
             row.credential_status = "configured"
             row.last_cursor = data.get("last_id")
-            row.details_json = {"readiness": readiness, "sync_result": {
-                "orders": row.orders_imported,
-                "revenue": row.revenue_imported,
-                "refunds": row.refunds_imported,
-            }}
+            row.details_json = {
+                "readiness": readiness,
+                "sync_result": {
+                    "orders": row.orders_imported,
+                    "revenue": row.revenue_imported,
+                    "refunds": row.refunds_imported,
+                },
+            }
 
-            revenue_events_created = await _create_revenue_events_from_sync(
-                db, brand_id, provider, data
-            )
+            revenue_events_created = await _create_revenue_events_from_sync(db, brand_id, provider, data)
             row.details_json["revenue_events_created"] = revenue_events_created
         elif result.get("blocked"):
             row.status = "blocked"
@@ -260,7 +274,10 @@ async def run_payment_sync(
 
 
 async def _create_revenue_events_from_sync(
-    db: AsyncSession, brand_id: uuid.UUID, provider: str, data: dict,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    provider: str,
+    data: dict,
 ) -> int:
     """Create CreatorRevenueEvent rows from payment sync data, deduped by external_id."""
     from packages.db.models.creator_revenue import CreatorRevenueEvent
@@ -272,39 +289,45 @@ async def _create_revenue_events_from_sync(
             if not charge.get("paid"):
                 continue
             ext_id = charge.get("id", "")
-            existing = (await db.execute(
-                select(CreatorRevenueEvent).where(
-                    CreatorRevenueEvent.brand_id == brand_id,
-                    CreatorRevenueEvent.metadata_json["stripe_charge_id"].astext == ext_id,
+            existing = (
+                await db.execute(
+                    select(CreatorRevenueEvent).where(
+                        CreatorRevenueEvent.brand_id == brand_id,
+                        CreatorRevenueEvent.metadata_json["stripe_charge_id"].astext == ext_id,
+                    )
                 )
-            )).scalar_one_or_none()
+            ).scalar_one_or_none()
             if existing:
                 continue
             amount = float(charge.get("amount", 0)) / 100.0
             if amount <= 0:
                 continue
-            db.add(CreatorRevenueEvent(
-                brand_id=brand_id,
-                avenue_type="consulting" if "consulting" in str(charge.get("metadata", {})) else "ugc_services",
-                event_type="stripe_charge_sync",
-                revenue=amount,
-                cost=0.0,
-                profit=amount,
-                client_name=charge.get("receipt_email") or charge.get("billing_details", {}).get("email", ""),
-                description=f"Stripe charge {ext_id}: ${amount:.2f}",
-                metadata_json={"stripe_charge_id": ext_id, "source": "payment_sync"},
-            ))
+            db.add(
+                CreatorRevenueEvent(
+                    brand_id=brand_id,
+                    avenue_type="consulting" if "consulting" in str(charge.get("metadata", {})) else "ugc_services",
+                    event_type="stripe_charge_sync",
+                    revenue=amount,
+                    cost=0.0,
+                    profit=amount,
+                    client_name=charge.get("receipt_email") or charge.get("billing_details", {}).get("email", ""),
+                    description=f"Stripe charge {ext_id}: ${amount:.2f}",
+                    metadata_json={"stripe_charge_id": ext_id, "source": "payment_sync"},
+                )
+            )
             created += 1
 
     elif provider == "shopify":
         for order in data.get("orders", []):
             ext_id = str(order.get("id", ""))
-            existing = (await db.execute(
-                select(CreatorRevenueEvent).where(
-                    CreatorRevenueEvent.brand_id == brand_id,
-                    CreatorRevenueEvent.metadata_json["shopify_order_id"].astext == ext_id,
+            existing = (
+                await db.execute(
+                    select(CreatorRevenueEvent).where(
+                        CreatorRevenueEvent.brand_id == brand_id,
+                        CreatorRevenueEvent.metadata_json["shopify_order_id"].astext == ext_id,
+                    )
                 )
-            )).scalar_one_or_none()
+            ).scalar_one_or_none()
             if existing:
                 continue
             amount = float(order.get("total_price", 0))
@@ -313,17 +336,19 @@ async def _create_revenue_events_from_sync(
             if amount == 0:
                 continue
             event_type = "shopify_refund_sync" if amount < 0 else "shopify_order_sync"
-            db.add(CreatorRevenueEvent(
-                brand_id=brand_id,
-                avenue_type="ecommerce",
-                event_type=event_type,
-                revenue=amount,
-                cost=0.0,
-                profit=amount,
-                client_name=order.get("email", ""),
-                description=f"Shopify order #{order.get('order_number', ext_id)}: ${abs(amount):.2f}",
-                metadata_json={"shopify_order_id": ext_id, "source": "payment_sync"},
-            ))
+            db.add(
+                CreatorRevenueEvent(
+                    brand_id=brand_id,
+                    avenue_type="ecommerce",
+                    event_type=event_type,
+                    revenue=amount,
+                    cost=0.0,
+                    profit=amount,
+                    client_name=order.get("email", ""),
+                    description=f"Shopify order #{order.get('order_number', ext_id)}: ${abs(amount):.2f}",
+                    metadata_json={"shopify_order_id": ext_id, "source": "payment_sync"},
+                )
+            )
             created += 1
 
     if created:
@@ -332,6 +357,7 @@ async def _create_revenue_events_from_sync(
 
 
 # ── E. Analytics Syncs ────────────────────────────────────────────────
+
 
 async def list_analytics_syncs(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     q = (
@@ -345,7 +371,9 @@ async def list_analytics_syncs(db: AsyncSession, brand_id: uuid.UUID) -> list[di
 
 
 async def run_analytics_sync(
-    db: AsyncSession, brand_id: uuid.UUID, source: str = "buffer",
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    source: str = "buffer",
 ) -> dict[str, Any]:
     env_var = f"{source.upper()}_API_KEY"
     has_key = bool(os.environ.get(env_var))
@@ -372,6 +400,7 @@ async def run_analytics_sync(
 
 # ── F. Ad Imports ─────────────────────────────────────────────────────
 
+
 async def list_ad_imports(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     q = (
         select(AdReportingImport)
@@ -384,7 +413,9 @@ async def list_ad_imports(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[st
 
 
 async def run_ad_import(
-    db: AsyncSession, brand_id: uuid.UUID, platform: str = "meta_ads",
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    platform: str = "meta_ads",
 ) -> dict[str, Any]:
     from packages.clients.external_clients import GoogleAdsClient, MetaAdsClient, TikTokAdsClient
 
@@ -397,7 +428,8 @@ async def run_ad_import(
     client_cls = clients.get(platform)
     if not client_cls:
         row = AdReportingImport(
-            brand_id=brand_id, ad_platform=platform,
+            brand_id=brand_id,
+            ad_platform=platform,
             reconciliation_status="unreconciled",
             error_message=f"Unsupported ad platform: {platform}",
             credential_status="not_configured",
@@ -409,7 +441,11 @@ async def run_ad_import(
         return {"rows_processed": 0, "status": "failed"}
 
     client = client_cls()
-    result = await client.fetch_campaign_report() if hasattr(client, 'fetch_campaign_report') else await client.fetch_campaign_insights()
+    result = (
+        await client.fetch_campaign_report()
+        if hasattr(client, "fetch_campaign_report")
+        else await client.fetch_campaign_insights()
+    )
 
     data = result.get("data", {})
 
@@ -417,7 +453,9 @@ async def run_ad_import(
         brand_id=brand_id,
         ad_platform=platform,
         report_type="campaign_summary",
-        campaigns_imported=len(data.get("campaigns", [])) if isinstance(data.get("campaigns"), list) else int(data.get("campaigns_imported", 0)),
+        campaigns_imported=len(data.get("campaigns", []))
+        if isinstance(data.get("campaigns"), list)
+        else int(data.get("campaigns_imported", 0)),
         spend_imported=float(data.get("spend", 0)),
         impressions_imported=int(data.get("impressions", 0)),
         clicks_imported=int(data.get("clicks", 0)),
@@ -425,7 +463,9 @@ async def run_ad_import(
         revenue_attributed=float(data.get("revenue_attributed", 0)),
         source_classification="ads",
         reconciliation_status="clean" if result.get("success") else "unreconciled",
-        credential_status="configured" if result.get("success") else ("not_configured" if result.get("blocked") else "error"),
+        credential_status="configured"
+        if result.get("success")
+        else ("not_configured" if result.get("blocked") else "error"),
         blocker_state="missing_credentials" if result.get("blocked") else None,
         operator_action=result.get("error") if not result.get("success") else None,
         error_message=result.get("error"),
@@ -433,10 +473,14 @@ async def run_ad_import(
     )
     db.add(row)
     await db.flush()
-    return {"rows_processed": 1, "status": "completed" if result.get("success") else "blocked" if result.get("blocked") else "failed"}
+    return {
+        "rows_processed": 1,
+        "status": "completed" if result.get("success") else "blocked" if result.get("blocked") else "failed",
+    }
 
 
 # ── G. Buffer Execution Truth ─────────────────────────────────────────
+
 
 async def list_buffer_execution_truth(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     q = (
@@ -450,9 +494,7 @@ async def list_buffer_execution_truth(db: AsyncSession, brand_id: uuid.UUID) -> 
 
 
 async def recompute_buffer_execution_truth(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
-    await db.execute(
-        delete(BufferExecutionTruth).where(BufferExecutionTruth.brand_id == brand_id)
-    )
+    await db.execute(delete(BufferExecutionTruth).where(BufferExecutionTruth.brand_id == brand_id))
 
     q = select(BufferPublishJob).where(
         BufferPublishJob.brand_id == brand_id,
@@ -470,7 +512,11 @@ async def recompute_buffer_execution_truth(db: AsyncSession, brand_id: uuid.UUID
     for job in jobs:
         hours = 0.0
         if job.created_at:
-            delta = now - job.created_at.replace(tzinfo=timezone.utc) if job.created_at.tzinfo is None else now - job.created_at
+            delta = (
+                now - job.created_at.replace(tzinfo=timezone.utc)
+                if job.created_at.tzinfo is None
+                else now - job.created_at
+            )
             hours = delta.total_seconds() / 3600.0
 
         truth = classify_buffer_truth_state(
@@ -484,7 +530,9 @@ async def recompute_buffer_execution_truth(db: AsyncSession, brand_id: uuid.UUID
         is_dup = False
         if job.content_item_id:
             is_dup = check_duplicate_submit(
-                str(job.content_item_id), platform_str, existing_keys,
+                str(job.content_item_id),
+                platform_str,
+                existing_keys,
             )
 
         stale = detect_stale_jobs(hours, truth["truth_state"])
@@ -510,6 +558,7 @@ async def recompute_buffer_execution_truth(db: AsyncSession, brand_id: uuid.UUID
 
 # ── H. Buffer Retries ─────────────────────────────────────────────────
 
+
 async def list_buffer_retries(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     q = (
         select(BufferRetryRecord)
@@ -522,9 +571,7 @@ async def list_buffer_retries(db: AsyncSession, brand_id: uuid.UUID) -> list[dic
 
 
 async def recompute_buffer_retries(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
-    await db.execute(
-        delete(BufferRetryRecord).where(BufferRetryRecord.brand_id == brand_id)
-    )
+    await db.execute(delete(BufferRetryRecord).where(BufferRetryRecord.brand_id == brand_id))
 
     q = select(BufferPublishJob).where(
         BufferPublishJob.brand_id == brand_id,
@@ -556,6 +603,7 @@ async def recompute_buffer_retries(db: AsyncSession, brand_id: uuid.UUID) -> dic
 
 # ── I. Buffer Capabilities ────────────────────────────────────────────
 
+
 async def list_buffer_capabilities(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     q = (
         select(BufferCapabilityCheck)
@@ -568,9 +616,7 @@ async def list_buffer_capabilities(db: AsyncSession, brand_id: uuid.UUID) -> lis
 
 
 async def recompute_buffer_capabilities(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
-    await db.execute(
-        delete(BufferCapabilityCheck).where(BufferCapabilityCheck.brand_id == brand_id)
-    )
+    await db.execute(delete(BufferCapabilityCheck).where(BufferCapabilityCheck.brand_id == brand_id))
 
     q = select(BufferProfile).where(
         BufferProfile.brand_id == brand_id,

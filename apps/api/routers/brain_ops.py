@@ -3,6 +3,7 @@
 Reads the latest row from each brain subsystem table and returns a unified panel.
 No new data. No reports generated. Pure surfacing of what's already running.
 """
+
 from datetime import datetime, timezone
 from typing import Any
 
@@ -79,26 +80,17 @@ async def get_brain_ops_status(current_user: CurrentUser, db: DBSession) -> dict
             "status": "EMPTY",
         }
         try:
-            total = (
-                await db.execute(text(f'SELECT COUNT(*) FROM "{table_name}"'))
-            ).scalar() or 0
+            total = (await db.execute(text(f'SELECT COUNT(*) FROM "{table_name}"'))).scalar() or 0
             entry["total"] = int(total)
 
             if total > 0:
-                latest = (
-                    await db.execute(
-                        text(f'SELECT MAX(created_at) FROM "{table_name}"')
-                    )
-                ).scalar()
+                latest = (await db.execute(text(f'SELECT MAX(created_at) FROM "{table_name}"'))).scalar()
                 if latest:
                     entry["latest_at"] = latest.isoformat() if hasattr(latest, "isoformat") else str(latest)
 
                 recent = (
                     await db.execute(
-                        text(
-                            f"SELECT COUNT(*) FROM \"{table_name}\" "
-                            f"WHERE created_at > NOW() - INTERVAL '6 hours'"
-                        )
+                        text(f"SELECT COUNT(*) FROM \"{table_name}\" WHERE created_at > NOW() - INTERVAL '6 hours'")
                     )
                 ).scalar() or 0
                 entry["recent_6h"] = int(recent)
@@ -121,27 +113,20 @@ async def get_brain_ops_status(current_user: CurrentUser, db: DBSession) -> dict
     # Job summary — how many jobs ran in last hour / last 6h
     jobs_1h = (
         await db.execute(
-            text(
-                "SELECT COUNT(DISTINCT job_name) FROM system_jobs "
-                "WHERE created_at > NOW() - INTERVAL '1 hour'"
-            )
+            text("SELECT COUNT(DISTINCT job_name) FROM system_jobs WHERE created_at > NOW() - INTERVAL '1 hour'")
         )
     ).scalar() or 0
 
     jobs_6h = (
         await db.execute(
-            text(
-                "SELECT COUNT(DISTINCT job_name) FROM system_jobs "
-                "WHERE created_at > NOW() - INTERVAL '6 hours'"
-            )
+            text("SELECT COUNT(DISTINCT job_name) FROM system_jobs WHERE created_at > NOW() - INTERVAL '6 hours'")
         )
     ).scalar() or 0
 
     jobs_completed_1h = (
         await db.execute(
             text(
-                "SELECT COUNT(*) FROM system_jobs "
-                "WHERE status = 'COMPLETED' AND created_at > NOW() - INTERVAL '1 hour'"
+                "SELECT COUNT(*) FROM system_jobs WHERE status = 'COMPLETED' AND created_at > NOW() - INTERVAL '1 hour'"
             )
         )
     ).scalar() or 0
@@ -157,12 +142,7 @@ async def get_brain_ops_status(current_user: CurrentUser, db: DBSession) -> dict
 
     # Published post proof
     real_publishes = (
-        await db.execute(
-            text(
-                "SELECT COUNT(*) FROM publish_jobs "
-                "WHERE platform_post_url LIKE 'https://%'"
-            )
-        )
+        await db.execute(text("SELECT COUNT(*) FROM publish_jobs WHERE platform_post_url LIKE 'https://%'"))
     ).scalar() or 0
 
     latest_publish = (

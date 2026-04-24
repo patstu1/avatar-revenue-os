@@ -35,6 +35,7 @@ Usage:
         brand_id=item.brand_id,
     )
 """
+
 import asyncio
 import uuid
 from datetime import datetime, timezone
@@ -174,16 +175,20 @@ async def emit_action(
     """
     # Dedup check: don't create the same action twice
     from apps.api.services.action_dedup import action_exists
-    if await action_exists(db, org_id, action_type, entity_type=entity_type,
-                            entity_id=entity_id, brand_id=brand_id):
+
+    if await action_exists(db, org_id, action_type, entity_type=entity_type, entity_id=entity_id, brand_id=brand_id):
         # Return the existing action instead of creating a duplicate
-        existing = (await db.execute(
-            select(OperatorAction).where(
-                OperatorAction.organization_id == org_id,
-                OperatorAction.action_type == action_type,
-                OperatorAction.status == "pending",
-            ).limit(1)
-        )).scalar_one_or_none()
+        existing = (
+            await db.execute(
+                select(OperatorAction)
+                .where(
+                    OperatorAction.organization_id == org_id,
+                    OperatorAction.action_type == action_type,
+                    OperatorAction.status == "pending",
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         if existing:
             return existing
 

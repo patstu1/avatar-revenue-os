@@ -18,6 +18,7 @@ Revenue source types:
 - chargeback: Disputed charge reversal
 - adjustment: Manual correction entry
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -40,26 +41,27 @@ from packages.db.base import Base
 
 class RevenueLedgerEntry(Base):
     """One row per money event. Append-only. The canonical revenue record."""
+
     __tablename__ = "revenue_ledger"
 
     # ── Source Identification ──
     revenue_source_type: Mapped[str] = mapped_column(
-        String(60), nullable=False, index=True,
-        comment="affiliate_commission, sponsor_payment, service_fee, product_sale, ad_revenue, refund, etc."
+        String(60),
+        nullable=False,
+        index=True,
+        comment="affiliate_commission, sponsor_payment, service_fee, product_sale, ad_revenue, refund, etc.",
     )
     source_object_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True,
-        comment="FK-less pointer to originating row (af_commissions.id, sponsor_opportunities.id, etc.)"
+        UUID(as_uuid=True),
+        nullable=True,
+        comment="FK-less pointer to originating row (af_commissions.id, sponsor_opportunities.id, etc.)",
     )
     source_object_table: Mapped[Optional[str]] = mapped_column(
-        String(80), nullable=True,
-        comment="Which table source_object_id references"
+        String(80), nullable=True, comment="Which table source_object_id references"
     )
 
     # ── Business Context ──
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True, index=True
     )
@@ -70,73 +72,68 @@ class RevenueLedgerEntry(Base):
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=True, index=True
     )
     campaign_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True,
-        comment="FK-less ref to cp_campaigns.id"
+        UUID(as_uuid=True), nullable=True, comment="FK-less ref to cp_campaigns.id"
     )
     sponsor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sponsor_profiles.id"), nullable=True, index=True
     )
     affiliate_link_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True,
-        comment="FK-less ref to af_links.id"
+        UUID(as_uuid=True), nullable=True, comment="FK-less ref to af_links.id"
     )
 
     # ── Money ──
-    gross_amount: Mapped[float] = mapped_column(
-        Float, nullable=False, comment="Full revenue before fees/costs"
-    )
-    net_amount: Mapped[float] = mapped_column(
-        Float, nullable=False, comment="After platform fees, network fees"
-    )
-    platform_fee: Mapped[float] = mapped_column(
-        Float, default=0.0, comment="Stripe fee, network cut, etc."
-    )
-    cost: Mapped[float] = mapped_column(
-        Float, default=0.0, comment="Production/ad cost against this event"
-    )
+    gross_amount: Mapped[float] = mapped_column(Float, nullable=False, comment="Full revenue before fees/costs")
+    net_amount: Mapped[float] = mapped_column(Float, nullable=False, comment="After platform fees, network fees")
+    platform_fee: Mapped[float] = mapped_column(Float, default=0.0, comment="Stripe fee, network cut, etc.")
+    cost: Mapped[float] = mapped_column(Float, default=0.0, comment="Production/ad cost against this event")
     currency: Mapped[str] = mapped_column(String(3), default="USD")
 
     # ── State Machine ──
     payment_state: Mapped[str] = mapped_column(
-        String(30), nullable=False, index=True, default="pending",
-        comment="pending, confirmed, paid, disputed, refunded, reversed, voided"
+        String(30),
+        nullable=False,
+        index=True,
+        default="pending",
+        comment="pending, confirmed, paid, disputed, refunded, reversed, voided",
     )
     attribution_state: Mapped[str] = mapped_column(
-        String(30), nullable=False, index=True, default="unattributed",
-        comment="unattributed, auto_attributed, manually_attributed, multi_touch"
+        String(30),
+        nullable=False,
+        index=True,
+        default="unattributed",
+        comment="unattributed, auto_attributed, manually_attributed, multi_touch",
     )
     payout_state: Mapped[str] = mapped_column(
-        String(30), default="not_applicable",
-        comment="not_applicable, pending_payout, paid_out, held"
+        String(30), default="not_applicable", comment="not_applicable, pending_payout, paid_out, held"
     )
 
     # ── External References ──
     webhook_ref: Mapped[Optional[str]] = mapped_column(
-        String(255), nullable=True, unique=True,
-        comment="Idempotency key from webhook (stripe:evt_xxx, shopify:order_xxx)"
+        String(255),
+        nullable=True,
+        unique=True,
+        comment="Idempotency key from webhook (stripe:evt_xxx, shopify:order_xxx)",
     )
     external_transaction_id: Mapped[Optional[str]] = mapped_column(
-        String(255), nullable=True,
-        comment="Stripe charge ID, network txn ID, etc."
+        String(255), nullable=True, comment="Stripe charge ID, network txn ID, etc."
     )
     payment_processor: Mapped[Optional[str]] = mapped_column(
-        String(60), nullable=True,
-        comment="stripe, shopify, paypal, impact, partnerstack, direct, manual"
+        String(60), nullable=True, comment="stripe, shopify, paypal, impact, partnerstack, direct, manual"
     )
 
     # ── Dispute / Refund ──
     is_refund: Mapped[bool] = mapped_column(Boolean, default=False)
     is_dispute: Mapped[bool] = mapped_column(Boolean, default=False)
     refund_of_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("revenue_ledger.id"), nullable=True,
-        comment="Self-referential FK: this entry is a refund of another entry"
+        UUID(as_uuid=True),
+        ForeignKey("revenue_ledger.id"),
+        nullable=True,
+        comment="Self-referential FK: this entry is a refund of another entry",
     )
     dispute_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # ── Timing ──
-    occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), index=True
-    )
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     paid_out_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 

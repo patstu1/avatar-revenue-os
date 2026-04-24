@@ -3,6 +3,7 @@
 Verifies the ops-lock endpoints and that the health-check wiring
 reports the real, persisted state of the system.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -66,9 +67,8 @@ async def test_health_check_flags_hard_stuck_stage(api_client, db_session):
     }
     await api_client.post("/api/v1/auth/register", json=reg_data)
     from packages.db.models.core import User
-    u = (
-        await db_session.execute(select(User).where(User.email == reg_data["email"]))
-    ).scalar_one()
+
+    u = (await db_session.execute(select(User).where(User.email == reg_data["email"]))).scalar_one()
 
     state = await mark_stage(
         db_session,
@@ -100,9 +100,8 @@ async def test_health_check_flags_error_escalation(api_client, db_session):
     }
     await api_client.post("/api/v1/auth/register", json=reg_data)
     from packages.db.models.core import User
-    u = (
-        await db_session.execute(select(User).where(User.email == reg_data["email"]))
-    ).scalar_one()
+
+    u = (await db_session.execute(select(User).where(User.email == reg_data["email"]))).scalar_one()
 
     await open_escalation(
         db_session,
@@ -123,9 +122,7 @@ async def test_health_check_flags_error_escalation(api_client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_health_check_passes_when_critical_providers_present(
-    api_client, db_session
-):
+async def test_health_check_passes_when_critical_providers_present(api_client, db_session):
     """Register org + seed all critical providers enabled → the
     critical_providers_configured check flips to green."""
     from packages.db.models.integration_registry import IntegrationProvider
@@ -138,9 +135,8 @@ async def test_health_check_passes_when_critical_providers_present(
     }
     await api_client.post("/api/v1/auth/register", json=reg_data)
     from packages.db.models.core import User
-    u = (
-        await db_session.execute(select(User).where(User.email == reg_data["email"]))
-    ).scalar_one()
+
+    u = (await db_session.execute(select(User).where(User.email == reg_data["email"]))).scalar_one()
 
     for key in ("stripe_webhook", "inbound_email_route", "smtp"):
         db_session.add(
@@ -148,7 +144,9 @@ async def test_health_check_passes_when_critical_providers_present(
                 organization_id=u.organization_id,
                 provider_key=key,
                 provider_name=key,
-                provider_category="payment" if "webhook" in key else ("inbox" if key == "inbound_email_route" else "email"),
+                provider_category="payment"
+                if "webhook" in key
+                else ("inbox" if key == "inbound_email_route" else "email"),
                 is_enabled=True,
                 api_key_encrypted="placeholder",
                 extra_config={"to_address": "reply@test"} if key == "inbound_email_route" else {},

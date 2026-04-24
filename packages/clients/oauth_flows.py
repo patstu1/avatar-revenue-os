@@ -4,6 +4,7 @@ Each platform has its own authorization URL format, token exchange endpoint,
 scope set, and refresh mechanism. This module normalizes them behind three
 functions: get_auth_url, exchange_code, refresh_access_token.
 """
+
 from __future__ import annotations
 
 import base64
@@ -191,36 +192,45 @@ async def exchange_code(
     async with httpx.AsyncClient(timeout=30) as client:
         # ── Token exchange ────────────────────────────────────────────
         if platform == "youtube":
-            resp = await client.post(cfg["token_url"], data={
-                "grant_type": "authorization_code",
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "code": code,
-                "redirect_uri": redirect_uri,
-            })
+            resp = await client.post(
+                cfg["token_url"],
+                data={
+                    "grant_type": "authorization_code",
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                },
+            )
             resp.raise_for_status()
             token_data = resp.json()
 
         elif platform == "tiktok":
-            resp = await client.post(cfg["token_url"], json={
-                "client_key": client_id,
-                "client_secret": client_secret,
-                "code": code,
-                "grant_type": "authorization_code",
-                "redirect_uri": redirect_uri,
-                "code_verifier": code_verifier or "",
-            })
+            resp = await client.post(
+                cfg["token_url"],
+                json={
+                    "client_key": client_id,
+                    "client_secret": client_secret,
+                    "code": code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": redirect_uri,
+                    "code_verifier": code_verifier or "",
+                },
+            )
             resp.raise_for_status()
             token_data = resp.json()
 
         elif platform == "instagram":
-            resp = await client.get(cfg["token_url"], params={
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "code": code,
-                "redirect_uri": redirect_uri,
-                "grant_type": "authorization_code",
-            })
+            resp = await client.get(
+                cfg["token_url"],
+                params={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": code,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+            )
             resp.raise_for_status()
             token_data = resp.json()
 
@@ -293,22 +303,28 @@ async def refresh_access_token(
 
     async with httpx.AsyncClient(timeout=30) as client:
         if platform == "youtube":
-            resp = await client.post(cfg["token_url"], data={
-                "grant_type": "refresh_token",
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "refresh_token": refresh_token,
-            })
+            resp = await client.post(
+                cfg["token_url"],
+                data={
+                    "grant_type": "refresh_token",
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "refresh_token": refresh_token,
+                },
+            )
             resp.raise_for_status()
             data = resp.json()
 
         elif platform == "tiktok":
-            resp = await client.post(cfg["token_url"], json={
-                "client_key": client_id,
-                "client_secret": client_secret,
-                "grant_type": "refresh_token",
-                "refresh_token": refresh_token,
-            })
+            resp = await client.post(
+                cfg["token_url"],
+                json={
+                    "client_key": client_id,
+                    "client_secret": client_secret,
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                },
+            )
             resp.raise_for_status()
             data = resp.json()
 
@@ -457,6 +473,7 @@ async def ensure_valid_token(db, account) -> str | None:
         # Emit alert event for monitoring
         try:
             from apps.api.services.audit_service import log_action
+
             await log_action(
                 db,
                 "oauth.token_refresh_failed",
@@ -480,6 +497,7 @@ async def ensure_valid_token(db, account) -> str | None:
 def _get_platform_oauth_creds(platform: str) -> tuple[str, str]:
     """Load app-level OAuth client_id / client_secret from environment."""
     import os
+
     prefix = platform.upper()
     client_id = os.getenv(f"{prefix}_OAUTH_CLIENT_ID", "")
     client_secret = os.getenv(f"{prefix}_OAUTH_CLIENT_SECRET", "")

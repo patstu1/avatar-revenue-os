@@ -1,4 +1,5 @@
 """Enterprise Security + Compliance OS — RBAC, audit, data policies, compliance."""
+
 import uuid
 from typing import Optional
 
@@ -11,7 +12,9 @@ from packages.db.base import Base
 
 class EnterpriseRole(Base):
     __tablename__ = "es_roles"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     role_name: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     role_level: Mapped[int] = mapped_column(Integer, default=50)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -21,7 +24,9 @@ class EnterpriseRole(Base):
 
 class EnterprisePermission(Base):
     __tablename__ = "es_permissions"
-    role_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("es_roles.id"), nullable=False, index=True)
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("es_roles.id"), nullable=False, index=True
+    )
     permission_key: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     resource_type: Mapped[str] = mapped_column(String(60), nullable=False)
     action: Mapped[str] = mapped_column(String(40), nullable=False)
@@ -30,7 +35,9 @@ class EnterprisePermission(Base):
 
 class EnterpriseUserGroup(Base):
     __tablename__ = "es_user_groups"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     group_name: Mapped[str] = mapped_column(String(120), nullable=False)
     scope_type: Mapped[str] = mapped_column(String(40), nullable=False)
     scope_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
@@ -50,8 +57,12 @@ class EnterpriseAccessScope(Base):
 
 class AuditTrailEvent(Base):
     __tablename__ = "es_audit_trail"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
-    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
+    )
     action: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     resource_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     resource_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
@@ -63,7 +74,9 @@ class AuditTrailEvent(Base):
 
 class SensitiveDataPolicy(Base):
     __tablename__ = "es_sensitive_data_policies"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     policy_name: Mapped[str] = mapped_column(String(120), nullable=False)
     data_class: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     restricted_fields: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
@@ -76,7 +89,9 @@ class SensitiveDataPolicy(Base):
 
 class ModelIsolationPolicy(Base):
     __tablename__ = "es_model_isolation"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     provider_key: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     isolation_mode: Mapped[str] = mapped_column(String(30), default="shared")
     dedicated_instance_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -87,7 +102,9 @@ class ModelIsolationPolicy(Base):
 
 class ComplianceControlReport(Base):
     __tablename__ = "es_compliance_controls"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     framework: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     control_id: Mapped[str] = mapped_column(String(60), nullable=False)
     control_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -98,7 +115,9 @@ class ComplianceControlReport(Base):
 
 class RiskOverrideEvent(Base):
     __tablename__ = "es_risk_overrides"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     override_type: Mapped[str] = mapped_column(String(60), nullable=False)
     resource_type: Mapped[str] = mapped_column(String(60), nullable=False)

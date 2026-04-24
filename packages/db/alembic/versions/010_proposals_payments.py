@@ -12,6 +12,7 @@ No columns are added to existing tables. No foreign keys from existing
 tables into the new ones. Preserves the Batch 2B reply send-loop path
 untouched.
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -25,9 +26,7 @@ depends_on = None
 def _table_exists(name: str) -> bool:
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"
-        ),
+        sa.text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"),
         {"t": name},
     )
     return bool(result.scalar())
@@ -89,8 +88,15 @@ def upgrade() -> None:
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
         )
         for col in (
-            "org_id", "brand_id", "thread_id", "message_id", "draft_id",
-            "operator_action_id", "recipient_email", "package_slug", "status",
+            "org_id",
+            "brand_id",
+            "thread_id",
+            "message_id",
+            "draft_id",
+            "operator_action_id",
+            "recipient_email",
+            "package_slug",
+            "status",
         ):
             op.create_index(f"ix_proposals_{col}", "proposals", [col])
 
@@ -162,14 +168,20 @@ def upgrade() -> None:
             sa.Column("raw_event_json", JSONB, nullable=True),
             sa.Column("metadata_json", JSONB, nullable=True),
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
-            sa.UniqueConstraint(
-                "provider", "provider_event_id", name="uq_payments_provider_event"
-            ),
+            sa.UniqueConstraint("provider", "provider_event_id", name="uq_payments_provider_event"),
         )
         for col in (
-            "org_id", "brand_id", "proposal_id", "payment_link_id", "offer_id",
-            "provider", "provider_event_id", "provider_payment_intent_id",
-            "provider_checkout_session_id", "customer_email", "status",
+            "org_id",
+            "brand_id",
+            "proposal_id",
+            "payment_link_id",
+            "offer_id",
+            "provider",
+            "provider_event_id",
+            "provider_payment_intent_id",
+            "provider_checkout_session_id",
+            "customer_email",
+            "status",
         ):
             op.create_index(f"ix_payments_{col}", "payments", [col])
 

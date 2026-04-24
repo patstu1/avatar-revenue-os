@@ -1,4 +1,5 @@
 """DB-backed integration tests for Failure-Family Suppression."""
+
 from __future__ import annotations
 
 import uuid
@@ -37,17 +38,29 @@ async def brand_with_losers(db_session: AsyncSession):
     await db_session.flush()
 
     for i in range(5):
-        db_session.add(LosingPatternMemory(
-            brand_id=brand.id, pattern_type="hook", pattern_name="curiosity",
-            pattern_signature=_sig("hook", f"curiosity_{i}"), fail_score=0.8,
-            suppress_reason="test", evidence_json={},
-        ))
+        db_session.add(
+            LosingPatternMemory(
+                brand_id=brand.id,
+                pattern_type="hook",
+                pattern_name="curiosity",
+                pattern_signature=_sig("hook", f"curiosity_{i}"),
+                fail_score=0.8,
+                suppress_reason="test",
+                evidence_json={},
+            )
+        )
     for i in range(2):
-        db_session.add(LosingPatternMemory(
-            brand_id=brand.id, pattern_type="content_form", pattern_name="carousel",
-            pattern_signature=_sig("content_form", f"carousel_{i}"), fail_score=0.7,
-            suppress_reason="test", evidence_json={},
-        ))
+        db_session.add(
+            LosingPatternMemory(
+                brand_id=brand.id,
+                pattern_type="content_form",
+                pattern_name="carousel",
+                pattern_signature=_sig("content_form", f"carousel_{i}"),
+                fail_score=0.7,
+                suppress_reason="test",
+                evidence_json={},
+            )
+        )
     await db_session.flush()
     return brand
 
@@ -61,9 +74,11 @@ async def test_recompute_creates_families(db_session, brand_with_losers):
     assert result["status"] == "completed"
     assert result["rows_processed"] >= 2
 
-    reports = (await db_session.execute(
-        select(FailureFamilyReport).where(FailureFamilyReport.brand_id == brand.id)
-    )).scalars().all()
+    reports = (
+        (await db_session.execute(select(FailureFamilyReport).where(FailureFamilyReport.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(reports) >= 2
 
 
@@ -75,9 +90,15 @@ async def test_suppression_rules_for_threshold(db_session, brand_with_losers):
 
     assert result["suppressed"] >= 1
 
-    rules = (await db_session.execute(
-        select(SuppressionRule).where(SuppressionRule.brand_id == brand.id, SuppressionRule.is_active.is_(True))
-    )).scalars().all()
+    rules = (
+        (
+            await db_session.execute(
+                select(SuppressionRule).where(SuppressionRule.brand_id == brand.id, SuppressionRule.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(rules) >= 1
     hook_rules = [r for r in rules if r.family_type == "hook_type"]
     assert len(hook_rules) >= 1
@@ -90,9 +111,15 @@ async def test_below_threshold_not_suppressed(db_session, brand_with_losers):
     await recompute_failure_families(db_session, brand.id)
     await db_session.commit()
 
-    rules = (await db_session.execute(
-        select(SuppressionRule).where(SuppressionRule.brand_id == brand.id, SuppressionRule.is_active.is_(True))
-    )).scalars().all()
+    rules = (
+        (
+            await db_session.execute(
+                select(SuppressionRule).where(SuppressionRule.brand_id == brand.id, SuppressionRule.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
     carousel_rules = [r for r in rules if r.family_key == "carousel"]
     assert len(carousel_rules) == 0
 
@@ -103,9 +130,7 @@ async def test_members_persisted(db_session, brand_with_losers):
     await recompute_failure_families(db_session, brand.id)
     await db_session.commit()
 
-    members = (await db_session.execute(
-        select(FailureFamilyMember)
-    )).scalars().all()
+    members = (await db_session.execute(select(FailureFamilyMember))).scalars().all()
     assert len(members) >= 2
 
 
@@ -163,4 +188,5 @@ async def test_idempotent(db_session, brand_with_losers):
 def test_failure_family_worker_registered():
     import workers.failure_family_worker.tasks  # noqa: F401
     from workers.celery_app import app
+
     assert "workers.failure_family_worker.tasks.recompute_failure_families" in app.tasks

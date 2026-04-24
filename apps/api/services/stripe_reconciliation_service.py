@@ -15,6 +15,7 @@ Scheduled via Celery beat every 10 minutes. Uses the same
 as the live webhook so gap-fills are behaviorally identical to
 real-time deliveries (idempotent throughout).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -63,22 +64,18 @@ async def reconcile_stripe_for_org(
 
     api_key = await _get_stripe_api_key(db, org_id)
     if not api_key:
-        return {"skipped_no_stripe": True, "scanned": 0, "gap_filled": 0,
-                "already_present": 0, "errors": 0}
+        return {"skipped_no_stripe": True, "scanned": 0, "gap_filled": 0, "already_present": 0, "errors": 0}
 
     try:
         import stripe
     except ImportError:
         logger.warning("stripe_reconciliation.stripe_sdk_missing", org_id=str(org_id))
-        return {"skipped_no_stripe": True, "scanned": 0, "gap_filled": 0,
-                "already_present": 0, "errors": 0}
+        return {"skipped_no_stripe": True, "scanned": 0, "gap_filled": 0, "already_present": 0, "errors": 0}
 
     # Note: stripe.Event.list is sync. The stripe lib is sync-only; we
     # run it inline (each beat cycle is a short burst so blocking is OK).
     stripe.api_key = api_key
-    since_ts = int(
-        (datetime.now(timezone.utc) - timedelta(hours=lookback_hours)).timestamp()
-    )
+    since_ts = int((datetime.now(timezone.utc) - timedelta(hours=lookback_hours)).timestamp())
 
     scanned = 0
     gap_filled = 0
@@ -227,8 +224,7 @@ async def _ingest_missed_event(
             event_type=event_type,
             amount_cents=amount_cents,
             stripe_object=obj,
-            payment_intent_id=obj.get("payment_intent")
-                if isinstance(obj.get("payment_intent"), str) else None,
+            payment_intent_id=obj.get("payment_intent") if isinstance(obj.get("payment_intent"), str) else None,
             checkout_session_id=obj.get("id") if event_type == "checkout.session.completed" else None,
             charge_id=obj.get("id") if event_type == "charge.succeeded" else None,
             customer_email=obj.get("customer_email") or obj.get("receipt_email") or "",
@@ -240,6 +236,7 @@ async def _ingest_missed_event(
                 from apps.api.services.client_activation import (
                     activate_client_from_payment,
                 )
+
                 await activate_client_from_payment(db, payment=payment)
             except Exception as act_exc:
                 logger.warning(
@@ -257,10 +254,14 @@ async def reconcile_all_stripe_orgs(db: AsyncSession) -> dict:
     """
     from packages.db.models.integration_registry import IntegrationProvider
 
-    q = select(IntegrationProvider.organization_id).where(
-        IntegrationProvider.provider_key == "stripe",
-        IntegrationProvider.is_enabled.is_(True),
-    ).distinct()
+    q = (
+        select(IntegrationProvider.organization_id)
+        .where(
+            IntegrationProvider.provider_key == "stripe",
+            IntegrationProvider.is_enabled.is_(True),
+        )
+        .distinct()
+    )
     org_ids = [r[0] for r in (await db.execute(q)).all()]
 
     summary = {

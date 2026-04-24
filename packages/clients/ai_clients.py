@@ -9,6 +9,7 @@ Music: Suno (all tiers)
 
 Every client: real httpx calls, blocked result on missing key, structured response.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -85,15 +86,27 @@ async def _request_with_retry(
             result = await client_fn()
             if isinstance(result, dict) and result.get("status_code") in (429, 500, 502, 503):
                 if attempt < max_retries:
-                    delay = base_delay * (2 ** attempt)
-                    logger.warning("ai_client.retry service=%s attempt=%d delay=%.1fs status=%s", service, attempt + 1, delay, result.get("status_code"))
+                    delay = base_delay * (2**attempt)
+                    logger.warning(
+                        "ai_client.retry service=%s attempt=%d delay=%.1fs status=%s",
+                        service,
+                        attempt + 1,
+                        delay,
+                        result.get("status_code"),
+                    )
                     await asyncio.sleep(delay)
                     continue
             return result
         except Exception as e:
             if attempt < max_retries:
-                delay = base_delay * (2 ** attempt)
-                logger.warning("ai_client.retry_on_exception service=%s attempt=%d delay=%.1fs error=%s", service, attempt + 1, delay, str(e)[:100])
+                delay = base_delay * (2**attempt)
+                logger.warning(
+                    "ai_client.retry_on_exception service=%s attempt=%d delay=%.1fs error=%s",
+                    service,
+                    attempt + 1,
+                    delay,
+                    str(e)[:100],
+                )
                 await asyncio.sleep(delay)
             else:
                 return _fail(f"{service} failed after {max_retries + 1} attempts: {e}")
@@ -101,6 +114,7 @@ async def _request_with_retry(
 
 
 # ── TEXT: Claude (Hero) ───────────────────────────────────────────
+
 
 class ClaudeContentClient:
     """Claude content generation client — hero tier text generation."""
@@ -118,6 +132,7 @@ class ClaudeContentClient:
 
         async def _call() -> dict[str, Any]:
             import anthropic
+
             client = anthropic.AsyncAnthropic(api_key=self.api_key)
             t0 = time.monotonic()
             kwargs: dict[str, Any] = {
@@ -130,18 +145,21 @@ class ClaudeContentClient:
             response = await client.messages.create(**kwargs)
             elapsed_ms = int((time.monotonic() - t0) * 1000)
             text = response.content[0].text if response.content else ""
-            return _ok({
-                "text": text,
-                "model": self.model,
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-                "elapsed_ms": elapsed_ms,
-            })
+            return _ok(
+                {
+                    "text": text,
+                    "model": self.model,
+                    "input_tokens": response.usage.input_tokens,
+                    "output_tokens": response.usage.output_tokens,
+                    "elapsed_ms": elapsed_ms,
+                }
+            )
 
         return await _request_with_retry(_call, "Claude")
 
 
 # ── TEXT: Gemini Flash ────────────────────────────────────────────
+
 
 class GeminiFlashClient:
     BASE_URL = "https://generativelanguage.googleapis.com"
@@ -157,12 +175,18 @@ class GeminiFlashClient:
             return _blocked("GOOGLE_AI_API_KEY not configured")
 
         async def _call() -> dict[str, Any]:
-            payload: dict[str, Any] = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": max_tokens}}
+            payload: dict[str, Any] = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"maxOutputTokens": max_tokens},
+            }
             if system:
                 payload["systemInstruction"] = {"parts": [{"text": system}]}
             try:
                 async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                    resp = await c.post(f"{self.BASE_URL}/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}", json=payload)
+                    resp = await c.post(
+                        f"{self.BASE_URL}/v1beta/models/gemini-2.5-flash:generateContent?key={self.api_key}",
+                        json=payload,
+                    )
             except httpx.HTTPError as e:
                 return _fail(f"Gemini Flash network error: {e}")
             err = await _handle_response(resp, "Gemini Flash")
@@ -176,6 +200,7 @@ class GeminiFlashClient:
 
 
 # ── TEXT: DeepSeek ────────────────────────────────────────────────
+
 
 class DeepSeekClient:
     BASE_URL = "https://api.deepseek.com"
@@ -191,10 +216,18 @@ class DeepSeekClient:
             return _blocked("DEEPSEEK_API_KEY not configured")
 
         async def _call() -> dict[str, Any]:
-            payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tokens}
+            payload = {
+                "model": "deepseek-chat",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            }
             try:
                 async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                    resp = await c.post(f"{self.BASE_URL}/v1/chat/completions", json=payload, headers={"Authorization": f"Bearer {self.api_key}"})
+                    resp = await c.post(
+                        f"{self.BASE_URL}/v1/chat/completions",
+                        json=payload,
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                    )
             except httpx.HTTPError as e:
                 return _fail(f"DeepSeek network error: {e}")
             err = await _handle_response(resp, "DeepSeek")
@@ -208,6 +241,7 @@ class DeepSeekClient:
 
 
 # ── IMAGE: GPT Image 1.5 ─────────────────────────────────────────
+
 
 class GPTImageClient:
     BASE_URL = "https://api.openai.com"
@@ -226,7 +260,11 @@ class GPTImageClient:
             payload = {"model": "gpt-image-1", "prompt": prompt, "n": 1, "size": size, "quality": quality}
             try:
                 async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                    resp = await c.post(f"{self.BASE_URL}/v1/images/generations", json=payload, headers={"Authorization": f"Bearer {self.api_key}"})
+                    resp = await c.post(
+                        f"{self.BASE_URL}/v1/images/generations",
+                        json=payload,
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                    )
             except httpx.HTTPError as e:
                 return _fail(f"GPT Image network error: {e}")
             err = await _handle_response(resp, "GPT Image")
@@ -267,16 +305,20 @@ class GPTImageClient:
         body = resp.json()
         url = body.get("data", [{}])[0].get("url", "")
         import hashlib as _hl
+
         job_id = f"gpt_{_hl.md5(prompt[:50].encode()).hexdigest()[:12]}"
-        return _ok({
-            "provider_job_id": job_id,
-            "provider": "openai_image",
-            "requires_polling": False,
-            "image_url": url,
-        })
+        return _ok(
+            {
+                "provider_job_id": job_id,
+                "provider": "openai_image",
+                "requires_polling": False,
+                "image_url": url,
+            }
+        )
 
 
 # ── IMAGE: Imagen 4 Fast ─────────────────────────────────────────
+
 
 class Imagen4Client:
     BASE_URL = "https://generativelanguage.googleapis.com"
@@ -293,14 +335,22 @@ class Imagen4Client:
         payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"responseModalities": ["image"]}}
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                resp = await c.post(f"{self.BASE_URL}/v1beta/models/imagen-4-fast:generateContent?key={self.api_key}", json=payload)
+                resp = await c.post(
+                    f"{self.BASE_URL}/v1beta/models/imagen-4-fast:generateContent?key={self.api_key}", json=payload
+                )
         except httpx.HTTPError as e:
             return _fail(f"Imagen 4 network error: {e}")
         err = await _handle_response(resp, "Imagen 4")
         if err:
             return err
         body = resp.json()
-        b64 = body.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("inlineData", {}).get("data", "")
+        b64 = (
+            body.get("candidates", [{}])[0]
+            .get("content", {})
+            .get("parts", [{}])[0]
+            .get("inlineData", {})
+            .get("data", "")
+        )
         return _ok({"image_b64": b64, "model": "imagen-4-fast"}, resp.status_code)
 
     async def submit_async(self, prompt: str, webhook_url: str | None = None, **kwargs) -> dict[str, Any]:
@@ -331,18 +381,28 @@ class Imagen4Client:
             return err
 
         body = resp.json()
-        b64 = body.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("inlineData", {}).get("data", "")
+        b64 = (
+            body.get("candidates", [{}])[0]
+            .get("content", {})
+            .get("parts", [{}])[0]
+            .get("inlineData", {})
+            .get("data", "")
+        )
         import hashlib as _hl
+
         job_id = f"img4_{_hl.md5(prompt[:50].encode()).hexdigest()[:12]}"
-        return _ok({
-            "provider_job_id": job_id,
-            "provider": "imagen4",
-            "requires_polling": False,
-            "image_b64": b64,
-        })
+        return _ok(
+            {
+                "provider_job_id": job_id,
+                "provider": "imagen4",
+                "requires_polling": False,
+                "image_b64": b64,
+            }
+        )
 
 
 # ── IMAGE: Flux 2 Pro ─────────────────────────────────────────────
+
 
 class FluxClient:
     BASE_URL = "https://fal.run"
@@ -359,7 +419,11 @@ class FluxClient:
         payload = {"prompt": prompt, "image_size": size, "num_images": 1}
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                resp = await c.post(f"{self.BASE_URL}/fal-ai/flux-pro/v1.1", json=payload, headers={"Authorization": f"Key {self.api_key}"})
+                resp = await c.post(
+                    f"{self.BASE_URL}/fal-ai/flux-pro/v1.1",
+                    json=payload,
+                    headers={"Authorization": f"Key {self.api_key}"},
+                )
         except httpx.HTTPError as e:
             return _fail(f"Flux network error: {e}")
         err = await _handle_response(resp, "Flux")
@@ -406,19 +470,24 @@ class FluxClient:
         images = body.get("images", [])
         if images:
             import hashlib as _hl
+
             job_id = f"flux_{_hl.md5(prompt[:50].encode()).hexdigest()[:12]}"
-            return _ok({
-                "provider_job_id": job_id,
-                "provider": "flux",
-                "requires_polling": False,
-                "image_url": images[0].get("url", ""),
-            })
+            return _ok(
+                {
+                    "provider_job_id": job_id,
+                    "provider": "flux",
+                    "requires_polling": False,
+                    "image_url": images[0].get("url", ""),
+                }
+            )
         request_id = body.get("request_id", "")
-        return _ok({
-            "provider_job_id": request_id,
-            "provider": "flux",
-            "requires_polling": cb_url is None,
-        })
+        return _ok(
+            {
+                "provider_job_id": request_id,
+                "provider": "flux",
+                "requires_polling": cb_url is None,
+            }
+        )
 
     async def poll_status(self, job_id: str) -> dict[str, Any]:
         """Check if an async Flux (fal.ai) job has completed."""
@@ -452,6 +521,7 @@ class FluxClient:
 
 # ── VIDEO: Kling AI ───────────────────────────────────────────────
 
+
 class KlingClient:
     BASE_URL = "https://fal.run"
 
@@ -467,7 +537,11 @@ class KlingClient:
         payload = {"prompt": prompt, "duration": duration_sec, "aspect_ratio": aspect_ratio}
         try:
             async with httpx.AsyncClient(timeout=_POLL_TIMEOUT) as c:
-                resp = await c.post(f"{self.BASE_URL}/fal-ai/kling-video/v2/master", json=payload, headers={"Authorization": f"Key {self.api_key}"})
+                resp = await c.post(
+                    f"{self.BASE_URL}/fal-ai/kling-video/v2/master",
+                    json=payload,
+                    headers={"Authorization": f"Key {self.api_key}"},
+                )
         except httpx.HTTPError as e:
             return _fail(f"Kling network error: {e}")
         err = await _handle_response(resp, "Kling")
@@ -514,11 +588,13 @@ class KlingClient:
 
         body = resp.json()
         request_id = body.get("request_id", "") or body.get("id", "")
-        return _ok({
-            "provider_job_id": request_id,
-            "provider": "kling",
-            "requires_polling": cb_url is None,
-        })
+        return _ok(
+            {
+                "provider_job_id": request_id,
+                "provider": "kling",
+                "requires_polling": cb_url is None,
+            }
+        )
 
     async def poll_status(self, job_id: str) -> dict[str, Any]:
         """Check if an async Kling (fal.ai) job has completed."""
@@ -553,6 +629,7 @@ class KlingClient:
 
 # ── VIDEO: Runway Gen-4 ──────────────────────────────────────────
 
+
 class RunwayClient:
     BASE_URL = "https://api.dev.runwayml.com"
 
@@ -562,13 +639,24 @@ class RunwayClient:
     def _is_configured(self) -> bool:
         return bool(self.api_key)
 
-    async def generate(self, prompt: str, duration_sec: int = 5, aspect_ratio: str = "9:16", image_url: str | None = None) -> dict[str, Any]:
+    async def generate(
+        self, prompt: str, duration_sec: int = 5, aspect_ratio: str = "9:16", image_url: str | None = None
+    ) -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("RUNWAY_API_KEY not configured")
-        payload: dict[str, Any] = {"promptText": prompt, "model": "gen4_turbo", "duration": duration_sec, "ratio": aspect_ratio}
+        payload: dict[str, Any] = {
+            "promptText": prompt,
+            "model": "gen4_turbo",
+            "duration": duration_sec,
+            "ratio": aspect_ratio,
+        }
         if image_url:
             payload["promptImage"] = image_url
-        headers = {"Authorization": f"Bearer {self.api_key}", "X-Runway-Version": "2024-11-06", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "X-Runway-Version": "2024-11-06",
+            "Content-Type": "application/json",
+        }
         try:
             async with httpx.AsyncClient(timeout=_POLL_TIMEOUT) as c:
                 resp = await c.post(f"{self.BASE_URL}/v1/image_to_video", json=payload, headers=headers)
@@ -580,7 +668,9 @@ class RunwayClient:
                     return _fail("Runway returned no task ID")
                 for _ in range(30):
                     await asyncio.sleep(10)
-                    poll = await c.get(f"{self.BASE_URL}/v1/tasks/{task_id}", headers={"Authorization": f"Bearer {self.api_key}"})
+                    poll = await c.get(
+                        f"{self.BASE_URL}/v1/tasks/{task_id}", headers={"Authorization": f"Bearer {self.api_key}"}
+                    )
                     data = poll.json()
                     if data.get("status") == "SUCCEEDED":
                         return _ok({"video_url": data["output"][0], "model": "gen4_turbo"}, poll.status_code)
@@ -632,11 +722,13 @@ class RunwayClient:
             return err
 
         task_id = resp.json().get("id", "")
-        return _ok({
-            "provider_job_id": task_id,
-            "provider": "runway",
-            "requires_polling": cb_url is None,
-        })
+        return _ok(
+            {
+                "provider_job_id": task_id,
+                "provider": "runway",
+                "requires_polling": cb_url is None,
+            }
+        )
 
     async def poll_status(self, job_id: str) -> dict[str, Any]:
         """Check if an async Runway task has completed."""
@@ -666,8 +758,10 @@ class RunwayClient:
 
 # ── VIDEO: Higgsfield Cinema Studio (Premium Cinematic) ──────────
 
+
 class HiggsFieldClient:
     """Higgsfield Cinema Studio — professional cinematic video with camera movements, color grading, multi-character scenes."""
+
     BASE_URL = "https://api.higgsfield.ai"
 
     def __init__(self, api_key: str | None = None):
@@ -679,8 +773,14 @@ class HiggsFieldClient:
     def _headers(self) -> dict:
         return {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
-    async def generate(self, prompt: str, duration_sec: int = 5, aspect_ratio: str = "16:9",
-                       camera_movement: str = "auto", quality: str = "high") -> dict[str, Any]:
+    async def generate(
+        self,
+        prompt: str,
+        duration_sec: int = 5,
+        aspect_ratio: str = "16:9",
+        camera_movement: str = "auto",
+        quality: str = "high",
+    ) -> dict[str, Any]:
         """Generate cinematic video with professional camera movements."""
         if not self._is_configured():
             return _blocked("HIGGSFIELD_API_KEY not configured")
@@ -710,19 +810,32 @@ class HiggsFieldClient:
                     status = data.get("status", "")
                     if status in ("completed", "succeeded"):
                         video_url = data.get("video_url") or data.get("output", {}).get("video_url", "")
-                        return _ok({"video_url": video_url, "model": "higgsfield-cinema-studio", "duration": duration_sec, "job_id": job_id})
+                        return _ok(
+                            {
+                                "video_url": video_url,
+                                "model": "higgsfield-cinema-studio",
+                                "duration": duration_sec,
+                                "job_id": job_id,
+                            }
+                        )
                     if status in ("failed", "error"):
                         return _fail(f"Higgsfield generation failed: {data.get('error', '')}")
             return _fail("Higgsfield generation timed out after 300s")
         except httpx.HTTPError as e:
             return _fail(f"Higgsfield network error: {e}")
 
-    async def generate_speech_video(self, script_text: str, character_id: str = "default",
-                                     aspect_ratio: str = "9:16", quality: str = "high") -> dict[str, Any]:
+    async def generate_speech_video(
+        self, script_text: str, character_id: str = "default", aspect_ratio: str = "9:16", quality: str = "high"
+    ) -> dict[str, Any]:
         """Generate speech-to-video with character lip sync — cinematic avatar alternative."""
         if not self._is_configured():
             return _blocked("HIGGSFIELD_API_KEY not configured")
-        payload = {"text": script_text[:3000], "character_id": character_id, "aspect_ratio": aspect_ratio, "quality": quality}
+        payload = {
+            "text": script_text[:3000],
+            "character_id": character_id,
+            "aspect_ratio": aspect_ratio,
+            "quality": quality,
+        }
         try:
             async with httpx.AsyncClient(timeout=_POLL_TIMEOUT) as c:
                 resp = await c.post(f"{self.BASE_URL}/v1/videos/speak", json=payload, headers=self._headers())
@@ -780,11 +893,13 @@ class HiggsFieldClient:
 
         body = resp.json()
         job_id = body.get("id") or body.get("job_id") or ""
-        return _ok({
-            "provider_job_id": job_id,
-            "provider": "higgsfield",
-            "requires_polling": True,
-        })
+        return _ok(
+            {
+                "provider_job_id": job_id,
+                "provider": "higgsfield",
+                "requires_polling": True,
+            }
+        )
 
     async def poll_status(self, job_id: str) -> dict[str, Any]:
         """Check if an async Higgsfield job has completed."""
@@ -825,6 +940,7 @@ class HiggsFieldClient:
 
 class WanClient:
     """Wan 2.2 video generation via fal.ai — cheapest option for bulk video."""
+
     BASE_URL = "https://fal.run/fal-ai/wan/v2.2"
 
     def __init__(self, api_key: str | None = None):
@@ -839,7 +955,11 @@ class WanClient:
         payload = {"prompt": prompt, "num_frames": duration_sec * 24, "aspect_ratio": aspect_ratio}
         try:
             async with httpx.AsyncClient(timeout=_POLL_TIMEOUT) as c:
-                resp = await c.post(self.BASE_URL, json=payload, headers={"Authorization": f"Key {self.api_key}", "Content-Type": "application/json"})
+                resp = await c.post(
+                    self.BASE_URL,
+                    json=payload,
+                    headers={"Authorization": f"Key {self.api_key}", "Content-Type": "application/json"},
+                )
             err = await _handle_response(resp, "Wan")
             if err:
                 return err
@@ -881,18 +1001,23 @@ class WanClient:
         video_url = body.get("video", {}).get("url", "") or body.get("url", "")
         if video_url:
             import hashlib as _hl
+
             job_id = f"wan_{_hl.md5(prompt[:50].encode()).hexdigest()[:12]}"
-            return _ok({
-                "provider_job_id": job_id,
+            return _ok(
+                {
+                    "provider_job_id": job_id,
+                    "provider": "wan",
+                    "requires_polling": False,
+                    "video_url": video_url,
+                }
+            )
+        return _ok(
+            {
+                "provider_job_id": request_id,
                 "provider": "wan",
-                "requires_polling": False,
-                "video_url": video_url,
-            })
-        return _ok({
-            "provider_job_id": request_id,
-            "provider": "wan",
-            "requires_polling": cb_url is None,
-        })
+                "requires_polling": cb_url is None,
+            }
+        )
 
     async def poll_status(self, job_id: str) -> dict[str, Any]:
         """Check if an async Wan (fal.ai) job has completed."""
@@ -926,6 +1051,7 @@ class WanClient:
 
 # ── AVATAR: D-ID ─────────────────────────────────────────────────
 
+
 class DIDClient:
     BASE_URL = "https://api.d-id.com"
 
@@ -935,7 +1061,9 @@ class DIDClient:
     def _is_configured(self) -> bool:
         return bool(self.api_key)
 
-    async def generate(self, script: str, source_url: str = "https://d-id-public-bucket.s3.us-west-2.amazonaws.com/alice.jpg") -> dict[str, Any]:
+    async def generate(
+        self, script: str, source_url: str = "https://d-id-public-bucket.s3.us-west-2.amazonaws.com/alice.jpg"
+    ) -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("DID_API_KEY not configured")
         payload = {"script": {"type": "text", "input": script}, "source_url": source_url}
@@ -991,11 +1119,13 @@ class DIDClient:
             return err
 
         talk_id = resp.json().get("id", "")
-        return _ok({
-            "provider_job_id": talk_id,
-            "provider": "did",
-            "requires_polling": cb_url is None,
-        })
+        return _ok(
+            {
+                "provider_job_id": talk_id,
+                "provider": "did",
+                "requires_polling": cb_url is None,
+            }
+        )
 
     async def poll_status(self, job_id: str) -> dict[str, Any]:
         """Check if an async D-ID job has completed."""
@@ -1012,13 +1142,20 @@ class DIDClient:
             if status == "done":
                 return _ok({"status": "completed", "output_url": data.get("result_url", ""), "error": None})
             if status == "error":
-                return _ok({"status": "failed", "output_url": None, "error": data.get("error", {}).get("description", "unknown")})
+                return _ok(
+                    {
+                        "status": "failed",
+                        "output_url": None,
+                        "error": data.get("error", {}).get("description", "unknown"),
+                    }
+                )
             return _ok({"status": "processing", "output_url": None, "error": None})
         except httpx.HTTPError as e:
             return _fail(f"D-ID network error: {e}")
 
 
 # ── VOICE: Fish Audio ─────────────────────────────────────────────
+
 
 class FishAudioClient:
     BASE_URL = "https://api.fish.audio"
@@ -1035,7 +1172,9 @@ class FishAudioClient:
         payload = {"text": text, "reference_id": voice_id, "format": "mp3"}
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                resp = await c.post(f"{self.BASE_URL}/v1/tts", json=payload, headers={"Authorization": f"Bearer {self.api_key}"})
+                resp = await c.post(
+                    f"{self.BASE_URL}/v1/tts", json=payload, headers={"Authorization": f"Bearer {self.api_key}"}
+                )
         except httpx.HTTPError as e:
             return _fail(f"Fish Audio network error: {e}")
         if resp.status_code != 200:
@@ -1067,16 +1206,20 @@ class FishAudioClient:
             return _fail(f"Fish Audio HTTP {resp.status_code}", resp.status_code)
 
         import hashlib as _hl
+
         job_id = f"fa_{_hl.md5(prompt[:100].encode()).hexdigest()[:12]}"
-        return _ok({
-            "provider_job_id": job_id,
-            "provider": "fish_audio",
-            "requires_polling": False,
-            "audio_bytes_len": len(resp.content),
-        })
+        return _ok(
+            {
+                "provider_job_id": job_id,
+                "provider": "fish_audio",
+                "requires_polling": False,
+                "audio_bytes_len": len(resp.content),
+            }
+        )
 
 
 # ── VOICE: Voxtral TTS ───────────────────────────────────────────
+
 
 class VoxtralClient:
     BASE_URL = "https://api.mistral.ai"
@@ -1095,7 +1238,11 @@ class VoxtralClient:
             payload["voice"] = {"voice_id": voice_id}
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                resp = await c.post(f"{self.BASE_URL}/v1/audio/speech", json=payload, headers={"Authorization": f"Bearer {self.api_key}"})
+                resp = await c.post(
+                    f"{self.BASE_URL}/v1/audio/speech",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                )
         except httpx.HTTPError as e:
             return _fail(f"Voxtral network error: {e}")
         if resp.status_code != 200:
@@ -1129,18 +1276,22 @@ class VoxtralClient:
             return _fail(f"Voxtral HTTP {resp.status_code}", resp.status_code)
 
         import hashlib as _hl
+
         job_id = f"vx_{_hl.md5(prompt[:100].encode()).hexdigest()[:12]}"
-        return _ok({
-            "provider_job_id": job_id,
-            "provider": "voxtral",
-            "requires_polling": False,
-            "audio_bytes_len": len(resp.content),
-        })
+        return _ok(
+            {
+                "provider_job_id": job_id,
+                "provider": "voxtral",
+                "requires_polling": False,
+                "audio_bytes_len": len(resp.content),
+            }
+        )
 
 
 # ── MUSIC: Suno ───────────────────────────────────────────────────
 
 # ── VOICE: ElevenLabs (Hero) ──────────────────────────────────────
+
 
 class ElevenLabsClient:
     BASE_URL = "https://api.elevenlabs.io"
@@ -1151,23 +1302,50 @@ class ElevenLabsClient:
     def _is_configured(self) -> bool:
         return bool(self.api_key)
 
-    async def generate(self, text: str, voice_id: str = "21m00Tcm4TlvDq8ikWAM", model_id: str = "eleven_multilingual_v2", stability: float = 0.5, similarity_boost: float = 0.75) -> dict[str, Any]:
+    async def generate(
+        self,
+        text: str,
+        voice_id: str = "21m00Tcm4TlvDq8ikWAM",
+        model_id: str = "eleven_multilingual_v2",
+        stability: float = 0.5,
+        similarity_boost: float = 0.75,
+    ) -> dict[str, Any]:
         """Generate speech audio from text. Returns audio URL or bytes."""
         if not self._is_configured():
             return _blocked("ELEVENLABS_API_KEY not configured")
 
         async def _call() -> dict[str, Any]:
-            payload = {"text": text, "model_id": model_id, "voice_settings": {"stability": stability, "similarity_boost": similarity_boost}}
+            payload = {
+                "text": text,
+                "model_id": model_id,
+                "voice_settings": {"stability": stability, "similarity_boost": similarity_boost},
+            }
             try:
                 async with httpx.AsyncClient(timeout=_POLL_TIMEOUT) as c:
-                    resp = await c.post(f"{self.BASE_URL}/v1/text-to-speech/{voice_id}", json=payload, headers={"xi-api-key": self.api_key, "Content-Type": "application/json", "Accept": "audio/mpeg"})
+                    resp = await c.post(
+                        f"{self.BASE_URL}/v1/text-to-speech/{voice_id}",
+                        json=payload,
+                        headers={
+                            "xi-api-key": self.api_key,
+                            "Content-Type": "application/json",
+                            "Accept": "audio/mpeg",
+                        },
+                    )
             except httpx.HTTPError as e:
                 return _fail(f"ElevenLabs network error: {e}")
             if resp.status_code != 200:
                 err = await _handle_response(resp, "ElevenLabs")
                 if err:
                     return err
-            return _ok({"audio_bytes": resp.content, "content_type": "audio/mpeg", "voice_id": voice_id, "model": model_id, "char_count": len(text)})
+            return _ok(
+                {
+                    "audio_bytes": resp.content,
+                    "content_type": "audio/mpeg",
+                    "voice_id": voice_id,
+                    "model": model_id,
+                    "char_count": len(text),
+                }
+            )
 
         return await _request_with_retry(_call, "ElevenLabs")
 
@@ -1225,14 +1403,17 @@ class ElevenLabsClient:
         # ElevenLabs TTS is synchronous — audio is in the response body.
         # We return requires_polling=False since the job is already done.
         import hashlib as _hl
+
         job_id = f"el_{_hl.md5(prompt[:100].encode()).hexdigest()[:12]}"
-        return _ok({
-            "provider_job_id": job_id,
-            "provider": "elevenlabs",
-            "requires_polling": False,
-            "audio_bytes": resp.content,
-            "content_type": "audio/mpeg",
-        })
+        return _ok(
+            {
+                "provider_job_id": job_id,
+                "provider": "elevenlabs",
+                "requires_polling": False,
+                "audio_bytes": resp.content,
+                "content_type": "audio/mpeg",
+            }
+        )
 
     async def clone_voice(self, name: str, audio_file_bytes: bytes, description: str = "") -> dict[str, Any]:
         if not self._is_configured():
@@ -1241,7 +1422,9 @@ class ElevenLabsClient:
             async with httpx.AsyncClient(timeout=_POLL_TIMEOUT) as c:
                 files = {"files": ("sample.mp3", audio_file_bytes, "audio/mpeg")}
                 data = {"name": name, "description": description}
-                resp = await c.post(f"{self.BASE_URL}/v1/voices/add", files=files, data=data, headers={"xi-api-key": self.api_key})
+                resp = await c.post(
+                    f"{self.BASE_URL}/v1/voices/add", files=files, data=data, headers={"xi-api-key": self.api_key}
+                )
             if resp.status_code not in (200, 201):
                 return _fail(f"ElevenLabs clone HTTP {resp.status_code}")
             return _ok(resp.json())
@@ -1250,6 +1433,7 @@ class ElevenLabsClient:
 
 
 # ── AVATAR: HeyGen ───────────────────────────────────────────────
+
 
 class HeyGenClient:
     BASE_URL = "https://api.heygen.com"
@@ -1263,7 +1447,9 @@ class HeyGenClient:
     def _headers(self) -> dict:
         return {"X-Api-Key": self.api_key, "Content-Type": "application/json", "Accept": "application/json"}
 
-    async def create_video(self, script_text: str, avatar_id: str = "default", voice_id: str = "", voice_url: str = "") -> dict[str, Any]:
+    async def create_video(
+        self, script_text: str, avatar_id: str = "default", voice_id: str = "", voice_url: str = ""
+    ) -> dict[str, Any]:
         """Create an avatar video. Returns video_id for polling."""
         if not self._is_configured():
             return _blocked("HEYGEN_API_KEY not configured")
@@ -1272,7 +1458,15 @@ class HeyGenClient:
             clip["voice_id"] = voice_id
         if voice_url:
             clip["input_audio"] = voice_url
-        payload = {"video_inputs": [{"character": {"type": "avatar", "avatar_id": avatar_id}, "voice": {"type": "text", "input_text": script_text[:3000]}}], "dimension": {"width": 1080, "height": 1920}}
+        payload = {
+            "video_inputs": [
+                {
+                    "character": {"type": "avatar", "avatar_id": avatar_id},
+                    "voice": {"type": "text", "input_text": script_text[:3000]},
+                }
+            ],
+            "dimension": {"width": 1080, "height": 1920},
+        }
         if voice_url:
             payload["video_inputs"][0]["voice"] = {"type": "audio", "audio_url": voice_url}
         elif voice_id:
@@ -1293,17 +1487,27 @@ class HeyGenClient:
         if not self._is_configured():
             return _blocked("HEYGEN_API_KEY not configured")
         import asyncio as aio
+
         elapsed = 0
         interval = 10
         while elapsed < max_wait:
             try:
                 async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                    resp = await c.get(f"{self.BASE_URL}/v1/video_status.get", params={"video_id": video_id}, headers=self._headers())
+                    resp = await c.get(
+                        f"{self.BASE_URL}/v1/video_status.get", params={"video_id": video_id}, headers=self._headers()
+                    )
                 if resp.status_code == 200:
                     data = resp.json().get("data", {})
                     status = data.get("status", "")
                     if status == "completed":
-                        return _ok({"video_url": data.get("video_url", ""), "video_id": video_id, "status": "completed", "duration": data.get("duration")})
+                        return _ok(
+                            {
+                                "video_url": data.get("video_url", ""),
+                                "video_id": video_id,
+                                "status": "completed",
+                                "duration": data.get("duration"),
+                            }
+                        )
                     if status in ("failed", "error"):
                         return _fail(f"HeyGen video failed: {data.get('error', 'unknown')}")
             except httpx.HTTPError:
@@ -1312,7 +1516,9 @@ class HeyGenClient:
             elapsed += interval
         return _fail(f"HeyGen poll timeout after {max_wait}s")
 
-    async def generate(self, script_text: str, avatar_id: str = "default", voice_id: str = "", voice_url: str = "") -> dict[str, Any]:
+    async def generate(
+        self, script_text: str, avatar_id: str = "default", voice_id: str = "", voice_url: str = ""
+    ) -> dict[str, Any]:
         """Full flow: create + poll until done."""
         create_result = await self.create_video(script_text, avatar_id, voice_id, voice_url)
         if not create_result.get("success"):
@@ -1337,10 +1543,12 @@ class HeyGenClient:
         cb_url = _webhook_url("heygen", webhook_url)
 
         payload: dict[str, Any] = {
-            "video_inputs": [{
-                "character": {"type": "avatar", "avatar_id": avatar_id},
-                "voice": {"type": "text", "input_text": prompt[:3000]},
-            }],
+            "video_inputs": [
+                {
+                    "character": {"type": "avatar", "avatar_id": avatar_id},
+                    "voice": {"type": "text", "input_text": prompt[:3000]},
+                }
+            ],
             "dimension": {"width": 1080, "height": 1920},
         }
         if voice_url:
@@ -1361,11 +1569,13 @@ class HeyGenClient:
 
         body = resp.json()
         video_id = body.get("data", {}).get("video_id", "")
-        return _ok({
-            "provider_job_id": video_id,
-            "provider": "heygen",
-            "requires_polling": cb_url is None,
-        })
+        return _ok(
+            {
+                "provider_job_id": video_id,
+                "provider": "heygen",
+                "requires_polling": cb_url is None,
+            }
+        )
 
     async def poll_status(self, job_id: str) -> dict[str, Any]:
         """Check if an async HeyGen job has completed."""
@@ -1405,6 +1615,7 @@ class HeyGenClient:
 
 # ── AVATAR: Synthesia ────────────────────────────────────────────
 
+
 class SynthesiaClient:
     BASE_URL = "https://api.synthesia.io"
 
@@ -1417,10 +1628,17 @@ class SynthesiaClient:
     def _headers(self) -> dict:
         return {"Authorization": self.api_key, "Content-Type": "application/json"}
 
-    async def create_video(self, script_text: str, avatar_id: str = "anna_costume1_cameraA", language: str = "en-US") -> dict[str, Any]:
+    async def create_video(
+        self, script_text: str, avatar_id: str = "anna_costume1_cameraA", language: str = "en-US"
+    ) -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("SYNTHESIA_API_KEY not configured")
-        payload = {"input": [{"scriptText": script_text[:5000], "avatar": avatar_id, "avatarSettings": {"horizontalAlign": "center"}}], "aspectRatio": "9:16"}
+        payload = {
+            "input": [
+                {"scriptText": script_text[:5000], "avatar": avatar_id, "avatarSettings": {"horizontalAlign": "center"}}
+            ],
+            "aspectRatio": "9:16",
+        }
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
                 resp = await c.post(f"{self.BASE_URL}/v2/videos", json=payload, headers=self._headers())
@@ -1435,6 +1653,7 @@ class SynthesiaClient:
         if not self._is_configured():
             return _blocked("SYNTHESIA_API_KEY not configured")
         import asyncio as aio
+
         elapsed = 0
         interval = 15
         while elapsed < max_wait:
@@ -1445,7 +1664,14 @@ class SynthesiaClient:
                     data = resp.json()
                     status = data.get("status", "")
                     if status == "complete":
-                        return _ok({"video_url": data.get("download", ""), "video_id": video_id, "status": "completed", "duration": data.get("duration")})
+                        return _ok(
+                            {
+                                "video_url": data.get("download", ""),
+                                "video_id": video_id,
+                                "status": "completed",
+                                "duration": data.get("duration"),
+                            }
+                        )
                     if status == "error":
                         return _fail(f"Synthesia video failed: {data.get('errorMessage', 'unknown')}")
             except httpx.HTTPError:
@@ -1473,11 +1699,13 @@ class SynthesiaClient:
         cb_url = _webhook_url("synthesia", webhook_url)
 
         payload: dict[str, Any] = {
-            "input": [{
-                "scriptText": prompt[:5000],
-                "avatar": avatar_id,
-                "avatarSettings": {"horizontalAlign": "center"},
-            }],
+            "input": [
+                {
+                    "scriptText": prompt[:5000],
+                    "avatar": avatar_id,
+                    "avatarSettings": {"horizontalAlign": "center"},
+                }
+            ],
             "aspectRatio": "9:16",
         }
         if cb_url:
@@ -1494,11 +1722,13 @@ class SynthesiaClient:
 
         body = resp.json()
         video_id = body.get("id", "")
-        return _ok({
-            "provider_job_id": video_id,
-            "provider": "synthesia",
-            "requires_polling": cb_url is None,
-        })
+        return _ok(
+            {
+                "provider_job_id": video_id,
+                "provider": "synthesia",
+                "requires_polling": cb_url is None,
+            }
+        )
 
     async def poll_status(self, job_id: str) -> dict[str, Any]:
         """Check if an async Synthesia job has completed."""
@@ -1522,8 +1752,10 @@ class SynthesiaClient:
 
 # ── MUSIC: Suno ──────────────────────────────────────────────────
 
+
 class SunoClient:
     """Suno — AI music generation. Hero tier for full songs with vocals."""
+
     BASE_URL = "https://api.suno.ai"
 
     def __init__(self, api_key: str | None = None):
@@ -1538,7 +1770,9 @@ class SunoClient:
         payload = {"prompt": prompt, "duration": duration_sec, "genre": genre}
         try:
             async with httpx.AsyncClient(timeout=_POLL_TIMEOUT) as c:
-                resp = await c.post(f"{self.BASE_URL}/v1/generate", json=payload, headers={"Authorization": f"Bearer {self.api_key}"})
+                resp = await c.post(
+                    f"{self.BASE_URL}/v1/generate", json=payload, headers={"Authorization": f"Bearer {self.api_key}"}
+                )
         except httpx.HTTPError as e:
             return _fail(f"Suno network error: {e}")
         err = await _handle_response(resp, "Suno")
@@ -1550,8 +1784,10 @@ class SunoClient:
 
 # ── MUSIC: Mubert ────────────────────────────────────────────────
 
+
 class MubertClient:
     """Mubert — AI-generated royalty-free background music. Standard tier for ambient/looping tracks."""
+
     BASE_URL = "https://api.mubert.com/v2"
 
     def __init__(self, api_key: str | None = None):
@@ -1563,7 +1799,16 @@ class MubertClient:
     async def generate(self, prompt: str, duration_sec: int = 30, intensity: str = "medium") -> dict[str, Any]:
         if not self._is_configured():
             return _blocked("MUBERT_API_KEY not configured")
-        payload = {"method": "RecordTrackTTM", "params": {"pat": self.api_key, "prompt": prompt, "duration": duration_sec, "intensity": intensity, "format": "mp3"}}
+        payload = {
+            "method": "RecordTrackTTM",
+            "params": {
+                "pat": self.api_key,
+                "prompt": prompt,
+                "duration": duration_sec,
+                "intensity": intensity,
+                "format": "mp3",
+            },
+        }
         try:
             async with httpx.AsyncClient(timeout=_POLL_TIMEOUT) as c:
                 resp = await c.post(f"{self.BASE_URL}/TTMRecordTrack", json=payload)
@@ -1580,7 +1825,10 @@ class MubertClient:
             await asyncio.sleep(5)
             try:
                 async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-                    poll = await c.post(f"{self.BASE_URL}/TrackStatus", json={"method": "TrackStatus", "params": {"pat": self.api_key, "task_id": task_id}})
+                    poll = await c.post(
+                        f"{self.BASE_URL}/TrackStatus",
+                        json={"method": "TrackStatus", "params": {"pat": self.api_key, "task_id": task_id}},
+                    )
                 pdata = poll.json()
                 status = pdata.get("data", {}).get("tasks", [{}])[0].get("task_status_code", 0)
                 if status == 2:
@@ -1595,8 +1843,10 @@ class MubertClient:
 
 # ── MUSIC: Stable Audio ──────────────────────────────────────────
 
+
 class StableAudioClient:
     """Stable Audio (Stability AI) — high-quality AI music + sound effects. Bulk tier."""
+
     BASE_URL = "https://api.stability.ai"
 
     def __init__(self, api_key: str | None = None):
@@ -1616,7 +1866,11 @@ class StableAudioClient:
                 resp = await c.post(
                     f"{self.BASE_URL}/v2beta/stable-audio/generate",
                     json=payload,
-                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json", "Accept": "audio/*"},
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                        "Accept": "audio/*",
+                    },
                 )
         except httpx.HTTPError as e:
             return _fail(f"Stable Audio network error: {e}")

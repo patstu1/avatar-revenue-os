@@ -1,4 +1,5 @@
 """Market timing: timing reports and macro signal events."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -13,9 +14,7 @@ from packages.db.base import Base
 class MarketTimingReport(Base):
     __tablename__ = "market_timing_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     market_category: Mapped[str] = mapped_column(String(100), nullable=False)
     timing_score: Mapped[float] = mapped_column(Float, default=0.0)
     active_window: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
@@ -35,6 +34,4 @@ class MacroSignalEvent(Base):
     signal_type: Mapped[str] = mapped_column(String(100), nullable=False)
     source_name: Mapped[str] = mapped_column(String(200), nullable=False)
     signal_metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
-    observed_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    observed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

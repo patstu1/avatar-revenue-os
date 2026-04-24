@@ -113,8 +113,13 @@ def estimate_ltv_rules(
     repeat_est = 1.15 if offer.get("recurring_commission") else 1.05
     geo_mult = 1.1 if (geography or "").upper() in ("US", "UK", "CA", "AU") else 0.85
     plat_mult = {
-        "youtube": 1.05, "tiktok": 0.95, "instagram": 1.0,
-        "twitter": 0.85, "reddit": 0.80, "linkedin": 1.10, "facebook": 0.90,
+        "youtube": 1.05,
+        "tiktok": 0.95,
+        "instagram": 1.0,
+        "twitter": 0.85,
+        "reddit": 0.80,
+        "linkedin": 1.10,
+        "facebook": 0.90,
     }.get(platform.lower(), 1.0)
     lang_mult = 1.0 if (language or "en").lower() == "en" else 0.9
 

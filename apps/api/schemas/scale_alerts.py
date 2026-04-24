@@ -1,4 +1,5 @@
 """Pydantic models for scale alerts APIs."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -29,6 +30,7 @@ class AlertResponse(BaseModel):
     resolved_at: str | None = None
     created_at: str | None = None
 
+
 class LaunchCandidateResponse(BaseModel):
     id: str
     linked_scale_recommendation_id: str | None = None
@@ -56,6 +58,7 @@ class LaunchCandidateResponse(BaseModel):
     required_resources: list | None = None
     launch_blockers: list | None = None
 
+
 class BlockerResponse(BaseModel):
     id: str
     blocker_type: str
@@ -66,6 +69,7 @@ class BlockerResponse(BaseModel):
     current_value: float = 0.0
     threshold_value: float = 0.0
 
+
 class ReadinessResponse(BaseModel):
     id: str
     launch_readiness_score: float = 0.0
@@ -73,6 +77,7 @@ class ReadinessResponse(BaseModel):
     recommended_action: str = "monitor"
     gating_factors: list | None = None
     components: dict[str, Any] | None = None
+
 
 class NotificationResponse(BaseModel):
     id: str
@@ -82,6 +87,7 @@ class NotificationResponse(BaseModel):
     attempts: int = 0
     last_error: str | None = None
     delivered_at: str | None = None
+
 
 class ResolveRequest(BaseModel):
     notes: str | None = None

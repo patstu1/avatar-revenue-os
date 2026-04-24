@@ -1,4 +1,5 @@
 """Autonomous Phase B recurring workers — content runner, distribution, monetization, suppression."""
+
 from __future__ import annotations
 
 import uuid as _uuid
@@ -43,23 +44,29 @@ def _now() -> datetime:
 
 
 def _acct_dicts(session: Session, brand_id: _uuid.UUID) -> list[dict]:
-    accounts = session.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id)
-    ).scalars().all()
-    mat_rows = session.execute(
-        select(AccountMaturityReport).where(
-            AccountMaturityReport.brand_id == brand_id,
-            AccountMaturityReport.is_active.is_(True),
+    accounts = session.execute(select(CreatorAccount).where(CreatorAccount.brand_id == brand_id)).scalars().all()
+    mat_rows = (
+        session.execute(
+            select(AccountMaturityReport).where(
+                AccountMaturityReport.brand_id == brand_id,
+                AccountMaturityReport.is_active.is_(True),
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     mat_map = {r.account_id: r for r in mat_rows}
 
-    out_rows = session.execute(
-        select(AccountOutputReport).where(
-            AccountOutputReport.brand_id == brand_id,
-            AccountOutputReport.is_active.is_(True),
+    out_rows = (
+        session.execute(
+            select(AccountOutputReport).where(
+                AccountOutputReport.brand_id == brand_id,
+                AccountOutputReport.is_active.is_(True),
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     out_map = {r.account_id: r for r in out_rows}
 
     result = []
@@ -67,29 +74,30 @@ def _acct_dicts(session: Session, brand_id: _uuid.UUID) -> list[dict]:
         plat = a.platform.value if hasattr(a.platform, "value") else str(a.platform)
         mr = mat_map.get(a.id)
         opr = out_map.get(a.id)
-        result.append({
-            "account_id": str(a.id),
-            "platform": plat,
-            "maturity_state": mr.maturity_state if mr else "warming",
-            "health_score": mr.health_score if mr else 0.5,
-            "saturation_score": a.saturation_score,
-            "avg_engagement_rate": mr.avg_engagement_rate if mr else 0.0,
-            "current_output_per_week": opr.current_output_per_week if opr else 0,
-            "max_safe_output_per_week": opr.max_safe_output_per_week if opr else 21,
-        })
+        result.append(
+            {
+                "account_id": str(a.id),
+                "platform": plat,
+                "maturity_state": mr.maturity_state if mr else "warming",
+                "health_score": mr.health_score if mr else 0.5,
+                "saturation_score": a.saturation_score,
+                "avg_engagement_rate": mr.avg_engagement_rate if mr else 0.0,
+                "current_output_per_week": opr.current_output_per_week if opr else 0,
+                "max_safe_output_per_week": opr.max_safe_output_per_week if opr else 21,
+            }
+        )
     return result
 
 
 def _policy_dicts(session: Session) -> list[dict]:
-    rows = session.execute(
-        select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True))
-    ).scalars().all()
+    rows = session.execute(select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True))).scalars().all()
     return [{"platform": p.platform, "max_safe_output_per_day": p.max_safe_posts_per_day} for p in rows]
 
 
 # ---------------------------------------------------------------------------
 # Task 1 — Autonomous Content Runner
 # ---------------------------------------------------------------------------
+
 
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_b_worker.tasks.run_content_runner")
 def run_content_runner(self) -> dict:
@@ -99,27 +107,36 @@ def run_content_runner(self) -> dict:
     errors: list[dict] = []
 
     with Session(engine) as session:
-        brands = session.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        ).scalars().all()
+        brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
 
         for brand in brands:
             try:
-                queue_items = session.execute(
-                    select(AutoQueueItem).where(
-                        AutoQueueItem.brand_id == brand.id,
-                        AutoQueueItem.is_active.is_(True),
-                        AutoQueueItem.queue_status == "ready",
-                    ).order_by(AutoQueueItem.priority_score.desc()).limit(5)
-                ).scalars().all()
-
-                policies = session.execute(
-                    select(ExecutionPolicy).where(
-                        ExecutionPolicy.brand_id == brand.id,
-                        ExecutionPolicy.is_active.is_(True),
-                        ExecutionPolicy.action_type == "publish_content",
+                queue_items = (
+                    session.execute(
+                        select(AutoQueueItem)
+                        .where(
+                            AutoQueueItem.brand_id == brand.id,
+                            AutoQueueItem.is_active.is_(True),
+                            AutoQueueItem.queue_status == "ready",
+                        )
+                        .order_by(AutoQueueItem.priority_score.desc())
+                        .limit(5)
                     )
-                ).scalars().first()
+                    .scalars()
+                    .all()
+                )
+
+                policies = (
+                    session.execute(
+                        select(ExecutionPolicy).where(
+                            ExecutionPolicy.brand_id == brand.id,
+                            ExecutionPolicy.is_active.is_(True),
+                            ExecutionPolicy.action_type == "publish_content",
+                        )
+                    )
+                    .scalars()
+                    .first()
+                )
 
                 exec_mode = policies.execution_mode if policies else "guarded"
 
@@ -139,14 +156,16 @@ def run_content_runner(self) -> dict:
                     session.flush()
 
                     for i, step_name in enumerate(RUN_STEPS):
-                        session.add(AutonomousRunStep(
-                            run_id=run.id,
-                            step_name=step_name,
-                            step_order=i,
-                            step_status="completed" if step_name in ("queued", "policy_check") else "pending",
-                            started_at=_now() if step_name in ("queued", "policy_check") else None,
-                            completed_at=_now() if step_name in ("queued", "policy_check") else None,
-                        ))
+                        session.add(
+                            AutonomousRunStep(
+                                run_id=run.id,
+                                step_name=step_name,
+                                step_order=i,
+                                step_status="completed" if step_name in ("queued", "policy_check") else "pending",
+                                started_at=_now() if step_name in ("queued", "policy_check") else None,
+                                completed_at=_now() if step_name in ("queued", "policy_check") else None,
+                            )
+                        )
 
                     qi.queue_status = "processing"
                     runs_advanced += 1
@@ -165,6 +184,7 @@ def run_content_runner(self) -> dict:
 # Task 2 — Distribution Plan Recomputation
 # ---------------------------------------------------------------------------
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_b_worker.tasks.recompute_distribution_plans")
 def recompute_distribution_plans(self) -> dict:
     """Create distribution plans for running autonomous runs."""
@@ -173,20 +193,24 @@ def recompute_distribution_plans(self) -> dict:
     errors: list[dict] = []
 
     with Session(engine) as session:
-        brands = session.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        ).scalars().all()
+        brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
 
         for brand in brands:
             try:
-                runs = session.execute(
-                    select(AutonomousRun).where(
-                        AutonomousRun.brand_id == brand.id,
-                        AutonomousRun.is_active.is_(True),
-                        AutonomousRun.run_status == "running",
-                        AutonomousRun.distribution_plan_id.is_(None),
-                    ).limit(20)
-                ).scalars().all()
+                runs = (
+                    session.execute(
+                        select(AutonomousRun)
+                        .where(
+                            AutonomousRun.brand_id == brand.id,
+                            AutonomousRun.is_active.is_(True),
+                            AutonomousRun.run_status == "running",
+                            AutonomousRun.distribution_plan_id.is_(None),
+                        )
+                        .limit(20)
+                    )
+                    .scalars()
+                    .all()
+                )
 
                 if not runs:
                     continue
@@ -236,6 +260,7 @@ def recompute_distribution_plans(self) -> dict:
 # Task 3 — Monetization Route Recomputation
 # ---------------------------------------------------------------------------
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_b_worker.tasks.recompute_monetization_routes")
 def recompute_monetization_routes(self) -> dict:
     """Select monetization routes for running autonomous runs."""
@@ -244,44 +269,54 @@ def recompute_monetization_routes(self) -> dict:
     errors: list[dict] = []
 
     with Session(engine) as session:
-        brands = session.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        ).scalars().all()
+        brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
 
         for brand in brands:
             try:
-                runs = session.execute(
-                    select(AutonomousRun).where(
-                        AutonomousRun.brand_id == brand.id,
-                        AutonomousRun.is_active.is_(True),
-                        AutonomousRun.run_status == "running",
-                        AutonomousRun.monetization_route_id.is_(None),
-                    ).limit(20)
-                ).scalars().all()
+                runs = (
+                    session.execute(
+                        select(AutonomousRun)
+                        .where(
+                            AutonomousRun.brand_id == brand.id,
+                            AutonomousRun.is_active.is_(True),
+                            AutonomousRun.run_status == "running",
+                            AutonomousRun.monetization_route_id.is_(None),
+                        )
+                        .limit(20)
+                    )
+                    .scalars()
+                    .all()
+                )
 
                 if not runs:
                     continue
 
-                offers = session.execute(
-                    select(Offer).where(Offer.brand_id == brand.id).limit(100)
-                ).scalars().all()
-                offer_dicts = [{
-                    "name": o.name,
-                    "type": o.monetization_method.value if hasattr(o.monetization_method, "value") else str(o.monetization_method),
-                    "keywords": [str(t) for t in (o.audience_fit_tags or [])],
-                    "revenue_per_conversion": float(o.payout_amount) if o.payout_amount else 50.0,
-                    "active": o.is_active,
-                } for o in offers]
+                offers = session.execute(select(Offer).where(Offer.brand_id == brand.id).limit(100)).scalars().all()
+                offer_dicts = [
+                    {
+                        "name": o.name,
+                        "type": o.monetization_method.value
+                        if hasattr(o.monetization_method, "value")
+                        else str(o.monetization_method),
+                        "keywords": [str(t) for t in (o.audience_fit_tags or [])],
+                        "revenue_per_conversion": float(o.payout_amount) if o.payout_amount else 50.0,
+                        "active": o.is_active,
+                    }
+                    for o in offers
+                ]
 
                 acct_dicts = _acct_dicts(session, brand.id)
                 acct_map = {a["account_id"]: a for a in acct_dicts}
 
                 for run in runs:
-                    acct_ctx = acct_map.get(str(run.target_account_id), {
-                        "platform": run.target_platform,
-                        "maturity_state": "stable",
-                        "health_score": 0.5,
-                    })
+                    acct_ctx = acct_map.get(
+                        str(run.target_account_id),
+                        {
+                            "platform": run.target_platform,
+                            "maturity_state": "stable",
+                            "health_score": 0.5,
+                        },
+                    )
 
                     qi = session.get(AutoQueueItem, run.queue_item_id) if run.queue_item_id else None
 
@@ -334,6 +369,7 @@ def recompute_monetization_routes(self) -> dict:
 # Task 4 — Suppression Execution Checks
 # ---------------------------------------------------------------------------
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_b_worker.tasks.run_suppression_checks")
 def run_suppression_checks(self) -> dict:
     """Evaluate and persist suppression actions across all brands."""
@@ -342,29 +378,36 @@ def run_suppression_checks(self) -> dict:
     errors: list[dict] = []
 
     with Session(engine) as session:
-        brands = session.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        ).scalars().all()
+        brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
 
         for brand in brands:
             try:
                 acct_dicts = _acct_dicts(session, brand.id)
 
-                qi_rows = session.execute(
-                    select(AutoQueueItem).where(
-                        AutoQueueItem.brand_id == brand.id,
-                        AutoQueueItem.is_active.is_(True),
-                    ).limit(200)
-                ).scalars().all()
+                qi_rows = (
+                    session.execute(
+                        select(AutoQueueItem)
+                        .where(
+                            AutoQueueItem.brand_id == brand.id,
+                            AutoQueueItem.is_active.is_(True),
+                        )
+                        .limit(200)
+                    )
+                    .scalars()
+                    .all()
+                )
 
-                qi_dicts = [{
-                    "id": str(q.id),
-                    "content_family": q.content_family or "general",
-                    "platform": q.platform,
-                    "priority_score": q.priority_score,
-                    "monetization_path": q.monetization_path,
-                    "queue_status": q.queue_status,
-                } for q in qi_rows]
+                qi_dicts = [
+                    {
+                        "id": str(q.id),
+                        "content_family": q.content_family or "general",
+                        "platform": q.platform,
+                        "priority_score": q.priority_score,
+                        "monetization_path": q.monetization_path,
+                        "queue_status": q.queue_status,
+                    }
+                    for q in qi_rows
+                ]
 
                 performance = {
                     "overall_engagement_rate": 0.02,
@@ -383,18 +426,20 @@ def run_suppression_checks(self) -> dict:
                         except (ValueError, TypeError):
                             pass
 
-                    session.add(SuppressionExecution(
-                        brand_id=brand.id,
-                        suppression_type=s["suppression_type"],
-                        affected_scope=s["affected_scope"],
-                        affected_entity_id=entity_id,
-                        trigger_reason=s["trigger_reason"],
-                        duration_hours=s.get("duration_hours"),
-                        lift_condition=s.get("lift_condition"),
-                        confidence=s["confidence"],
-                        suppression_status="active",
-                        explanation=s["explanation"],
-                    ))
+                    session.add(
+                        SuppressionExecution(
+                            brand_id=brand.id,
+                            suppression_type=s["suppression_type"],
+                            affected_scope=s["affected_scope"],
+                            affected_entity_id=entity_id,
+                            trigger_reason=s["trigger_reason"],
+                            duration_hours=s.get("duration_hours"),
+                            lift_condition=s.get("lift_condition"),
+                            confidence=s["confidence"],
+                            suppression_status="active",
+                            explanation=s["explanation"],
+                        )
+                    )
                     suppressions_created += 1
 
                 logger.info("suppression.brand_done", brand_id=str(brand.id), created=len(results))

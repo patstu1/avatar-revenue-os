@@ -5,6 +5,7 @@ and any revenue avenue with deal values > $500.
 
 All functions are pure/deterministic — no DB access. Service layer handles persistence.
 """
+
 from __future__ import annotations
 
 import math
@@ -17,6 +18,7 @@ from enum import Enum
 # ---------------------------------------------------------------------------
 # Enums & Constants
 # ---------------------------------------------------------------------------
+
 
 class DealStage(str, Enum):
     AWARENESS = "awareness"
@@ -84,6 +86,7 @@ _SYNERGY_MAP: dict[tuple[str, str], float] = {
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Deal:
@@ -198,6 +201,7 @@ class RevenueStack:
 # 1. High-Ticket Pipeline Manager
 # ---------------------------------------------------------------------------
 
+
 def _active_deals(deals: list[Deal]) -> list[Deal]:
     return [d for d in deals if d.stage not in (DealStage.CLOSED_WON, DealStage.CLOSED_LOST)]
 
@@ -309,12 +313,7 @@ def analyze_pipeline(
     velocity_score = min(velocity / max(avg_deal_size * 0.5, 1) * 50, 100)
     coverage_score = min(weighted_pipeline_value / max(forecast_30d, 1) * 25, 100)
 
-    health_score = _clamp(
-        balance_score * 0.25
-        + aging_score * 0.25
-        + velocity_score * 0.25
-        + coverage_score * 0.25
-    )
+    health_score = _clamp(balance_score * 0.25 + aging_score * 0.25 + velocity_score * 0.25 + coverage_score * 0.25)
 
     return PipelineAnalysis(
         total_pipeline_value=round(total_pipeline_value, 2),
@@ -464,15 +463,15 @@ _BASE_CONVERSION_RATES: dict[str, dict[str, float]] = {
 }
 
 _SEASONAL_SCORES: dict[int, float] = {
-    1: 0.95,   # Jan — new-year motivation
+    1: 0.95,  # Jan — new-year motivation
     2: 0.80,
     3: 0.75,
     4: 0.70,
     5: 0.65,
-    6: 0.60,   # summer slump starts
+    6: 0.60,  # summer slump starts
     7: 0.55,
     8: 0.60,
-    9: 0.85,   # back-to-school energy
+    9: 0.85,  # back-to-school energy
     10: 0.90,
     11: 0.80,  # pre-holiday noise
     12: 0.50,  # holiday distraction
@@ -550,9 +549,7 @@ def plan_product_launch(
     total_expected_revenue = round(purchasers * target_price, 2)
     break_even_signups = max(math.ceil(_safe_div(creation_cost, target_price, 0)), 1)
 
-    marketing_budget = _recommended_marketing_budget(
-        target_price, purchasers, audience_size, email_list_size
-    )
+    marketing_budget = _recommended_marketing_budget(target_price, purchasers, audience_size, email_list_size)
 
     # -- launch phases --
     pre_launch_signups = int(waitlisted * 0.6)
@@ -628,8 +625,13 @@ def plan_product_launch(
     }
 
     risk_factors = _identify_launch_risks(
-        target_price, audience_size, email_list_size,
-        audience_engagement_rate, existing_products, purchasers, creation_cost,
+        target_price,
+        audience_size,
+        email_list_size,
+        audience_engagement_rate,
+        existing_products,
+        purchasers,
+        creation_cost,
     )
     mitigation_strategies = _mitigation_for_risks(risk_factors)
 
@@ -651,7 +653,10 @@ def plan_product_launch(
 
 
 def _recommended_marketing_budget(
-    price: float, expected_sales: int, audience_size: int, email_list_size: int,
+    price: float,
+    expected_sales: int,
+    audience_size: int,
+    email_list_size: int,
 ) -> float:
     expected_rev = price * expected_sales
     base_pct = 0.15 if email_list_size > audience_size * 0.15 else 0.25
@@ -677,14 +682,13 @@ def _identify_launch_risks(
     if price > 1000 and not existing_products:
         risks.append("high_price_no_track_record: no prior products to build trust for premium pricing")
     if expected_purchases < 10:
-        risks.append("low_volume_forecast: fewer than 10 expected sales — consider lowering price or growing audience first")
+        risks.append(
+            "low_volume_forecast: fewer than 10 expected sales — consider lowering price or growing audience first"
+        )
     if creation_cost > 0 and expected_purchases * price < creation_cost:
         risks.append("negative_roi_risk: expected revenue does not cover creation cost on first launch")
 
-    recent_launches = [
-        p for p in existing_products
-        if p.get("launch_date") and _is_recent_launch(p["launch_date"])
-    ]
+    recent_launches = [p for p in existing_products if p.get("launch_date") and _is_recent_launch(p["launch_date"])]
     if len(recent_launches) >= 2:
         risks.append("launch_fatigue: multiple recent launches may tire your audience")
 
@@ -739,13 +743,15 @@ def find_optimal_launch_window(
 
         composite = seasonal * 0.3 + competition * 0.35 + readiness * 0.35
 
-        candidates.append({
-            "date": candidate_date.strftime("%Y-%m-%d"),
-            "seasonal": seasonal,
-            "competition": competition,
-            "readiness": readiness,
-            "composite": composite,
-        })
+        candidates.append(
+            {
+                "date": candidate_date.strftime("%Y-%m-%d"),
+                "seasonal": seasonal,
+                "competition": competition,
+                "readiness": readiness,
+                "composite": composite,
+            }
+        )
 
     best = max(candidates, key=lambda c: c["composite"])
 
@@ -913,17 +919,19 @@ def design_consulting_packages(
 
         ltv = base_price * cfg["ltv_mult"]
 
-        packages.append(ConsultingPackage(
-            name=f"{expertise_label} — {cfg['name_suffix']}",
-            tier=cfg["tier"],
-            price=base_price,
-            hours_included=hours,
-            deliverables=deliverables,
-            ideal_client_profile=ideal_profile,
-            avg_close_rate=cfg["close_rate"],
-            avg_ltv=round(ltv, 2),
-            upsell_path=cfg["upsell_to"],
-        ))
+        packages.append(
+            ConsultingPackage(
+                name=f"{expertise_label} — {cfg['name_suffix']}",
+                tier=cfg["tier"],
+                price=base_price,
+                hours_included=hours,
+                deliverables=deliverables,
+                ideal_client_profile=ideal_profile,
+                avg_close_rate=cfg["close_rate"],
+                avg_ltv=round(ltv, 2),
+                upsell_path=cfg["upsell_to"],
+            )
+        )
 
     return packages
 
@@ -978,14 +986,16 @@ def optimize_consulting_utilization(
         tier_hours = sum(c.get("hours_used", 0) for c in tier_clients)
         tier_revenue = sum(c.get("monthly_revenue", 0) for c in tier_clients)
         tier_rph = _safe_div(tier_revenue, max(tier_hours, 1), 0.0)
-        tier_analysis.append({
-            "tier": pkg.tier,
-            "clients": len(tier_clients),
-            "hours_used": tier_hours,
-            "revenue": tier_revenue,
-            "revenue_per_hour": round(tier_rph, 2),
-            "package_price": pkg.price,
-        })
+        tier_analysis.append(
+            {
+                "tier": pkg.tier,
+                "clients": len(tier_clients),
+                "hours_used": tier_hours,
+                "revenue": tier_revenue,
+                "revenue_per_hour": round(tier_rph, 2),
+                "package_price": pkg.price,
+            }
+        )
 
     tier_analysis.sort(key=lambda t: t["revenue_per_hour"], reverse=True)
 
@@ -993,8 +1003,7 @@ def optimize_consulting_utilization(
     recommendations: list[str] = []
     if utilization_rate < 0.6:
         recommendations.append(
-            f"Utilization at {utilization_rate:.0%} — aggressively fill capacity. "
-            f"You have {capacity_hours}h available."
+            f"Utilization at {utilization_rate:.0%} — aggressively fill capacity. You have {capacity_hours}h available."
         )
     elif utilization_rate > 0.9:
         recommendations.append(
@@ -1011,9 +1020,7 @@ def optimize_consulting_utilization(
             )
 
     if revenue_gap > 0 and capacity_hours > 0:
-        best_pkg = package_map.get(
-            tier_analysis[0]["tier"] if tier_analysis else "standard"
-        )
+        best_pkg = package_map.get(tier_analysis[0]["tier"] if tier_analysis else "standard")
         if best_pkg:
             clients_needed = math.ceil(revenue_gap / best_pkg.price)
             recommendations.append(
@@ -1028,12 +1035,14 @@ def optimize_consulting_utilization(
         pkg = package_map.get(ta["tier"])
         if pkg and remaining_capacity >= pkg.hours_included:
             slots = remaining_capacity // pkg.hours_included
-            new_client_slots.append({
-                "tier": pkg.tier,
-                "max_new_clients": slots,
-                "potential_monthly_revenue": slots * pkg.price,
-                "hours_per_client": pkg.hours_included,
-            })
+            new_client_slots.append(
+                {
+                    "tier": pkg.tier,
+                    "max_new_clients": slots,
+                    "potential_monthly_revenue": slots * pkg.price,
+                    "hours_per_client": pkg.hours_included,
+                }
+            )
             remaining_capacity -= slots * pkg.hours_included
 
     return {
@@ -1133,9 +1142,7 @@ def analyze_funnel(
     cost_per_registrant = _safe_div(ad_spend, registrations, 0.0)
     roas = _safe_div(total_revenue, max(ad_spend, 0.01), 0.0)
 
-    funnel_efficiency = _compute_funnel_efficiency(
-        show_up_rate, engagement_rate, offer_conversion_rate, roas
-    )
+    funnel_efficiency = _compute_funnel_efficiency(show_up_rate, engagement_rate, offer_conversion_rate, roas)
 
     current = FunnelMetrics(
         registrations=registrations,
@@ -1191,19 +1198,19 @@ def analyze_funnel(
         bench_val = bench.get(bk, 0)
         lift = _LIFT_ESTIMATES.get(area, 0.15)
         fixes = _FIX_PLAYBOOKS.get(area, [])
-        recommendations.append({
-            "area": area,
-            "current": round(current_val, 4),
-            "benchmark": round(bench_val, 4),
-            "gap_pct": round(gap_pct, 4),
-            "fix": fixes,
-            "expected_lift": round(lift, 4),
-        })
+        recommendations.append(
+            {
+                "area": area,
+                "current": round(current_val, 4),
+                "benchmark": round(bench_val, 4),
+                "gap_pct": round(gap_pct, 4),
+                "fix": fixes,
+                "expected_lift": round(lift, 4),
+            }
+        )
 
     # --- project metrics after fixing the bottleneck ---
-    projected = _project_fixed_metrics(
-        current, bottleneck, bench, registrations, ad_spend
-    )
+    projected = _project_fixed_metrics(current, bottleneck, bench, registrations, ad_spend)
 
     improvement_potential = max(projected.revenue_per_registrant * registrations - total_revenue, 0)
 
@@ -1217,7 +1224,10 @@ def analyze_funnel(
 
 
 def _compute_funnel_efficiency(
-    show_up: float, engagement: float, conversion: float, roas: float,
+    show_up: float,
+    engagement: float,
+    conversion: float,
+    roas: float,
 ) -> float:
     """Composite funnel efficiency score 0-100."""
     show_up_score = min(show_up / 0.45, 1.0) * 25
@@ -1257,9 +1267,7 @@ def _project_fixed_metrics(
     proj_cpr = _safe_div(ad_spend, registrations, 0.0)
     proj_roas = _safe_div(proj_revenue, max(ad_spend, 0.01), 0.0)
 
-    proj_efficiency = _compute_funnel_efficiency(
-        proj_show_up, proj_engagement, proj_conversion, proj_roas
-    )
+    proj_efficiency = _compute_funnel_efficiency(proj_show_up, proj_engagement, proj_conversion, proj_roas)
 
     return FunnelMetrics(
         registrations=registrations,
@@ -1327,9 +1335,7 @@ def compute_revenue_stack(
     total_monthly = sum(a.get("monthly_revenue", 0) for a in active_avenues)
     total_annual = total_monthly * 12
 
-    recurring_monthly = sum(
-        a.get("monthly_revenue", 0) for a in active_avenues if a.get("is_recurring")
-    )
+    recurring_monthly = sum(a.get("monthly_revenue", 0) for a in active_avenues if a.get("is_recurring"))
     recurring_pct = _safe_div(recurring_monthly, total_monthly, 0.0)
 
     avenue_names = [a.get("avenue", "unknown") for a in active_avenues]
@@ -1343,22 +1349,24 @@ def compute_revenue_stack(
 
         synergies = _detect_synergies(avenue.get("avenue", ""), avenue_names)
 
-        stack_layers.append({
-            "avenue": avenue.get("avenue", "unknown"),
-            "monthly": round(monthly, 2),
-            "annual": round(monthly * 12, 2),
-            "margin": round(margin, 4),
-            "is_recurring": avenue.get("is_recurring", False),
-            "growth_rate": round(growth, 4),
-            "synergies": synergies,
-            "pct_of_total": round(_safe_div(monthly, total_monthly, 0.0), 4),
-        })
+        stack_layers.append(
+            {
+                "avenue": avenue.get("avenue", "unknown"),
+                "monthly": round(monthly, 2),
+                "annual": round(monthly * 12, 2),
+                "margin": round(margin, 4),
+                "is_recurring": avenue.get("is_recurring", False),
+                "growth_rate": round(growth, 4),
+                "synergies": synergies,
+                "pct_of_total": round(_safe_div(monthly, total_monthly, 0.0), 4),
+            }
+        )
 
     stack_layers.sort(key=lambda s: s["monthly"], reverse=True)
 
     # --- diversification score (Herfindahl-Hirschman inversion) ---
     shares = [_safe_div(a.get("monthly_revenue", 0), total_monthly, 0.0) for a in active_avenues]
-    hhi = sum(s ** 2 for s in shares)
+    hhi = sum(s**2 for s in shares)
     diversification = _clamp(1 - hhi, 0, 1)
 
     # --- vulnerability score ---
@@ -1370,8 +1378,7 @@ def compute_revenue_stack(
     # --- growth trajectory ---
     [a.get("growth_rate", 0.0) for a in active_avenues]
     weighted_growth = sum(
-        a.get("growth_rate", 0.0) * _safe_div(a.get("monthly_revenue", 0), total_monthly, 0.0)
-        for a in active_avenues
+        a.get("growth_rate", 0.0) * _safe_div(a.get("monthly_revenue", 0), total_monthly, 0.0) for a in active_avenues
     )
     growth_trajectory = _classify_growth(weighted_growth)
 
@@ -1400,11 +1407,13 @@ def _detect_synergies(avenue_name: str, all_names: list[str]) -> list[dict]:
         key = (avenue_name.lower(), other.lower())
         mult = _SYNERGY_MAP.get(key)
         if mult:
-            synergies.append({
-                "paired_with": other,
-                "multiplier": mult,
-                "description": _synergy_description(avenue_name, other, mult),
-            })
+            synergies.append(
+                {
+                    "paired_with": other,
+                    "multiplier": mult,
+                    "description": _synergy_description(avenue_name, other, mult),
+                }
+            )
     return synergies
 
 
@@ -1454,7 +1463,9 @@ def _classify_growth(weighted_rate: float) -> str:
 
 
 def _suggest_next_avenue(
-    active: list[dict], audience_size: int, content_reach: int,
+    active: list[dict],
+    audience_size: int,
+    content_reach: int,
 ) -> str:
     """Suggest the next revenue avenue to add based on gaps and audience."""
     existing = {a.get("avenue", "").lower() for a in active}
@@ -1505,6 +1516,7 @@ def _suggest_next_avenue(
 # ---------------------------------------------------------------------------
 # 6. Convenience / orchestration helpers
 # ---------------------------------------------------------------------------
+
 
 def score_all_deals(deals: list[Deal], avg_cycle_days: float = 45) -> list[Deal]:
     """Score every deal in-place and return sorted by score descending."""

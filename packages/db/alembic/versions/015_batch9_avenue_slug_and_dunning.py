@@ -17,6 +17,7 @@ Adds:
 
 All additions are additive and nullable — safe to run on populated DB.
 """
+
 import sqlalchemy as sa
 from alembic import op
 
@@ -27,18 +28,20 @@ depends_on = None
 
 
 AVENUE_TABLES = [
-    "proposals", "payments", "clients", "intake_requests",
-    "client_projects", "production_jobs", "deliveries",
+    "proposals",
+    "payments",
+    "clients",
+    "intake_requests",
+    "client_projects",
+    "production_jobs",
+    "deliveries",
 ]
 
 
 def _column_exists(table: str, column: str) -> bool:
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name = :t AND column_name = :c"
-        ),
+        sa.text("SELECT 1 FROM information_schema.columns WHERE table_name = :t AND column_name = :c"),
         {"t": table, "c": column},
     )
     return result.first() is not None
@@ -47,9 +50,7 @@ def _column_exists(table: str, column: str) -> bool:
 def _table_exists(name: str) -> bool:
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.tables WHERE table_name = :t"
-        ),
+        sa.text("SELECT 1 FROM information_schema.tables WHERE table_name = :t"),
         {"t": name},
     )
     return result.first() is not None
@@ -118,22 +119,15 @@ def upgrade():
                 ),
             )
         if not _index_exists("ix_proposals_dunning_status"):
-            op.create_index(
-                "ix_proposals_dunning_status", "proposals", ["dunning_status"]
-            )
+            op.create_index("ix_proposals_dunning_status", "proposals", ["dunning_status"])
 
     # 3. deliveries.followup_sent_at
-    if _table_exists("deliveries") and not _column_exists(
-        "deliveries", "followup_sent_at"
-    ):
+    if _table_exists("deliveries") and not _column_exists("deliveries", "followup_sent_at"):
         op.add_column(
             "deliveries",
             sa.Column("followup_sent_at", sa.DateTime(timezone=True), nullable=True),
         )
-    if (
-        _table_exists("deliveries")
-        and not _index_exists("ix_deliveries_followup_due")
-    ):
+    if _table_exists("deliveries") and not _index_exists("ix_deliveries_followup_due"):
         op.create_index(
             "ix_deliveries_followup_due",
             "deliveries",
@@ -189,9 +183,7 @@ def downgrade():
 
     if _table_exists("production_jobs"):
         if _index_exists("ix_production_jobs_status_picked_up"):
-            op.drop_index(
-                "ix_production_jobs_status_picked_up", table_name="production_jobs"
-            )
+            op.drop_index("ix_production_jobs_status_picked_up", table_name="production_jobs")
         for col in ("output_url", "picked_up_at", "worker_id"):
             if _column_exists("production_jobs", col):
                 op.drop_column("production_jobs", col)

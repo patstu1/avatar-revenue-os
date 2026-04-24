@@ -25,6 +25,7 @@ DOCTRINE — Revenue-Ops formula:
       • `topic_keywords` is reinterpreted as "lead signal keywords" — the
         signals extracted from the inbound message via package_recommender.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -35,21 +36,21 @@ FORMULA_VERSION = "v2-revenue-ops"
 @dataclass
 class OfferFitInput:
     # Lead signals (from package_recommender or classifier)
-    topic_keywords: list[str]          # reinterpreted as "lead signal keywords"
-    offer_audience_tags: list[str]     # LEGACY — kept for call-site compat, unused
-    offer_epc: float = 0.0             # LEGACY — unused
-    offer_conversion_rate: float = 0.0 # LEGACY — unused
-    offer_payout: float = 0.0          # LEGACY — unused
-    brand_niche: str = ""              # LEGACY — unused
-    offer_niche_relevance: float = 0.5 # LEGACY — unused
-    topic_buyer_intent: float = 0.0    # real input: lead intent score
+    topic_keywords: list[str]  # reinterpreted as "lead signal keywords"
+    offer_audience_tags: list[str]  # LEGACY — kept for call-site compat, unused
+    offer_epc: float = 0.0  # LEGACY — unused
+    offer_conversion_rate: float = 0.0  # LEGACY — unused
+    offer_payout: float = 0.0  # LEGACY — unused
+    brand_niche: str = ""  # LEGACY — unused
+    offer_niche_relevance: float = 0.5  # LEGACY — unused
+    topic_buyer_intent: float = 0.0  # real input: lead intent score
 
     # Revenue-Ops inputs (new)
-    package_slug: str = ""             # the candidate package
-    recommended_slug: str = ""         # what package_recommender picked
-    package_price: float = 0.0         # absolute revenue ceiling
-    is_recurring: bool = False         # monthly vs one-time
-    is_retainer: bool = False          # full retainer path
+    package_slug: str = ""  # the candidate package
+    recommended_slug: str = ""  # what package_recommender picked
+    package_price: float = 0.0  # absolute revenue ceiling
+    is_recurring: bool = False  # monthly vs one-time
+    is_retainer: bool = False  # full retainer path
     requires_call_to_close: bool = False  # friction signal
     requires_custom_scoping: bool = False  # friction signal
 
@@ -61,12 +62,12 @@ class OfferFitInput:
 @dataclass
 class OfferFitResult:
     fit_score: float
-    audience_alignment: float          # ALWAYS 0.0 under new formula
+    audience_alignment: float  # ALWAYS 0.0 under new formula
     intent_match: float
     friction_score: float
     repeatability_score: float
     revenue_potential: float
-    package_routing_match: float       # NEW: does this match the recommender?
+    package_routing_match: float  # NEW: does this match the recommender?
     confidence: str
     explanation: str
     formula_version: str = FORMULA_VERSION
@@ -127,8 +128,7 @@ def compute_offer_fit(inp: OfferFitInput) -> OfferFitResult:
 
     # Confidence: number of non-trivial signals
     signal_count = sum(
-        1 for v in [intent_match, package_routing_match, repeatability_score, revenue_potential]
-        if v > 0.3
+        1 for v in [intent_match, package_routing_match, repeatability_score, revenue_potential] if v > 0.3
     )
     if signal_count >= 3 and fit_score > 0.55:
         confidence = "high"

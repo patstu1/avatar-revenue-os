@@ -3,6 +3,7 @@
 Operator-facing endpoints for the fulfillment-side client record plus
 the public intake form endpoints (authenticated by unguessable token).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -60,28 +61,40 @@ async def get_client(
     client = await _require_owned_client(db, cid, current_user.organization_id)
 
     events = (
-        await db.execute(
-            select(ClientOnboardingEvent)
-            .where(ClientOnboardingEvent.client_id == client.id)
-            .order_by(desc(ClientOnboardingEvent.created_at))
+        (
+            await db.execute(
+                select(ClientOnboardingEvent)
+                .where(ClientOnboardingEvent.client_id == client.id)
+                .order_by(desc(ClientOnboardingEvent.created_at))
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     intakes = (
-        await db.execute(
-            select(IntakeRequest)
-            .where(IntakeRequest.client_id == client.id)
-            .order_by(desc(IntakeRequest.created_at))
+        (
+            await db.execute(
+                select(IntakeRequest)
+                .where(IntakeRequest.client_id == client.id)
+                .order_by(desc(IntakeRequest.created_at))
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     submissions = (
-        await db.execute(
-            select(IntakeSubmission)
-            .where(IntakeSubmission.client_id == client.id)
-            .order_by(desc(IntakeSubmission.created_at))
+        (
+            await db.execute(
+                select(IntakeSubmission)
+                .where(IntakeSubmission.client_id == client.id)
+                .order_by(desc(IntakeSubmission.created_at))
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     return {
         **_client_summary(client),
@@ -189,6 +202,7 @@ async def public_view_intake(token: str, db: DBSession):
 
     if intake.first_viewed_at is None:
         from datetime import datetime, timezone
+
         intake.first_viewed_at = datetime.now(timezone.utc)
         if intake.status == "sent":
             intake.status = "viewed"
@@ -292,9 +306,7 @@ def _parse_uuid(val: str) -> uuid.UUID:
 
 async def _require_owned_client(db, client_id: uuid.UUID, org_id: uuid.UUID) -> Client:
     client = (
-        await db.execute(
-            select(Client).where(Client.id == client_id, Client.is_active.is_(True))
-        )
+        await db.execute(select(Client).where(Client.id == client_id, Client.is_active.is_(True)))
     ).scalar_one_or_none()
     if client is None:
         raise HTTPException(404, "Client not found")

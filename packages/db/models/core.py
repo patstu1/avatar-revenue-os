@@ -1,4 +1,5 @@
 """Core entity models: organizations, users, brands, avatars, provider profiles."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -105,9 +106,7 @@ class AvatarProviderProfile(Base):
     capabilities: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
     is_fallback: Mapped[bool] = mapped_column(Boolean, default=False)
-    health_status: Mapped[HealthStatus] = mapped_column(
-        Enum(HealthStatus), default=HealthStatus.HEALTHY
-    )
+    health_status: Mapped[HealthStatus] = mapped_column(Enum(HealthStatus), default=HealthStatus.HEALTHY)
     last_health_check_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     cost_per_minute: Mapped[Optional[float]] = mapped_column(Float)
 
@@ -126,9 +125,7 @@ class VoiceProviderProfile(Base):
     capabilities: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
     is_fallback: Mapped[bool] = mapped_column(Boolean, default=False)
-    health_status: Mapped[HealthStatus] = mapped_column(
-        Enum(HealthStatus), default=HealthStatus.HEALTHY
-    )
+    health_status: Mapped[HealthStatus] = mapped_column(Enum(HealthStatus), default=HealthStatus.HEALTHY)
     last_health_check_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     cost_per_minute: Mapped[Optional[float]] = mapped_column(Float)
 

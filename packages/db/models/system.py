@@ -1,4 +1,5 @@
 """System tables: suppression actions, audit logs, system jobs, provider costs."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -14,9 +15,7 @@ from packages.db.enums import JobStatus, SuppressionReason
 class SuppressionAction(Base):
     __tablename__ = "suppression_actions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     target_entity_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     target_entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     reason: Mapped[SuppressionReason] = mapped_column(Enum(SuppressionReason), nullable=False)
@@ -36,9 +35,7 @@ class AuditLog(Base):
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), index=True
     )
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), index=True
-    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), index=True)
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), index=True)
     actor_type: Mapped[str] = mapped_column(String(50), nullable=False, default="system")
     action: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -52,9 +49,7 @@ class AuditLog(Base):
 class SystemJob(Base):
     __tablename__ = "system_jobs"
 
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), index=True
-    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), index=True)
     job_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     job_type: Mapped[str] = mapped_column(String(100), nullable=False)
     queue: Mapped[str] = mapped_column(String(100), default="default")
@@ -74,9 +69,7 @@ class SystemJob(Base):
 class ProviderUsageCost(Base):
     __tablename__ = "provider_usage_costs"
 
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), index=True
-    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), index=True)
     provider: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     provider_type: Mapped[str] = mapped_column(String(50), nullable=False)
     operation: Mapped[str] = mapped_column(String(255), nullable=False)

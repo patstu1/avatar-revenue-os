@@ -1,4 +1,5 @@
 """DB-backed integration tests for Quality Governor."""
+
 from __future__ import annotations
 
 import uuid
@@ -42,16 +43,23 @@ async def brand_with_content(db_session: AsyncSession):
     await db_session.flush()
 
     good_ci = ContentItem(
-        brand_id=brand.id, creator_account_id=acct.id,
+        brand_id=brand.id,
+        creator_account_id=acct.id,
         title="Why you should never ignore this secret productivity hack?",
         description="This is a detailed guide about improving productivity. " * 15,
-        content_type=ContentType.SHORT_VIDEO, platform="tiktok",
-        cta_type="direct", monetization_method="affiliate", status="draft",
+        content_type=ContentType.SHORT_VIDEO,
+        platform="tiktok",
+        cta_type="direct",
+        monetization_method="affiliate",
+        status="draft",
     )
     bad_ci = ContentItem(
-        brand_id=brand.id, creator_account_id=acct.id,
-        title="x", description="",
-        content_type=ContentType.TEXT_POST, platform="tiktok",
+        brand_id=brand.id,
+        creator_account_id=acct.id,
+        title="x",
+        description="",
+        content_type=ContentType.TEXT_POST,
+        platform="tiktok",
         status="draft",
     )
     db_session.add_all([good_ci, bad_ci])
@@ -70,9 +78,11 @@ async def test_score_good_content(db_session, brand_with_content):
     assert result["publish_allowed"] is True
     assert result["total_score"] >= 0.5
 
-    report = (await db_session.execute(
-        select(QualityGovernorReport).where(QualityGovernorReport.content_item_id == good_ci.id)
-    )).scalar_one_or_none()
+    report = (
+        await db_session.execute(
+            select(QualityGovernorReport).where(QualityGovernorReport.content_item_id == good_ci.id)
+        )
+    ).scalar_one_or_none()
     assert report is not None
     assert report.verdict == "pass"
 
@@ -92,12 +102,16 @@ async def test_dimension_scores_created(db_session, brand_with_content):
     await score_content_item(db_session, brand.id, good_ci.id)
     await db_session.commit()
 
-    report = (await db_session.execute(
-        select(QualityGovernorReport).where(QualityGovernorReport.content_item_id == good_ci.id)
-    )).scalar_one()
-    dims = (await db_session.execute(
-        select(QualityDimensionScore).where(QualityDimensionScore.report_id == report.id)
-    )).scalars().all()
+    report = (
+        await db_session.execute(
+            select(QualityGovernorReport).where(QualityGovernorReport.content_item_id == good_ci.id)
+        )
+    ).scalar_one()
+    dims = (
+        (await db_session.execute(select(QualityDimensionScore).where(QualityDimensionScore.report_id == report.id)))
+        .scalars()
+        .all()
+    )
     assert len(dims) == 10
     dim_names = {d.dimension for d in dims}
     for expected in ("hook_strength", "clarity", "trust_risk", "duplication_risk"):
@@ -110,12 +124,20 @@ async def test_improvements_created(db_session, brand_with_content):
     await score_content_item(db_session, brand.id, bad_ci.id)
     await db_session.commit()
 
-    report = (await db_session.execute(
-        select(QualityGovernorReport).where(QualityGovernorReport.content_item_id == bad_ci.id)
-    )).scalar_one()
-    imps = (await db_session.execute(
-        select(QualityImprovementAction).where(QualityImprovementAction.report_id == report.id)
-    )).scalars().all()
+    report = (
+        await db_session.execute(
+            select(QualityGovernorReport).where(QualityGovernorReport.content_item_id == bad_ci.id)
+        )
+    ).scalar_one()
+    imps = (
+        (
+            await db_session.execute(
+                select(QualityImprovementAction).where(QualityImprovementAction.report_id == report.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(imps) >= 1
 
 
@@ -164,13 +186,20 @@ async def test_idempotent(db_session, brand_with_content):
     await score_content_item(db_session, brand.id, good_ci.id)
     await db_session.commit()
 
-    reports = (await db_session.execute(
-        select(QualityGovernorReport).where(QualityGovernorReport.content_item_id == good_ci.id)
-    )).scalars().all()
+    reports = (
+        (
+            await db_session.execute(
+                select(QualityGovernorReport).where(QualityGovernorReport.content_item_id == good_ci.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(reports) == 1
 
 
 def test_quality_governor_worker_registered():
     import workers.quality_governor_worker.tasks  # noqa: F401
     from workers.celery_app import app
+
     assert "workers.quality_governor_worker.tasks.recompute_quality_governor" in app.tasks

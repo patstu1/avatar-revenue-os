@@ -1,4 +1,5 @@
 """Quality Governor Service — score content, persist, block, improve."""
+
 from __future__ import annotations
 
 import hashlib
@@ -22,7 +23,9 @@ from packages.scoring.quality_governor_engine import DIMENSIONS, score_content
 
 
 async def score_content_item(
-    db: AsyncSession, brand_id: uuid.UUID, content_item_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    content_item_id: uuid.UUID,
 ) -> dict[str, Any]:
     ci = (await db.execute(select(ContentItem).where(ContentItem.id == content_item_id))).scalar_one_or_none()
     if not ci:
@@ -46,16 +49,20 @@ async def score_content_item(
 
     result = score_content(content_dict, ctx)
 
-    await db.execute(delete(QualityImprovementAction).where(
-        QualityImprovementAction.report_id.in_(
-            select(QualityGovernorReport.id).where(QualityGovernorReport.content_item_id == content_item_id)
+    await db.execute(
+        delete(QualityImprovementAction).where(
+            QualityImprovementAction.report_id.in_(
+                select(QualityGovernorReport.id).where(QualityGovernorReport.content_item_id == content_item_id)
+            )
         )
-    ))
-    await db.execute(delete(QualityDimensionScore).where(
-        QualityDimensionScore.report_id.in_(
-            select(QualityGovernorReport.id).where(QualityGovernorReport.content_item_id == content_item_id)
+    )
+    await db.execute(
+        delete(QualityDimensionScore).where(
+            QualityDimensionScore.report_id.in_(
+                select(QualityGovernorReport.id).where(QualityGovernorReport.content_item_id == content_item_id)
+            )
         )
-    ))
+    )
     await db.execute(delete(QualityBlock).where(QualityBlock.content_item_id == content_item_id))
     await db.execute(delete(QualityGovernorReport).where(QualityGovernorReport.content_item_id == content_item_id))
 
@@ -73,30 +80,36 @@ async def score_content_item(
 
     for d in DIMENSIONS:
         dim_data = result["dimensions"].get(d, {})
-        db.add(QualityDimensionScore(
-            report_id=report.id,
-            dimension=d,
-            score=dim_data.get("score", 0),
-            max_score=1.0,
-            explanation=dim_data.get("explanation"),
-        ))
+        db.add(
+            QualityDimensionScore(
+                report_id=report.id,
+                dimension=d,
+                score=dim_data.get("score", 0),
+                max_score=1.0,
+                explanation=dim_data.get("explanation"),
+            )
+        )
 
     for block in result["blocks"]:
-        db.add(QualityBlock(
-            brand_id=brand_id,
-            content_item_id=content_item_id,
-            report_id=report.id,
-            block_reason=f"{block['dimension']}: {block['reason']}",
-            severity="hard",
-        ))
+        db.add(
+            QualityBlock(
+                brand_id=brand_id,
+                content_item_id=content_item_id,
+                report_id=report.id,
+                block_reason=f"{block['dimension']}: {block['reason']}",
+                severity="hard",
+            )
+        )
 
     for imp in result["improvements"]:
-        db.add(QualityImprovementAction(
-            report_id=report.id,
-            dimension=imp["dimension"],
-            action=imp["action"],
-            priority=imp["priority"],
-        ))
+        db.add(
+            QualityImprovementAction(
+                report_id=report.id,
+                dimension=imp["dimension"],
+                action=imp["action"],
+                priority=imp["priority"],
+            )
+        )
 
     if not result["publish_allowed"]:
         ci.status = "quality_blocked"
@@ -106,14 +119,23 @@ async def score_content_item(
 
 
 async def recompute_brand_quality(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> dict[str, Any]:
-    items = list((await db.execute(
-        select(ContentItem).where(
-            ContentItem.brand_id == brand_id,
-            ContentItem.status.in_(("draft", "script_generated", "media_complete", "approved")),
-        ).limit(100)
-    )).scalars().all())
+    items = list(
+        (
+            await db.execute(
+                select(ContentItem)
+                .where(
+                    ContentItem.brand_id == brand_id,
+                    ContentItem.status.in_(("draft", "script_generated", "media_complete", "approved")),
+                )
+                .limit(100)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     processed = 0
     for ci in items:
@@ -126,14 +148,31 @@ async def recompute_brand_quality(
 async def _build_context(db: AsyncSession, brand_id: uuid.UUID, ci: ContentItem) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
 
-    recent_titles = list((await db.execute(
-        select(ContentItem.title).where(ContentItem.brand_id == brand_id).order_by(ContentItem.created_at.desc()).limit(20)
-    )).scalars().all())
+    recent_titles = list(
+        (
+            await db.execute(
+                select(ContentItem.title)
+                .where(ContentItem.brand_id == brand_id)
+                .order_by(ContentItem.created_at.desc())
+                .limit(20)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     existing_hashes = []
-    recent_bodies = list((await db.execute(
-        select(ContentItem.description).where(ContentItem.brand_id == brand_id, ContentItem.id != ci.id).limit(50)
-    )).scalars().all())
+    recent_bodies = list(
+        (
+            await db.execute(
+                select(ContentItem.description)
+                .where(ContentItem.brand_id == brand_id, ContentItem.id != ci.id)
+                .limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
     for body in recent_bodies:
         if body:
             existing_hashes.append(hashlib.sha256(body.encode()).hexdigest()[:16])
@@ -141,15 +180,23 @@ async def _build_context(db: AsyncSession, brand_id: uuid.UUID, ci: ContentItem)
     fatigue = 0.0
     recent_count = 0
     if ci.creator_account_id:
-        acct = (await db.execute(select(CreatorAccount).where(CreatorAccount.id == ci.creator_account_id))).scalar_one_or_none()
+        acct = (
+            await db.execute(select(CreatorAccount).where(CreatorAccount.id == ci.creator_account_id))
+        ).scalar_one_or_none()
         if acct:
             fatigue = float(acct.fatigue_score or 0)
-            health_val = acct.account_health.value if hasattr(acct.account_health, "value") else str(acct.account_health)
+            health_val = (
+                acct.account_health.value if hasattr(acct.account_health, "value") else str(acct.account_health)
+            )
         else:
             health_val = "healthy"
-        recent_count = (await db.execute(
-            select(func.count()).select_from(ContentItem).where(ContentItem.creator_account_id == ci.creator_account_id)
-        )).scalar() or 0
+        recent_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(ContentItem)
+                .where(ContentItem.creator_account_id == ci.creator_account_id)
+            )
+        ).scalar() or 0
     else:
         health_val = "healthy"
 
@@ -172,22 +219,41 @@ async def _build_context(db: AsyncSession, brand_id: uuid.UUID, ci: ContentItem)
 
 
 async def list_reports(db: AsyncSession, brand_id: uuid.UUID) -> list:
-    return list((await db.execute(
-        select(QualityGovernorReport).where(QualityGovernorReport.brand_id == brand_id, QualityGovernorReport.is_active.is_(True)).order_by(QualityGovernorReport.total_score)
-    )).scalars().all())
+    return list(
+        (
+            await db.execute(
+                select(QualityGovernorReport)
+                .where(QualityGovernorReport.brand_id == brand_id, QualityGovernorReport.is_active.is_(True))
+                .order_by(QualityGovernorReport.total_score)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
 
 async def list_blocks(db: AsyncSession, brand_id: uuid.UUID) -> list:
-    return list((await db.execute(
-        select(QualityBlock).where(QualityBlock.brand_id == brand_id, QualityBlock.is_active.is_(True))
-    )).scalars().all())
+    return list(
+        (
+            await db.execute(
+                select(QualityBlock).where(QualityBlock.brand_id == brand_id, QualityBlock.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
 
 async def get_publish_eligibility(db: AsyncSession, content_item_id: uuid.UUID) -> dict[str, Any]:
     """Downstream query: is this content item allowed to publish?"""
-    report = (await db.execute(
-        select(QualityGovernorReport).where(QualityGovernorReport.content_item_id == content_item_id, QualityGovernorReport.is_active.is_(True)).order_by(QualityGovernorReport.created_at.desc()).limit(1)
-    )).scalar_one_or_none()
+    report = (
+        await db.execute(
+            select(QualityGovernorReport)
+            .where(QualityGovernorReport.content_item_id == content_item_id, QualityGovernorReport.is_active.is_(True))
+            .order_by(QualityGovernorReport.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     if not report:
         return {"publish_allowed": True, "verdict": "unscored", "total_score": 0}
     return {"publish_allowed": report.publish_allowed, "verdict": report.verdict, "total_score": report.total_score}

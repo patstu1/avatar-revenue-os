@@ -18,6 +18,7 @@ matters for revenue. The inputs that matter are:
     • upsell_rate              → do delivered packages generate repeat revenue?
     • delivery_throughput      → is production bottlenecked?
 """
+
 from __future__ import annotations
 
 import uuid
@@ -48,40 +49,57 @@ async def get_portfolio_overview(db: AsyncSession, org_id: uuid.UUID) -> dict:
     now = datetime.now(timezone.utc)
     day_90 = now - timedelta(days=90)
 
-    brands = (await db.execute(
-        select(Brand).where(Brand.organization_id == org_id)
-    )).scalars().all()
+    brands = (await db.execute(select(Brand).where(Brand.organization_id == org_id))).scalars().all()
 
     brand_data = []
     for brand in brands:
-        package_revenue = (await db.execute(
-            select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0))
-            .where(RevenueLedgerEntry.brand_id == brand.id, RevenueLedgerEntry.occurred_at >= day_90,
-                   RevenueLedgerEntry.is_active.is_(True), RevenueLedgerEntry.is_refund.is_(False))
-        )).scalar() or 0.0
+        package_revenue = (
+            await db.execute(
+                select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
+                    RevenueLedgerEntry.brand_id == brand.id,
+                    RevenueLedgerEntry.occurred_at >= day_90,
+                    RevenueLedgerEntry.is_active.is_(True),
+                    RevenueLedgerEntry.is_refund.is_(False),
+                )
+            )
+        ).scalar() or 0.0
 
         # Package-revenue events (checkout completions in the 90d window)
-        packages_sold = (await db.execute(
-            select(func.count()).select_from(RevenueLedgerEntry)
-            .where(RevenueLedgerEntry.brand_id == brand.id, RevenueLedgerEntry.occurred_at >= day_90,
-                   RevenueLedgerEntry.is_active.is_(True), RevenueLedgerEntry.is_refund.is_(False))
-        )).scalar() or 0
+        packages_sold = (
+            await db.execute(
+                select(func.count())
+                .select_from(RevenueLedgerEntry)
+                .where(
+                    RevenueLedgerEntry.brand_id == brand.id,
+                    RevenueLedgerEntry.occurred_at >= day_90,
+                    RevenueLedgerEntry.is_active.is_(True),
+                    RevenueLedgerEntry.is_refund.is_(False),
+                )
+            )
+        ).scalar() or 0
 
         # Kept for legacy back-compat fields but NOT used in scoring
-        inboxes = (await db.execute(
-            select(func.count()).select_from(CreatorAccount)
-            .where(CreatorAccount.brand_id == brand.id, CreatorAccount.is_active.is_(True))
-        )).scalar() or 0
+        inboxes = (
+            await db.execute(
+                select(func.count())
+                .select_from(CreatorAccount)
+                .where(CreatorAccount.brand_id == brand.id, CreatorAccount.is_active.is_(True))
+            )
+        ).scalar() or 0
 
-        delivered_content = (await db.execute(
-            select(func.count()).select_from(ContentItem)
-            .where(ContentItem.brand_id == brand.id, ContentItem.status == "published")
-        )).scalar() or 0
+        delivered_content = (
+            await db.execute(
+                select(func.count())
+                .select_from(ContentItem)
+                .where(ContentItem.brand_id == brand.id, ContentItem.status == "published")
+            )
+        ).scalar() or 0
 
-        active_packages = (await db.execute(
-            select(func.count()).select_from(Offer)
-            .where(Offer.brand_id == brand.id, Offer.is_active.is_(True))
-        )).scalar() or 0
+        active_packages = (
+            await db.execute(
+                select(func.count()).select_from(Offer).where(Offer.brand_id == brand.id, Offer.is_active.is_(True))
+            )
+        ).scalar() or 0
 
         # Package efficiency = revenue per active package in catalog.
         # Higher = the catalog is routing leads into packages that convert.
@@ -89,25 +107,27 @@ async def get_portfolio_overview(db: AsyncSession, org_id: uuid.UUID) -> dict:
         # Average package value = revenue per closed package
         avg_package_value = float(package_revenue) / max(int(packages_sold), 1) if packages_sold else 0.0
 
-        brand_data.append({
-            "brand_id": str(brand.id),
-            "name": brand.name,
-            # niche is retained for legacy UI compat but plays ZERO role in
-            # scoring or allocation. Do not use it for decisions.
-            "niche": brand.niche,
-            "package_revenue_90d": float(package_revenue),
-            "packages_sold_90d": int(packages_sold),
-            "avg_package_value": round(avg_package_value, 2),
-            "active_packages": int(active_packages),
-            "package_efficiency": round(package_efficiency, 2),
-            "delivery_throughput_90d": int(delivered_content),  # production queue depth
-            "active_inboxes": int(inboxes),
-            # Back-compat aliases (legacy callers still read these keys)
-            "revenue_90d": float(package_revenue),
-            "accounts": int(inboxes),
-            "published_content": int(delivered_content),
-            "active_offers": int(active_packages),
-        })
+        brand_data.append(
+            {
+                "brand_id": str(brand.id),
+                "name": brand.name,
+                # niche is retained for legacy UI compat but plays ZERO role in
+                # scoring or allocation. Do not use it for decisions.
+                "niche": brand.niche,
+                "package_revenue_90d": float(package_revenue),
+                "packages_sold_90d": int(packages_sold),
+                "avg_package_value": round(avg_package_value, 2),
+                "active_packages": int(active_packages),
+                "package_efficiency": round(package_efficiency, 2),
+                "delivery_throughput_90d": int(delivered_content),  # production queue depth
+                "active_inboxes": int(inboxes),
+                # Back-compat aliases (legacy callers still read these keys)
+                "revenue_90d": float(package_revenue),
+                "accounts": int(inboxes),
+                "published_content": int(delivered_content),
+                "active_offers": int(active_packages),
+            }
+        )
 
     brand_data.sort(key=lambda b: b["package_revenue_90d"], reverse=True)
     total_rev = sum(b["package_revenue_90d"] for b in brand_data)
@@ -133,11 +153,11 @@ async def get_portfolio_overview(db: AsyncSession, org_id: uuid.UUID) -> dict:
     return {
         "org_id": str(org_id),
         "total_brands": len(brands),
-        "total_revenue_90d": total_rev,           # back-compat alias
+        "total_revenue_90d": total_rev,  # back-compat alias
         "total_package_revenue_90d": total_rev,
         "total_packages_sold_90d": total_packages_sold,
         "total_active_packages": total_active_packages,
-        "total_accounts": total_inboxes,           # back-compat alias
+        "total_accounts": total_inboxes,  # back-compat alias
         "total_inboxes": total_inboxes,
         "portfolio_avg_package_efficiency": round(avg_efficiency, 2),
         "brands": brand_data,
@@ -183,11 +203,7 @@ async def compute_portfolio_allocation(db: AsyncSession, org_id: uuid.UUID) -> d
         catalog_depth = min(1.0, active_packages / 6)  # 6 packages = full catalog
 
         b["marginal_score"] = round(
-            0.40 * rel_efficiency
-            + 0.30 * rev_share
-            + 0.20 * throughput_score
-            + 0.10 * catalog_depth,
-            3
+            0.40 * rel_efficiency + 0.30 * rev_share + 0.20 * throughput_score + 0.10 * catalog_depth, 3
         )
 
     # Normalize to percentage allocation
@@ -195,20 +211,28 @@ async def compute_portfolio_allocation(db: AsyncSession, org_id: uuid.UUID) -> d
     allocations = []
     for b in brands:
         pct = round(b["marginal_score"] / total_score * 100, 1)
-        allocations.append({
-            "brand_id": b["brand_id"],
-            "name": b["name"],
-            "allocation_pct": pct,
-            "marginal_score": b["marginal_score"],
-            "package_revenue_90d": b["package_revenue_90d"],
-            "packages_sold_90d": b["packages_sold_90d"],
-            "active_packages": b["active_packages"],
-            "package_efficiency": b["package_efficiency"],
-            # Back-compat aliases
-            "revenue_90d": b["package_revenue_90d"],
-            "accounts": b["active_inboxes"],
-            "directive": "scale_aggressively" if pct > 40 else "scale" if pct > 25 else "maintain" if pct > 10 else "reduce_or_pause",
-        })
+        allocations.append(
+            {
+                "brand_id": b["brand_id"],
+                "name": b["name"],
+                "allocation_pct": pct,
+                "marginal_score": b["marginal_score"],
+                "package_revenue_90d": b["package_revenue_90d"],
+                "packages_sold_90d": b["packages_sold_90d"],
+                "active_packages": b["active_packages"],
+                "package_efficiency": b["package_efficiency"],
+                # Back-compat aliases
+                "revenue_90d": b["package_revenue_90d"],
+                "accounts": b["active_inboxes"],
+                "directive": "scale_aggressively"
+                if pct > 40
+                else "scale"
+                if pct > 25
+                else "maintain"
+                if pct > 10
+                else "reduce_or_pause",
+            }
+        )
 
     allocations.sort(key=lambda a: a["allocation_pct"], reverse=True)
 

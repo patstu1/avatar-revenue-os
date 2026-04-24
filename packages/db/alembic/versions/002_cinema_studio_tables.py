@@ -5,6 +5,7 @@ Revision ID: 002_cinema_studio
 Revises: 001_consolidated
 Create Date: 2026-04-02
 """
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
@@ -70,7 +71,12 @@ def upgrade() -> None:
     safe_create_table(
         "studio_scenes",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("studio_projects.id", ondelete="SET NULL"), index=True),
+        sa.Column(
+            "project_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("studio_projects.id", ondelete="SET NULL"),
+            index=True,
+        ),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
         sa.Column("title", sa.String(500), nullable=False),
         sa.Column("prompt", sa.Text, nullable=False),
@@ -93,7 +99,13 @@ def upgrade() -> None:
     safe_create_table(
         "studio_generations",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("scene_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("studio_scenes.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "scene_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("studio_scenes.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
         sa.Column("media_job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("media_jobs.id"), index=True),
         sa.Column("status", sa.String(50), server_default="pending"),
@@ -125,6 +137,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     from packages.db.alembic.migration_safety import safe_drop_table
+
     safe_drop_table("studio_activity")
     safe_drop_table("studio_generations")
     safe_drop_table("studio_scenes")

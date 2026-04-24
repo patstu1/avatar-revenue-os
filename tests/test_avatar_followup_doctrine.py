@@ -23,6 +23,7 @@ Test groups:
     Tracking / state       (3)
     Sanity                 (1)
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -47,23 +48,44 @@ from apps.api.services.reply_policy import ReplyPolicySettings
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
 FORBIDDEN_CALL_PHRASES = [
-    "hop on a call", "jump on a call", "schedule a call", "book a call",
-    "quick call", "phone call", "zoom meeting", "let's chat",
-    "happy to chat", "let me walk you through", "calendly",
+    "hop on a call",
+    "jump on a call",
+    "schedule a call",
+    "book a call",
+    "quick call",
+    "phone call",
+    "zoom meeting",
+    "let's chat",
+    "happy to chat",
+    "let me walk you through",
+    "calendly",
 ]
 
 FORBIDDEN_FREE_WORK_PHRASES = [
-    "free sample", "free samples", "free test run", "free preview",
-    "trial creative", "sample angles", "spec work",
+    "free sample",
+    "free samples",
+    "free test run",
+    "free preview",
+    "trial creative",
+    "sample angles",
+    "spec work",
 ]
 
 FORBIDDEN_NICHE_WORDS = [
-    "beauty brand", "beauty brands", "fitness brand", "fitness brands",
-    "supplement brands", "saas brands", "ecommerce brands",
+    "beauty brand",
+    "beauty brands",
+    "fitness brand",
+    "fitness brands",
+    "supplement brands",
+    "saas brands",
+    "ecommerce brands",
 ]
 
 FORBIDDEN_AI_LABELS = [
-    "ai-powered", "ai avatar", "cool ai video", "ai-generated avatar",
+    "ai-powered",
+    "ai avatar",
+    "cool ai video",
+    "ai-generated avatar",
 ]
 
 
@@ -75,6 +97,7 @@ def _warm_recommendation(slug: str = "performance-creative-pack"):
     """Synthesize a recommendation that the real recommender would produce
     for a paid-media lead — used to test script building deterministically."""
     from apps.api.services.package_recommender import PackageRecommendation
+
     return PackageRecommendation(
         slug=slug,
         rationale="paid-media scaling signals detected",
@@ -87,6 +110,7 @@ def _warm_recommendation(slug: str = "performance-creative-pack"):
 # ═══════════════════════════════════════════════════════════════════════════
 #  GROUP 1 — Visual / quality
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestVisualQuality:
     def test_01_default_premium_spec_passes_all_gates(self):
@@ -133,6 +157,7 @@ class TestVisualQuality:
 #  GROUP 2 — Trigger eligibility
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestTriggerEligibility:
     def test_04_warm_interest_is_eligible(self):
         result = decide_avatar_eligibility(
@@ -151,7 +176,9 @@ class TestTriggerEligibility:
             AvatarTrigger.INTAKE_STARTED_NOT_COMPLETED,
         ):
             result = decide_avatar_eligibility(
-                trigger=trig, lead_confidence=0.85, lead_score=70,
+                trigger=trig,
+                lead_confidence=0.85,
+                lead_score=70,
             )
             assert result.eligible, f"{trig} should be eligible: {result.reason}"
 
@@ -202,6 +229,7 @@ class TestTriggerEligibility:
 #  GROUP 3 — Script doctrine
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestScriptDoctrine:
     def test_09_script_never_contains_call_language(self):
         """Every trigger × every package combination must produce a call-free script."""
@@ -217,23 +245,24 @@ class TestScriptDoctrine:
             for slug in packages_to_test:
                 rec = _warm_recommendation(slug=slug)
                 script = build_avatar_script(
-                    trigger=trig, recommendation=rec, brand_name="Example Co",
+                    trigger=trig,
+                    recommendation=rec,
+                    brand_name="Example Co",
                 )
                 text = script.full_text.lower()
                 for phrase in FORBIDDEN_CALL_PHRASES:
                     assert phrase not in text, (
-                        f"call language {phrase!r} in script for "
-                        f"{trig.value}/{slug}: {script.full_text}"
+                        f"call language {phrase!r} in script for {trig.value}/{slug}: {script.full_text}"
                     )
-                assert not script.doctrine_issues, (
-                    f"doctrine issues on {trig.value}/{slug}: {script.doctrine_issues}"
-                )
+                assert not script.doctrine_issues, f"doctrine issues on {trig.value}/{slug}: {script.doctrine_issues}"
 
     def test_10_script_never_contains_free_work_language(self):
         for trig in AvatarTrigger:
             rec = _warm_recommendation(slug="growth-content-pack")
             script = build_avatar_script(
-                trigger=trig, recommendation=rec, brand_name="Orbit Labs",
+                trigger=trig,
+                recommendation=rec,
+                brand_name="Orbit Labs",
             )
             text = script.full_text.lower()
             for phrase in FORBIDDEN_FREE_WORK_PHRASES:
@@ -242,24 +271,24 @@ class TestScriptDoctrine:
     def test_11_script_contains_best_fit_package_name_and_price(self):
         """Package name + price must both appear verbatim in the script."""
         from packages.clients.email_templates import PACKAGES
+
         for slug, pkg in PACKAGES.items():
             rec = _warm_recommendation(slug=slug)
             script = build_avatar_script(
                 trigger=AvatarTrigger.WARM_INTEREST,
-                recommendation=rec, brand_name="Example Co",
+                recommendation=rec,
+                brand_name="Example Co",
             )
-            assert pkg["name"] in script.full_text, (
-                f"package name missing from script for {slug}: {script.full_text}"
-            )
-            assert pkg["price"] in script.full_text, (
-                f"package price missing from script for {slug}: {script.full_text}"
-            )
+            assert pkg["name"] in script.full_text, f"package name missing from script for {slug}: {script.full_text}"
+            assert pkg["price"] in script.full_text, f"package price missing from script for {slug}: {script.full_text}"
 
     def test_12_script_is_broad_market_no_niche_framing(self):
         for trig in AvatarTrigger:
             rec = _warm_recommendation(slug="performance-creative-pack")
             script = build_avatar_script(
-                trigger=trig, recommendation=rec, brand_name="Example Co",
+                trigger=trig,
+                recommendation=rec,
+                brand_name="Example Co",
             )
             text = script.full_text.lower()
             for niche in FORBIDDEN_NICHE_WORDS:
@@ -273,13 +302,15 @@ class TestScriptDoctrine:
 #  GROUP 4 — Send routing (auto / draft / escalate)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestSendRouting:
     def test_13_safe_case_auto_sends(self):
         """Clean inbound, clean script, premium spec, high confidence → auto_send."""
         rec = _warm_recommendation(slug="performance-creative-pack")
         script = build_avatar_script(
             trigger=AvatarTrigger.WARM_INTEREST,
-            recommendation=rec, brand_name="Northfield",
+            recommendation=rec,
+            brand_name="Northfield",
         )
         spec = default_premium_spec("a", "v")
         decision = decide_avatar_send_mode(
@@ -296,7 +327,8 @@ class TestSendRouting:
         """Enterprise / custom-scope / high-value signals → draft."""
         rec = _warm_recommendation(slug="performance-creative-pack")
         script = build_avatar_script(
-            trigger=AvatarTrigger.WARM_INTEREST, recommendation=rec,
+            trigger=AvatarTrigger.WARM_INTEREST,
+            recommendation=rec,
         )
         spec = default_premium_spec("a", "v")
 
@@ -305,15 +337,19 @@ class TestSendRouting:
             ("Looking for a partnership with revenue share.", "custom_scope"),
         ]:
             decision = decide_avatar_send_mode(
-                script=script, inbound_subject="inquiry", inbound_body=body,
-                recommendation_confidence=0.90, quality_spec=spec,
+                script=script,
+                inbound_subject="inquiry",
+                inbound_body=body,
+                recommendation_confidence=0.90,
+                quality_spec=spec,
             )
             assert decision.mode == "draft", f"body: {body!r}"
 
     def test_15_hostile_legal_case_escalates(self):
         rec = _warm_recommendation(slug="growth-content-pack")
         script = build_avatar_script(
-            trigger=AvatarTrigger.WARM_INTEREST, recommendation=rec,
+            trigger=AvatarTrigger.WARM_INTEREST,
+            recommendation=rec,
         )
         spec = default_premium_spec("a", "v")
         for body in [
@@ -322,8 +358,11 @@ class TestSendRouting:
             "This is absolutely fraudulent, I'm furious.",
         ]:
             decision = decide_avatar_send_mode(
-                script=script, inbound_subject="urgent", inbound_body=body,
-                recommendation_confidence=0.90, quality_spec=spec,
+                script=script,
+                inbound_subject="urgent",
+                inbound_body=body,
+                recommendation_confidence=0.90,
+                quality_spec=spec,
             )
             assert decision.mode == "escalate", f"body: {body!r}"
 
@@ -331,7 +370,8 @@ class TestSendRouting:
         """Inbound asks to hop on a call → draft (even with premium script)."""
         rec = _warm_recommendation(slug="performance-creative-pack")
         script = build_avatar_script(
-            trigger=AvatarTrigger.WARM_INTEREST, recommendation=rec,
+            trigger=AvatarTrigger.WARM_INTEREST,
+            recommendation=rec,
         )
         spec = default_premium_spec("a", "v")
         decision = decide_avatar_send_mode(
@@ -348,6 +388,7 @@ class TestSendRouting:
 # ═══════════════════════════════════════════════════════════════════════════
 #  GROUP 5 — Tracking / state
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestTrackingAndState:
     def test_17_record_links_contact_opportunity_thread(self):
@@ -422,11 +463,10 @@ class TestTrackingAndState:
 #  GROUP 6 — Sanity
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def test_20_forbidden_pattern_lists_are_non_empty():
     """Guardrail: someone emptying the forbidden-pattern lists must fail CI."""
-    assert len(_FORBIDDEN_SCRIPT_PATTERNS) >= 12, (
-        "forbidden-pattern list has been shrunk below the safe floor"
-    )
+    assert len(_FORBIDDEN_SCRIPT_PATTERNS) >= 12, "forbidden-pattern list has been shrunk below the safe floor"
     assert len(FORBIDDEN_CALL_PHRASES) >= 5
     assert len(FORBIDDEN_FREE_WORK_PHRASES) >= 4
     assert len(FORBIDDEN_NICHE_WORDS) >= 3

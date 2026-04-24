@@ -1,4 +1,5 @@
 """Autonomous Execution Phase B: execution policies, content runner, distribution, monetization routing, suppression."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -13,9 +14,7 @@ from packages.db.base import Base
 class ExecutionPolicy(Base):
     __tablename__ = "execution_policies"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     action_type: Mapped[str] = mapped_column(String(100), nullable=False)
     execution_mode: Mapped[str] = mapped_column(String(50), default="guarded")
     confidence_threshold: Mapped[float] = mapped_column(Float, default=0.7)
@@ -36,9 +35,7 @@ class ExecutionPolicy(Base):
 class AutonomousRun(Base):
     __tablename__ = "autonomous_runs"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     queue_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("auto_queue_items.id"), nullable=True, index=True
     )
@@ -92,9 +89,7 @@ class AutonomousRunStep(Base):
 class DistributionPlan(Base):
     __tablename__ = "distribution_plans"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     source_concept: Mapped[str] = mapped_column(String(500), nullable=False)
     source_content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True
@@ -114,9 +109,7 @@ class DistributionPlan(Base):
 class MonetizationRoute(Base):
     __tablename__ = "monetization_routes"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
     )
@@ -137,14 +130,10 @@ class MonetizationRoute(Base):
 class SuppressionExecution(Base):
     __tablename__ = "suppression_executions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     suppression_type: Mapped[str] = mapped_column(String(100), nullable=False)
     affected_scope: Mapped[str] = mapped_column(String(200), nullable=False)
-    affected_entity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True, index=True
-    )
+    affected_entity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     trigger_reason: Mapped[str] = mapped_column(Text, nullable=False)
     duration_hours: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     lift_condition: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -158,9 +147,7 @@ class SuppressionExecution(Base):
 class ExecutionFailure(Base):
     __tablename__ = "execution_failures"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("autonomous_runs.id"), nullable=True, index=True
     )

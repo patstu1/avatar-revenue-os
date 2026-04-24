@@ -3,6 +3,7 @@
 Revision ID: v0w1x2y3z4a5
 Revises: u2v3w4x5y6z7
 """
+
 from collections.abc import Sequence
 from typing import Union
 

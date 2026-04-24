@@ -1,4 +1,5 @@
 """Intelligence report worker — generate daily operational summary."""
+
 from __future__ import annotations
 
 import logging
@@ -26,34 +27,45 @@ def generate_daily_report(self) -> dict:
 
     with Session(engine) as session:
         try:
-            total_created = session.execute(
-                select(func.count())
-                .select_from(ContentItem)
-                .where(ContentItem.created_at >= cutoff)
-            ).scalar() or 0
+            total_created = (
+                session.execute(
+                    select(func.count()).select_from(ContentItem).where(ContentItem.created_at >= cutoff)
+                ).scalar()
+                or 0
+            )
 
-            total_approved = session.execute(
-                select(func.count())
-                .select_from(ContentItem)
-                .where(
-                    ContentItem.created_at >= cutoff,
-                    ContentItem.status == "approved",
-                )
-            ).scalar() or 0
+            total_approved = (
+                session.execute(
+                    select(func.count())
+                    .select_from(ContentItem)
+                    .where(
+                        ContentItem.created_at >= cutoff,
+                        ContentItem.status == "approved",
+                    )
+                ).scalar()
+                or 0
+            )
 
-            total_published = session.execute(
-                select(func.count())
-                .select_from(ContentItem)
-                .where(
-                    ContentItem.created_at >= cutoff,
-                    ContentItem.status == "published",
-                )
-            ).scalar() or 0
+            total_published = (
+                session.execute(
+                    select(func.count())
+                    .select_from(ContentItem)
+                    .where(
+                        ContentItem.created_at >= cutoff,
+                        ContentItem.status == "published",
+                    )
+                ).scalar()
+                or 0
+            )
 
-            revenue_sum = session.execute(
-                select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0))
-                .where(PerformanceMetric.measured_at >= cutoff)
-            ).scalar() or 0.0
+            revenue_sum = (
+                session.execute(
+                    select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0)).where(
+                        PerformanceMetric.measured_at >= cutoff
+                    )
+                ).scalar()
+                or 0.0
+            )
 
         except Exception:
             logger.exception("Error gathering intelligence report data")
@@ -62,8 +74,10 @@ def generate_daily_report(self) -> dict:
     forecast_data = {}
     try:
         from packages.scoring.revenue_forecast_engine import forecast_revenue, generate_forecast_summary
+
         daily_revenues = [
-            float(r[0]) for r in session.execute(
+            float(r[0])
+            for r in session.execute(
                 select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0))
                 .where(PerformanceMetric.measured_at >= datetime.now(timezone.utc) - timedelta(days=30))
                 .group_by(func.date(PerformanceMetric.measured_at))
@@ -72,9 +86,13 @@ def generate_daily_report(self) -> dict:
         ]
         if daily_revenues and len(daily_revenues) >= 7:
             from packages.db.models.accounts import CreatorAccount
-            active_accounts = session.execute(
-                select(func.count()).select_from(CreatorAccount).where(CreatorAccount.is_active.is_(True))
-            ).scalar() or 0
+
+            active_accounts = (
+                session.execute(
+                    select(func.count()).select_from(CreatorAccount).where(CreatorAccount.is_active.is_(True))
+                ).scalar()
+                or 0
+            )
             forecast = forecast_revenue(daily_revenues, accounts_active=active_accounts)
             forecast_data = {
                 "forecast_30d": forecast["forecast_revenue_30d"],
@@ -99,7 +117,10 @@ def generate_daily_report(self) -> dict:
 
     logger.info(
         "Daily intelligence report: created=%d approved=%d published=%d revenue=%.2f forecast=%s",
-        total_created, total_approved, total_published, float(revenue_sum),
+        total_created,
+        total_approved,
+        total_published,
+        float(revenue_sum),
         forecast_data.get("summary", "no forecast"),
     )
 

@@ -3,6 +3,7 @@
 Generates UTM parameters per content+offer, records click events,
 and links conversions back to the content that drove them.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -19,8 +20,11 @@ logger = structlog.get_logger()
 
 
 def generate_tracking_params(
-    content_id: uuid.UUID, offer_id: uuid.UUID,
-    *, platform: str = "unknown", campaign: str = "auto",
+    content_id: uuid.UUID,
+    offer_id: uuid.UUID,
+    *,
+    platform: str = "unknown",
+    campaign: str = "auto",
 ) -> dict:
     """Generate UTM parameters + tracking ID for content→offer attribution."""
     tracking_id = hashlib.sha256(f"{content_id}:{offer_id}:{platform}".encode()).hexdigest()[:16]
@@ -37,9 +41,13 @@ def generate_tracking_params(
 
 
 async def record_click(
-    db: AsyncSession, brand_id: uuid.UUID,
-    *, tracking_id: str, content_item_id: uuid.UUID | None = None,
-    offer_id: uuid.UUID | None = None, platform: str | None = None,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    *,
+    tracking_id: str,
+    content_item_id: uuid.UUID | None = None,
+    offer_id: uuid.UUID | None = None,
+    platform: str | None = None,
 ) -> AttributionEvent:
     """Record a click event in the attribution chain."""
     event = AttributionEvent(
@@ -59,20 +67,28 @@ async def record_click(
 
 
 async def record_conversion(
-    db: AsyncSession, brand_id: uuid.UUID,
-    *, tracking_id: str, revenue: float,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    *,
+    tracking_id: str,
+    revenue: float,
     content_item_id: uuid.UUID | None = None,
     offer_id: uuid.UUID | None = None,
 ) -> dict:
     """Record a conversion event and link it back to the click chain."""
     # Find the click event that started this chain
-    click = (await db.execute(
-        select(AttributionEvent).where(
-            AttributionEvent.brand_id == brand_id,
-            AttributionEvent.tracking_id == tracking_id,
-            AttributionEvent.event_type == "click",
-        ).order_by(AttributionEvent.created_at.desc()).limit(1)
-    )).scalar_one_or_none()
+    click = (
+        await db.execute(
+            select(AttributionEvent)
+            .where(
+                AttributionEvent.brand_id == brand_id,
+                AttributionEvent.tracking_id == tracking_id,
+                AttributionEvent.event_type == "click",
+            )
+            .order_by(AttributionEvent.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
 
     # Inherit content/offer from click if not provided
     if click:
@@ -87,18 +103,21 @@ async def record_conversion(
         event_value=revenue,
         attribution_model="last_click",
         tracking_id=tracking_id,
-        raw_event={"tracking_id": tracking_id, "revenue": revenue,
-                    "click_id": str(click.id) if click else None},
+        raw_event={"tracking_id": tracking_id, "revenue": revenue, "click_id": str(click.id) if click else None},
     )
     db.add(conversion)
     await db.flush()
 
     # Also write to canonical ledger
     from apps.api.services.monetization_bridge import attribute_revenue_event
+
     result = await attribute_revenue_event(
-        db, brand_id, revenue=revenue,
+        db,
+        brand_id,
+        revenue=revenue,
         source="conversion_tracker",
-        offer_id=offer_id, content_item_id=content_item_id,
+        offer_id=offer_id,
+        content_item_id=content_item_id,
     )
 
     return {
@@ -112,20 +131,34 @@ async def record_conversion(
 
 
 async def get_conversion_chain(
-    db: AsyncSession, brand_id: uuid.UUID, tracking_id: str,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    tracking_id: str,
 ) -> list[dict]:
     """Get the full click → conversion chain for a tracking ID."""
-    events = (await db.execute(
-        select(AttributionEvent).where(
-            AttributionEvent.brand_id == brand_id,
-            AttributionEvent.tracking_id == tracking_id,
-        ).order_by(AttributionEvent.created_at)
-    )).scalars().all()
+    events = (
+        (
+            await db.execute(
+                select(AttributionEvent)
+                .where(
+                    AttributionEvent.brand_id == brand_id,
+                    AttributionEvent.tracking_id == tracking_id,
+                )
+                .order_by(AttributionEvent.created_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return [
-        {"id": str(e.id), "type": e.event_type, "value": e.event_value,
-         "content_id": str(e.content_item_id) if e.content_item_id else None,
-         "offer_id": str(e.offer_id) if e.offer_id else None,
-         "created_at": e.created_at.isoformat() if e.created_at else None}
+        {
+            "id": str(e.id),
+            "type": e.event_type,
+            "value": e.event_value,
+            "content_id": str(e.content_item_id) if e.content_item_id else None,
+            "offer_id": str(e.offer_id) if e.offer_id else None,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        }
         for e in events
     ]

@@ -1,4 +1,5 @@
 """Enterprise Affiliate Governance + Owned Program Ops."""
+
 import uuid
 from typing import Optional
 
@@ -11,7 +12,9 @@ from packages.db.base import Base
 
 class AffiliateGovernanceRule(Base):
     __tablename__ = "af_governance_rules"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     rule_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     rule_key: Mapped[str] = mapped_column(String(255), nullable=False)
     rule_value: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
@@ -22,7 +25,9 @@ class AffiliateGovernanceRule(Base):
 
 class AffiliateBannedEntity(Base):
     __tablename__ = "af_banned_entities"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     entity_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     entity_name: Mapped[str] = mapped_column(String(255), nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
@@ -31,7 +36,9 @@ class AffiliateBannedEntity(Base):
 
 class AffiliateApproval(Base):
     __tablename__ = "af_approvals"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     entity_type: Mapped[str] = mapped_column(String(30), nullable=False)
     entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     approval_status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
@@ -42,7 +49,9 @@ class AffiliateApproval(Base):
 
 class AffiliateAuditEvent(Base):
     __tablename__ = "af_audit_events"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     action: Mapped[str] = mapped_column(String(60), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(30), nullable=False)
@@ -53,9 +62,13 @@ class AffiliateAuditEvent(Base):
 
 class AffiliateRiskFlag(Base):
     __tablename__ = "af_risk_flags"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("af_offers.id"), nullable=True)
-    merchant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("af_merchants.id"), nullable=True)
+    merchant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("af_merchants.id"), nullable=True
+    )
     risk_type: Mapped[str] = mapped_column(String(40), nullable=False)
     risk_score: Mapped[float] = mapped_column(Float, default=0.0)
     detail: Mapped[str] = mapped_column(Text, nullable=False)
@@ -64,7 +77,9 @@ class AffiliateRiskFlag(Base):
 
 class OwnedAffiliatePartner(Base):
     __tablename__ = "af_own_partners"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     partner_name: Mapped[str] = mapped_column(String(255), nullable=False)
     partner_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     partner_status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
@@ -80,7 +95,9 @@ class OwnedAffiliatePartner(Base):
 
 class OwnedPartnerConversion(Base):
     __tablename__ = "af_own_partner_conversions"
-    partner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("af_own_partners.id"), nullable=False, index=True)
+    partner_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("af_own_partners.id"), nullable=False, index=True
+    )
     conversion_value: Mapped[float] = mapped_column(Float, default=0.0)
     commission_paid: Mapped[float] = mapped_column(Float, default=0.0)
     quality_score: Mapped[float] = mapped_column(Float, default=0.5)

@@ -1,4 +1,5 @@
 """WebSocket endpoint for live revenue, performance, alert, and system event streaming."""
+
 from __future__ import annotations
 
 import asyncio
@@ -35,9 +36,7 @@ class ConnectionManager:
 
     def disconnect(self, websocket: WebSocket, room_id: str, user_id: str):
         if room_id in self.active_connections:
-            self.active_connections[room_id] = [
-                c for c in self.active_connections[room_id] if c != websocket
-            ]
+            self.active_connections[room_id] = [c for c in self.active_connections[room_id] if c != websocket]
             if not self.active_connections[room_id]:
                 del self.active_connections[room_id]
         if user_id in self.user_rooms:
@@ -142,9 +141,7 @@ async def authenticate_ws(websocket: WebSocket) -> dict | None:
         return None
     try:
         settings = get_settings()
-        payload = jwt.decode(
-            token, settings.api_secret_key, algorithms=[settings.algorithm]
-        )
+        payload = jwt.decode(token, settings.api_secret_key, algorithms=[settings.algorithm])
         return payload
     except JWTError:
         return None
@@ -186,17 +183,17 @@ async def websocket_org_events(websocket: WebSocket, org_id: uuid.UUID):
     heartbeat_task: asyncio.Task | None = None
     try:
         # Send welcome message
-        await websocket.send_json({
-            "type": "connected",
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "org_id": str(org_id),
-            "room": room_id,
-        })
+        await websocket.send_json(
+            {
+                "type": "connected",
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "org_id": str(org_id),
+                "room": room_id,
+            }
+        )
 
         # Start heartbeat
-        heartbeat_task = asyncio.create_task(
-            _heartbeat_loop(websocket)
-        )
+        heartbeat_task = asyncio.create_task(_heartbeat_loop(websocket))
 
         # Listen for client messages
         while True:
@@ -204,25 +201,31 @@ async def websocket_org_events(websocket: WebSocket, org_id: uuid.UUID):
             msg_type = data.get("type")
 
             if msg_type == "ping":
-                await websocket.send_json({
-                    "type": "pong",
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                })
+                await websocket.send_json(
+                    {
+                        "type": "pong",
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
             elif msg_type == "subscribe":
                 # Optional: client can subscribe to specific event domains
                 channel = data.get("channel")
-                await websocket.send_json({
-                    "type": "subscribed",
-                    "channel": channel,
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                })
+                await websocket.send_json(
+                    {
+                        "type": "subscribed",
+                        "channel": channel,
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
             elif msg_type == "unsubscribe":
                 channel = data.get("channel")
-                await websocket.send_json({
-                    "type": "unsubscribed",
-                    "channel": channel,
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                })
+                await websocket.send_json(
+                    {
+                        "type": "unsubscribed",
+                        "channel": channel,
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
 
     except WebSocketDisconnect:
         pass
@@ -242,10 +245,12 @@ async def _heartbeat_loop(websocket: WebSocket):
     """Send periodic heartbeat to keep connection alive."""
     while True:
         try:
-            await websocket.send_json({
-                "type": "heartbeat",
-                "ts": datetime.now(timezone.utc).isoformat(),
-            })
+            await websocket.send_json(
+                {
+                    "type": "heartbeat",
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                }
+            )
         except Exception:
             break
         await asyncio.sleep(30)
@@ -277,33 +282,37 @@ async def websocket_live_dashboard(websocket: WebSocket, brand_id: uuid.UUID):
 
     revenue_task: asyncio.Task | None = None
     try:
-        revenue_task = asyncio.create_task(
-            _stream_revenue_ticks(websocket, brand_id)
-        )
+        revenue_task = asyncio.create_task(_stream_revenue_ticks(websocket, brand_id))
 
         while True:
             data = await websocket.receive_json()
             msg_type = data.get("type")
 
             if msg_type == "ping":
-                await websocket.send_json({
-                    "type": "pong",
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                })
+                await websocket.send_json(
+                    {
+                        "type": "pong",
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
             elif msg_type == "subscribe":
                 channel = data.get("channel")
-                await websocket.send_json({
-                    "type": "subscribed",
-                    "channel": channel,
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                })
+                await websocket.send_json(
+                    {
+                        "type": "subscribed",
+                        "channel": channel,
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
             elif msg_type == "unsubscribe":
                 channel = data.get("channel")
-                await websocket.send_json({
-                    "type": "unsubscribed",
-                    "channel": channel,
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                })
+                await websocket.send_json(
+                    {
+                        "type": "unsubscribed",
+                        "channel": channel,
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
 
     except WebSocketDisconnect:
         pass
@@ -359,10 +368,12 @@ async def websocket_alert_stream(websocket: WebSocket, brand_id: uuid.UUID):
         while True:
             data = await websocket.receive_json()
             if data.get("type") == "ping":
-                await websocket.send_json({
-                    "type": "pong",
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                })
+                await websocket.send_json(
+                    {
+                        "type": "pong",
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
     except WebSocketDisconnect:
         pass
     finally:

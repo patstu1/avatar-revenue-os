@@ -1,4 +1,5 @@
 """Creator Revenue Avenues — Phase A engine logic."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -7,6 +8,7 @@ from typing import Any
 def _avg_payout(ctx: dict) -> float:
     """Extract avg_payout from brand context, default to 1000 if not provided."""
     return ctx.get("avg_payout", 1000)
+
 
 UGC_SERVICE_TYPES = [
     "ugc_content_production",
@@ -89,9 +91,15 @@ AFFILIATE_PROGRAM_TYPES = [
 ]
 
 AVENUE_TYPES = [
-    "ugc_services", "consulting", "premium_access",
-    "licensing", "syndication", "data_products",
-    "merch", "live_events", "owned_affiliate_program",
+    "ugc_services",
+    "consulting",
+    "premium_access",
+    "licensing",
+    "syndication",
+    "data_products",
+    "merch",
+    "live_events",
+    "owned_affiliate_program",
 ]
 
 PRICE_BANDS = {
@@ -113,7 +121,12 @@ def score_ugc_opportunity(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]:
     avg_payout = brand_ctx.get("avg_payout", 1000)  # Dynamic from portfolio, default 1000
 
     # Dynamic: confidence based on relative content and audience, not fixed divisors
-    base_confidence = min(0.9, 0.3 + min(content_count / max(content_count + 1, 1), 0.2) * 0.2 + min(audience_size / max(audience_size + 1, 1), 0.2) * 0.2)
+    base_confidence = min(
+        0.9,
+        0.3
+        + min(content_count / max(content_count + 1, 1), 0.2) * 0.2
+        + min(audience_size / max(audience_size + 1, 1), 0.2) * 0.2,
+    )
     if content_count > 0 and audience_size > 0:
         base_confidence = max(base_confidence, 0.5)  # Any portfolio with content + audience gets 0.5 floor
 
@@ -184,17 +197,19 @@ def score_ugc_opportunity(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]:
             conf = min(0.8, conf + 0.05) if account_count >= 2 else conf * 0.7
 
         if conf >= 0.2:
-            results.append({
-                "service_type": stype,
-                "target_segment": segment,
-                "recommended_package": package,
-                "price_band": "high" if value > avg_payout else "mid" if value > avg_payout * 0.3 else "low",
-                "expected_value": round(value, 2),
-                "expected_margin": round(margin, 2),
-                "execution_steps": steps,
-                "confidence": round(conf, 3),
-                "explanation": f"{stype.replace('_', ' ').title()} for {segment} — est. ${value:.0f} at {conf:.0%} confidence",
-            })
+            results.append(
+                {
+                    "service_type": stype,
+                    "target_segment": segment,
+                    "recommended_package": package,
+                    "price_band": "high" if value > avg_payout else "mid" if value > avg_payout * 0.3 else "low",
+                    "expected_value": round(value, 2),
+                    "expected_margin": round(margin, 2),
+                    "execution_steps": steps,
+                    "confidence": round(conf, 3),
+                    "explanation": f"{stype.replace('_', ' ').title()} for {segment} — est. ${value:.0f} at {conf:.0%} confidence",
+                }
+            )
 
     return sorted(results, key=lambda r: r["expected_value"] * r["confidence"], reverse=True)
 
@@ -210,22 +225,70 @@ def score_consulting_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, 
     base_confidence = min(0.8, 0.25 + (content_count / 30) * 0.15 + (offer_count / 5) * 0.15)
 
     service_configs = [
-        ("strategic_advisory", "premium", "founders_ceos", 5000, 0.85,
-         ["Discovery call", "Audit", "Strategy document", "Implementation roadmap", "Follow-up"]),
-        ("implementation_services", "standard", "marketing_teams", 3000, 0.7,
-         ["Scope project", "Setup systems", "Configure automations", "Train team", "Handoff"]),
-        ("content_strategy_consulting", "standard", "creators_and_brands", 2000, 0.75,
-         ["Content audit", "Strategy session", "Calendar build", "Template creation", "Review cycle"]),
-        ("automation_consulting", "standard", "operations_teams", 3500, 0.65,
-         ["Process audit", "Automation design", "Tool selection", "Implementation", "Documentation"]),
-        ("done_for_you_setups", "standard", "solopreneurs", 1500, 0.7,
-         ["Requirements gathering", "System setup", "Content migration", "Testing", "Launch"]),
-        ("audits_roadmaps", "entry", "startups", 1000, 0.8,
-         ["Collect data", "Analyze performance", "Identify gaps", "Build roadmap", "Present findings"]),
-        ("premium_workshops", "premium", "teams_and_cohorts", 4000, 0.6,
-         ["Design curriculum", "Prepare materials", "Deliver workshop", "Q&A", "Follow-up resources"]),
-        ("retained_support", "premium", "enterprise_clients", 8000, 0.5,
-         ["Contract negotiation", "Onboarding", "Monthly strategy calls", "Async support", "Quarterly review"]),
+        (
+            "strategic_advisory",
+            "premium",
+            "founders_ceos",
+            5000,
+            0.85,
+            ["Discovery call", "Audit", "Strategy document", "Implementation roadmap", "Follow-up"],
+        ),
+        (
+            "implementation_services",
+            "standard",
+            "marketing_teams",
+            3000,
+            0.7,
+            ["Scope project", "Setup systems", "Configure automations", "Train team", "Handoff"],
+        ),
+        (
+            "content_strategy_consulting",
+            "standard",
+            "creators_and_brands",
+            2000,
+            0.75,
+            ["Content audit", "Strategy session", "Calendar build", "Template creation", "Review cycle"],
+        ),
+        (
+            "automation_consulting",
+            "standard",
+            "operations_teams",
+            3500,
+            0.65,
+            ["Process audit", "Automation design", "Tool selection", "Implementation", "Documentation"],
+        ),
+        (
+            "done_for_you_setups",
+            "standard",
+            "solopreneurs",
+            1500,
+            0.7,
+            ["Requirements gathering", "System setup", "Content migration", "Testing", "Launch"],
+        ),
+        (
+            "audits_roadmaps",
+            "entry",
+            "startups",
+            1000,
+            0.8,
+            ["Collect data", "Analyze performance", "Identify gaps", "Build roadmap", "Present findings"],
+        ),
+        (
+            "premium_workshops",
+            "premium",
+            "teams_and_cohorts",
+            4000,
+            0.6,
+            ["Design curriculum", "Prepare materials", "Deliver workshop", "Q&A", "Follow-up resources"],
+        ),
+        (
+            "retained_support",
+            "premium",
+            "enterprise_clients",
+            8000,
+            0.5,
+            ["Contract negotiation", "Onboarding", "Monthly strategy calls", "Async support", "Quarterly review"],
+        ),
     ]
 
     for stype, tier, buyer, value, conf_mult, steps in service_configs:
@@ -235,16 +298,18 @@ def score_consulting_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, 
             value = int(value * 1.2)
 
         if conf >= 0.15:
-            results.append({
-                "service_type": stype,
-                "service_tier": tier,
-                "target_buyer": buyer,
-                "price_band": "premium" if value > avg_payout * 3 else "high" if value > avg_payout else "mid",
-                "expected_deal_value": round(float(value), 2),
-                "execution_plan": steps,
-                "confidence": conf,
-                "explanation": f"{stype.replace('_', ' ').title()} ({tier}) for {buyer} — est. ${value:.0f}",
-            })
+            results.append(
+                {
+                    "service_type": stype,
+                    "service_tier": tier,
+                    "target_buyer": buyer,
+                    "price_band": "premium" if value > avg_payout * 3 else "high" if value > avg_payout else "mid",
+                    "expected_deal_value": round(float(value), 2),
+                    "execution_plan": steps,
+                    "confidence": conf,
+                    "explanation": f"{stype.replace('_', ' ').title()} ({tier}) for {buyer} — est. ${value:.0f}",
+                }
+            )
 
     return sorted(results, key=lambda r: r["expected_deal_value"] * r["confidence"], reverse=True)
 
@@ -259,16 +324,51 @@ def score_premium_access_opportunities(brand_ctx: dict[str, Any]) -> list[dict[s
     base_confidence = min(0.75, 0.2 + (audience_size / 20000) * 0.2 + (offer_count / 5) * 0.15)
 
     access_configs = [
-        ("premium_membership", "loyal_audience", "Minimum 3 months active engagement", "recurring", 49, 0.8,
-         ["Design membership tiers", "Build access portal", "Create onboarding", "Launch", "Retain"]),
-        ("vip_concierge", "high_value_clients", "Previous purchase > $500", "one_time", 2500, 0.5,
-         ["Identify VIP candidates", "Design concierge package", "Personal outreach", "Onboard", "Deliver"]),
-        ("priority_advisory", "decision_makers", "Company revenue > $1M", "recurring", 500, 0.6,
-         ["Qualify leads", "Schedule discovery", "Propose advisory terms", "Onboard", "Monthly sessions"]),
-        ("exclusive_guidance", "aspiring_creators", "Application required", "recurring", 197, 0.7,
-         ["Build application process", "Select cohort", "Design curriculum", "Deliver weekly", "Community"]),
-        ("inner_circle", "top_1pct_audience", "Invitation only", "recurring", 997, 0.4,
-         ["Identify top fans", "Design inner circle", "Personal invitations", "Exclusive content", "Direct access"]),
+        (
+            "premium_membership",
+            "loyal_audience",
+            "Minimum 3 months active engagement",
+            "recurring",
+            49,
+            0.8,
+            ["Design membership tiers", "Build access portal", "Create onboarding", "Launch", "Retain"],
+        ),
+        (
+            "vip_concierge",
+            "high_value_clients",
+            "Previous purchase > $500",
+            "one_time",
+            2500,
+            0.5,
+            ["Identify VIP candidates", "Design concierge package", "Personal outreach", "Onboard", "Deliver"],
+        ),
+        (
+            "priority_advisory",
+            "decision_makers",
+            "Company revenue > $1M",
+            "recurring",
+            500,
+            0.6,
+            ["Qualify leads", "Schedule discovery", "Propose advisory terms", "Onboard", "Monthly sessions"],
+        ),
+        (
+            "exclusive_guidance",
+            "aspiring_creators",
+            "Application required",
+            "recurring",
+            197,
+            0.7,
+            ["Build application process", "Select cohort", "Design curriculum", "Deliver weekly", "Community"],
+        ),
+        (
+            "inner_circle",
+            "top_1pct_audience",
+            "Invitation only",
+            "recurring",
+            997,
+            0.4,
+            ["Identify top fans", "Design inner circle", "Personal invitations", "Exclusive content", "Direct access"],
+        ),
     ]
 
     for otype, segment, criteria, rev_model, value, conf_mult, steps in access_configs:
@@ -282,16 +382,18 @@ def score_premium_access_opportunities(brand_ctx: dict[str, Any]) -> list[dict[s
         annual_est = monthly * 12 if rev_model == "recurring" else value
 
         if conf >= 0.1:
-            results.append({
-                "offer_type": otype,
-                "target_segment": segment,
-                "entry_criteria": criteria,
-                "revenue_model": rev_model,
-                "expected_value": round(float(annual_est), 2),
-                "execution_plan": steps,
-                "confidence": conf,
-                "explanation": f"{otype.replace('_', ' ').title()} for {segment} — ${value}/{'mo' if rev_model == 'recurring' else 'one-time'} at {conf:.0%} confidence",
-            })
+            results.append(
+                {
+                    "offer_type": otype,
+                    "target_segment": segment,
+                    "entry_criteria": criteria,
+                    "revenue_model": rev_model,
+                    "expected_value": round(float(annual_est), 2),
+                    "execution_plan": steps,
+                    "confidence": conf,
+                    "explanation": f"{otype.replace('_', ' ').title()} for {segment} — ${value}/{'mo' if rev_model == 'recurring' else 'one-time'} at {conf:.0%} confidence",
+                }
+            )
 
     return sorted(results, key=lambda r: r["expected_value"] * r["confidence"], reverse=True)
 
@@ -300,57 +402,71 @@ def detect_creator_revenue_blockers(brand_ctx: dict[str, Any]) -> list[dict[str,
     blockers: list[dict[str, Any]] = []
 
     if brand_ctx.get("content_count", 0) < 5:
-        blockers.append({
-            "avenue_type": "ugc_services",
-            "blocker_type": "insufficient_portfolio",
-            "severity": "high",
-            "description": "Fewer than 5 content items. UGC clients need portfolio proof.",
-            "operator_action_needed": "Produce at least 5 sample content items to build a portfolio.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "ugc_services",
+                "blocker_type": "insufficient_portfolio",
+                "severity": "high",
+                "description": "Fewer than 5 content items. UGC clients need portfolio proof.",
+                "operator_action_needed": "Produce at least 5 sample content items to build a portfolio.",
+            }
+        )
     if not brand_ctx.get("has_avatar"):
-        blockers.append({
-            "avenue_type": "ugc_services",
-            "blocker_type": "no_avatar_configured",
-            "severity": "medium",
-            "description": "No avatar configured. Spokesperson/avatar services are limited.",
-            "operator_action_needed": "Configure at least one AI avatar for spokesperson services.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "ugc_services",
+                "blocker_type": "no_avatar_configured",
+                "severity": "medium",
+                "description": "No avatar configured. Spokesperson/avatar services are limited.",
+                "operator_action_needed": "Configure at least one AI avatar for spokesperson services.",
+            }
+        )
     if brand_ctx.get("offer_count", 0) == 0:
-        blockers.append({
-            "avenue_type": "consulting",
-            "blocker_type": "no_offers_defined",
-            "severity": "high",
-            "description": "No offers defined. Consulting credibility requires at least one live offer.",
-            "operator_action_needed": "Create at least one offer in the Offer Catalog.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "consulting",
+                "blocker_type": "no_offers_defined",
+                "severity": "high",
+                "description": "No offers defined. Consulting credibility requires at least one live offer.",
+                "operator_action_needed": "Create at least one offer in the Offer Catalog.",
+            }
+        )
     if brand_ctx.get("audience_size", 0) < 1000:
-        blockers.append({
-            "avenue_type": "premium_access",
-            "blocker_type": "audience_too_small",
-            "severity": "medium",
-            "description": "Audience under 1,000. Premium access tiers need sufficient audience.",
-            "operator_action_needed": "Grow audience to at least 1,000 before launching premium access.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "premium_access",
+                "blocker_type": "audience_too_small",
+                "severity": "medium",
+                "description": "Audience under 1,000. Premium access tiers need sufficient audience.",
+                "operator_action_needed": "Grow audience to at least 1,000 before launching premium access.",
+            }
+        )
     if not brand_ctx.get("has_payment_processor"):
-        blockers.append({
-            "avenue_type": "all",
-            "blocker_type": "no_payment_processor",
-            "severity": "critical",
-            "description": "No payment processor connected. Cannot collect revenue.",
-            "operator_action_needed": "Connect Stripe, PayPal, or another payment processor.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "all",
+                "blocker_type": "no_payment_processor",
+                "severity": "critical",
+                "description": "No payment processor connected. Cannot collect revenue.",
+                "operator_action_needed": "Connect Stripe, PayPal, or another payment processor.",
+            }
+        )
     if not brand_ctx.get("has_landing_page"):
-        blockers.append({
-            "avenue_type": "all",
-            "blocker_type": "no_landing_page",
-            "severity": "medium",
-            "description": "No landing page or service page configured.",
-            "operator_action_needed": "Create a service landing page for inbound inquiries.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "all",
+                "blocker_type": "no_landing_page",
+                "severity": "medium",
+                "description": "No landing page or service page configured.",
+                "operator_action_needed": "Create a service landing page for inbound inquiries.",
+            }
+        )
     return blockers
 
 
-def _plan_to_opp(avenue_type: str, p: dict[str, Any], subtype_key: str, value_key: str, segment_key: str, margin_pct: float = 0.75) -> dict[str, Any]:
+def _plan_to_opp(
+    avenue_type: str, p: dict[str, Any], subtype_key: str, value_key: str, segment_key: str, margin_pct: float = 0.75
+) -> dict[str, Any]:
     val = p.get(value_key, 0)
     return {
         "avenue_type": avenue_type,
@@ -392,23 +508,25 @@ def build_revenue_opportunities(
         opps.append(_plan_to_opp("premium_access", p, "offer_type", "expected_value", "target_segment", 0.85))
         opps[-1]["recommended_package"] = f"{p['offer_type'].replace('_', ' ').title()} — {p['revenue_model']}"
 
-    for p in (licensing_plans or []):
+    for p in licensing_plans or []:
         opps.append(_plan_to_opp("licensing", p, "asset_type", "expected_deal_value", "target_buyer_type", 0.8))
 
-    for p in (syndication_plans or []):
+    for p in syndication_plans or []:
         opps.append(_plan_to_opp("syndication", p, "syndication_format", "expected_value", "target_partner", 0.75))
 
-    for p in (data_product_plans or []):
+    for p in data_product_plans or []:
         opps.append(_plan_to_opp("data_products", p, "product_type", "expected_value", "target_segment", 0.8))
 
-    for p in (merch_plans or []):
+    for p in merch_plans or []:
         opps.append(_plan_to_opp("merch", p, "product_class", "expected_value", "target_segment", 0.5))
 
-    for p in (live_event_plans or []):
+    for p in live_event_plans or []:
         opps.append(_plan_to_opp("live_events", p, "event_type", "expected_value", "audience_segment", 0.7))
 
-    for p in (affiliate_plans or []):
-        opps.append(_plan_to_opp("owned_affiliate_program", p, "program_type", "expected_value", "target_partner_type", 0.6))
+    for p in affiliate_plans or []:
+        opps.append(
+            _plan_to_opp("owned_affiliate_program", p, "program_type", "expected_value", "target_partner_type", 0.6)
+        )
 
     return sorted(opps, key=lambda o: o["priority_score"], reverse=True)
 
@@ -428,18 +546,78 @@ def score_licensing_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, A
     base_confidence = min(0.75, 0.2 + (content_count / 40) * 0.2 + (0.1 if has_avatar else 0))
 
     licensing_configs = [
-        ("creative_asset_licensing", "standard", "agencies_and_brands", "limited_use", 2000, 0.75,
-         ["Catalog licensable assets", "Set usage tiers", "Create licensing agreement", "Publish catalog", "Fulfill"]),
-        ("content_format_licensing", "standard", "content_teams", "limited_use", 1500, 0.65,
-         ["Document format methodology", "Package templates", "Create licensing terms", "Distribute", "Support"]),
-        ("workflow_system_licensing", "premium", "operations_teams", "full_use", 5000, 0.5,
-         ["Document workflow IP", "Build licensable package", "Create onboarding", "Negotiate terms", "Deliver + support"]),
-        ("ip_package_licensing", "premium", "enterprise_buyers", "full_use", 8000, 0.4,
-         ["Identify licensable IP", "Legal review", "Package and price", "Outreach to buyers", "Execute agreement"]),
-        ("white_label_rights", "premium", "resellers_and_agencies", "full_use", 10000, 0.35,
-         ["Define white-label scope", "Remove branding", "Create partner terms", "Negotiate exclusivity", "Deliver"]),
-        ("limited_use_licensing", "entry", "small_businesses", "limited_use", 500, 0.8,
-         ["Select micro-assets", "Set limited terms", "Create self-serve checkout", "Automate delivery", "Track usage"]),
+        (
+            "creative_asset_licensing",
+            "standard",
+            "agencies_and_brands",
+            "limited_use",
+            2000,
+            0.75,
+            [
+                "Catalog licensable assets",
+                "Set usage tiers",
+                "Create licensing agreement",
+                "Publish catalog",
+                "Fulfill",
+            ],
+        ),
+        (
+            "content_format_licensing",
+            "standard",
+            "content_teams",
+            "limited_use",
+            1500,
+            0.65,
+            ["Document format methodology", "Package templates", "Create licensing terms", "Distribute", "Support"],
+        ),
+        (
+            "workflow_system_licensing",
+            "premium",
+            "operations_teams",
+            "full_use",
+            5000,
+            0.5,
+            [
+                "Document workflow IP",
+                "Build licensable package",
+                "Create onboarding",
+                "Negotiate terms",
+                "Deliver + support",
+            ],
+        ),
+        (
+            "ip_package_licensing",
+            "premium",
+            "enterprise_buyers",
+            "full_use",
+            8000,
+            0.4,
+            ["Identify licensable IP", "Legal review", "Package and price", "Outreach to buyers", "Execute agreement"],
+        ),
+        (
+            "white_label_rights",
+            "premium",
+            "resellers_and_agencies",
+            "full_use",
+            10000,
+            0.35,
+            ["Define white-label scope", "Remove branding", "Create partner terms", "Negotiate exclusivity", "Deliver"],
+        ),
+        (
+            "limited_use_licensing",
+            "entry",
+            "small_businesses",
+            "limited_use",
+            500,
+            0.8,
+            [
+                "Select micro-assets",
+                "Set limited terms",
+                "Create self-serve checkout",
+                "Automate delivery",
+                "Track usage",
+            ],
+        ),
     ]
 
     for ltype, tier, buyer, scope, value, conf_mult, steps in licensing_configs:
@@ -456,17 +634,25 @@ def score_licensing_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, A
                 conf *= 0.4
 
         if conf >= 0.1:
-            results.append({
-                "asset_type": ltype,
-                "licensing_tier": tier,
-                "target_buyer_type": buyer,
-                "usage_scope": scope,
-                "price_band": "premium" if value > avg_payout * 3 else "high" if value > avg_payout else "mid" if value > avg_payout * 0.3 else "low",
-                "expected_deal_value": round(float(value), 2),
-                "execution_plan": steps,
-                "confidence": conf,
-                "explanation": f"{ltype.replace('_', ' ').title()} ({scope}) for {buyer} — est. ${value:.0f}",
-            })
+            results.append(
+                {
+                    "asset_type": ltype,
+                    "licensing_tier": tier,
+                    "target_buyer_type": buyer,
+                    "usage_scope": scope,
+                    "price_band": "premium"
+                    if value > avg_payout * 3
+                    else "high"
+                    if value > avg_payout
+                    else "mid"
+                    if value > avg_payout * 0.3
+                    else "low",
+                    "expected_deal_value": round(float(value), 2),
+                    "execution_plan": steps,
+                    "confidence": conf,
+                    "explanation": f"{ltype.replace('_', ' ').title()} ({scope}) for {buyer} — est. ${value:.0f}",
+                }
+            )
 
     return sorted(results, key=lambda r: r["expected_deal_value"] * r["confidence"], reverse=True)
 
@@ -485,16 +671,70 @@ def score_syndication_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str,
     base_confidence = min(0.7, 0.15 + (content_count / 30) * 0.2 + (account_count / 5) * 0.1)
 
     syndication_configs = [
-        ("cross_channel_syndication", "platform_operators", "recurring", 800, 0.8,
-         ["Identify cross-platform value", "Package content feed", "Negotiate distribution terms", "Automate delivery", "Monitor"]),
-        ("content_package_syndication", "media_companies", "one_time", 3000, 0.55,
-         ["Curate best-performing content", "Package with rights", "Pitch to media buyers", "Negotiate", "Deliver"]),
-        ("media_newsletter_syndication", "newsletter_operators", "recurring", 500, 0.75,
-         ["Identify newsletter partners", "Propose column or section", "Agree on cadence", "Deliver content", "Track metrics"]),
-        ("republishing_rights", "publishers_and_blogs", "one_time", 1500, 0.6,
-         ["Identify republish-worthy content", "Set republishing terms", "Outreach to publishers", "Execute agreement", "Track"]),
-        ("partner_distribution_bundles", "distribution_partners", "recurring", 2000, 0.5,
-         ["Design bundle offering", "Identify distribution partners", "Negotiate revenue share", "Integrate feeds", "Monitor"]),
+        (
+            "cross_channel_syndication",
+            "platform_operators",
+            "recurring",
+            800,
+            0.8,
+            [
+                "Identify cross-platform value",
+                "Package content feed",
+                "Negotiate distribution terms",
+                "Automate delivery",
+                "Monitor",
+            ],
+        ),
+        (
+            "content_package_syndication",
+            "media_companies",
+            "one_time",
+            3000,
+            0.55,
+            ["Curate best-performing content", "Package with rights", "Pitch to media buyers", "Negotiate", "Deliver"],
+        ),
+        (
+            "media_newsletter_syndication",
+            "newsletter_operators",
+            "recurring",
+            500,
+            0.75,
+            [
+                "Identify newsletter partners",
+                "Propose column or section",
+                "Agree on cadence",
+                "Deliver content",
+                "Track metrics",
+            ],
+        ),
+        (
+            "republishing_rights",
+            "publishers_and_blogs",
+            "one_time",
+            1500,
+            0.6,
+            [
+                "Identify republish-worthy content",
+                "Set republishing terms",
+                "Outreach to publishers",
+                "Execute agreement",
+                "Track",
+            ],
+        ),
+        (
+            "partner_distribution_bundles",
+            "distribution_partners",
+            "recurring",
+            2000,
+            0.5,
+            [
+                "Design bundle offering",
+                "Identify distribution partners",
+                "Negotiate revenue share",
+                "Integrate feeds",
+                "Monitor",
+            ],
+        ),
     ]
 
     for sformat, partner, rev_model, value, conf_mult, steps in syndication_configs:
@@ -510,16 +750,22 @@ def score_syndication_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str,
         annual_est = monthly * 12 if rev_model == "recurring" else value
 
         if conf >= 0.1:
-            results.append({
-                "syndication_format": sformat,
-                "target_partner": partner,
-                "revenue_model": rev_model,
-                "price_band": "high" if annual_est > avg_payout else "mid" if annual_est > avg_payout * 0.3 else "low",
-                "expected_value": round(float(annual_est), 2),
-                "execution_plan": steps,
-                "confidence": conf,
-                "explanation": f"{sformat.replace('_', ' ').title()} via {partner} — ${value}/{'mo' if rev_model == 'recurring' else 'deal'} at {conf:.0%} confidence",
-            })
+            results.append(
+                {
+                    "syndication_format": sformat,
+                    "target_partner": partner,
+                    "revenue_model": rev_model,
+                    "price_band": "high"
+                    if annual_est > avg_payout
+                    else "mid"
+                    if annual_est > avg_payout * 0.3
+                    else "low",
+                    "expected_value": round(float(annual_est), 2),
+                    "execution_plan": steps,
+                    "confidence": conf,
+                    "explanation": f"{sformat.replace('_', ' ').title()} via {partner} — ${value}/{'mo' if rev_model == 'recurring' else 'deal'} at {conf:.0%} confidence",
+                }
+            )
 
     return sorted(results, key=lambda r: r["expected_value"] * r["confidence"], reverse=True)
 
@@ -538,18 +784,78 @@ def score_data_product_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str
     base_confidence = min(0.7, 0.15 + (content_count / 50) * 0.15 + (audience_size / 20000) * 0.15)
 
     product_configs = [
-        ("niche_database", "researchers_and_analysts", "recurring", 97, 0.6,
-         ["Identify niche data gaps", "Build collection pipeline", "Structure database", "Launch access portal", "Update regularly"]),
-        ("premium_intelligence_feed", "decision_makers", "recurring", 197, 0.5,
-         ["Define intelligence scope", "Build curation process", "Create delivery format", "Launch subscription", "Deliver weekly"]),
-        ("swipe_file", "marketers_and_creators", "one_time", 47, 0.85,
-         ["Curate winning examples", "Organize by category", "Design presentation", "Create checkout", "Deliver"]),
-        ("research_pack", "strategists", "one_time", 297, 0.55,
-         ["Define research scope", "Conduct analysis", "Package findings", "Create sales page", "Deliver"]),
-        ("signal_trend_dataset", "investors_and_operators", "recurring", 497, 0.4,
-         ["Identify signal sources", "Build data pipeline", "Validate accuracy", "Create API or feed", "Monetize access"]),
-        ("premium_reporting_product", "executives_and_teams", "recurring", 297, 0.45,
-         ["Define reporting scope", "Build data templates", "Automate collection", "Design reports", "Launch subscription"]),
+        (
+            "niche_database",
+            "researchers_and_analysts",
+            "recurring",
+            97,
+            0.6,
+            [
+                "Identify niche data gaps",
+                "Build collection pipeline",
+                "Structure database",
+                "Launch access portal",
+                "Update regularly",
+            ],
+        ),
+        (
+            "premium_intelligence_feed",
+            "decision_makers",
+            "recurring",
+            197,
+            0.5,
+            [
+                "Define intelligence scope",
+                "Build curation process",
+                "Create delivery format",
+                "Launch subscription",
+                "Deliver weekly",
+            ],
+        ),
+        (
+            "swipe_file",
+            "marketers_and_creators",
+            "one_time",
+            47,
+            0.85,
+            ["Curate winning examples", "Organize by category", "Design presentation", "Create checkout", "Deliver"],
+        ),
+        (
+            "research_pack",
+            "strategists",
+            "one_time",
+            297,
+            0.55,
+            ["Define research scope", "Conduct analysis", "Package findings", "Create sales page", "Deliver"],
+        ),
+        (
+            "signal_trend_dataset",
+            "investors_and_operators",
+            "recurring",
+            497,
+            0.4,
+            [
+                "Identify signal sources",
+                "Build data pipeline",
+                "Validate accuracy",
+                "Create API or feed",
+                "Monetize access",
+            ],
+        ),
+        (
+            "premium_reporting_product",
+            "executives_and_teams",
+            "recurring",
+            297,
+            0.45,
+            [
+                "Define reporting scope",
+                "Build data templates",
+                "Automate collection",
+                "Design reports",
+                "Launch subscription",
+            ],
+        ),
     ]
 
     for ptype, segment, rev_model, price, conf_mult, steps in product_configs:
@@ -566,16 +872,22 @@ def score_data_product_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str
         annual_est = monthly * 12 if rev_model == "recurring" else price
 
         if conf >= 0.1:
-            results.append({
-                "product_type": ptype,
-                "target_segment": segment,
-                "revenue_model": rev_model,
-                "price_band": "high" if annual_est > avg_payout else "mid" if annual_est > avg_payout * 0.3 else "low",
-                "expected_value": round(float(annual_est), 2),
-                "execution_plan": steps,
-                "confidence": conf,
-                "explanation": f"{ptype.replace('_', ' ').title()} for {segment} — ${price}/{'mo' if rev_model == 'recurring' else 'one-time'} at {conf:.0%} confidence",
-            })
+            results.append(
+                {
+                    "product_type": ptype,
+                    "target_segment": segment,
+                    "revenue_model": rev_model,
+                    "price_band": "high"
+                    if annual_est > avg_payout
+                    else "mid"
+                    if annual_est > avg_payout * 0.3
+                    else "low",
+                    "expected_value": round(float(annual_est), 2),
+                    "execution_plan": steps,
+                    "confidence": conf,
+                    "explanation": f"{ptype.replace('_', ' ').title()} for {segment} — ${price}/{'mo' if rev_model == 'recurring' else 'one-time'} at {conf:.0%} confidence",
+                }
+            )
 
     return sorted(results, key=lambda r: r["expected_value"] * r["confidence"], reverse=True)
 
@@ -587,37 +899,45 @@ def detect_phase_b_blockers(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]:
     blockers: list[dict[str, Any]] = []
 
     if brand_ctx.get("content_count", 0) < 15:
-        blockers.append({
-            "avenue_type": "licensing",
-            "blocker_type": "insufficient_licensable_content",
-            "severity": "high",
-            "description": "Fewer than 15 content items. Licensing requires a substantial asset library.",
-            "operator_action_needed": "Build content library to at least 15 items before licensing.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "licensing",
+                "blocker_type": "insufficient_licensable_content",
+                "severity": "high",
+                "description": "Fewer than 15 content items. Licensing requires a substantial asset library.",
+                "operator_action_needed": "Build content library to at least 15 items before licensing.",
+            }
+        )
     if brand_ctx.get("content_count", 0) < 10:
-        blockers.append({
-            "avenue_type": "syndication",
-            "blocker_type": "insufficient_syndication_content",
-            "severity": "high",
-            "description": "Fewer than 10 content items. Syndication partners require a content backlog.",
-            "operator_action_needed": "Produce at least 10 content items for syndication deals.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "syndication",
+                "blocker_type": "insufficient_syndication_content",
+                "severity": "high",
+                "description": "Fewer than 10 content items. Syndication partners require a content backlog.",
+                "operator_action_needed": "Produce at least 10 content items for syndication deals.",
+            }
+        )
     if brand_ctx.get("content_count", 0) < 20:
-        blockers.append({
-            "avenue_type": "data_products",
-            "blocker_type": "insufficient_data_depth",
-            "severity": "medium",
-            "description": "Fewer than 20 content items. Data products need deep niche expertise proof.",
-            "operator_action_needed": "Build content depth to at least 20 items before launching data products.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "data_products",
+                "blocker_type": "insufficient_data_depth",
+                "severity": "medium",
+                "description": "Fewer than 20 content items. Data products need deep niche expertise proof.",
+                "operator_action_needed": "Build content depth to at least 20 items before launching data products.",
+            }
+        )
     if not brand_ctx.get("has_payment_processor"):
-        blockers.append({
-            "avenue_type": "all",
-            "blocker_type": "no_payment_processor",
-            "severity": "critical",
-            "description": "No payment processor connected. Cannot sell licenses, syndication, or data products.",
-            "operator_action_needed": "Connect Stripe, PayPal, or another payment processor.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "all",
+                "blocker_type": "no_payment_processor",
+                "severity": "critical",
+                "description": "No payment processor connected. Cannot sell licenses, syndication, or data products.",
+                "operator_action_needed": "Connect Stripe, PayPal, or another payment processor.",
+            }
+        )
     return blockers
 
 
@@ -635,21 +955,69 @@ def score_merch_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]
     base_confidence = min(0.7, 0.1 + (audience_size / 20000) * 0.2 + (content_count / 30) * 0.15)
 
     merch_configs = [
-        ("creator_branded_drop", "loyal_followers", "mid", 3000, 0.7,
-         ["Design drop concept", "Source production partner", "Create mockups", "Pre-sell campaign", "Fulfill orders"],
-         "recommended"),
-        ("evergreen_store_product", "general_audience", "low", 1200, 0.8,
-         ["Select product type", "Design artwork", "Set up print-on-demand", "Create store page", "Launch + promote"],
-         "recommended"),
-        ("product_line_experiment", "early_adopters", "mid", 5000, 0.5,
-         ["Identify niche product gap", "Prototype", "Small-batch production", "Beta launch", "Evaluate + iterate"],
-         "recommended"),
-        ("physical_bundle", "high_value_fans", "high", 8000, 0.4,
-         ["Design premium bundle", "Source components", "Package design", "Limited pre-sale", "Ship + follow up"],
-         "recommended"),
-        ("limited_edition_release", "collectors_and_superfans", "high", 6000, 0.45,
-         ["Define limited concept", "Set quantity cap", "Production run", "Exclusive launch window", "Fulfill + certify"],
-         "recommended"),
+        (
+            "creator_branded_drop",
+            "loyal_followers",
+            "mid",
+            3000,
+            0.7,
+            [
+                "Design drop concept",
+                "Source production partner",
+                "Create mockups",
+                "Pre-sell campaign",
+                "Fulfill orders",
+            ],
+            "recommended",
+        ),
+        (
+            "evergreen_store_product",
+            "general_audience",
+            "low",
+            1200,
+            0.8,
+            [
+                "Select product type",
+                "Design artwork",
+                "Set up print-on-demand",
+                "Create store page",
+                "Launch + promote",
+            ],
+            "recommended",
+        ),
+        (
+            "product_line_experiment",
+            "early_adopters",
+            "mid",
+            5000,
+            0.5,
+            ["Identify niche product gap", "Prototype", "Small-batch production", "Beta launch", "Evaluate + iterate"],
+            "recommended",
+        ),
+        (
+            "physical_bundle",
+            "high_value_fans",
+            "high",
+            8000,
+            0.4,
+            ["Design premium bundle", "Source components", "Package design", "Limited pre-sale", "Ship + follow up"],
+            "recommended",
+        ),
+        (
+            "limited_edition_release",
+            "collectors_and_superfans",
+            "high",
+            6000,
+            0.45,
+            [
+                "Define limited concept",
+                "Set quantity cap",
+                "Production run",
+                "Exclusive launch window",
+                "Fulfill + certify",
+            ],
+            "recommended",
+        ),
     ]
 
     for pclass, segment, pband, value, conf_mult, steps, truth in merch_configs:
@@ -667,16 +1035,18 @@ def score_merch_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]
             truth = "blocked"
 
         if conf >= 0.08:
-            results.append({
-                "product_class": pclass,
-                "target_segment": segment,
-                "price_band": pband,
-                "expected_value": round(float(value), 2),
-                "execution_plan": steps,
-                "truth_label": truth,
-                "confidence": conf,
-                "explanation": f"{pclass.replace('_', ' ').title()} for {segment} — est. ${value:.0f} at {conf:.0%} confidence",
-            })
+            results.append(
+                {
+                    "product_class": pclass,
+                    "target_segment": segment,
+                    "price_band": pband,
+                    "expected_value": round(float(value), 2),
+                    "execution_plan": steps,
+                    "truth_label": truth,
+                    "confidence": conf,
+                    "explanation": f"{pclass.replace('_', ' ').title()} for {segment} — est. ${value:.0f} at {conf:.0%} confidence",
+                }
+            )
 
     return sorted(results, key=lambda r: r["expected_value"] * r["confidence"], reverse=True)
 
@@ -695,24 +1065,90 @@ def score_live_event_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, 
     base_confidence = min(0.75, 0.15 + (content_count / 30) * 0.2 + (audience_size / 15000) * 0.15)
 
     event_configs = [
-        ("webinar", "interested_audience", "free_with_upsell", "low", 500, 0.85,
-         ["Pick topic from top content", "Create registration page", "Promote to list/audience", "Deliver live", "Follow-up with offer"],
-         "recommended"),
-        ("workshop", "skill_seekers", "paid", "mid", 2000, 0.65,
-         ["Design curriculum", "Create landing page", "Price and promote", "Deliver workshop", "Collect feedback + upsell"],
-         "recommended"),
-        ("live_creator_session", "fans_and_followers", "paid", "low", 300, 0.8,
-         ["Schedule session", "Promote on socials", "Go live", "Engage audience", "Replay access offer"],
-         "recommended"),
-        ("paid_live_event", "premium_audience", "paid", "high", 5000, 0.45,
-         ["Design premium event", "Secure speakers/guests", "Build event page", "Sell tickets", "Deliver + record"],
-         "recommended"),
-        ("premium_qa_office_hours", "committed_learners", "paid", "mid", 1500, 0.7,
-         ["Define topic scope", "Set recurring schedule", "Create booking page", "Deliver sessions", "Build community"],
-         "recommended"),
-        ("niche_event_product", "niche_professionals", "paid", "high", 8000, 0.35,
-         ["Identify niche event gap", "Design unique format", "Secure venue/platform", "Market to niche", "Deliver + iterate"],
-         "recommended"),
+        (
+            "webinar",
+            "interested_audience",
+            "free_with_upsell",
+            "low",
+            500,
+            0.85,
+            [
+                "Pick topic from top content",
+                "Create registration page",
+                "Promote to list/audience",
+                "Deliver live",
+                "Follow-up with offer",
+            ],
+            "recommended",
+        ),
+        (
+            "workshop",
+            "skill_seekers",
+            "paid",
+            "mid",
+            2000,
+            0.65,
+            [
+                "Design curriculum",
+                "Create landing page",
+                "Price and promote",
+                "Deliver workshop",
+                "Collect feedback + upsell",
+            ],
+            "recommended",
+        ),
+        (
+            "live_creator_session",
+            "fans_and_followers",
+            "paid",
+            "low",
+            300,
+            0.8,
+            ["Schedule session", "Promote on socials", "Go live", "Engage audience", "Replay access offer"],
+            "recommended",
+        ),
+        (
+            "paid_live_event",
+            "premium_audience",
+            "paid",
+            "high",
+            5000,
+            0.45,
+            ["Design premium event", "Secure speakers/guests", "Build event page", "Sell tickets", "Deliver + record"],
+            "recommended",
+        ),
+        (
+            "premium_qa_office_hours",
+            "committed_learners",
+            "paid",
+            "mid",
+            1500,
+            0.7,
+            [
+                "Define topic scope",
+                "Set recurring schedule",
+                "Create booking page",
+                "Deliver sessions",
+                "Build community",
+            ],
+            "recommended",
+        ),
+        (
+            "niche_event_product",
+            "niche_professionals",
+            "paid",
+            "high",
+            8000,
+            0.35,
+            [
+                "Identify niche event gap",
+                "Design unique format",
+                "Secure venue/platform",
+                "Market to niche",
+                "Deliver + iterate",
+            ],
+            "recommended",
+        ),
     ]
 
     for etype, segment, ticket, pband, value, conf_mult, steps, truth in event_configs:
@@ -731,17 +1167,19 @@ def score_live_event_opportunities(brand_ctx: dict[str, Any]) -> list[dict[str, 
             truth = "blocked"
 
         if conf >= 0.08:
-            results.append({
-                "event_type": etype,
-                "audience_segment": segment,
-                "ticket_model": ticket,
-                "price_band": pband,
-                "expected_value": round(float(value), 2),
-                "execution_plan": steps,
-                "truth_label": truth,
-                "confidence": conf,
-                "explanation": f"{etype.replace('_', ' ').title()} for {segment} ({ticket}) — est. ${value:.0f} at {conf:.0%} confidence",
-            })
+            results.append(
+                {
+                    "event_type": etype,
+                    "audience_segment": segment,
+                    "ticket_model": ticket,
+                    "price_band": pband,
+                    "expected_value": round(float(value), 2),
+                    "execution_plan": steps,
+                    "truth_label": truth,
+                    "confidence": conf,
+                    "explanation": f"{etype.replace('_', ' ').title()} for {segment} ({ticket}) — est. ${value:.0f} at {conf:.0%} confidence",
+                }
+            )
 
     return sorted(results, key=lambda r: r["expected_value"] * r["confidence"], reverse=True)
 
@@ -759,21 +1197,86 @@ def score_owned_affiliate_opportunities(brand_ctx: dict[str, Any]) -> list[dict[
     base_confidence = min(0.7, 0.1 + (offer_count / 5) * 0.25 + (audience_size / 20000) * 0.15)
 
     program_configs = [
-        ("affiliate_recruitment", "micro_influencers", "percentage", "standard", 3000, 0.7,
-         ["Define ideal affiliate profile", "Create recruitment page", "Outreach to prospects", "Onboard affiliates", "Track performance"],
-         "recommended"),
-        ("affiliate_program_launch", "content_creators", "percentage", "standard", 5000, 0.55,
-         ["Choose affiliate platform", "Set commission structure", "Create affiliate portal", "Build marketing materials", "Launch program"],
-         "recommended"),
-        ("incentive_model_optimization", "existing_affiliates", "tiered_percentage", "gold", 2000, 0.6,
-         ["Analyze current performance", "Design tier structure", "Model incentive economics", "Communicate changes", "Monitor uplift"],
-         "queued"),
-        ("partner_tier_expansion", "top_performers", "tiered_percentage", "platinum", 8000, 0.4,
-         ["Identify top affiliates", "Design VIP tier", "Negotiate custom terms", "Onboard to tier", "Co-marketing initiatives"],
-         "recommended"),
-        ("affiliate_attribution_setup", "all_affiliates", "percentage", "standard", 1000, 0.75,
-         ["Select tracking tool", "Implement tracking pixels", "Set attribution windows", "Test end-to-end", "Go live"],
-         "queued"),
+        (
+            "affiliate_recruitment",
+            "micro_influencers",
+            "percentage",
+            "standard",
+            3000,
+            0.7,
+            [
+                "Define ideal affiliate profile",
+                "Create recruitment page",
+                "Outreach to prospects",
+                "Onboard affiliates",
+                "Track performance",
+            ],
+            "recommended",
+        ),
+        (
+            "affiliate_program_launch",
+            "content_creators",
+            "percentage",
+            "standard",
+            5000,
+            0.55,
+            [
+                "Choose affiliate platform",
+                "Set commission structure",
+                "Create affiliate portal",
+                "Build marketing materials",
+                "Launch program",
+            ],
+            "recommended",
+        ),
+        (
+            "incentive_model_optimization",
+            "existing_affiliates",
+            "tiered_percentage",
+            "gold",
+            2000,
+            0.6,
+            [
+                "Analyze current performance",
+                "Design tier structure",
+                "Model incentive economics",
+                "Communicate changes",
+                "Monitor uplift",
+            ],
+            "queued",
+        ),
+        (
+            "partner_tier_expansion",
+            "top_performers",
+            "tiered_percentage",
+            "platinum",
+            8000,
+            0.4,
+            [
+                "Identify top affiliates",
+                "Design VIP tier",
+                "Negotiate custom terms",
+                "Onboard to tier",
+                "Co-marketing initiatives",
+            ],
+            "recommended",
+        ),
+        (
+            "affiliate_attribution_setup",
+            "all_affiliates",
+            "percentage",
+            "standard",
+            1000,
+            0.75,
+            [
+                "Select tracking tool",
+                "Implement tracking pixels",
+                "Set attribution windows",
+                "Test end-to-end",
+                "Go live",
+            ],
+            "queued",
+        ),
     ]
 
     for ptype, partner, incentive, tier, value, conf_mult, steps, truth in program_configs:
@@ -791,17 +1294,19 @@ def score_owned_affiliate_opportunities(brand_ctx: dict[str, Any]) -> list[dict[
         annual_est = value * 12 if incentive.startswith("tiered") else value
 
         if conf >= 0.05:
-            results.append({
-                "program_type": ptype,
-                "target_partner_type": partner,
-                "incentive_model": incentive,
-                "partner_tier": tier,
-                "expected_value": round(float(annual_est), 2),
-                "execution_plan": steps,
-                "truth_label": truth,
-                "confidence": conf,
-                "explanation": f"{ptype.replace('_', ' ').title()} targeting {partner} ({tier}) — est. ${annual_est:.0f} at {conf:.0%} confidence",
-            })
+            results.append(
+                {
+                    "program_type": ptype,
+                    "target_partner_type": partner,
+                    "incentive_model": incentive,
+                    "partner_tier": tier,
+                    "expected_value": round(float(annual_est), 2),
+                    "execution_plan": steps,
+                    "truth_label": truth,
+                    "confidence": conf,
+                    "explanation": f"{ptype.replace('_', ' ').title()} targeting {partner} ({tier}) — est. ${annual_est:.0f} at {conf:.0%} confidence",
+                }
+            )
 
     return sorted(results, key=lambda r: r["expected_value"] * r["confidence"], reverse=True)
 
@@ -813,37 +1318,45 @@ def detect_phase_c_blockers(brand_ctx: dict[str, Any]) -> list[dict[str, Any]]:
     blockers: list[dict[str, Any]] = []
 
     if brand_ctx.get("audience_size", 0) < 2000:
-        blockers.append({
-            "avenue_type": "merch",
-            "blocker_type": "audience_too_small_for_merch",
-            "severity": "high",
-            "description": "Audience under 2,000. Merch drops need a minimum buying audience.",
-            "operator_action_needed": "Grow audience to 2,000+ before launching merch.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "merch",
+                "blocker_type": "audience_too_small_for_merch",
+                "severity": "high",
+                "description": "Audience under 2,000. Merch drops need a minimum buying audience.",
+                "operator_action_needed": "Grow audience to 2,000+ before launching merch.",
+            }
+        )
     if brand_ctx.get("content_count", 0) < 10:
-        blockers.append({
-            "avenue_type": "live_events",
-            "blocker_type": "insufficient_content_for_events",
-            "severity": "medium",
-            "description": "Fewer than 10 content items. Live events need proven topic authority.",
-            "operator_action_needed": "Produce at least 10 content items to establish topic authority.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "live_events",
+                "blocker_type": "insufficient_content_for_events",
+                "severity": "medium",
+                "description": "Fewer than 10 content items. Live events need proven topic authority.",
+                "operator_action_needed": "Produce at least 10 content items to establish topic authority.",
+            }
+        )
     if brand_ctx.get("offer_count", 0) == 0:
-        blockers.append({
-            "avenue_type": "owned_affiliate_program",
-            "blocker_type": "no_offers_for_affiliate_program",
-            "severity": "critical",
-            "description": "No offers defined. An affiliate program requires at least one offer to promote.",
-            "operator_action_needed": "Create at least one offer before launching an affiliate program.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "owned_affiliate_program",
+                "blocker_type": "no_offers_for_affiliate_program",
+                "severity": "critical",
+                "description": "No offers defined. An affiliate program requires at least one offer to promote.",
+                "operator_action_needed": "Create at least one offer before launching an affiliate program.",
+            }
+        )
     if not brand_ctx.get("has_payment_processor"):
-        blockers.append({
-            "avenue_type": "all",
-            "blocker_type": "no_payment_processor",
-            "severity": "critical",
-            "description": "No payment processor. Cannot collect merch, event, or affiliate revenue.",
-            "operator_action_needed": "Connect Stripe, PayPal, or another payment processor.",
-        })
+        blockers.append(
+            {
+                "avenue_type": "all",
+                "blocker_type": "no_payment_processor",
+                "severity": "critical",
+                "description": "No payment processor. Cannot collect merch, event, or affiliate revenue.",
+                "operator_action_needed": "Connect Stripe, PayPal, or another payment processor.",
+            }
+        )
     return blockers
 
 
@@ -958,5 +1471,7 @@ def build_event_rollup(events: list[dict[str, Any]]) -> dict[str, Any]:
         "total_cost": round(total_cost, 2),
         "total_profit": round(total_profit, 2),
         "event_count": event_count,
-        "by_avenue": {k: {kk: round(vv, 2) if isinstance(vv, float) else vv for kk, vv in v.items()} for k, v in by_avenue.items()},
+        "by_avenue": {
+            k: {kk: round(vv, 2) if isinstance(vv, float) else vv for kk, vv in v.items()} for k, v in by_avenue.items()
+        },
     }

@@ -4,6 +4,7 @@ Creates persistent AI personalities that audiences follow and trust.
 Each personality has a name, backstory, visual identity, voice, catchphrases,
 and memory of past content — driving parasocial relationships and higher conversion.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -15,35 +16,109 @@ CHARACTER_ARCHETYPES = {
     "mentor": {"description": "Supportive, experienced, guiding", "tone": "warm", "energy": "calm"},
     "provocateur": {"description": "Bold, contrarian, challenges norms", "tone": "edgy", "energy": "high"},
     "entertainer": {"description": "Fun, relatable, uses humor", "tone": "playful", "energy": "high"},
-    "investigator": {"description": "Curious, research-heavy, reveals hidden truths", "tone": "serious", "energy": "focused"},
+    "investigator": {
+        "description": "Curious, research-heavy, reveals hidden truths",
+        "tone": "serious",
+        "energy": "focused",
+    },
     "motivator": {"description": "Inspiring, action-oriented, pump-up energy", "tone": "urgent", "energy": "very_high"},
-    "storyteller": {"description": "Narrative-driven, personal anecdotes, emotional", "tone": "warm", "energy": "moderate"},
+    "storyteller": {
+        "description": "Narrative-driven, personal anecdotes, emotional",
+        "tone": "warm",
+        "energy": "moderate",
+    },
     "analyst": {"description": "Data-first, charts, comparisons, objective", "tone": "neutral", "energy": "calm"},
 }
 
 NICHE_CHARACTER_TEMPLATES: dict[str, list[dict[str, Any]]] = {
     "personal_finance": [
-        {"name": "Alex Cash", "archetype": "expert", "tagline": "Making money simple", "backstory": "Former Wall Street analyst who quit to teach everyday people how to build wealth. No BS, just math.", "traits": ["direct", "numbers-focused", "anti-guru"]},
-        {"name": "Morgan Wealth", "archetype": "mentor", "tagline": "Your money mentor", "backstory": "Paid off $80K in debt and now helps others do the same. Real stories, real strategies.", "traits": ["empathetic", "practical", "encouraging"]},
+        {
+            "name": "Alex Cash",
+            "archetype": "expert",
+            "tagline": "Making money simple",
+            "backstory": "Former Wall Street analyst who quit to teach everyday people how to build wealth. No BS, just math.",
+            "traits": ["direct", "numbers-focused", "anti-guru"],
+        },
+        {
+            "name": "Morgan Wealth",
+            "archetype": "mentor",
+            "tagline": "Your money mentor",
+            "backstory": "Paid off $80K in debt and now helps others do the same. Real stories, real strategies.",
+            "traits": ["empathetic", "practical", "encouraging"],
+        },
     ],
     "make_money_online": [
-        {"name": "Riley Hustle", "archetype": "provocateur", "tagline": "The anti-guru guru", "backstory": "Built 3 businesses from a laptop. Calls out scams and shows what actually works.", "traits": ["blunt", "transparent", "action-oriented"]},
-        {"name": "Jordan Scale", "archetype": "analyst", "tagline": "Data-driven income", "backstory": "Tests every side hustle and shows the real numbers — no hype, just receipts.", "traits": ["analytical", "skeptical", "thorough"]},
+        {
+            "name": "Riley Hustle",
+            "archetype": "provocateur",
+            "tagline": "The anti-guru guru",
+            "backstory": "Built 3 businesses from a laptop. Calls out scams and shows what actually works.",
+            "traits": ["blunt", "transparent", "action-oriented"],
+        },
+        {
+            "name": "Jordan Scale",
+            "archetype": "analyst",
+            "tagline": "Data-driven income",
+            "backstory": "Tests every side hustle and shows the real numbers — no hype, just receipts.",
+            "traits": ["analytical", "skeptical", "thorough"],
+        },
     ],
     "health_fitness": [
-        {"name": "Sam Strong", "archetype": "motivator", "tagline": "No excuses fitness", "backstory": "Lost 60 pounds and became a certified trainer. Believes everyone can transform.", "traits": ["energetic", "tough-love", "inspiring"]},
-        {"name": "Taylor Wellness", "archetype": "mentor", "tagline": "Health made human", "backstory": "Recovered from burnout through fitness. Focuses on sustainable habits over quick fixes.", "traits": ["patient", "holistic", "science-based"]},
+        {
+            "name": "Sam Strong",
+            "archetype": "motivator",
+            "tagline": "No excuses fitness",
+            "backstory": "Lost 60 pounds and became a certified trainer. Believes everyone can transform.",
+            "traits": ["energetic", "tough-love", "inspiring"],
+        },
+        {
+            "name": "Taylor Wellness",
+            "archetype": "mentor",
+            "tagline": "Health made human",
+            "backstory": "Recovered from burnout through fitness. Focuses on sustainable habits over quick fixes.",
+            "traits": ["patient", "holistic", "science-based"],
+        },
     ],
     "tech_reviews": [
-        {"name": "Chris Circuit", "archetype": "expert", "tagline": "Tech truth, no fluff", "backstory": "Engineer who reviews tech the way engineers think about it — specs, benchmarks, real-world tests.", "traits": ["precise", "honest", "detail-oriented"]},
-        {"name": "Avery Digital", "archetype": "entertainer", "tagline": "Tech for real people", "backstory": "Makes tech fun and understandable. No jargon, just 'should you buy this or not.'", "traits": ["funny", "relatable", "concise"]},
+        {
+            "name": "Chris Circuit",
+            "archetype": "expert",
+            "tagline": "Tech truth, no fluff",
+            "backstory": "Engineer who reviews tech the way engineers think about it — specs, benchmarks, real-world tests.",
+            "traits": ["precise", "honest", "detail-oriented"],
+        },
+        {
+            "name": "Avery Digital",
+            "archetype": "entertainer",
+            "tagline": "Tech for real people",
+            "backstory": "Makes tech fun and understandable. No jargon, just 'should you buy this or not.'",
+            "traits": ["funny", "relatable", "concise"],
+        },
     ],
     "ai_tools": [
-        {"name": "Nova AI", "archetype": "investigator", "tagline": "Testing every AI tool so you don't have to", "backstory": "AI researcher who tests tools obsessively and reports the honest results.", "traits": ["curious", "thorough", "future-focused"]},
-        {"name": "Kai Automate", "archetype": "expert", "tagline": "Automate everything", "backstory": "Built AI workflows that save businesses 20+ hours/week. Shows exactly how.", "traits": ["systematic", "practical", "efficiency-obsessed"]},
+        {
+            "name": "Nova AI",
+            "archetype": "investigator",
+            "tagline": "Testing every AI tool so you don't have to",
+            "backstory": "AI researcher who tests tools obsessively and reports the honest results.",
+            "traits": ["curious", "thorough", "future-focused"],
+        },
+        {
+            "name": "Kai Automate",
+            "archetype": "expert",
+            "tagline": "Automate everything",
+            "backstory": "Built AI workflows that save businesses 20+ hours/week. Shows exactly how.",
+            "traits": ["systematic", "practical", "efficiency-obsessed"],
+        },
     ],
     "default": [
-        {"name": "River", "archetype": "expert", "tagline": "Real talk, real results", "backstory": "Industry insider sharing the insights that matter.", "traits": ["authentic", "direct", "knowledgeable"]},
+        {
+            "name": "River",
+            "archetype": "expert",
+            "tagline": "Real talk, real results",
+            "backstory": "Industry insider sharing the insights that matter.",
+            "traits": ["authentic", "direct", "knowledgeable"],
+        },
     ],
 }
 
@@ -87,7 +162,9 @@ def generate_personality(account_id: str, niche: str, platform: str = "youtube")
     archetype_info = CHARACTER_ARCHETYPES.get(template["archetype"], CHARACTER_ARCHETYPES["expert"])
 
     topic_placeholder = niche.replace("_", " ")
-    catchphrases = [rng.choice(CATCHPHRASE_TEMPLATES).format(topic=topic_placeholder, name=template["name"]) for _ in range(3)]
+    catchphrases = [
+        rng.choice(CATCHPHRASE_TEMPLATES).format(topic=topic_placeholder, name=template["name"]) for _ in range(3)
+    ]
     intros = [rng.choice(INTRO_TEMPLATES).format(name=template["name"], topic=topic_placeholder) for _ in range(2)]
     outros = [rng.choice(OUTRO_TEMPLATES).format(name=template["name"]) for _ in range(2)]
 
@@ -111,7 +188,7 @@ def build_personality_prompt(personality: dict[str, Any], memories: list[dict[st
     """Build a prompt injection that makes the AI write AS this character."""
     parts = [
         f"CHARACTER: You are {personality.get('character_name', 'the host')}.",
-        f"TAGLINE: \"{personality.get('character_tagline', '')}\"",
+        f'TAGLINE: "{personality.get("character_tagline", "")}"',
         f"BACKSTORY: {personality.get('character_backstory', '')}",
         f"ARCHETYPE: {personality.get('character_archetype', 'expert')} — {CHARACTER_ARCHETYPES.get(personality.get('character_archetype', ''), {}).get('description', '')}",
     ]

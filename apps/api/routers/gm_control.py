@@ -18,6 +18,7 @@ Endpoints:
   GET  /api/v1/gm/stage-states
   POST /api/v1/gm/watcher/run-now
 """
+
 from __future__ import annotations
 
 import uuid
@@ -62,38 +63,61 @@ async def control_board(
     since = datetime.now(timezone.utc) - timedelta(hours=max(1, lookback_hours))
 
     pending_approvals = (
-        await db.execute(
-            select(GMApproval).where(
-                GMApproval.org_id == org,
-                GMApproval.status == "pending",
-                GMApproval.is_active.is_(True),
-            ).order_by(desc(GMApproval.created_at)).limit(50)
+        (
+            await db.execute(
+                select(GMApproval)
+                .where(
+                    GMApproval.org_id == org,
+                    GMApproval.status == "pending",
+                    GMApproval.is_active.is_(True),
+                )
+                .order_by(desc(GMApproval.created_at))
+                .limit(50)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     open_escalations = (
-        await db.execute(
-            select(GMEscalation).where(
-                GMEscalation.org_id == org,
-                GMEscalation.status.in_(("open", "acknowledged")),
-                GMEscalation.is_active.is_(True),
-            ).order_by(desc(GMEscalation.last_seen_at)).limit(50)
+        (
+            await db.execute(
+                select(GMEscalation)
+                .where(
+                    GMEscalation.org_id == org,
+                    GMEscalation.status.in_(("open", "acknowledged")),
+                    GMEscalation.is_active.is_(True),
+                )
+                .order_by(desc(GMEscalation.last_seen_at))
+                .limit(50)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     stuck_states = (
-        await db.execute(
-            select(StageState).where(
-                StageState.org_id == org,
-                StageState.is_stuck.is_(True),
-                StageState.is_active.is_(True),
-            ).order_by(StageState.sla_deadline.asc()).limit(50)
+        (
+            await db.execute(
+                select(StageState)
+                .where(
+                    StageState.org_id == org,
+                    StageState.is_stuck.is_(True),
+                    StageState.is_active.is_(True),
+                )
+                .order_by(StageState.sla_deadline.asc())
+                .limit(50)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     auto_handled_actions = (
         await db.execute(
-            select(func.count()).select_from(OperatorAction).where(
+            select(func.count())
+            .select_from(OperatorAction)
+            .where(
                 OperatorAction.organization_id == org,
                 OperatorAction.status == "completed",
                 OperatorAction.created_at >= since,
@@ -103,7 +127,9 @@ async def control_board(
 
     revenue_events_recent = (
         await db.execute(
-            select(func.count()).select_from(SystemEvent).where(
+            select(func.count())
+            .select_from(SystemEvent)
+            .where(
                 SystemEvent.organization_id == org,
                 SystemEvent.event_domain.in_(("monetization", "fulfillment")),
                 SystemEvent.created_at >= since,
@@ -154,13 +180,14 @@ async def approve_approval(
     current_user: OperatorUser,
     db: DBSession,
 ):
-    approval = await _require_owned(
-        db, GMApproval, approval_id, current_user.organization_id, "Approval"
-    )
+    approval = await _require_owned(db, GMApproval, approval_id, current_user.organization_id, "Approval")
     try:
         approval = await resolve_approval(
-            db, approval=approval, decision="approved",
-            decided_by=current_user.email, notes=body.notes,
+            db,
+            approval=approval,
+            decision="approved",
+            decided_by=current_user.email,
+            notes=body.notes,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
@@ -175,13 +202,14 @@ async def reject_approval(
     current_user: OperatorUser,
     db: DBSession,
 ):
-    approval = await _require_owned(
-        db, GMApproval, approval_id, current_user.organization_id, "Approval"
-    )
+    approval = await _require_owned(db, GMApproval, approval_id, current_user.organization_id, "Approval")
     try:
         approval = await resolve_approval(
-            db, approval=approval, decision="rejected",
-            decided_by=current_user.email, notes=body.notes,
+            db,
+            approval=approval,
+            decision="rejected",
+            decided_by=current_user.email,
+            notes=body.notes,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
@@ -220,9 +248,7 @@ async def acknowledge_escalation(
     current_user: OperatorUser,
     db: DBSession,
 ):
-    escalation = await _require_owned(
-        db, GMEscalation, escalation_id, current_user.organization_id, "Escalation"
-    )
+    escalation = await _require_owned(db, GMEscalation, escalation_id, current_user.organization_id, "Escalation")
     if escalation.status == "open":
         escalation.status = "acknowledged"
         escalation.acknowledged_at = datetime.now(timezone.utc)
@@ -238,11 +264,12 @@ async def resolve_escalation_route(
     current_user: OperatorUser,
     db: DBSession,
 ):
-    escalation = await _require_owned(
-        db, GMEscalation, escalation_id, current_user.organization_id, "Escalation"
-    )
+    escalation = await _require_owned(db, GMEscalation, escalation_id, current_user.organization_id, "Escalation")
     escalation = await resolve_escalation(
-        db, escalation=escalation, resolved_by=current_user.email, notes=body.notes,
+        db,
+        escalation=escalation,
+        resolved_by=current_user.email,
+        notes=body.notes,
     )
     await db.commit()
     return _escalation_summary(escalation)
@@ -344,9 +371,7 @@ async def _require_owned(db, model, row_id: str, org_id: uuid.UUID, label: str):
         rid = uuid.UUID(row_id)
     except (ValueError, TypeError):
         raise HTTPException(400, f"Invalid {label} id")
-    row = (
-        await db.execute(select(model).where(model.id == rid))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(model).where(model.id == rid))).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, f"{label} not found")
     if row.org_id != org_id:

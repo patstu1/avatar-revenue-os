@@ -1,4 +1,5 @@
 """Enterprise Security workers."""
+
 import logging
 
 from celery import shared_task
@@ -10,17 +11,23 @@ from workers.base_task import TrackedTask
 
 logger = logging.getLogger(__name__)
 
+
 async def _run():
     from apps.api.services.enterprise_security_service import recompute_compliance
+
     async with get_async_session_factory()() as db:
         orgs = list((await db.execute(select(Organization.id))).scalars().all())
     c = 0
     for oid in orgs:
         try:
             async with get_async_session_factory()() as db:
-                await recompute_compliance(db, oid); await db.commit(); c += 1
-        except Exception: logger.exception("enterprise security failed %s", oid)
+                await recompute_compliance(db, oid)
+                await db.commit()
+                c += 1
+        except Exception:
+            logger.exception("enterprise security failed %s", oid)
     return c
+
 
 @shared_task(name="workers.enterprise_security_worker.tasks.recompute_compliance", base=TrackedTask)
 def recompute_compliance_task():

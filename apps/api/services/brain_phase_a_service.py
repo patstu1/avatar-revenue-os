@@ -1,4 +1,5 @@
 """Brain Architecture Phase A — service layer for memory, account/opportunity/execution/audience states."""
+
 from __future__ import annotations
 
 import uuid
@@ -37,78 +38,122 @@ def _utc_now() -> datetime:
 
 # ── helpers ───────────────────────────────────────────────────────────
 
+
 def _entry_out(e: BrainMemoryEntry) -> dict[str, Any]:
     return {
-        "id": e.id, "brand_id": e.brand_id, "entry_type": e.entry_type,
-        "scope_type": e.scope_type, "scope_id": e.scope_id,
-        "summary": e.summary, "confidence": e.confidence,
+        "id": e.id,
+        "brand_id": e.brand_id,
+        "entry_type": e.entry_type,
+        "scope_type": e.scope_type,
+        "scope_id": e.scope_id,
+        "summary": e.summary,
+        "confidence": e.confidence,
         "reuse_recommendation": e.reuse_recommendation,
         "suppression_caution": e.suppression_caution,
-        "platform": e.platform, "niche": e.niche,
-        "detail_json": e.detail_json, "explanation": e.explanation,
-        "is_active": e.is_active, "created_at": e.created_at, "updated_at": e.updated_at,
+        "platform": e.platform,
+        "niche": e.niche,
+        "detail_json": e.detail_json,
+        "explanation": e.explanation,
+        "is_active": e.is_active,
+        "created_at": e.created_at,
+        "updated_at": e.updated_at,
     }
 
 
 def _link_out(lk: BrainMemoryLink) -> dict[str, Any]:
     return {
-        "id": lk.id, "brand_id": lk.brand_id,
-        "source_entry_id": lk.source_entry_id, "target_entry_id": lk.target_entry_id,
-        "link_type": lk.link_type, "strength": lk.strength,
-        "explanation": lk.explanation, "is_active": lk.is_active,
-        "created_at": lk.created_at, "updated_at": lk.updated_at,
+        "id": lk.id,
+        "brand_id": lk.brand_id,
+        "source_entry_id": lk.source_entry_id,
+        "target_entry_id": lk.target_entry_id,
+        "link_type": lk.link_type,
+        "strength": lk.strength,
+        "explanation": lk.explanation,
+        "is_active": lk.is_active,
+        "created_at": lk.created_at,
+        "updated_at": lk.updated_at,
     }
 
 
 def _acct_state_out(s: AccountStateSnapshot) -> dict[str, Any]:
     return {
-        "id": s.id, "brand_id": s.brand_id, "account_id": s.account_id,
-        "current_state": s.current_state, "state_score": s.state_score,
-        "previous_state": s.previous_state, "transition_reason": s.transition_reason,
-        "next_expected_state": s.next_expected_state, "days_in_state": s.days_in_state,
-        "platform": s.platform, "inputs_json": s.inputs_json,
-        "confidence": s.confidence, "explanation": s.explanation,
-        "is_active": s.is_active, "created_at": s.created_at, "updated_at": s.updated_at,
+        "id": s.id,
+        "brand_id": s.brand_id,
+        "account_id": s.account_id,
+        "current_state": s.current_state,
+        "state_score": s.state_score,
+        "previous_state": s.previous_state,
+        "transition_reason": s.transition_reason,
+        "next_expected_state": s.next_expected_state,
+        "days_in_state": s.days_in_state,
+        "platform": s.platform,
+        "inputs_json": s.inputs_json,
+        "confidence": s.confidence,
+        "explanation": s.explanation,
+        "is_active": s.is_active,
+        "created_at": s.created_at,
+        "updated_at": s.updated_at,
     }
 
 
 def _opp_state_out(s: OpportunityStateSnapshot) -> dict[str, Any]:
     return {
-        "id": s.id, "brand_id": s.brand_id,
-        "opportunity_scope": s.opportunity_scope, "opportunity_id": s.opportunity_id,
-        "current_state": s.current_state, "urgency": s.urgency,
-        "readiness": s.readiness, "suppression_risk": s.suppression_risk,
-        "expected_upside": s.expected_upside, "expected_cost": s.expected_cost,
-        "inputs_json": s.inputs_json, "confidence": s.confidence,
-        "explanation": s.explanation, "is_active": s.is_active,
-        "created_at": s.created_at, "updated_at": s.updated_at,
+        "id": s.id,
+        "brand_id": s.brand_id,
+        "opportunity_scope": s.opportunity_scope,
+        "opportunity_id": s.opportunity_id,
+        "current_state": s.current_state,
+        "urgency": s.urgency,
+        "readiness": s.readiness,
+        "suppression_risk": s.suppression_risk,
+        "expected_upside": s.expected_upside,
+        "expected_cost": s.expected_cost,
+        "inputs_json": s.inputs_json,
+        "confidence": s.confidence,
+        "explanation": s.explanation,
+        "is_active": s.is_active,
+        "created_at": s.created_at,
+        "updated_at": s.updated_at,
     }
 
 
 def _exec_state_out(s: ExecutionStateSnapshot) -> dict[str, Any]:
     return {
-        "id": s.id, "brand_id": s.brand_id,
-        "execution_scope": s.execution_scope, "execution_id": s.execution_id,
-        "current_state": s.current_state, "transition_reason": s.transition_reason,
-        "rollback_eligible": s.rollback_eligible, "escalation_required": s.escalation_required,
-        "failure_count": s.failure_count, "inputs_json": s.inputs_json,
-        "confidence": s.confidence, "explanation": s.explanation,
-        "is_active": s.is_active, "created_at": s.created_at, "updated_at": s.updated_at,
+        "id": s.id,
+        "brand_id": s.brand_id,
+        "execution_scope": s.execution_scope,
+        "execution_id": s.execution_id,
+        "current_state": s.current_state,
+        "transition_reason": s.transition_reason,
+        "rollback_eligible": s.rollback_eligible,
+        "escalation_required": s.escalation_required,
+        "failure_count": s.failure_count,
+        "inputs_json": s.inputs_json,
+        "confidence": s.confidence,
+        "explanation": s.explanation,
+        "is_active": s.is_active,
+        "created_at": s.created_at,
+        "updated_at": s.updated_at,
     }
 
 
 def _aud_state_out(s: AudienceStateSnapshotV2) -> dict[str, Any]:
     return {
-        "id": s.id, "brand_id": s.brand_id,
-        "segment_label": s.segment_label, "current_state": s.current_state,
+        "id": s.id,
+        "brand_id": s.brand_id,
+        "segment_label": s.segment_label,
+        "current_state": s.current_state,
         "state_score": s.state_score,
         "transition_likelihoods_json": s.transition_likelihoods_json,
         "next_best_action": s.next_best_action,
         "estimated_segment_size": s.estimated_segment_size,
         "estimated_ltv": s.estimated_ltv,
-        "inputs_json": s.inputs_json, "confidence": s.confidence,
-        "explanation": s.explanation, "is_active": s.is_active,
-        "created_at": s.created_at, "updated_at": s.updated_at,
+        "inputs_json": s.inputs_json,
+        "confidence": s.confidence,
+        "explanation": s.explanation,
+        "is_active": s.is_active,
+        "created_at": s.created_at,
+        "updated_at": s.updated_at,
     }
 
 
@@ -116,17 +161,20 @@ def _aud_state_out(s: AudienceStateSnapshotV2) -> dict[str, Any]:
 # 1. Brain Memory
 # =====================================================================
 
+
 async def list_brain_memory(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 100) -> dict[str, Any]:
     entries_q = await db.execute(
         select(BrainMemoryEntry)
         .where(BrainMemoryEntry.brand_id == brand_id, BrainMemoryEntry.is_active.is_(True))
-        .order_by(BrainMemoryEntry.created_at.desc()).limit(limit)
+        .order_by(BrainMemoryEntry.created_at.desc())
+        .limit(limit)
     )
     entries = entries_q.scalars().all()
     links_q = await db.execute(
         select(BrainMemoryLink)
         .where(BrainMemoryLink.brand_id == brand_id, BrainMemoryLink.is_active.is_(True))
-        .order_by(BrainMemoryLink.created_at.desc()).limit(limit)
+        .order_by(BrainMemoryLink.created_at.desc())
+        .limit(limit)
     )
     links = links_q.scalars().all()
     return {"entries": [_entry_out(e) for e in entries], "links": [_link_out(lk) for lk in links]}
@@ -141,57 +189,68 @@ async def recompute_brain_memory(db: AsyncSession, brand_id: uuid.UUID) -> dict[
     accts = accts_q.scalars().all()
     account_ctx = []
     for a in accts:
-        account_ctx.append({
-            "id": str(a.id),
-            "platform": a.platform.value if a.platform else "unknown",
-            "niche": a.niche_focus or "",
-            "profit_per_post": float(getattr(a, "profit_per_post", 0) or 0),
-            "avg_engagement": float(getattr(a, "avg_engagement", 0) or 0),
-            "age_days": ((_utc_now() - a.created_at).days if a.created_at else 0),
-        })
+        account_ctx.append(
+            {
+                "id": str(a.id),
+                "platform": a.platform.value if a.platform else "unknown",
+                "niche": a.niche_focus or "",
+                "profit_per_post": float(getattr(a, "profit_per_post", 0) or 0),
+                "avg_engagement": float(getattr(a, "avg_engagement", 0) or 0),
+                "age_days": ((_utc_now() - a.created_at).days if a.created_at else 0),
+            }
+        )
 
-    offers_q = await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-    )
+    offers_q = await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))
     offers = offers_q.scalars().all()
-    offer_ctx = [{
-        "id": str(o.id),
-        "niche": "",
-        "epc": float(o.epc or 0),
-        "conversion_rate": float(o.conversion_rate or 0),
-    } for o in offers]
+    offer_ctx = [
+        {
+            "id": str(o.id),
+            "niche": "",
+            "epc": float(o.epc or 0),
+            "conversion_rate": float(o.conversion_rate or 0),
+        }
+        for o in offers
+    ]
 
     supp_q = await db.execute(
         select(SuppressionExecution)
         .where(SuppressionExecution.brand_id == brand_id, SuppressionExecution.is_active.is_(True))
-        .order_by(SuppressionExecution.created_at.desc()).limit(20)
+        .order_by(SuppressionExecution.created_at.desc())
+        .limit(20)
     )
     supps = supp_q.scalars().all()
-    supp_ctx = [{
-        "scope_type": s.suppression_type or "content",
-        "scope_id": str(s.id),
-        "platform": None,
-        "reason": s.trigger_reason or "",
-        "confidence": float(s.confidence or 0.5),
-        "detail": {},
-    } for s in supps]
+    supp_ctx = [
+        {
+            "scope_type": s.suppression_type or "content",
+            "scope_id": str(s.id),
+            "platform": None,
+            "reason": s.trigger_reason or "",
+            "confidence": float(s.confidence or 0.5),
+            "detail": {},
+        }
+        for s in supps
+    ]
 
     recovery_q = await db.execute(
         select(RecoveryIncident)
         .where(RecoveryIncident.brand_id == brand_id, RecoveryIncident.is_active.is_(True))
-        .order_by(RecoveryIncident.created_at.desc()).limit(20)
+        .order_by(RecoveryIncident.created_at.desc())
+        .limit(20)
     )
     recoveries = recovery_q.scalars().all()
-    rec_ctx = [{
-        "scope_type": "system",
-        "scope_id": str(r.id),
-        "platform": None,
-        "incident_type": r.incident_type or "unknown",
-        "confidence": 0.55,
-        "detail": {},
-        "explanation": r.explanation or "",
-        "fix": r.recommended_action or None,
-    } for r in recoveries]
+    rec_ctx = [
+        {
+            "scope_type": "system",
+            "scope_id": str(r.id),
+            "platform": None,
+            "incident_type": r.incident_type or "unknown",
+            "confidence": 0.55,
+            "detail": {},
+            "explanation": r.explanation or "",
+            "fix": r.recommended_action or None,
+        }
+        for r in recoveries
+    ]
 
     ctx = {
         "accounts": account_ctx,
@@ -254,11 +313,13 @@ async def recompute_brain_memory(db: AsyncSession, brand_id: uuid.UUID) -> dict[
 # 2. Account State
 # =====================================================================
 
+
 async def list_account_states(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 100) -> list[dict[str, Any]]:
     q = await db.execute(
         select(AccountStateSnapshot)
         .where(AccountStateSnapshot.brand_id == brand_id, AccountStateSnapshot.is_active.is_(True))
-        .order_by(AccountStateSnapshot.created_at.desc()).limit(limit)
+        .order_by(AccountStateSnapshot.created_at.desc())
+        .limit(limit)
     )
     return [_acct_state_out(r) for r in q.scalars().all()]
 
@@ -302,7 +363,8 @@ async def recompute_account_states(db: AsyncSession, brand_id: uuid.UUID) -> dic
                 AccountStateSnapshot.account_id == a.id,
                 AccountStateSnapshot.is_active.is_(False),
             )
-            .order_by(AccountStateSnapshot.created_at.desc()).limit(1)
+            .order_by(AccountStateSnapshot.created_at.desc())
+            .limit(1)
         )
         prev = prev_q.scalar_one_or_none()
         prev_state = prev.current_state if prev else None
@@ -348,11 +410,13 @@ async def recompute_account_states(db: AsyncSession, brand_id: uuid.UUID) -> dic
 # 3. Opportunity State
 # =====================================================================
 
+
 async def list_opportunity_states(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 100) -> list[dict[str, Any]]:
     q = await db.execute(
         select(OpportunityStateSnapshot)
         .where(OpportunityStateSnapshot.brand_id == brand_id, OpportunityStateSnapshot.is_active.is_(True))
-        .order_by(OpportunityStateSnapshot.created_at.desc()).limit(limit)
+        .order_by(OpportunityStateSnapshot.created_at.desc())
+        .limit(limit)
     )
     return [_opp_state_out(r) for r in q.scalars().all()]
 
@@ -361,7 +425,8 @@ async def recompute_opportunity_states(db: AsyncSession, brand_id: uuid.UUID) ->
     scores_q = await db.execute(
         select(OpportunityScore)
         .where(OpportunityScore.brand_id == brand_id)
-        .order_by(OpportunityScore.created_at.desc()).limit(50)
+        .order_by(OpportunityScore.created_at.desc())
+        .limit(50)
     )
     scores = scores_q.scalars().all()
 
@@ -394,7 +459,8 @@ async def recompute_opportunity_states(db: AsyncSession, brand_id: uuid.UUID) ->
                 OpportunityStateSnapshot.opportunity_id == sc.id,
                 OpportunityStateSnapshot.is_active.is_(False),
             )
-            .order_by(OpportunityStateSnapshot.created_at.desc()).limit(1)
+            .order_by(OpportunityStateSnapshot.created_at.desc())
+            .limit(1)
         )
         prev = prev_q.scalar_one_or_none()
         prev_state = prev.current_state if prev else None
@@ -440,11 +506,13 @@ async def recompute_opportunity_states(db: AsyncSession, brand_id: uuid.UUID) ->
 # 4. Execution State
 # =====================================================================
 
+
 async def list_execution_states(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 100) -> list[dict[str, Any]]:
     q = await db.execute(
         select(ExecutionStateSnapshot)
         .where(ExecutionStateSnapshot.brand_id == brand_id, ExecutionStateSnapshot.is_active.is_(True))
-        .order_by(ExecutionStateSnapshot.created_at.desc()).limit(limit)
+        .order_by(ExecutionStateSnapshot.created_at.desc())
+        .limit(limit)
     )
     return [_exec_state_out(r) for r in q.scalars().all()]
 
@@ -453,7 +521,8 @@ async def recompute_execution_states(db: AsyncSession, brand_id: uuid.UUID) -> d
     runs_q = await db.execute(
         select(AutonomousRun)
         .where(AutonomousRun.brand_id == brand_id, AutonomousRun.is_active.is_(True))
-        .order_by(AutonomousRun.created_at.desc()).limit(50)
+        .order_by(AutonomousRun.created_at.desc())
+        .limit(50)
     )
     runs = runs_q.scalars().all()
 
@@ -484,7 +553,8 @@ async def recompute_execution_states(db: AsyncSession, brand_id: uuid.UUID) -> d
                 ExecutionStateSnapshot.execution_id == r.id,
                 ExecutionStateSnapshot.is_active.is_(False),
             )
-            .order_by(ExecutionStateSnapshot.created_at.desc()).limit(1)
+            .order_by(ExecutionStateSnapshot.created_at.desc())
+            .limit(1)
         )
         prev = prev_q.scalar_one_or_none()
         prev_state = prev.current_state if prev else None
@@ -529,11 +599,13 @@ async def recompute_execution_states(db: AsyncSession, brand_id: uuid.UUID) -> d
 # 5. Audience State V2
 # =====================================================================
 
+
 async def list_audience_states_v2(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 100) -> list[dict[str, Any]]:
     q = await db.execute(
         select(AudienceStateSnapshotV2)
         .where(AudienceStateSnapshotV2.brand_id == brand_id, AudienceStateSnapshotV2.is_active.is_(True))
-        .order_by(AudienceStateSnapshotV2.created_at.desc()).limit(limit)
+        .order_by(AudienceStateSnapshotV2.created_at.desc())
+        .limit(limit)
     )
     return [_aud_state_out(r) for r in q.scalars().all()]
 
@@ -542,8 +614,7 @@ async def recompute_audience_states_v2(db: AsyncSession, brand_id: uuid.UUID) ->
     from packages.db.models.offers import AudienceSegment
 
     segments_q = await db.execute(
-        select(AudienceSegment)
-        .where(AudienceSegment.brand_id == brand_id, AudienceSegment.is_active.is_(True))
+        select(AudienceSegment).where(AudienceSegment.brand_id == brand_id, AudienceSegment.is_active.is_(True))
     )
     segments = segments_q.scalars().all()
 
@@ -610,7 +681,8 @@ async def recompute_audience_states_v2(db: AsyncSession, brand_id: uuid.UUID) ->
                     AudienceStateSnapshotV2.segment_label == seg.name,
                     AudienceStateSnapshotV2.is_active.is_(False),
                 )
-                .order_by(AudienceStateSnapshotV2.created_at.desc()).limit(1)
+                .order_by(AudienceStateSnapshotV2.created_at.desc())
+                .limit(1)
             )
             prev = prev_q.scalar_one_or_none()
             prev_state = prev.current_state if prev else None

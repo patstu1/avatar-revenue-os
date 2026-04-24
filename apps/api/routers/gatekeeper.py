@@ -1,4 +1,5 @@
 """AI Gatekeeper API — hard internal control system."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, status

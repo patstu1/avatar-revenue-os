@@ -1,4 +1,5 @@
 """Content Routing API — tiered routing decisions and cost tracking."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
@@ -35,7 +36,9 @@ async def list_decisions(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
 @router.post("/{brand_id}/content-routing/route", response_model=RouteTaskResponse)
 async def route_task(brand_id: uuid.UUID, body: RouteTaskRequest, current_user: OperatorUser, db: DBSession):
     await _require_brand(brand_id, current_user, db)
-    result = await crs.route_task(db, brand_id, body.task_description, body.platform, body.content_type, body.is_promoted, body.campaign_type)
+    result = await crs.route_task(
+        db, brand_id, body.task_description, body.platform, body.content_type, body.is_promoted, body.campaign_type
+    )
     return RouteTaskResponse(**result)
 
 

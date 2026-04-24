@@ -1,4 +1,5 @@
 """Unit tests for real external service clients."""
+
 import base64
 import hashlib
 import hmac
@@ -303,6 +304,7 @@ def test_shopify_no_api_secret():
 # Stripe Batch Payment Client
 # ---------------------------------------------------------------------------
 
+
 def test_stripe_payment_client_not_configured():
     c = StripePaymentClient()
     assert not c._is_configured()
@@ -332,6 +334,7 @@ async def test_stripe_payment_intents_blocked():
 # ---------------------------------------------------------------------------
 # Shopify Batch Order Client
 # ---------------------------------------------------------------------------
+
 
 def test_shopify_order_client_not_configured():
     c = ShopifyOrderClient()

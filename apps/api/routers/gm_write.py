@@ -27,6 +27,7 @@ Endpoints:
   POST /api/v1/gm/write/avenues/{avenue_id}/activate
   POST /api/v1/gm/write/stages/mark
 """
+
 from __future__ import annotations
 
 import uuid
@@ -86,14 +87,18 @@ async def approve_approval(
 
     approval = await _require_owned_approval(db, approval_id, current_user.organization_id)
     action_class = classify_action(
-        confidence=1.0, money_involved=(approval.risk_level in ("high", "critical")),
+        confidence=1.0,
+        money_involved=(approval.risk_level in ("high", "critical")),
     )
     forbid_escalation_as_mutation(
-        tool_name="approvals.approve", action_class=action_class,
+        tool_name="approvals.approve",
+        action_class=action_class,
     )
     try:
         result = await resolve_approval(
-            db, approval=approval, decision="approved",
+            db,
+            approval=approval,
+            decision="approved",
             decided_by=current_user.email or str(current_user.id),
             notes=body.notes,
         )
@@ -101,9 +106,13 @@ async def approve_approval(
         raise HTTPException(400, str(exc))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="approvals.approve",
-        entity_type="gm_approval", entity_id=result.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="approvals.approve",
+        entity_type="gm_approval",
+        entity_id=result.id,
+        decision="executed",
+        action_class=action_class,
         details={"notes": body.notes, "risk_level": approval.risk_level},
     )
     await db.commit()
@@ -130,16 +139,22 @@ async def reject_approval(
     forbid_escalation_as_mutation(tool_name="approvals.reject", action_class=action_class)
     try:
         result = await resolve_approval(
-            db, approval=approval, decision="rejected",
+            db,
+            approval=approval,
+            decision="rejected",
             decided_by=current_user.email or str(current_user.id),
             notes=body.notes,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     await audit_gm_write(
-        db, actor=current_user, tool_name="approvals.reject",
-        entity_type="gm_approval", entity_id=result.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="approvals.reject",
+        entity_type="gm_approval",
+        entity_id=result.id,
+        decision="executed",
+        action_class=action_class,
         details={"notes": body.notes},
     )
     await db.commit()
@@ -169,22 +184,26 @@ async def resolve_escalation(
 ):
     from apps.api.services.stage_controller import resolve_escalation as svc
 
-    escalation = await _require_owned_escalation(
-        db, escalation_id, current_user.organization_id
-    )
+    escalation = await _require_owned_escalation(db, escalation_id, current_user.organization_id)
     action_class = classify_action(confidence=1.0)
     forbid_escalation_as_mutation(
-        tool_name="escalations.resolve", action_class=action_class,
+        tool_name="escalations.resolve",
+        action_class=action_class,
     )
     result = await svc(
-        db, escalation=escalation,
+        db,
+        escalation=escalation,
         resolved_by=current_user.email or str(current_user.id),
         notes=body.notes,
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="escalations.resolve",
-        entity_type="gm_escalation", entity_id=result.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="escalations.resolve",
+        entity_type="gm_escalation",
+        entity_id=result.id,
+        decision="executed",
+        action_class=action_class,
         details={"notes": body.notes, "reason_code": escalation.reason_code},
     )
     await db.commit()
@@ -221,7 +240,8 @@ async def approve_draft(
     did = _parse_uuid(draft_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="drafts.approve", action_class=action_class,
+        tool_name="drafts.approve",
+        action_class=action_class,
     )
     try:
         draft = await svc(db, draft_id=did, actor=current_user)
@@ -234,9 +254,13 @@ async def approve_draft(
         raise HTTPException(403, "Draft belongs to another organization")
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="drafts.approve",
-        entity_type="email_reply_draft", entity_id=draft.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="drafts.approve",
+        entity_type="email_reply_draft",
+        entity_id=draft.id,
+        decision="executed",
+        action_class=action_class,
         details={"reply_mode": draft.reply_mode, "to_email": draft.to_email},
     )
     await db.commit()
@@ -265,7 +289,8 @@ async def reject_draft(
     did = _parse_uuid(draft_id)
     action_class = classify_action(confidence=1.0)
     forbid_escalation_as_mutation(
-        tool_name="drafts.reject", action_class=action_class,
+        tool_name="drafts.reject",
+        action_class=action_class,
     )
     try:
         draft = await svc(db, draft_id=did, actor=current_user, reason=body.reason)
@@ -278,9 +303,13 @@ async def reject_draft(
         raise HTTPException(403, "Draft belongs to another organization")
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="drafts.reject",
-        entity_type="email_reply_draft", entity_id=draft.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="drafts.reject",
+        entity_type="email_reply_draft",
+        entity_id=draft.id,
+        decision="executed",
+        action_class=action_class,
         details={"reason": body.reason},
     )
     await db.commit()
@@ -334,7 +363,8 @@ async def create_proposal(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="proposals.create", action_class=action_class,
+        tool_name="proposals.create",
+        action_class=action_class,
     )
     total_cents = sum(li.quantity * li.unit_amount_cents for li in body.line_items)
     proposal = await svc(
@@ -365,9 +395,13 @@ async def create_proposal(
         notes=body.notes,
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="proposals.create",
-        entity_type="proposal", entity_id=proposal.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="proposals.create",
+        entity_type="proposal",
+        entity_id=proposal.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "recipient_email": body.recipient_email,
             "total_cents": total_cents,
@@ -401,19 +435,26 @@ async def send_proposal(
     await _require_owned_proposal(db, pid, current_user.organization_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="proposals.send", action_class=action_class,
+        tool_name="proposals.send",
+        action_class=action_class,
     )
     try:
         result = await svc(
-            db, proposal_id=pid, actor_type="operator",
+            db,
+            proposal_id=pid,
+            actor_type="operator",
             actor_id=str(current_user.id),
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     await audit_gm_write(
-        db, actor=current_user, tool_name="proposals.send",
-        entity_type="proposal", entity_id=result.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="proposals.send",
+        entity_type="proposal",
+        entity_id=result.id,
+        decision="executed",
+        action_class=action_class,
         details={"recipient_email": result.recipient_email},
     )
     await db.commit()
@@ -450,7 +491,8 @@ async def create_payment_link(
     proposal = await _require_owned_proposal(db, pid, current_user.organization_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="proposals.payment_link", action_class=action_class,
+        tool_name="proposals.payment_link",
+        action_class=action_class,
     )
 
     amount = body.amount_cents or proposal.total_amount_cents
@@ -460,7 +502,9 @@ async def create_payment_link(
     product_name = body.product_name or proposal.title
 
     stripe_result = await stripe_svc(
-        amount_cents=amount, currency=currency, product_name=product_name,
+        amount_cents=amount,
+        currency=currency,
+        product_name=product_name,
         metadata={
             "org_id": str(current_user.organization_id),
             "proposal_id": str(proposal.id),
@@ -468,7 +512,8 @@ async def create_payment_link(
             "source": "proposal",
             "avenue": "b2b_services",
         },
-        db=db, org_id=current_user.organization_id,
+        db=db,
+        org_id=current_user.organization_id,
     )
     if stripe_result.get("error") or not stripe_result.get("url"):
         raise HTTPException(
@@ -477,20 +522,28 @@ async def create_payment_link(
         )
 
     link = await record_payment_link(
-        db, org_id=current_user.organization_id, proposal_id=proposal.id,
-        brand_id=proposal.brand_id, url=stripe_result["url"],
-        amount_cents=amount, provider="stripe",
-        provider_link_id=stripe_result.get("id"), currency=currency,
+        db,
+        org_id=current_user.organization_id,
+        proposal_id=proposal.id,
+        brand_id=proposal.brand_id,
+        url=stripe_result["url"],
+        amount_cents=amount,
+        provider="stripe",
+        provider_link_id=stripe_result.get("id"),
+        currency=currency,
         source="gm_write",
         metadata={"product_name": product_name, "actor": current_user.email},
     )
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="proposals.payment_link",
-        entity_type="payment_link", entity_id=link.id,
-        decision="executed", action_class=action_class,
-        details={"proposal_id": str(proposal.id), "amount_cents": amount,
-                  "provider_link_id": link.provider_link_id},
+        db,
+        actor=current_user,
+        tool_name="proposals.payment_link",
+        entity_type="payment_link",
+        entity_id=link.id,
+        decision="executed",
+        action_class=action_class,
+        details={"proposal_id": str(proposal.id), "amount_cents": amount, "provider_link_id": link.provider_link_id},
     )
     await db.commit()
     return {
@@ -541,28 +594,35 @@ async def activate_dormant_avenue(
     if avenue["status"] == STATUS_DISABLED_BY_OPERATOR:
         raise HTTPException(
             400,
-            f"Avenue {avenue_id} is DISABLED_BY_OPERATOR. "
-            "Re-enable via doctrine policy before activating.",
+            f"Avenue {avenue_id} is DISABLED_BY_OPERATOR. Re-enable via doctrine policy before activating.",
         )
     if not body.acknowledge_unlock_plan:
         raise HTTPException(
-            400, "acknowledge_unlock_plan must be true — read the unlock plan first.",
+            400,
+            "acknowledge_unlock_plan must be true — read the unlock plan first.",
         )
 
     action_class = classify_action(
-        confidence=1.0, activates_dormant_avenue=True, money_involved=True,
+        confidence=1.0,
+        activates_dormant_avenue=True,
+        money_involved=True,
     )
     forbid_escalation_as_mutation(
-        tool_name="avenues.activate", action_class=action_class,
+        tool_name="avenues.activate",
+        action_class=action_class,
     )
 
     # The activation itself is the audit row + event. No avenue_status
     # table is written; the doctrine + operator_actions row is the
     # authoritative record of operator intent.
     action_row = await audit_gm_write(
-        db, actor=current_user, tool_name="avenues.activate",
-        entity_type="avenue", entity_id=None,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="avenues.activate",
+        entity_type="avenue",
+        entity_id=None,
+        decision="executed",
+        action_class=action_class,
         details={
             "avenue_id": avenue_id,
             "avenue_n": avenue["n"],
@@ -631,16 +691,11 @@ async def mark_stage(
     from apps.api.services.stage_controller import mark_stage as svc
     from packages.db.models.system_events import SystemEvent
 
-    event = (
-        await db.execute(
-            select(SystemEvent).where(SystemEvent.id == body.backing_event_id)
-        )
-    ).scalar_one_or_none()
+    event = (await db.execute(select(SystemEvent).where(SystemEvent.id == body.backing_event_id))).scalar_one_or_none()
     if event is None:
         raise HTTPException(
             400,
-            f"backing_event_id {body.backing_event_id} not found. "
-            "Stage advancement requires row-level event evidence.",
+            f"backing_event_id {body.backing_event_id} not found. Stage advancement requires row-level event evidence.",
         )
     if event.organization_id != current_user.organization_id:
         raise HTTPException(403, "backing_event_id belongs to another organization")
@@ -654,11 +709,14 @@ async def mark_stage(
 
     action_class = classify_action(confidence=1.0)
     forbid_escalation_as_mutation(
-        tool_name="stages.mark", action_class=action_class,
+        tool_name="stages.mark",
+        action_class=action_class,
     )
     state = await svc(
-        db, org_id=current_user.organization_id,
-        entity_type=body.entity_type, entity_id=body.entity_id,
+        db,
+        org_id=current_user.organization_id,
+        entity_type=body.entity_type,
+        entity_id=body.entity_id,
         stage=body.stage,
         metadata={
             "marked_by": current_user.email,
@@ -668,9 +726,13 @@ async def mark_stage(
         },
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="stages.mark",
-        entity_type=body.entity_type, entity_id=body.entity_id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="stages.mark",
+        entity_type=body.entity_type,
+        entity_id=body.entity_id,
+        decision="executed",
+        action_class=action_class,
         details={
             "stage": body.stage,
             "previous_stage": state.previous_stage,
@@ -725,31 +787,34 @@ async def resend_intake_invite(
     from apps.api.services.client_activation import send_intake_invite
 
     iid = _parse_uuid(intake_request_id)
-    intake = (
-        await db.execute(select(IntakeRequest).where(IntakeRequest.id == iid))
-    ).scalar_one_or_none()
+    intake = (await db.execute(select(IntakeRequest).where(IntakeRequest.id == iid))).scalar_one_or_none()
     if intake is None:
         raise HTTPException(404, "Intake request not found")
     if intake.org_id != current_user.organization_id:
         raise HTTPException(403, "Intake belongs to another organization")
 
-    client = (
-        await db.execute(select(Client).where(Client.id == intake.client_id))
-    ).scalar_one_or_none()
+    client = (await db.execute(select(Client).where(Client.id == intake.client_id))).scalar_one_or_none()
     if client is None:
         raise HTTPException(404, "Client not found for intake")
 
     action_class = classify_action(confidence=1.0, money_involved=False)
     forbid_escalation_as_mutation(
-        tool_name="intake.resend", action_class=action_class,
+        tool_name="intake.resend",
+        action_class=action_class,
     )
 
     result = await send_intake_invite(
-        db, client=client, intake_request=intake, reminder=True,
+        db,
+        client=client,
+        intake_request=intake,
+        reminder=True,
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="intake.resend",
-        entity_type="intake_request", entity_id=intake.id,
+        db,
+        actor=current_user,
+        tool_name="intake.resend",
+        entity_type="intake_request",
+        entity_id=intake.id,
         decision="executed" if result.get("success") else "failed",
         action_class=action_class,
         details={
@@ -797,9 +862,7 @@ async def launch_production(
     from apps.api.services.fulfillment_service import launch_production_for_brief
 
     bid = _parse_uuid(brief_id)
-    brief = (
-        await db.execute(select(ProjectBrief).where(ProjectBrief.id == bid))
-    ).scalar_one_or_none()
+    brief = (await db.execute(select(ProjectBrief).where(ProjectBrief.id == bid))).scalar_one_or_none()
     if brief is None:
         raise HTTPException(404, "Brief not found")
     if brief.org_id != current_user.organization_id:
@@ -807,17 +870,25 @@ async def launch_production(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="production.launch", action_class=action_class,
+        tool_name="production.launch",
+        action_class=action_class,
     )
 
     job = await launch_production_for_brief(
-        db, brief=brief, job_type=body.job_type, title=body.title,
+        db,
+        brief=brief,
+        job_type=body.job_type,
+        title=body.title,
         metadata=body.metadata,
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="production.launch",
-        entity_type="production_job", entity_id=job.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="production.launch",
+        entity_type="production_job",
+        entity_id=job.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "brief_id": str(brief.id),
             "project_id": str(brief.project_id),
@@ -857,9 +928,7 @@ async def submit_production_output(
     )
 
     jid = _parse_uuid(job_id)
-    job = (
-        await db.execute(select(ProductionJob).where(ProductionJob.id == jid))
-    ).scalar_one_or_none()
+    job = (await db.execute(select(ProductionJob).where(ProductionJob.id == jid))).scalar_one_or_none()
     if job is None:
         raise HTTPException(404, "Production job not found")
     if job.org_id != current_user.organization_id:
@@ -867,17 +936,24 @@ async def submit_production_output(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="production.submit_output", action_class=action_class,
+        tool_name="production.submit_output",
+        action_class=action_class,
     )
 
     result = await svc_submit(
-        db, job=job, output_url=body.deliverable_url,
+        db,
+        job=job,
+        output_url=body.deliverable_url,
         auto_dispatch=body.auto_dispatch_delivery,
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="production.submit_output",
-        entity_type="production_job", entity_id=job.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="production.submit_output",
+        entity_type="production_job",
+        entity_id=job.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "deliverable_url": body.deliverable_url,
             "notes": body.notes,
@@ -917,9 +993,7 @@ async def force_dispatch_delivery(
     from apps.api.services.qa_delivery_service import dispatch_delivery
 
     jid = _parse_uuid(job_id)
-    job = (
-        await db.execute(select(ProductionJob).where(ProductionJob.id == jid))
-    ).scalar_one_or_none()
+    job = (await db.execute(select(ProductionJob).where(ProductionJob.id == jid))).scalar_one_or_none()
     if job is None:
         raise HTTPException(404, "Production job not found")
     if job.org_id != current_user.organization_id:
@@ -927,18 +1001,27 @@ async def force_dispatch_delivery(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="deliveries.dispatch", action_class=action_class,
+        tool_name="deliveries.dispatch",
+        action_class=action_class,
     )
 
     delivery = await dispatch_delivery(
-        db, job=job, channel=body.channel, subject=body.subject,
-        message=body.message, deliverable_url=body.deliverable_url,
+        db,
+        job=job,
+        channel=body.channel,
+        subject=body.subject,
+        message=body.message,
+        deliverable_url=body.deliverable_url,
         followup_days=body.followup_days,
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="deliveries.dispatch",
-        entity_type="delivery", entity_id=delivery.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="deliveries.dispatch",
+        entity_type="delivery",
+        entity_id=delivery.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "production_job_id": str(job.id),
             "channel": body.channel,
@@ -952,8 +1035,7 @@ async def force_dispatch_delivery(
         "production_job_id": str(job.id),
         "status": delivery.status,
         "followup_scheduled_at": (
-            delivery.followup_scheduled_at.isoformat()
-            if delivery.followup_scheduled_at else None
+            delivery.followup_scheduled_at.isoformat() if delivery.followup_scheduled_at else None
         ),
         "action_class": action_class,
     }
@@ -980,9 +1062,7 @@ async def schedule_delivery_followup(
     from apps.api.services.qa_delivery_service import schedule_followup
 
     did = _parse_uuid(delivery_id)
-    delivery = (
-        await db.execute(select(Delivery).where(Delivery.id == did))
-    ).scalar_one_or_none()
+    delivery = (await db.execute(select(Delivery).where(Delivery.id == did))).scalar_one_or_none()
     if delivery is None:
         raise HTTPException(404, "Delivery not found")
     if delivery.org_id != current_user.organization_id:
@@ -1000,7 +1080,8 @@ async def schedule_delivery_followup(
 
     action_class = classify_action(confidence=1.0, money_involved=False)
     forbid_escalation_as_mutation(
-        tool_name="deliveries.schedule_followup", action_class=action_class,
+        tool_name="deliveries.schedule_followup",
+        action_class=action_class,
     )
 
     await schedule_followup(db, delivery=delivery, when=when)
@@ -1009,9 +1090,13 @@ async def schedule_delivery_followup(
     await db.flush()
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="deliveries.schedule_followup",
-        entity_type="delivery", entity_id=delivery.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="deliveries.schedule_followup",
+        entity_type="delivery",
+        entity_id=delivery.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "followup_scheduled_at": when.isoformat(),
             "avenue_slug": delivery.avenue_slug,
@@ -1043,21 +1128,25 @@ async def send_dunning_reminder(
     cadence."""
     from apps.api.services.proposal_dunning_service import send_reminder
 
-    proposal = await _require_owned_proposal(
-        db, _parse_uuid(proposal_id), current_user.organization_id
-    )
+    proposal = await _require_owned_proposal(db, _parse_uuid(proposal_id), current_user.organization_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="proposals.dunning_send", action_class=action_class,
+        tool_name="proposals.dunning_send",
+        action_class=action_class,
     )
 
     result = await send_reminder(
-        db, proposal=proposal,
-        actor_type="operator", actor_id=str(current_user.id),
+        db,
+        proposal=proposal,
+        actor_type="operator",
+        actor_id=str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="proposals.dunning_send",
-        entity_type="proposal", entity_id=proposal.id,
+        db,
+        actor=current_user,
+        tool_name="proposals.dunning_send",
+        entity_type="proposal",
+        entity_id=proposal.id,
         decision="executed" if result.get("sent") else "refused",
         action_class=action_class,
         details={
@@ -1108,9 +1197,7 @@ async def classify_issue(
     from packages.db.models.clients import ClientOnboardingEvent
 
     did = _parse_uuid(draft_id)
-    draft = (
-        await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))
-    ).scalar_one_or_none()
+    draft = (await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))).scalar_one_or_none()
     if draft is None:
         raise HTTPException(404, "Draft not found")
     if draft.org_id != current_user.organization_id:
@@ -1118,7 +1205,8 @@ async def classify_issue(
 
     action_class = classify_action(confidence=1.0, money_involved=body.issue_type in ("refund", "cancel"))
     forbid_escalation_as_mutation(
-        tool_name="issues.classify", action_class=action_class,
+        tool_name="issues.classify",
+        action_class=action_class,
     )
 
     # Best-effort find the Client for this inbound thread (by to_email).
@@ -1178,9 +1266,13 @@ async def classify_issue(
         escalation_id = esc.id
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="issues.classify",
-        entity_type="email_reply_draft", entity_id=draft.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="issues.classify",
+        entity_type="email_reply_draft",
+        entity_id=draft.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "issue_type": body.issue_type,
             "severity": body.severity,
@@ -1229,7 +1321,8 @@ class LeadImportBody(BaseModel):
     avenue_slug: str = Field(..., min_length=1, max_length=60)
     rows: list[LeadRowBody] = Field(..., min_length=1, max_length=500)
     csv: str | None = Field(
-        None, description="Optional raw CSV. If present, rows+csv are merged.",
+        None,
+        description="Optional raw CSV. If present, rows+csv are merged.",
         max_length=500_000,
     )
 
@@ -1254,7 +1347,8 @@ async def gm_leads_import(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="leads.import", action_class=action_class,
+        tool_name="leads.import",
+        action_class=action_class,
     )
     try:
         result = await bulk_import_leads_with_avenue(
@@ -1268,9 +1362,13 @@ async def gm_leads_import(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="leads.import",
-        entity_type="brand", entity_id=None,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="leads.import",
+        entity_type="brand",
+        entity_id=None,
+        decision="executed",
+        action_class=action_class,
         details={
             "avenue_slug": body.avenue_slug,
             "imported": result["imported"],
@@ -1285,10 +1383,7 @@ async def gm_leads_import(
 class LeadQualifyBody(BaseModel):
     intent: str = Field(
         ...,
-        pattern=(
-            "^(offer_request|pricing_question|objection|positive|"
-            "not_interested|referral|unclear)$"
-        ),
+        pattern=("^(offer_request|pricing_question|objection|positive|not_interested|referral|unclear)$"),
     )
     tier: str = Field(
         ...,
@@ -1311,7 +1406,8 @@ async def gm_leads_qualify(
     lid = _parse_uuid(lead_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="leads.qualify", action_class=action_class,
+        tool_name="leads.qualify",
+        action_class=action_class,
     )
     try:
         result = await qualify_lead(
@@ -1334,9 +1430,13 @@ async def gm_leads_qualify(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="leads.qualify",
-        entity_type="sponsor_target", entity_id=lid,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="leads.qualify",
+        entity_type="sponsor_target",
+        entity_id=lid,
+        decision="executed",
+        action_class=action_class,
         details={
             "tier": body.tier,
             "intent": body.intent,
@@ -1377,7 +1477,8 @@ async def gm_leads_route_to_proposal(
     lid = _parse_uuid(lead_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="leads.route_to_proposal", action_class=action_class,
+        tool_name="leads.route_to_proposal",
+        action_class=action_class,
     )
     try:
         proposal = await route_lead_to_proposal(
@@ -1399,9 +1500,13 @@ async def gm_leads_route_to_proposal(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="leads.route_to_proposal",
-        entity_type="proposal", entity_id=proposal.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="leads.route_to_proposal",
+        entity_type="proposal",
+        entity_id=proposal.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "lead_id": str(lid),
             "proposal_id": str(proposal.id),
@@ -1438,7 +1543,8 @@ async def gm_outreach_launch(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="outreach.launch", action_class=action_class,
+        tool_name="outreach.launch",
+        action_class=action_class,
     )
     try:
         result = await launch_outreach_for_segment(
@@ -1454,9 +1560,13 @@ async def gm_outreach_launch(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="outreach.launch",
-        entity_type="brand", entity_id=None,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="outreach.launch",
+        entity_type="brand",
+        entity_id=None,
+        decision="executed",
+        action_class=action_class,
         details={
             "avenue_slug": body.avenue_slug,
             "scheduled": result["scheduled"],
@@ -1482,12 +1592,11 @@ async def gm_outreach_pause(
     from apps.api.services.gm_front_of_funnel_service import pause_outreach_for_avenue
 
     if not body.avenue_slug and not body.sequence_ids:
-        raise HTTPException(
-            400, "Must provide either avenue_slug or sequence_ids"
-        )
+        raise HTTPException(400, "Must provide either avenue_slug or sequence_ids")
     action_class = classify_action(confidence=1.0, money_involved=False)
     forbid_escalation_as_mutation(
-        tool_name="outreach.pause", action_class=action_class,
+        tool_name="outreach.pause",
+        action_class=action_class,
     )
     result = await pause_outreach_for_avenue(
         db,
@@ -1497,9 +1606,13 @@ async def gm_outreach_pause(
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="outreach.pause",
-        entity_type="brand", entity_id=None,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="outreach.pause",
+        entity_type="brand",
+        entity_id=None,
+        decision="executed",
+        action_class=action_class,
         details={"avenue_slug": body.avenue_slug, "paused": result["paused"]},
     )
     await db.commit()
@@ -1523,25 +1636,23 @@ async def gm_reply_draft_rewrite(
     from apps.api.services.gm_front_of_funnel_service import rewrite_draft
 
     did = _parse_uuid(draft_id)
-    draft = (
-        await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))
-    ).scalar_one_or_none()
+    draft = (await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))).scalar_one_or_none()
     if draft is None:
         raise HTTPException(404, "Draft not found")
     if draft.org_id != current_user.organization_id:
         raise HTTPException(403, "Draft belongs to another organization")
     if body.subject is None and body.body_text is None and body.body_html is None:
-        raise HTTPException(
-            400, "At least one of subject / body_text / body_html is required"
-        )
+        raise HTTPException(400, "At least one of subject / body_text / body_html is required")
 
     action_class = classify_action(confidence=1.0, money_involved=False)
     forbid_escalation_as_mutation(
-        tool_name="replies.rewrite", action_class=action_class,
+        tool_name="replies.rewrite",
+        action_class=action_class,
     )
     try:
         updated = await rewrite_draft(
-            db, draft=draft,
+            db,
+            draft=draft,
             new_subject=body.subject,
             new_body_text=body.body_text,
             new_body_html=body.body_html,
@@ -1552,9 +1663,13 @@ async def gm_reply_draft_rewrite(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="replies.rewrite",
-        entity_type="email_reply_draft", entity_id=draft.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="replies.rewrite",
+        entity_type="email_reply_draft",
+        entity_id=draft.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "version_count": len((updated.rewrite_history_json or {}).get("versions", [])),
             "reason": body.reason,
@@ -1580,9 +1695,7 @@ async def gm_reply_draft_send_now(
     from apps.api.services.gm_front_of_funnel_service import force_send_draft
 
     did = _parse_uuid(draft_id)
-    draft = (
-        await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))
-    ).scalar_one_or_none()
+    draft = (await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))).scalar_one_or_none()
     if draft is None:
         raise HTTPException(404, "Draft not found")
     if draft.org_id != current_user.organization_id:
@@ -1590,19 +1703,24 @@ async def gm_reply_draft_send_now(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="replies.send_now", action_class=action_class,
+        tool_name="replies.send_now",
+        action_class=action_class,
     )
     try:
         result = await force_send_draft(
-            db, draft=draft,
+            db,
+            draft=draft,
             actor_id=current_user.email or str(current_user.id),
         )
     except ValueError as ve:
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="replies.send_now",
-        entity_type="email_reply_draft", entity_id=draft.id,
+        db,
+        actor=current_user,
+        tool_name="replies.send_now",
+        entity_type="email_reply_draft",
+        entity_id=draft.id,
         decision="executed" if draft.status == "sent" else "recorded",
         action_class=action_class,
         details={
@@ -1659,9 +1777,7 @@ async def gm_client_renew(
     from apps.api.services.retention_service import trigger_renewal
 
     cid = _parse_uuid(client_id)
-    client = (
-        await db.execute(select(Client).where(Client.id == cid))
-    ).scalar_one_or_none()
+    client = (await db.execute(select(Client).where(Client.id == cid))).scalar_one_or_none()
     if client is None:
         raise HTTPException(404, "Client not found")
     if client.org_id != current_user.organization_id:
@@ -1669,15 +1785,18 @@ async def gm_client_renew(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="clients.renew", action_class=action_class,
+        tool_name="clients.renew",
+        action_class=action_class,
     )
 
     try:
         result = await trigger_renewal(
-            db, client=client,
+            db,
+            client=client,
             package_slug=body.package_slug,
             line_items=[li.model_dump() for li in body.line_items],
-            title=body.title, notes=body.notes,
+            title=body.title,
+            notes=body.notes,
             actor_type="operator",
             actor_id=current_user.email or str(current_user.id),
             force=body.force,
@@ -1686,8 +1805,11 @@ async def gm_client_renew(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="clients.renew",
-        entity_type="client", entity_id=client.id,
+        db,
+        actor=current_user,
+        tool_name="clients.renew",
+        entity_type="client",
+        entity_id=client.id,
         decision="executed" if result.get("triggered") else "recorded",
         action_class=action_class,
         details={
@@ -1723,9 +1845,7 @@ async def gm_client_reactivate(
     from apps.api.services.retention_service import trigger_reactivation
 
     cid = _parse_uuid(client_id)
-    client = (
-        await db.execute(select(Client).where(Client.id == cid))
-    ).scalar_one_or_none()
+    client = (await db.execute(select(Client).where(Client.id == cid))).scalar_one_or_none()
     if client is None:
         raise HTTPException(404, "Client not found")
     if client.org_id != current_user.organization_id:
@@ -1733,11 +1853,13 @@ async def gm_client_reactivate(
 
     action_class = classify_action(confidence=1.0, money_involved=False)
     forbid_escalation_as_mutation(
-        tool_name="clients.reactivate", action_class=action_class,
+        tool_name="clients.reactivate",
+        action_class=action_class,
     )
 
     result = await trigger_reactivation(
-        db, client=client,
+        db,
+        client=client,
         template_slug=body.template_slug,
         subject_override=body.subject,
         body_override=body.body_override,
@@ -1747,8 +1869,11 @@ async def gm_client_reactivate(
         force=body.force,
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="clients.reactivate",
-        entity_type="client", entity_id=client.id,
+        db,
+        actor=current_user,
+        tool_name="clients.reactivate",
+        entity_type="client",
+        entity_id=client.id,
         decision="executed" if result.get("triggered") else "recorded",
         action_class=action_class,
         details={
@@ -1787,9 +1912,7 @@ async def gm_client_upsell(
     from apps.api.services.retention_service import trigger_upsell
 
     cid = _parse_uuid(client_id)
-    client = (
-        await db.execute(select(Client).where(Client.id == cid))
-    ).scalar_one_or_none()
+    client = (await db.execute(select(Client).where(Client.id == cid))).scalar_one_or_none()
     if client is None:
         raise HTTPException(404, "Client not found")
     if client.org_id != current_user.organization_id:
@@ -1797,14 +1920,17 @@ async def gm_client_upsell(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="clients.upsell", action_class=action_class,
+        tool_name="clients.upsell",
+        action_class=action_class,
     )
     try:
         result = await trigger_upsell(
-            db, client=client,
+            db,
+            client=client,
             package_slug=body.package_slug,
             line_items=[li.model_dump() for li in body.line_items],
-            title=body.title, notes=body.notes,
+            title=body.title,
+            notes=body.notes,
             actor_type="operator",
             actor_id=current_user.email or str(current_user.id),
             force=body.force,
@@ -1813,8 +1939,11 @@ async def gm_client_upsell(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="clients.upsell",
-        entity_type="client", entity_id=client.id,
+        db,
+        actor=current_user,
+        tool_name="clients.upsell",
+        entity_type="client",
+        entity_id=client.id,
         decision="executed" if result.get("triggered") else "recorded",
         action_class=action_class,
         details={
@@ -1853,9 +1982,7 @@ async def gm_client_cancel_subscription(
     from apps.api.services.retention_service import cancel_subscription
 
     cid = _parse_uuid(client_id)
-    client = (
-        await db.execute(select(Client).where(Client.id == cid))
-    ).scalar_one_or_none()
+    client = (await db.execute(select(Client).where(Client.id == cid))).scalar_one_or_none()
     if client is None:
         raise HTTPException(404, "Client not found")
     if client.org_id != current_user.organization_id:
@@ -1863,22 +1990,22 @@ async def gm_client_cancel_subscription(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="clients.cancel_subscription", action_class=action_class,
+        tool_name="clients.cancel_subscription",
+        action_class=action_class,
     )
 
     eff_at = None
     if body.effective_at_iso:
         try:
-            eff_at = _dt.fromisoformat(
-                body.effective_at_iso.replace("Z", "+00:00")
-            )
+            eff_at = _dt.fromisoformat(body.effective_at_iso.replace("Z", "+00:00"))
             if eff_at.tzinfo is None:
                 eff_at = eff_at.replace(tzinfo=_tz.utc)
         except ValueError:
             raise HTTPException(400, f"Invalid effective_at_iso: {body.effective_at_iso}")
 
     result = await cancel_subscription(
-        db, client=client,
+        db,
+        client=client,
         reason=body.reason,
         effective_at=eff_at,
         notes=body.notes,
@@ -1886,8 +2013,11 @@ async def gm_client_cancel_subscription(
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="clients.cancel_subscription",
-        entity_type="client", entity_id=client.id,
+        db,
+        actor=current_user,
+        tool_name="clients.cancel_subscription",
+        entity_type="client",
+        entity_id=client.id,
         decision="executed" if result.get("triggered") else "recorded",
         action_class=action_class,
         details={
@@ -1923,6 +2053,7 @@ def _parse_dt(s: str | None, field: str) -> datetime | None:
         return None
     from datetime import datetime
     from datetime import timezone as _tz
+
     try:
         dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
     except (ValueError, TypeError):
@@ -1933,12 +2064,12 @@ def _parse_dt(s: str | None, field: str) -> datetime | None:
 
 
 async def _require_owned_client(
-    db: DBSession, client_id: str, org_id: uuid.UUID,
+    db: DBSession,
+    client_id: str,
+    org_id: uuid.UUID,
 ) -> Client:
     cid = _parse_uuid(client_id)
-    row = (
-        await db.execute(select(Client).where(Client.id == cid))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(Client).where(Client.id == cid))).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, "Client not found")
     if row.org_id != org_id:
@@ -1989,16 +2120,23 @@ async def gm_ht_schedule_discovery(
         action_class=action_class,
     )
     result = await schedule_discovery_call(
-        db, client=client, when=when,
-        attendees=body.attendees, agenda=body.agenda, notes=body.notes,
+        db,
+        client=client,
+        when=when,
+        attendees=body.attendees,
+        agenda=body.agenda,
+        notes=body.notes,
         actor_type="operator",
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="clients.high_ticket.schedule_discovery",
-        entity_type="client", entity_id=client.id,
-        decision="executed", action_class=action_class,
+        entity_type="client",
+        entity_id=client.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "when_iso": body.when_iso,
             "attendees_count": len(body.attendees),
@@ -2037,10 +2175,12 @@ async def gm_ht_sow_sent(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="clients.high_ticket.sow_sent", action_class=action_class,
+        tool_name="clients.high_ticket.sow_sent",
+        action_class=action_class,
     )
     result = await record_sow_sent(
-        db, client=client,
+        db,
+        client=client,
         sow_url=body.sow_url,
         signer_email=body.signer_email,
         sent_at=_parse_dt(body.sent_at_iso, "sent_at_iso"),
@@ -2050,10 +2190,13 @@ async def gm_ht_sow_sent(
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="clients.high_ticket.sow_sent",
-        entity_type="client", entity_id=client.id,
-        decision="executed", action_class=action_class,
+        entity_type="client",
+        entity_id=client.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "sow_url": body.sow_url,
             "signer_email": body.signer_email,
@@ -2093,7 +2236,8 @@ async def gm_ht_sow_countersigned(
         action_class=action_class,
     )
     result = await record_sow_countersigned(
-        db, client=client,
+        db,
+        client=client,
         signed_at=_parse_dt(body.signed_at_iso, "signed_at_iso"),
         counterparty_name=body.counterparty_name,
         notes=body.notes,
@@ -2101,9 +2245,11 @@ async def gm_ht_sow_countersigned(
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="clients.high_ticket.sow_countersigned",
-        entity_type="client", entity_id=client.id,
+        entity_type="client",
+        entity_id=client.id,
         decision="executed" if not result.get("already_signed") else "recorded",
         action_class=action_class,
         details={
@@ -2143,19 +2289,26 @@ async def gm_ht_kickoff(
 
     action_class = classify_action(confidence=1.0, money_involved=False)
     forbid_escalation_as_mutation(
-        tool_name="clients.high_ticket.kickoff", action_class=action_class,
+        tool_name="clients.high_ticket.kickoff",
+        action_class=action_class,
     )
     result = await set_kickoff_date(
-        db, client=client, kickoff_at=when,
-        team_members=body.team_members, notes=body.notes,
+        db,
+        client=client,
+        kickoff_at=when,
+        team_members=body.team_members,
+        notes=body.notes,
         actor_type="operator",
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="clients.high_ticket.kickoff",
-        entity_type="client", entity_id=client.id,
-        decision="executed", action_class=action_class,
+        entity_type="client",
+        entity_id=client.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "kickoff_at_iso": body.kickoff_at_iso,
             "team_members_count": len(body.team_members),
@@ -2175,8 +2328,7 @@ class HTIssueClassifyBody(BaseModel):
     subtype: str = Field(
         ...,
         pattern=(
-            "^(contract_dispute|scope_creep|timeline_slip|"
-            "deliverable_dispute|payment_dispute|exclusivity_breach)$"
+            "^(contract_dispute|scope_creep|timeline_slip|deliverable_dispute|payment_dispute|exclusivity_breach)$"
         ),
     )
     affected_cents: int = Field(0, ge=0)
@@ -2195,9 +2347,7 @@ async def gm_ht_issue_classify(
     )
 
     did = _parse_uuid(draft_id)
-    draft = (
-        await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))
-    ).scalar_one_or_none()
+    draft = (await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))).scalar_one_or_none()
     if draft is None:
         raise HTTPException(404, "Draft not found")
     if draft.org_id != current_user.organization_id:
@@ -2205,18 +2355,25 @@ async def gm_ht_issue_classify(
 
     action_class = classify_action(
         confidence=1.0,
-        money_involved=body.subtype in (
-            "contract_dispute", "payment_dispute", "exclusivity_breach",
-        ) or body.affected_cents >= 1_000_00,
+        money_involved=body.subtype
+        in (
+            "contract_dispute",
+            "payment_dispute",
+            "exclusivity_breach",
+        )
+        or body.affected_cents >= 1_000_00,
     )
     forbid_escalation_as_mutation(
-        tool_name="issues.high_ticket_classify", action_class=action_class,
+        tool_name="issues.high_ticket_classify",
+        action_class=action_class,
     )
 
     try:
         result = await classify_high_ticket_issue(
-            db, draft=draft,
-            subtype=body.subtype, affected_cents=body.affected_cents,
+            db,
+            draft=draft,
+            subtype=body.subtype,
+            affected_cents=body.affected_cents,
             notes=body.notes,
             actor_type="operator",
             actor_id=current_user.email or str(current_user.id),
@@ -2225,10 +2382,13 @@ async def gm_ht_issue_classify(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="issues.high_ticket_classify",
-        entity_type="email_reply_draft", entity_id=draft.id,
-        decision="executed", action_class=action_class,
+        entity_type="email_reply_draft",
+        entity_id=draft.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "subtype": body.subtype,
             "affected_cents": body.affected_cents,
@@ -2268,11 +2428,13 @@ async def gm_ht_credit(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="clients.high_ticket.credit", action_class=action_class,
+        tool_name="clients.high_ticket.credit",
+        action_class=action_class,
     )
     try:
         result = await issue_credit(
-            db, client=client,
+            db,
+            client=client,
             amount_cents=body.amount_cents,
             reason=body.reason,
             reference_project_id=body.reference_project_id,
@@ -2284,10 +2446,13 @@ async def gm_ht_credit(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="clients.high_ticket.credit",
-        entity_type="client", entity_id=client.id,
-        decision="executed", action_class=action_class,
+        entity_type="client",
+        entity_id=client.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "amount_cents": body.amount_cents,
             "reason": body.reason,
@@ -2313,12 +2478,12 @@ async def gm_ht_credit(
 
 
 async def _require_owned_invoice(
-    db: DBSession, invoice_id: str, org_id: uuid.UUID,
+    db: DBSession,
+    invoice_id: str,
+    org_id: uuid.UUID,
 ) -> Invoice:
     iid = _parse_uuid(invoice_id)
-    row = (
-        await db.execute(select(Invoice).where(Invoice.id == iid))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(Invoice).where(Invoice.id == iid))).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, "Invoice not found")
     if row.org_id != org_id:
@@ -2327,14 +2492,12 @@ async def _require_owned_invoice(
 
 
 async def _require_owned_sponsor_campaign(
-    db: DBSession, campaign_id: str, org_id: uuid.UUID,
+    db: DBSession,
+    campaign_id: str,
+    org_id: uuid.UUID,
 ) -> SponsorCampaign:
     cid = _parse_uuid(campaign_id)
-    row = (
-        await db.execute(
-            select(SponsorCampaign).where(SponsorCampaign.id == cid)
-        )
-    ).scalar_one_or_none()
+    row = (await db.execute(select(SponsorCampaign).where(SponsorCampaign.id == cid))).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, "Sponsor campaign not found")
     if row.org_id != org_id:
@@ -2343,14 +2506,12 @@ async def _require_owned_sponsor_campaign(
 
 
 async def _require_owned_sponsor_placement(
-    db: DBSession, placement_id: str, org_id: uuid.UUID,
+    db: DBSession,
+    placement_id: str,
+    org_id: uuid.UUID,
 ) -> SponsorPlacement:
     pid = _parse_uuid(placement_id)
-    row = (
-        await db.execute(
-            select(SponsorPlacement).where(SponsorPlacement.id == pid)
-        )
-    ).scalar_one_or_none()
+    row = (await db.execute(select(SponsorPlacement).where(SponsorPlacement.id == pid))).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, "Placement not found")
     if row.org_id != org_id:
@@ -2359,14 +2520,12 @@ async def _require_owned_sponsor_placement(
 
 
 async def _require_owned_sponsor_report(
-    db: DBSession, report_id: str, org_id: uuid.UUID,
+    db: DBSession,
+    report_id: str,
+    org_id: uuid.UUID,
 ) -> SponsorReport:
     rid = _parse_uuid(report_id)
-    row = (
-        await db.execute(
-            select(SponsorReport).where(SponsorReport.id == rid)
-        )
-    ).scalar_one_or_none()
+    row = (await db.execute(select(SponsorReport).where(SponsorReport.id == rid))).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, "Report not found")
     if row.org_id != org_id:
@@ -2378,8 +2537,7 @@ def _require_sponsor_deals(client: Client) -> None:
     if client.avenue_slug != "sponsor_deals":
         raise HTTPException(
             400,
-            f"Client avenue_slug is {client.avenue_slug!r}; "
-            f"/sponsor/* endpoints require avenue_slug='sponsor_deals'.",
+            f"Client avenue_slug is {client.avenue_slug!r}; /sponsor/* endpoints require avenue_slug='sponsor_deals'.",
         )
 
 
@@ -2415,27 +2573,38 @@ async def gm_create_invoice(
 
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="invoices.create", action_class=action_class,
+        tool_name="invoices.create",
+        action_class=action_class,
     )
     milestones = []
     for m in body.milestones:
-        milestones.append({
-            "label": m.label, "amount_cents": m.amount_cents,
-            "position": m.position,
-            "due_date": _parse_dt(m.due_date_iso, "milestones[].due_date_iso"),
-        })
+        milestones.append(
+            {
+                "label": m.label,
+                "amount_cents": m.amount_cents,
+                "position": m.position,
+                "due_date": _parse_dt(m.due_date_iso, "milestones[].due_date_iso"),
+            }
+        )
     due = _parse_dt(body.due_date_iso, "due_date_iso")
 
     invoice = await create_invoice_from_proposal(
-        db, proposal=proposal, milestones=milestones or None,
-        due_date=due, notes=body.notes,
+        db,
+        proposal=proposal,
+        milestones=milestones or None,
+        due_date=due,
+        notes=body.notes,
         actor_type="operator",
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="invoices.create",
-        entity_type="invoice", entity_id=invoice.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="invoices.create",
+        entity_type="invoice",
+        entity_id=invoice.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "invoice_id": str(invoice.id),
             "invoice_number": invoice.invoice_number,
@@ -2475,16 +2644,16 @@ async def gm_send_invoice(
 ):
     from apps.api.services.invoice_service import send_invoice
 
-    invoice = await _require_owned_invoice(
-        db, invoice_id, current_user.organization_id
-    )
+    invoice = await _require_owned_invoice(db, invoice_id, current_user.organization_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="invoices.send", action_class=action_class,
+        tool_name="invoices.send",
+        action_class=action_class,
     )
     try:
         result = await send_invoice(
-            db, invoice=invoice,
+            db,
+            invoice=invoice,
             actor_type="operator",
             actor_id=current_user.email or str(current_user.id),
         )
@@ -2492,9 +2661,13 @@ async def gm_send_invoice(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="invoices.send",
-        entity_type="invoice", entity_id=invoice.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="invoices.send",
+        entity_type="invoice",
+        entity_id=invoice.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "send_success": result["send_success"],
             "send_error": result["send_error"],
@@ -2513,9 +2686,7 @@ async def gm_send_invoice(
 
 class InvoiceMarkPaidBody(BaseModel):
     amount_cents: int = Field(..., gt=0)
-    payment_method: str = Field(
-        ..., pattern="^(wire|ach|check|stripe|other)$"
-    )
+    payment_method: str = Field(..., pattern="^(wire|ach|check|stripe|other)$")
     payment_reference: str = Field(..., min_length=1, max_length=255)
     milestone_position: int | None = Field(None, ge=0)
     paid_at_iso: str | None = Field(None, max_length=40)
@@ -2530,16 +2701,16 @@ async def gm_mark_invoice_paid(
 ):
     from apps.api.services.invoice_service import mark_paid
 
-    invoice = await _require_owned_invoice(
-        db, invoice_id, current_user.organization_id
-    )
+    invoice = await _require_owned_invoice(db, invoice_id, current_user.organization_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="invoices.mark_paid", action_class=action_class,
+        tool_name="invoices.mark_paid",
+        action_class=action_class,
     )
     try:
         result = await mark_paid(
-            db, invoice=invoice,
+            db,
+            invoice=invoice,
             amount_cents=body.amount_cents,
             payment_method=body.payment_method,
             payment_reference=body.payment_reference,
@@ -2552,8 +2723,11 @@ async def gm_mark_invoice_paid(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="invoices.mark_paid",
-        entity_type="invoice", entity_id=invoice.id,
+        db,
+        actor=current_user,
+        tool_name="invoices.mark_paid",
+        entity_type="invoice",
+        entity_id=invoice.id,
         decision="executed" if result.get("triggered") else "recorded",
         action_class=action_class,
         details={
@@ -2591,28 +2765,31 @@ async def gm_void_invoice(
 ):
     from apps.api.services.invoice_service import void_invoice
 
-    invoice = await _require_owned_invoice(
-        db, invoice_id, current_user.organization_id
-    )
+    invoice = await _require_owned_invoice(db, invoice_id, current_user.organization_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
-        tool_name="invoices.void", action_class=action_class,
+        tool_name="invoices.void",
+        action_class=action_class,
     )
     try:
         result = await void_invoice(
-            db, invoice=invoice, reason=body.reason,
+            db,
+            invoice=invoice,
+            reason=body.reason,
             actor_type="operator",
             actor_id=current_user.email or str(current_user.id),
         )
     except ValueError as ve:
         raise HTTPException(400, str(ve))
     await audit_gm_write(
-        db, actor=current_user, tool_name="invoices.void",
-        entity_type="invoice", entity_id=invoice.id,
+        db,
+        actor=current_user,
+        tool_name="invoices.void",
+        entity_type="invoice",
+        entity_id=invoice.id,
         decision="executed" if result.get("triggered") else "recorded",
         action_class=action_class,
-        details={"reason": body.reason, **result,
-                  "avenue_slug": invoice.avenue_slug},
+        details={"reason": body.reason, **result, "avenue_slug": invoice.avenue_slug},
     )
     await db.commit()
     return {**result, "action_class": action_class}
@@ -2649,7 +2826,8 @@ async def gm_sponsor_record_contract_signed(
         action_class=action_class,
     )
     result = await record_contract_signed(
-        db, client=client,
+        db,
+        client=client,
         contract_url=body.contract_url,
         signed_at=_parse_dt(body.signed_at_iso, "signed_at_iso"),
         counterparty_name=body.counterparty_name,
@@ -2658,9 +2836,11 @@ async def gm_sponsor_record_contract_signed(
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="clients.sponsor.record_contract_signed",
-        entity_type="client", entity_id=client.id,
+        entity_type="client",
+        entity_id=client.id,
         decision="executed" if not result.get("already_signed") else "recorded",
         action_class=action_class,
         details={**result, "avenue_slug": client.avenue_slug},
@@ -2693,16 +2873,21 @@ async def gm_sponsor_record_brief_received(
         action_class=action_class,
     )
     result = await record_brief_received(
-        db, client=client,
-        brief_json=body.brief_json, notes=body.notes,
+        db,
+        client=client,
+        brief_json=body.brief_json,
+        notes=body.notes,
         actor_type="operator",
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="clients.sponsor.record_brief_received",
-        entity_type="client", entity_id=client.id,
-        decision="executed", action_class=action_class,
+        entity_type="client",
+        entity_id=client.id,
+        decision="executed",
+        action_class=action_class,
         details={**result, "avenue_slug": client.avenue_slug},
     )
     await db.commit()
@@ -2737,17 +2922,22 @@ async def gm_sponsor_set_campaign_start(
         action_class=action_class,
     )
     result = await set_campaign_start(
-        db, client=client,
-        campaign_start_at=start, campaign_end_at=end,
+        db,
+        client=client,
+        campaign_start_at=start,
+        campaign_end_at=end,
         notes=body.notes,
         actor_type="operator",
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="clients.sponsor.set_campaign_start",
-        entity_type="client", entity_id=client.id,
-        decision="executed", action_class=action_class,
+        entity_type="client",
+        entity_id=client.id,
+        decision="executed",
+        action_class=action_class,
         details={**result, "avenue_slug": client.avenue_slug},
     )
     await db.commit()
@@ -2760,9 +2950,7 @@ async def gm_sponsor_set_campaign_start(
 
 
 class SponsorPlacementBody(BaseModel):
-    placement_type: str = Field(
-        ..., pattern="^(ad_spot|host_read|video_integration|social_mention|newsletter|other)$"
-    )
+    placement_type: str = Field(..., pattern="^(ad_spot|host_read|video_integration|social_mention|newsletter|other)$")
     scheduled_at_iso: str = Field(..., min_length=1, max_length=40)
     position: int = 0
     notes: str | None = Field(None, max_length=4000)
@@ -2777,18 +2965,18 @@ async def gm_sponsor_schedule_placement(
 ):
     from apps.api.services.sponsor_fulfillment_service import schedule_placement
 
-    campaign = await _require_owned_sponsor_campaign(
-        db, campaign_id, current_user.organization_id
-    )
+    campaign = await _require_owned_sponsor_campaign(db, campaign_id, current_user.organization_id)
     when = _parse_dt(body.scheduled_at_iso, "scheduled_at_iso")
     assert when is not None
     action_class = classify_action(confidence=1.0, money_involved=False)
     forbid_escalation_as_mutation(
-        tool_name="sponsor.placements.schedule", action_class=action_class,
+        tool_name="sponsor.placements.schedule",
+        action_class=action_class,
     )
     try:
         placement = await schedule_placement(
-            db, campaign=campaign,
+            db,
+            campaign=campaign,
             placement_type=body.placement_type,
             scheduled_at=when,
             position=body.position,
@@ -2799,9 +2987,13 @@ async def gm_sponsor_schedule_placement(
     except ValueError as ve:
         raise HTTPException(400, str(ve))
     await audit_gm_write(
-        db, actor=current_user, tool_name="sponsor.placements.schedule",
-        entity_type="sponsor_placement", entity_id=placement.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="sponsor.placements.schedule",
+        entity_type="sponsor_placement",
+        entity_id=placement.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "placement_id": str(placement.id),
             "campaign_id": str(campaign.id),
@@ -2837,25 +3029,27 @@ async def gm_sponsor_record_delivered(
         record_placement_delivered,
     )
 
-    placement = await _require_owned_sponsor_placement(
-        db, placement_id, current_user.organization_id
-    )
+    placement = await _require_owned_sponsor_placement(db, placement_id, current_user.organization_id)
     action_class = classify_action(confidence=1.0, money_involved=False)
     forbid_escalation_as_mutation(
         tool_name="sponsor.placements.record_delivered",
         action_class=action_class,
     )
     result = await record_placement_delivered(
-        db, placement=placement,
+        db,
+        placement=placement,
         delivered_at=_parse_dt(body.delivered_at_iso, "delivered_at_iso"),
-        metrics=body.metrics, notes=body.notes,
+        metrics=body.metrics,
+        notes=body.notes,
         actor_type="operator",
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="sponsor.placements.record_delivered",
-        entity_type="sponsor_placement", entity_id=placement.id,
+        entity_type="sponsor_placement",
+        entity_id=placement.id,
         decision="executed" if result.get("triggered") else "recorded",
         action_class=action_class,
         details={**result, "metrics": body.metrics},
@@ -2882,9 +3076,7 @@ async def gm_sponsor_record_missed(
         record_placement_missed,
     )
 
-    placement = await _require_owned_sponsor_placement(
-        db, placement_id, current_user.organization_id
-    )
+    placement = await _require_owned_sponsor_placement(db, placement_id, current_user.organization_id)
     action_class = classify_action(confidence=1.0, money_involved=True)
     forbid_escalation_as_mutation(
         tool_name="sponsor.placements.record_missed",
@@ -2892,7 +3084,9 @@ async def gm_sponsor_record_missed(
     )
     try:
         result = await record_placement_missed(
-            db, placement=placement, reason=body.reason,
+            db,
+            placement=placement,
+            reason=body.reason,
             make_good=body.make_good,
             make_good_placement_type=body.make_good_placement_type,
             make_good_scheduled_at=_parse_dt(
@@ -2905,9 +3099,11 @@ async def gm_sponsor_record_missed(
     except ValueError as ve:
         raise HTTPException(400, str(ve))
     await audit_gm_write(
-        db, actor=current_user,
+        db,
+        actor=current_user,
         tool_name="sponsor.placements.record_missed",
-        entity_type="sponsor_placement", entity_id=placement.id,
+        entity_type="sponsor_placement",
+        entity_id=placement.id,
         decision="executed" if result.get("triggered") else "recorded",
         action_class=action_class,
         details={**result, "reason": body.reason},
@@ -2925,9 +3121,7 @@ async def gm_sponsor_record_missed(
 class CompileReportBody(BaseModel):
     period_start_iso: str = Field(..., min_length=1, max_length=40)
     period_end_iso: str = Field(..., min_length=1, max_length=40)
-    report_type: str = Field(
-        "monthly", pattern="^(weekly|monthly|final|ad_hoc)$"
-    )
+    report_type: str = Field("monthly", pattern="^(weekly|monthly|final|ad_hoc)$")
 
 
 @router.post("/sponsor-campaigns/{campaign_id}/compile-report", status_code=201)
@@ -2939,20 +3133,22 @@ async def gm_sponsor_compile_report(
 ):
     from apps.api.services.sponsor_reporting_service import compile_report
 
-    campaign = await _require_owned_sponsor_campaign(
-        db, campaign_id, current_user.organization_id
-    )
+    campaign = await _require_owned_sponsor_campaign(db, campaign_id, current_user.organization_id)
     ps = _parse_dt(body.period_start_iso, "period_start_iso")
     pe = _parse_dt(body.period_end_iso, "period_end_iso")
     assert ps is not None and pe is not None
 
     action_class = classify_action(confidence=1.0, money_involved=False)
     forbid_escalation_as_mutation(
-        tool_name="sponsor.reports.compile", action_class=action_class,
+        tool_name="sponsor.reports.compile",
+        action_class=action_class,
     )
     try:
         report = await compile_report(
-            db, campaign=campaign, period_start=ps, period_end=pe,
+            db,
+            campaign=campaign,
+            period_start=ps,
+            period_end=pe,
             report_type=body.report_type,
             actor_type="operator",
             actor_id=current_user.email or str(current_user.id),
@@ -2961,9 +3157,13 @@ async def gm_sponsor_compile_report(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="sponsor.reports.compile",
-        entity_type="sponsor_report", entity_id=report.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="sponsor.reports.compile",
+        entity_type="sponsor_report",
+        entity_id=report.id,
+        decision="executed",
+        action_class=action_class,
         details={
             "report_id": str(report.id),
             "campaign_id": str(campaign.id),
@@ -2994,21 +3194,25 @@ async def gm_sponsor_send_report(
 ):
     from apps.api.services.sponsor_reporting_service import send_report
 
-    report = await _require_owned_sponsor_report(
-        db, report_id, current_user.organization_id
-    )
+    report = await _require_owned_sponsor_report(db, report_id, current_user.organization_id)
     action_class = classify_action(confidence=1.0, money_involved=False)
     forbid_escalation_as_mutation(
-        tool_name="sponsor.reports.send", action_class=action_class,
+        tool_name="sponsor.reports.send",
+        action_class=action_class,
     )
     result = await send_report(
-        db, report=report, recipient_email=body.recipient_email,
+        db,
+        report=report,
+        recipient_email=body.recipient_email,
         actor_type="operator",
         actor_id=current_user.email or str(current_user.id),
     )
     await audit_gm_write(
-        db, actor=current_user, tool_name="sponsor.reports.send",
-        entity_type="sponsor_report", entity_id=report.id,
+        db,
+        actor=current_user,
+        tool_name="sponsor.reports.send",
+        entity_type="sponsor_report",
+        entity_id=report.id,
         decision="executed" if result.get("triggered") else "recorded",
         action_class=action_class,
         details=result,
@@ -3026,10 +3230,7 @@ async def gm_sponsor_send_report(
 class SponsorIssueClassifyBody(BaseModel):
     subtype: str = Field(
         ...,
-        pattern=(
-            "^(under_delivery|metrics_dispute|make_good_required|"
-            "exclusivity_breach|campaign_paused)$"
-        ),
+        pattern=("^(under_delivery|metrics_dispute|make_good_required|exclusivity_breach|campaign_paused)$"),
     )
     affected_cents: int = Field(0, ge=0)
     notes: str | None = Field(None, max_length=4000)
@@ -3045,9 +3246,7 @@ async def gm_sponsor_issue_classify(
     from apps.api.services.sponsor_issue_service import classify_sponsor_issue
 
     did = _parse_uuid(draft_id)
-    draft = (
-        await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))
-    ).scalar_one_or_none()
+    draft = (await db.execute(select(EmailReplyDraft).where(EmailReplyDraft.id == did))).scalar_one_or_none()
     if draft is None:
         raise HTTPException(404, "Draft not found")
     if draft.org_id != current_user.organization_id:
@@ -3055,17 +3254,25 @@ async def gm_sponsor_issue_classify(
 
     action_class = classify_action(
         confidence=1.0,
-        money_involved=body.subtype in (
-            "under_delivery", "metrics_dispute", "make_good_required",
-        ) or body.affected_cents >= 1_000_00,
+        money_involved=body.subtype
+        in (
+            "under_delivery",
+            "metrics_dispute",
+            "make_good_required",
+        )
+        or body.affected_cents >= 1_000_00,
     )
     forbid_escalation_as_mutation(
-        tool_name="issues.sponsor_classify", action_class=action_class,
+        tool_name="issues.sponsor_classify",
+        action_class=action_class,
     )
     try:
         result = await classify_sponsor_issue(
-            db, draft=draft, subtype=body.subtype,
-            affected_cents=body.affected_cents, notes=body.notes,
+            db,
+            draft=draft,
+            subtype=body.subtype,
+            affected_cents=body.affected_cents,
+            notes=body.notes,
             actor_type="operator",
             actor_id=current_user.email or str(current_user.id),
         )
@@ -3073,9 +3280,13 @@ async def gm_sponsor_issue_classify(
         raise HTTPException(400, str(ve))
 
     await audit_gm_write(
-        db, actor=current_user, tool_name="issues.sponsor_classify",
-        entity_type="email_reply_draft", entity_id=draft.id,
-        decision="executed", action_class=action_class,
+        db,
+        actor=current_user,
+        tool_name="issues.sponsor_classify",
+        entity_type="email_reply_draft",
+        entity_id=draft.id,
+        decision="executed",
+        action_class=action_class,
         details=result,
         severity=result.get("severity", "info"),
     )
@@ -3096,12 +3307,12 @@ def _parse_uuid(val: str) -> uuid.UUID:
 
 
 async def _require_owned_approval(
-    db: DBSession, approval_id: str, org_id: uuid.UUID,
+    db: DBSession,
+    approval_id: str,
+    org_id: uuid.UUID,
 ) -> GMApproval:
     aid = _parse_uuid(approval_id)
-    row = (
-        await db.execute(select(GMApproval).where(GMApproval.id == aid))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(GMApproval).where(GMApproval.id == aid))).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, "Approval not found")
     if row.org_id != org_id:
@@ -3110,12 +3321,12 @@ async def _require_owned_approval(
 
 
 async def _require_owned_escalation(
-    db: DBSession, escalation_id: str, org_id: uuid.UUID,
+    db: DBSession,
+    escalation_id: str,
+    org_id: uuid.UUID,
 ) -> GMEscalation:
     eid = _parse_uuid(escalation_id)
-    row = (
-        await db.execute(select(GMEscalation).where(GMEscalation.id == eid))
-    ).scalar_one_or_none()
+    row = (await db.execute(select(GMEscalation).where(GMEscalation.id == eid))).scalar_one_or_none()
     if row is None:
         raise HTTPException(404, "Escalation not found")
     if row.org_id != org_id:
@@ -3124,12 +3335,15 @@ async def _require_owned_escalation(
 
 
 async def _require_owned_proposal(
-    db: DBSession, proposal_id: uuid.UUID, org_id: uuid.UUID,
+    db: DBSession,
+    proposal_id: uuid.UUID,
+    org_id: uuid.UUID,
 ) -> Proposal:
     row = (
         await db.execute(
             select(Proposal).where(
-                Proposal.id == proposal_id, Proposal.is_active.is_(True),
+                Proposal.id == proposal_id,
+                Proposal.is_active.is_(True),
             )
         )
     ).scalar_one_or_none()

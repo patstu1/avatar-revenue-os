@@ -1,4 +1,5 @@
 """Unit tests for objection mining engine — pure functions, no DB."""
+
 from packages.scoring.objection_mining_engine import (
     OBJECTION_TYPES,
     build_priority_report,
@@ -11,7 +12,17 @@ from packages.scoring.objection_mining_engine import (
 class TestObjectionTypes:
     def test_all_9_types(self):
         assert len(OBJECTION_TYPES) == 9
-        for t in ("price", "trust", "complexity", "timing", "competitor", "relevance", "proof", "identity", "skepticism"):
+        for t in (
+            "price",
+            "trust",
+            "complexity",
+            "timing",
+            "competitor",
+            "relevance",
+            "proof",
+            "identity",
+            "skepticism",
+        ):
             assert t in OBJECTION_TYPES
 
 
@@ -29,7 +40,9 @@ class TestExtraction:
         assert signals[0]["objection_type"] == "trust"
 
     def test_complexity_objection(self):
-        signals = extract_objections([{"text": "This looks way too complicated for beginners", "source_type": "comment"}])
+        signals = extract_objections(
+            [{"text": "This looks way too complicated for beginners", "source_type": "comment"}]
+        )
         assert signals[0]["objection_type"] == "complexity"
 
     def test_competitor_objection(self):
@@ -41,7 +54,9 @@ class TestExtraction:
         assert signals[0]["objection_type"] == "proof"
 
     def test_skepticism_objection(self):
-        signals = extract_objections([{"text": "This sounds too good to be true, I doubt it works", "source_type": "comment"}])
+        signals = extract_objections(
+            [{"text": "This sounds too good to be true, I doubt it works", "source_type": "comment"}]
+        )
         assert signals[0]["objection_type"] == "skepticism"
 
     def test_no_objection_in_positive_text(self):
@@ -53,7 +68,9 @@ class TestExtraction:
         assert len(signals) == 0
 
     def test_monetization_impact_scored(self):
-        signals = extract_objections([{"text": "Way too expensive, can't afford it", "source_type": "comment", "offer_id": "abc"}])
+        signals = extract_objections(
+            [{"text": "Way too expensive, can't afford it", "source_type": "comment", "offer_id": "abc"}]
+        )
         assert signals[0]["monetization_impact"] > 0.8
 
     def test_multiple_texts(self):
@@ -72,9 +89,24 @@ class TestExtraction:
 class TestClustering:
     def test_clusters_by_type(self):
         signals = [
-            {"objection_type": "price", "severity": 0.7, "monetization_impact": 0.9, "extracted_objection": "too expensive"},
-            {"objection_type": "price", "severity": 0.6, "monetization_impact": 0.9, "extracted_objection": "can't afford"},
-            {"objection_type": "trust", "severity": 0.8, "monetization_impact": 0.85, "extracted_objection": "looks like scam"},
+            {
+                "objection_type": "price",
+                "severity": 0.7,
+                "monetization_impact": 0.9,
+                "extracted_objection": "too expensive",
+            },
+            {
+                "objection_type": "price",
+                "severity": 0.6,
+                "monetization_impact": 0.9,
+                "extracted_objection": "can't afford",
+            },
+            {
+                "objection_type": "trust",
+                "severity": 0.8,
+                "monetization_impact": 0.85,
+                "extracted_objection": "looks like scam",
+            },
         ]
         clusters = cluster_objections(signals)
         assert len(clusters) == 2
@@ -87,7 +119,12 @@ class TestClustering:
     def test_sorted_by_impact(self):
         signals = [
             {"objection_type": "timing", "severity": 0.3, "monetization_impact": 0.3, "extracted_objection": "not now"},
-            {"objection_type": "price", "severity": 0.8, "monetization_impact": 0.9, "extracted_objection": "expensive"},
+            {
+                "objection_type": "price",
+                "severity": 0.8,
+                "monetization_impact": 0.9,
+                "extracted_objection": "expensive",
+            },
         ]
         clusters = cluster_objections(signals)
         assert clusters[0]["objection_type"] == "price"
@@ -109,8 +146,18 @@ class TestResponses:
 class TestPriorityReport:
     def test_builds_report(self):
         clusters = [
-            {"objection_type": "price", "signal_count": 10, "avg_monetization_impact": 0.9, "recommended_response_angle": "value demo"},
-            {"objection_type": "trust", "signal_count": 5, "avg_monetization_impact": 0.85, "recommended_response_angle": "social proof"},
+            {
+                "objection_type": "price",
+                "signal_count": 10,
+                "avg_monetization_impact": 0.9,
+                "recommended_response_angle": "value demo",
+            },
+            {
+                "objection_type": "trust",
+                "signal_count": 5,
+                "avg_monetization_impact": 0.85,
+                "recommended_response_angle": "social proof",
+            },
         ]
         report = build_priority_report(clusters, 15)
         assert report["total_signals"] == 15

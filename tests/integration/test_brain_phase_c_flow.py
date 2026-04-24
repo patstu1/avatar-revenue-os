@@ -1,4 +1,5 @@
 """Integration tests for Brain Architecture Phase C — DB-backed API tests."""
+
 from __future__ import annotations
 
 import pytest

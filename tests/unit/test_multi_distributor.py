@@ -1,4 +1,5 @@
 """Unit tests — multi-distributor publishing layer: clients, router, failover."""
+
 from __future__ import annotations
 
 import asyncio
@@ -6,8 +7,10 @@ import os
 
 # ── Publer Client ──
 
+
 def test_publer_blocked_without_key():
     from packages.clients.publer_client import PublerClient
+
     c = PublerClient()
     assert not c._is_configured()
     result = asyncio.run(c.get_profiles())
@@ -17,6 +20,7 @@ def test_publer_blocked_without_key():
 
 def test_publer_create_post_blocked():
     from packages.clients.publer_client import PublerClient
+
     c = PublerClient()
     result = asyncio.run(c.create_post(["acct1"], "Hello world"))
     assert not result["success"]
@@ -25,6 +29,7 @@ def test_publer_create_post_blocked():
 
 def test_publer_get_post_blocked():
     from packages.clients.publer_client import PublerClient
+
     c = PublerClient()
     result = asyncio.run(c.get_post("fake-id"))
     assert not result["success"]
@@ -32,8 +37,10 @@ def test_publer_get_post_blocked():
 
 # ── Ayrshare Client ──
 
+
 def test_ayrshare_blocked_without_key():
     from packages.clients.ayrshare_client import AyrshareClient
+
     c = AyrshareClient()
     assert not c._is_configured()
     result = asyncio.run(c.get_profiles())
@@ -43,6 +50,7 @@ def test_ayrshare_blocked_without_key():
 
 def test_ayrshare_create_post_blocked():
     from packages.clients.ayrshare_client import AyrshareClient
+
     c = AyrshareClient()
     result = asyncio.run(c.create_post(["twitter"], "Hello world"))
     assert not result["success"]
@@ -51,6 +59,7 @@ def test_ayrshare_create_post_blocked():
 
 def test_ayrshare_get_post_blocked():
     from packages.clients.ayrshare_client import AyrshareClient
+
     c = AyrshareClient()
     result = asyncio.run(c.get_post("fake-id"))
     assert not result["success"]
@@ -58,6 +67,7 @@ def test_ayrshare_get_post_blocked():
 
 def test_ayrshare_analytics_blocked():
     from packages.clients.ayrshare_client import AyrshareClient
+
     c = AyrshareClient()
     result = asyncio.run(c.get_analytics("fake-id", ["twitter"]))
     assert not result["success"]
@@ -65,8 +75,10 @@ def test_ayrshare_analytics_blocked():
 
 # ── Distributor Router ──
 
+
 def test_router_no_distributors_configured():
     from packages.clients.distributor_router import get_configured_distributors
+
     old_buffer = os.environ.pop("BUFFER_API_KEY", None)
     old_publer = os.environ.pop("PUBLER_API_KEY", None)
     old_ayrshare = os.environ.pop("AYRSHARE_API_KEY", None)
@@ -74,13 +86,17 @@ def test_router_no_distributors_configured():
         configured = get_configured_distributors()
         assert len(configured) == 0
     finally:
-        if old_buffer: os.environ["BUFFER_API_KEY"] = old_buffer
-        if old_publer: os.environ["PUBLER_API_KEY"] = old_publer
-        if old_ayrshare: os.environ["AYRSHARE_API_KEY"] = old_ayrshare
+        if old_buffer:
+            os.environ["BUFFER_API_KEY"] = old_buffer
+        if old_publer:
+            os.environ["PUBLER_API_KEY"] = old_publer
+        if old_ayrshare:
+            os.environ["AYRSHARE_API_KEY"] = old_ayrshare
 
 
 def test_router_detects_configured_distributors():
     from packages.clients.distributor_router import get_configured_distributors
+
     old = os.environ.get("PUBLER_API_KEY")
     os.environ["PUBLER_API_KEY"] = "test-key-123"
     try:
@@ -96,6 +112,7 @@ def test_router_detects_configured_distributors():
 
 def test_router_any_distributor_check():
     from packages.clients.distributor_router import any_distributor_configured
+
     old = os.environ.get("AYRSHARE_API_KEY")
     os.environ["AYRSHARE_API_KEY"] = "test-key"
     try:
@@ -109,6 +126,7 @@ def test_router_any_distributor_check():
 
 def test_router_publish_request_dataclass():
     from packages.clients.distributor_router import PublishRequest
+
     req = PublishRequest(text="Hello", platform="youtube", profile_ids=["p1"])
     assert req.text == "Hello"
     assert req.platform == "youtube"
@@ -118,6 +136,7 @@ def test_router_publish_request_dataclass():
 
 def test_router_publish_result_dataclass():
     from packages.clients.distributor_router import PublishResult
+
     res = PublishResult(success=True, method="buffer", post_id="123")
     assert res.success
     assert res.method == "buffer"
@@ -126,6 +145,7 @@ def test_router_publish_result_dataclass():
 
 def test_router_failover_all_unconfigured():
     from packages.clients.distributor_router import PublishRequest, publish_with_failover
+
     old_buffer = os.environ.pop("BUFFER_API_KEY", None)
     old_publer = os.environ.pop("PUBLER_API_KEY", None)
     old_ayrshare = os.environ.pop("AYRSHARE_API_KEY", None)
@@ -135,13 +155,17 @@ def test_router_failover_all_unconfigured():
         assert not result.success
         assert "No publishing service configured" in result.error
     finally:
-        if old_buffer: os.environ["BUFFER_API_KEY"] = old_buffer
-        if old_publer: os.environ["PUBLER_API_KEY"] = old_publer
-        if old_ayrshare: os.environ["AYRSHARE_API_KEY"] = old_ayrshare
+        if old_buffer:
+            os.environ["BUFFER_API_KEY"] = old_buffer
+        if old_publer:
+            os.environ["PUBLER_API_KEY"] = old_publer
+        if old_ayrshare:
+            os.environ["AYRSHARE_API_KEY"] = old_ayrshare
 
 
 def test_router_get_distributor_status():
     from packages.clients.distributor_router import get_distributor_status
+
     status = get_distributor_status()
     assert "configured" in status
     assert "all_distributors" in status
@@ -154,6 +178,7 @@ def test_router_get_distributor_status():
 
 def test_router_platform_support():
     from packages.clients.distributor_router import AyrshareAdapter, BufferAdapter, PublerAdapter
+
     buffer = BufferAdapter()
     assert buffer.supports_platform("youtube")
     assert not buffer.supports_platform("reddit")
@@ -169,6 +194,7 @@ def test_router_platform_support():
 
 def test_router_platform_filtering():
     from packages.clients.distributor_router import get_available_for_platform
+
     old_buffer = os.environ.get("BUFFER_API_KEY")
     old_publer = os.environ.get("PUBLER_API_KEY")
     os.environ["BUFFER_API_KEY"] = "test"
@@ -191,6 +217,7 @@ def test_router_platform_filtering():
 
 def test_ayrshare_platform_mapping():
     from packages.clients.distributor_router import PLATFORM_MAP_AYRSHARE
+
     assert PLATFORM_MAP_AYRSHARE["x"] == "twitter"
     assert PLATFORM_MAP_AYRSHARE["youtube"] == "youtube"
     assert PLATFORM_MAP_AYRSHARE["reddit"] == "reddit"
@@ -198,8 +225,10 @@ def test_ayrshare_platform_mapping():
 
 # ── Readiness Engine ──
 
+
 def test_readiness_accepts_any_distributor():
     from packages.scoring.autonomous_readiness_engine import evaluate_autonomous_readiness
+
     old_buffer = os.environ.pop("BUFFER_API_KEY", None)
     old_publer = os.environ.pop("PUBLER_API_KEY", None)
     os.environ["AYRSHARE_API_KEY"] = "test-key"
@@ -217,5 +246,7 @@ def test_readiness_accepts_any_distributor():
         del os.environ["ANTHROPIC_API_KEY"]
         del os.environ["GOOGLE_AI_API_KEY"]
         del os.environ["DEEPSEEK_API_KEY"]
-        if old_buffer: os.environ["BUFFER_API_KEY"] = old_buffer
-        if old_publer: os.environ["PUBLER_API_KEY"] = old_publer
+        if old_buffer:
+            os.environ["BUFFER_API_KEY"] = old_buffer
+        if old_publer:
+            os.environ["PUBLER_API_KEY"] = old_publer

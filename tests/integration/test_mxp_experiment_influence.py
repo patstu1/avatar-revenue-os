@@ -1,4 +1,5 @@
 """Integration: experiment outcomes + cross-module influence (Postgres via TEST_DATABASE_URL)."""
+
 from __future__ import annotations
 
 import uuid
@@ -60,11 +61,7 @@ async def test_experiment_recompute_persists_outcomes(db_session):
     assert rows[0].observation_source == "synthetic_proxy"
 
     actions = (
-        (
-            await db_session.execute(
-                select(ExperimentOutcomeAction).where(ExperimentOutcomeAction.brand_id == brand.id)
-            )
-        )
+        (await db_session.execute(select(ExperimentOutcomeAction).where(ExperimentOutcomeAction.brand_id == brand.id)))
         .scalars()
         .all()
     )

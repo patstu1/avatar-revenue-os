@@ -1,4 +1,5 @@
 """Causal Attribution Layer — distinguish signal from noise in performance changes."""
+
 import uuid
 from typing import Optional
 
@@ -24,7 +25,9 @@ class CausalAttributionReport(Base):
 class CausalSignal(Base):
     __tablename__ = "ca_signals"
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ca_attribution_reports.id"), nullable=False, index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ca_attribution_reports.id"), nullable=False, index=True
+    )
     signal_type: Mapped[str] = mapped_column(String(40), nullable=False)
     scope: Mapped[str] = mapped_column(String(60), nullable=False)
     before_value: Mapped[float] = mapped_column(Float, default=0.0)
@@ -35,7 +38,9 @@ class CausalSignal(Base):
 
 class CausalHypothesis(Base):
     __tablename__ = "ca_hypotheses"
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ca_attribution_reports.id"), nullable=False, index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ca_attribution_reports.id"), nullable=False, index=True
+    )
     driver_type: Mapped[str] = mapped_column(String(60), nullable=False)
     driver_name: Mapped[str] = mapped_column(String(255), nullable=False)
     estimated_lift_pct: Mapped[float] = mapped_column(Float, default=0.0)
@@ -48,7 +53,9 @@ class CausalHypothesis(Base):
 
 class CausalConfidenceReport(Base):
     __tablename__ = "ca_confidence_reports"
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ca_attribution_reports.id"), nullable=False, index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ca_attribution_reports.id"), nullable=False, index=True
+    )
     hypothesis_count: Mapped[int] = mapped_column(Integer, default=0)
     high_confidence_count: Mapped[int] = mapped_column(Integer, default=0)
     noise_flagged_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -58,7 +65,9 @@ class CausalConfidenceReport(Base):
 
 class CausalCreditAllocation(Base):
     __tablename__ = "ca_credit_allocations"
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ca_attribution_reports.id"), nullable=False, index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ca_attribution_reports.id"), nullable=False, index=True
+    )
     driver_name: Mapped[str] = mapped_column(String(255), nullable=False)
     credit_pct: Mapped[float] = mapped_column(Float, default=0.0)
     confidence: Mapped[float] = mapped_column(Float, default=0.0)

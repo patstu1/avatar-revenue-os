@@ -1,4 +1,5 @@
 """DB-backed integration tests for Operator Copilot APIs."""
+
 import pytest
 
 

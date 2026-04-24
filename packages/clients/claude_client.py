@@ -3,6 +3,7 @@
 Generates grounded natural-language responses from structured system context.
 Falls back to rule-based generation when API key is missing or call fails.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -86,8 +87,7 @@ def _build_context_block(
         sections.append(f"\n## OPERATOR ACTIONS ({len(operator_actions)} total)")
         for a in operator_actions[:15]:
             sections.append(
-                f"- [{a.get('urgency', '?').upper()}] {a.get('title', '?')} "
-                f"(source: {a.get('source_module', '?')})"
+                f"- [{a.get('urgency', '?').upper()}] {a.get('title', '?')} (source: {a.get('source_module', '?')})"
             )
             if a.get("description"):
                 sections.append(f"  Detail: {a['description'][:200]}")
@@ -96,8 +96,7 @@ def _build_context_block(
         sections.append(f"\n## MISSING / INCOMPLETE ITEMS ({len(missing_items)} total)")
         for m in missing_items[:15]:
             sections.append(
-                f"- **{m.get('item', '?')}** [{m.get('truth_level', '?')}]: "
-                f"{m.get('description', '')[:200]}"
+                f"- **{m.get('item', '?')}** [{m.get('truth_level', '?')}]: {m.get('description', '')[:200]}"
             )
             if m.get("action"):
                 sections.append(f"  Action: {m['action']}")
@@ -158,7 +157,10 @@ class ClaudeCopilotClient:
         }
         context_hash = _hash_context(context_payload)
         context_block = _build_context_block(
-            quick_status, operator_actions, missing_items, provider_summary,
+            quick_status,
+            operator_actions,
+            missing_items,
+            provider_summary,
         )
 
         if not self.is_configured():
@@ -174,10 +176,7 @@ class ClaudeCopilotClient:
                 "failure_reason": "ANTHROPIC_API_KEY not configured",
             }
 
-        user_message = (
-            f"<system_context>\n{context_block}\n</system_context>\n\n"
-            f"OPERATOR QUESTION: {query}"
-        )
+        user_message = f"<system_context>\n{context_block}\n</system_context>\n\nOPERATOR QUESTION: {query}"
 
         try:
             import anthropic
@@ -204,9 +203,13 @@ class ClaudeCopilotClient:
             )
 
             response_mode = "GROUNDED_ANSWER"
-            for mode in ("INSUFFICIENT_CONTEXT", "BLOCKED_BY_MISSING_CREDENTIALS",
-                         "RECOMMENDATION_ONLY", "OPERATOR_ACTION_SUMMARY",
-                         "EXTERNALLY_EXECUTED_SUMMARY"):
+            for mode in (
+                "INSUFFICIENT_CONTEXT",
+                "BLOCKED_BY_MISSING_CREDENTIALS",
+                "RECOMMENDATION_ONLY",
+                "OPERATOR_ACTION_SUMMARY",
+                "EXTERNALLY_EXECUTED_SUMMARY",
+            ):
                 if mode in content:
                     response_mode = mode
                     break

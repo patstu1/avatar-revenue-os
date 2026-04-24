@@ -19,6 +19,7 @@ def _resolve_db_urls() -> tuple[str, str]:
         return env_async, env_sync
     try:
         from apps.api.config import get_settings
+
         s = get_settings()
         return env_async or s.database_url, env_sync or s.database_url_sync
     except Exception:
@@ -52,9 +53,7 @@ def get_async_engine():
 def get_async_session_factory():
     global _async_session_factory
     if _async_session_factory is None:
-        _async_session_factory = async_sessionmaker(
-            get_async_engine(), class_=AsyncSession, expire_on_commit=False
-        )
+        _async_session_factory = async_sessionmaker(get_async_engine(), class_=AsyncSession, expire_on_commit=False)
     return _async_session_factory
 
 

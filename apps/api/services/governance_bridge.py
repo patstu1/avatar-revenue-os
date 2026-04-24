@@ -12,6 +12,7 @@ The existing governance infrastructure (workflow builder, permission matrix,
 audit service, creative memory) handles the data. This bridge makes it
 enforce, surface, and participate in the machine.
 """
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -38,6 +39,7 @@ logger = structlog.get_logger()
 
 # ── Permission Enforcement ──────────────────────────────────────────
 
+
 async def check_permission(
     db: AsyncSession,
     org_id: uuid.UUID,
@@ -55,11 +57,16 @@ async def check_permission(
     """
     from apps.api.services.operator_permission_service import check_action
 
-    result = check_action.__wrapped__(db, org_id, action_class) if hasattr(check_action, '__wrapped__') else await check_action(db, org_id, action_class)
+    result = (
+        check_action.__wrapped__(db, org_id, action_class)
+        if hasattr(check_action, "__wrapped__")
+        else await check_action(db, org_id, action_class)
+    )
 
     # Log the permission check to audit trail
     await log_action(
-        db, f"permission.checked.{action_class}",
+        db,
+        f"permission.checked.{action_class}",
         organization_id=org_id,
         user_id=uuid.UUID(actor_id) if actor_id else None,
         actor_type="human" if actor_id else "system",
@@ -76,10 +83,13 @@ async def check_permission(
     # If blocked, emit event + create operator action
     if result.get("needs_approval"):
         await emit_event(
-            db, domain="governance", event_type="permission.approval_required",
+            db,
+            domain="governance",
+            event_type="permission.approval_required",
             summary=f"Action '{action_class}' requires approval (role: {user_role})",
             org_id=org_id,
-            entity_type=entity_type, entity_id=entity_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
             severity="warning",
             details=result,
         )
@@ -88,6 +98,7 @@ async def check_permission(
 
 
 # ── Structured Audit Trail ──────────────────────────────────────────
+
 
 async def audit_state_transition(
     db: AsyncSession,
@@ -111,7 +122,8 @@ async def audit_state_transition(
     """
     # Audit log (immutable record)
     audit = await log_action(
-        db, action,
+        db,
+        action,
         organization_id=org_id,
         brand_id=brand_id,
         user_id=uuid.UUID(actor_id) if actor_id else None,
@@ -128,11 +140,15 @@ async def audit_state_transition(
 
     # System event (for control layer visibility)
     event = await emit_event(
-        db, domain="governance", event_type=f"audit.{action}",
+        db,
+        domain="governance",
+        event_type=f"audit.{action}",
         summary=f"{entity_type} {action}: {previous_state or '?'} → {new_state or '?'}"
-               + (f" ({reason})" if reason else ""),
-        org_id=org_id, brand_id=brand_id,
-        entity_type=entity_type, entity_id=entity_id,
+        + (f" ({reason})" if reason else ""),
+        org_id=org_id,
+        brand_id=brand_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
         previous_state=previous_state,
         new_state=new_state,
         actor_type=actor_type,
@@ -144,6 +160,7 @@ async def audit_state_transition(
 
 
 # ── Creative Memory Integration ──────────────────────────────────────
+
 
 async def record_generation_outcome(
     db: AsyncSession,
@@ -280,6 +297,7 @@ async def get_creative_atoms(
 
 # ── Governance Summary for Control Layer ──────────────────────────────
 
+
 async def get_governance_summary(
     db: AsyncSession,
     org_id: uuid.UUID,
@@ -293,76 +311,112 @@ async def get_governance_summary(
     brand_ids_q = select(Brand.id).where(Brand.organization_id == org_id)
 
     # Pending approvals
-    pending_approvals = (await db.execute(
-        select(func.count()).select_from(Approval).where(
-            Approval.brand_id.in_(brand_ids_q),
-            Approval.status == "pending",
+    pending_approvals = (
+        await db.execute(
+            select(func.count())
+            .select_from(Approval)
+            .where(
+                Approval.brand_id.in_(brand_ids_q),
+                Approval.status == "pending",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # Recent approvals/rejections (24h)
     now = datetime.now(timezone.utc)
     day_ago = now - timedelta(hours=24)
 
-    approved_24h = (await db.execute(
-        select(func.count()).select_from(Approval).where(
-            Approval.brand_id.in_(brand_ids_q),
-            Approval.status == "approved",
-            Approval.created_at >= day_ago,
+    approved_24h = (
+        await db.execute(
+            select(func.count())
+            .select_from(Approval)
+            .where(
+                Approval.brand_id.in_(brand_ids_q),
+                Approval.status == "approved",
+                Approval.created_at >= day_ago,
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    rejected_24h = (await db.execute(
-        select(func.count()).select_from(Approval).where(
-            Approval.brand_id.in_(brand_ids_q),
-            Approval.status == "rejected",
-            Approval.created_at >= day_ago,
+    rejected_24h = (
+        await db.execute(
+            select(func.count())
+            .select_from(Approval)
+            .where(
+                Approval.brand_id.in_(brand_ids_q),
+                Approval.status == "rejected",
+                Approval.created_at >= day_ago,
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # Active workflows
-    active_workflows = (await db.execute(
-        select(func.count()).select_from(WorkflowInstance).where(
-            WorkflowInstance.brand_id.in_(brand_ids_q),
-            WorkflowInstance.status == "in_progress",
+    active_workflows = (
+        await db.execute(
+            select(func.count())
+            .select_from(WorkflowInstance)
+            .where(
+                WorkflowInstance.brand_id.in_(brand_ids_q),
+                WorkflowInstance.status == "in_progress",
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # Permission matrix coverage
-    permission_rules = (await db.execute(
-        select(func.count()).select_from(OperatorPermissionMatrix).where(
-            OperatorPermissionMatrix.organization_id == org_id,
-            OperatorPermissionMatrix.is_active.is_(True),
+    permission_rules = (
+        await db.execute(
+            select(func.count())
+            .select_from(OperatorPermissionMatrix)
+            .where(
+                OperatorPermissionMatrix.organization_id == org_id,
+                OperatorPermissionMatrix.is_active.is_(True),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # Gatekeeper alerts
-    gatekeeper_alerts = (await db.execute(
-        select(func.count()).select_from(GatekeeperAlert).where(
-            GatekeeperAlert.brand_id.in_(brand_ids_q),
-            GatekeeperAlert.resolved.is_(False),
+    gatekeeper_alerts = (
+        await db.execute(
+            select(func.count())
+            .select_from(GatekeeperAlert)
+            .where(
+                GatekeeperAlert.brand_id.in_(brand_ids_q),
+                GatekeeperAlert.resolved.is_(False),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # Memory entries
-    memory_entries = (await db.execute(
-        select(func.count()).select_from(MemoryEntry).where(
-            MemoryEntry.brand_id.in_(brand_ids_q),
+    memory_entries = (
+        await db.execute(
+            select(func.count())
+            .select_from(MemoryEntry)
+            .where(
+                MemoryEntry.brand_id.in_(brand_ids_q),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
-    creative_atoms = (await db.execute(
-        select(func.count()).select_from(CreativeMemoryAtom).where(
-            CreativeMemoryAtom.brand_id.in_(brand_ids_q),
+    creative_atoms = (
+        await db.execute(
+            select(func.count())
+            .select_from(CreativeMemoryAtom)
+            .where(
+                CreativeMemoryAtom.brand_id.in_(brand_ids_q),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # Contradictions (from gatekeeper)
-    contradictions = (await db.execute(
-        select(func.count()).select_from(GatekeeperContradictionReport).where(
-            GatekeeperContradictionReport.brand_id.in_(brand_ids_q),
+    contradictions = (
+        await db.execute(
+            select(func.count())
+            .select_from(GatekeeperContradictionReport)
+            .where(
+                GatekeeperContradictionReport.brand_id.in_(brand_ids_q),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     return {
         "approvals": {
@@ -389,6 +443,7 @@ async def get_governance_summary(
 
 # ── Surface Governance Actions ──────────────────────────────────────
 
+
 async def surface_governance_actions(
     db: AsyncSession,
     org_id: uuid.UUID,
@@ -404,15 +459,18 @@ async def surface_governance_actions(
     # 1. Stale pending approvals (> 24h old)
     stale_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
     stale_approvals = await db.execute(
-        select(Approval).where(
+        select(Approval)
+        .where(
             Approval.brand_id.in_(brand_ids_q),
             Approval.status == "pending",
             Approval.created_at < stale_threshold,
-        ).limit(5)
+        )
+        .limit(5)
     )
     for a in stale_approvals.scalars().all():
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="review_stale_approval",
             title="Stale approval: content awaiting review > 24h",
             description="Content item has been waiting for approval for over 24 hours.",
@@ -427,15 +485,18 @@ async def surface_governance_actions(
 
     # 2. Unresolved gatekeeper alerts
     alerts = await db.execute(
-        select(GatekeeperAlert).where(
+        select(GatekeeperAlert)
+        .where(
             GatekeeperAlert.brand_id.in_(brand_ids_q),
             GatekeeperAlert.resolved.is_(False),
             GatekeeperAlert.severity.in_(["critical", "high"]),
-        ).limit(5)
+        )
+        .limit(5)
     )
     for alert in alerts.scalars().all():
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="resolve_gatekeeper_alert",
             title=f"Gatekeeper alert: {alert.alert_type if hasattr(alert, 'alert_type') else 'unknown'}",
             description=f"Severity: {alert.severity}. Requires resolution before proceeding.",
@@ -449,16 +510,21 @@ async def surface_governance_actions(
         actions_created.append({"type": "gatekeeper_alert", "action_id": str(action.id)})
 
     # 3. Permission matrix not seeded
-    has_matrix = (await db.execute(
-        select(func.count()).select_from(OperatorPermissionMatrix).where(
-            OperatorPermissionMatrix.organization_id == org_id,
-            OperatorPermissionMatrix.is_active.is_(True),
+    has_matrix = (
+        await db.execute(
+            select(func.count())
+            .select_from(OperatorPermissionMatrix)
+            .where(
+                OperatorPermissionMatrix.organization_id == org_id,
+                OperatorPermissionMatrix.is_active.is_(True),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     if has_matrix == 0:
         action = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="seed_permission_matrix",
             title="Permission matrix not configured",
             description="No permission rules defined. Seed default policies to enable governance.",
@@ -470,16 +536,23 @@ async def surface_governance_actions(
 
     # 4. Contradictions detected
     contradictions = await db.execute(
-        select(GatekeeperContradictionReport).where(
+        select(GatekeeperContradictionReport)
+        .where(
             GatekeeperContradictionReport.brand_id.in_(brand_ids_q),
-        ).order_by(GatekeeperContradictionReport.created_at.desc()).limit(3)
+        )
+        .order_by(GatekeeperContradictionReport.created_at.desc())
+        .limit(3)
     )
     for c in contradictions.scalars().all():
         await emit_event(
-            db, domain="governance", event_type="contradiction.detected",
+            db,
+            domain="governance",
+            event_type="contradiction.detected",
             summary="Logic contradiction detected in brand operations",
-            org_id=org_id, brand_id=c.brand_id,
-            entity_type="contradiction_report", entity_id=c.id,
+            org_id=org_id,
+            brand_id=c.brand_id,
+            entity_type="contradiction_report",
+            entity_id=c.id,
             severity="warning",
             requires_action=True,
         )

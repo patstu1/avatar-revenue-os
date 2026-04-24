@@ -1,4 +1,5 @@
 """DB-backed integration tests for Enterprise Security + Compliance."""
+
 from __future__ import annotations
 
 import uuid
@@ -31,10 +32,19 @@ from packages.db.models.enterprise_security import (
 async def org_with_user(db_session: AsyncSession):
     slug = f"es-{uuid.uuid4().hex[:6]}"
     org = Organization(name="ES Org", slug=f"org-{slug}")
-    db_session.add(org); await db_session.flush()
+    db_session.add(org)
+    await db_session.flush()
     from apps.api.services.auth_service import hash_password
-    user = User(organization_id=org.id, email=f"es_{slug}@test.com", hashed_password=hash_password("test123"), full_name="ES User", role=UserRole.OPERATOR)
-    db_session.add(user); await db_session.flush()
+
+    user = User(
+        organization_id=org.id,
+        email=f"es_{slug}@test.com",
+        hashed_password=hash_password("test123"),
+        full_name="ES User",
+        role=UserRole.OPERATOR,
+    )
+    db_session.add(user)
+    await db_session.flush()
     return org, user
 
 
@@ -44,7 +54,11 @@ async def test_seed_system_roles(db_session, org_with_user):
     result = await seed_system_roles(db_session, org.id)
     await db_session.commit()
     assert result["roles_created"] == 8
-    roles = (await db_session.execute(select(EnterpriseRole).where(EnterpriseRole.organization_id == org.id))).scalars().all()
+    roles = (
+        (await db_session.execute(select(EnterpriseRole).where(EnterpriseRole.organization_id == org.id)))
+        .scalars()
+        .all()
+    )
     assert len(roles) == 8
     names = {r.role_name for r in roles}
     assert "super_admin" in names and "viewer" in names
@@ -53,8 +67,10 @@ async def test_seed_system_roles(db_session, org_with_user):
 @pytest.mark.asyncio
 async def test_seed_idempotent(db_session, org_with_user):
     org, _ = org_with_user
-    await seed_system_roles(db_session, org.id); await db_session.commit()
-    r2 = await seed_system_roles(db_session, org.id); await db_session.commit()
+    await seed_system_roles(db_session, org.id)
+    await db_session.commit()
+    r2 = await seed_system_roles(db_session, org.id)
+    await db_session.commit()
     assert r2["roles_created"] == 0
 
 
@@ -68,8 +84,13 @@ async def test_check_permission_default_allow(db_session, org_with_user):
 @pytest.mark.asyncio
 async def test_check_permission_with_scope(db_session, org_with_user):
     org, user = org_with_user
-    await seed_system_roles(db_session, org.id); await db_session.flush()
-    viewer_role = (await db_session.execute(select(EnterpriseRole).where(EnterpriseRole.organization_id == org.id, EnterpriseRole.role_name == "viewer"))).scalar_one()
+    await seed_system_roles(db_session, org.id)
+    await db_session.flush()
+    viewer_role = (
+        await db_session.execute(
+            select(EnterpriseRole).where(EnterpriseRole.organization_id == org.id, EnterpriseRole.role_name == "viewer")
+        )
+    ).scalar_one()
     db_session.add(EnterpriseAccessScope(user_id=user.id, scope_type="org", role_id=viewer_role.id))
     await db_session.flush()
     result = await check_permission(db_session, user.id, "generate")
@@ -83,7 +104,11 @@ async def test_log_audit(db_session, org_with_user):
     org, user = org_with_user
     await log_audit(db_session, org.id, user.id, "publish", "content_item", detail="Published item X")
     await db_session.commit()
-    events = (await db_session.execute(select(AuditTrailEvent).where(AuditTrailEvent.organization_id == org.id))).scalars().all()
+    events = (
+        (await db_session.execute(select(AuditTrailEvent).where(AuditTrailEvent.organization_id == org.id)))
+        .scalars()
+        .all()
+    )
     assert len(events) == 1
     assert events[0].action == "publish"
 
@@ -91,12 +116,21 @@ async def test_log_audit(db_session, org_with_user):
 @pytest.mark.asyncio
 async def test_recompute_compliance(db_session, org_with_user):
     org, _ = org_with_user
-    await seed_system_roles(db_session, org.id); await db_session.flush()
+    await seed_system_roles(db_session, org.id)
+    await db_session.flush()
     result = await recompute_compliance(db_session, org.id)
     await db_session.commit()
     assert result["status"] == "completed"
     assert result["rows_processed"] >= 14
-    controls = (await db_session.execute(select(ComplianceControlReport).where(ComplianceControlReport.organization_id == org.id))).scalars().all()
+    controls = (
+        (
+            await db_session.execute(
+                select(ComplianceControlReport).where(ComplianceControlReport.organization_id == org.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
     assert len(controls) >= 14
     frameworks = {c.framework for c in controls}
     assert "gdpr" in frameworks and "soc2" in frameworks and "hipaa" in frameworks
@@ -105,7 +139,8 @@ async def test_recompute_compliance(db_session, org_with_user):
 @pytest.mark.asyncio
 async def test_list_roles(db_session, org_with_user):
     org, _ = org_with_user
-    await seed_system_roles(db_session, org.id); await db_session.commit()
+    await seed_system_roles(db_session, org.id)
+    await db_session.commit()
     roles = await list_roles(db_session, org.id)
     assert len(roles) == 8
 
@@ -113,7 +148,8 @@ async def test_list_roles(db_session, org_with_user):
 @pytest.mark.asyncio
 async def test_list_audit_trail(db_session, org_with_user):
     org, user = org_with_user
-    await log_audit(db_session, org.id, user.id, "test_action", "test_resource"); await db_session.commit()
+    await log_audit(db_session, org.id, user.id, "test_action", "test_resource")
+    await db_session.commit()
     trail = await list_audit_trail(db_session, org.id)
     assert len(trail) >= 1
 
@@ -121,8 +157,10 @@ async def test_list_audit_trail(db_session, org_with_user):
 @pytest.mark.asyncio
 async def test_list_compliance(db_session, org_with_user):
     org, _ = org_with_user
-    await seed_system_roles(db_session, org.id); await db_session.flush()
-    await recompute_compliance(db_session, org.id); await db_session.commit()
+    await seed_system_roles(db_session, org.id)
+    await db_session.flush()
+    await recompute_compliance(db_session, org.id)
+    await db_session.commit()
     controls = await list_compliance_controls(db_session, org.id)
     assert len(controls) >= 14
 
@@ -130,4 +168,5 @@ async def test_list_compliance(db_session, org_with_user):
 def test_enterprise_security_worker_registered():
     import workers.enterprise_security_worker.tasks  # noqa: F401
     from workers.celery_app import app
+
     assert "workers.enterprise_security_worker.tasks.recompute_compliance" in app.tasks

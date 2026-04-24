@@ -5,6 +5,7 @@ PublishScore =
   0.14 * Compliance + 0.10 * RetentionLikelihood + 0.08 * CTAClarity +
   0.08 * BrandConsistency + 0.06 * ThumbnailCTRPrediction + 0.10 * ExpectedProfitScore
 """
+
 from dataclasses import dataclass
 
 FORMULA_VERSION = "v1"
@@ -76,7 +77,7 @@ def compute_publish_score(inp: PublishScoreInput) -> PublishScoreResult:
     publish_ready = len(blockers) == 0 and composite >= 0.5
 
     top = sorted(weighted.items(), key=lambda x: -x[1])[:3]
-    explanation = f"Publish score {composite:.3f}. Top: {', '.join(f'{k}={v:.3f}' for k,v in top)}."
+    explanation = f"Publish score {composite:.3f}. Top: {', '.join(f'{k}={v:.3f}' for k, v in top)}."
     if blockers:
         explanation += f" BLOCKED: {'; '.join(blockers)}."
     if not publish_ready and not blockers:

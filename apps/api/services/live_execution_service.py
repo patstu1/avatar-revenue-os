@@ -1,4 +1,5 @@
 """Service layer for Live Execution Closure Phase 1."""
+
 from __future__ import annotations
 
 import os
@@ -36,24 +37,39 @@ from packages.scoring.live_execution_engine import (
 
 # ── A. Analytics / Attribution ─────────────────────────────────────────
 
+
 async def list_analytics_imports(db: AsyncSession, brand_id: uuid.UUID) -> list[AnalyticsImport]:
-    q = select(AnalyticsImport).where(
-        AnalyticsImport.brand_id == brand_id,
-        AnalyticsImport.is_active.is_(True),
-    ).order_by(AnalyticsImport.created_at.desc()).limit(100)
+    q = (
+        select(AnalyticsImport)
+        .where(
+            AnalyticsImport.brand_id == brand_id,
+            AnalyticsImport.is_active.is_(True),
+        )
+        .order_by(AnalyticsImport.created_at.desc())
+        .limit(100)
+    )
     return list((await db.execute(q)).scalars().all())
 
 
 async def list_analytics_events(db: AsyncSession, brand_id: uuid.UUID) -> list[AnalyticsEvent]:
-    q = select(AnalyticsEvent).where(
-        AnalyticsEvent.brand_id == brand_id,
-        AnalyticsEvent.is_active.is_(True),
-    ).order_by(AnalyticsEvent.created_at.desc()).limit(200)
+    q = (
+        select(AnalyticsEvent)
+        .where(
+            AnalyticsEvent.brand_id == brand_id,
+            AnalyticsEvent.is_active.is_(True),
+        )
+        .order_by(AnalyticsEvent.created_at.desc())
+        .limit(200)
+    )
     return list((await db.execute(q)).scalars().all())
 
 
 async def create_analytics_import(
-    db: AsyncSession, brand_id: uuid.UUID, source: str, source_category: str, events: list[dict[str, Any]],
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    source: str,
+    source_category: str,
+    events: list[dict[str, Any]],
 ) -> dict[str, int]:
     cat = classify_analytics_source(source)
     if source_category == "social":
@@ -113,24 +129,39 @@ async def recompute_analytics(db: AsyncSession, brand_id: uuid.UUID) -> dict[str
 
 # ── Conversions ────────────────────────────────────────────────────────
 
+
 async def list_conversion_imports(db: AsyncSession, brand_id: uuid.UUID) -> list[ConversionImport]:
-    q = select(ConversionImport).where(
-        ConversionImport.brand_id == brand_id,
-        ConversionImport.is_active.is_(True),
-    ).order_by(ConversionImport.created_at.desc()).limit(100)
+    q = (
+        select(ConversionImport)
+        .where(
+            ConversionImport.brand_id == brand_id,
+            ConversionImport.is_active.is_(True),
+        )
+        .order_by(ConversionImport.created_at.desc())
+        .limit(100)
+    )
     return list((await db.execute(q)).scalars().all())
 
 
 async def list_conversion_events(db: AsyncSession, brand_id: uuid.UUID) -> list[ConversionEvent]:
-    q = select(ConversionEvent).where(
-        ConversionEvent.brand_id == brand_id,
-        ConversionEvent.is_active.is_(True),
-    ).order_by(ConversionEvent.created_at.desc()).limit(200)
+    q = (
+        select(ConversionEvent)
+        .where(
+            ConversionEvent.brand_id == brand_id,
+            ConversionEvent.is_active.is_(True),
+        )
+        .order_by(ConversionEvent.created_at.desc())
+        .limit(200)
+    )
     return list((await db.execute(q)).scalars().all())
 
 
 async def create_conversion_import(
-    db: AsyncSession, brand_id: uuid.UUID, source: str, source_category: str, conversions: list[dict[str, Any]],
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    source: str,
+    source_category: str,
+    conversions: list[dict[str, Any]],
 ) -> dict[str, int]:
     cat = classify_analytics_source(source)
     if source_category == "checkout":
@@ -198,24 +229,38 @@ async def recompute_conversions(db: AsyncSession, brand_id: uuid.UUID) -> dict[s
 
 # ── B. Experiment Truth ────────────────────────────────────────────────
 
+
 async def list_experiment_imports(db: AsyncSession, brand_id: uuid.UUID) -> list[ExperimentObservationImport]:
-    q = select(ExperimentObservationImport).where(
-        ExperimentObservationImport.brand_id == brand_id,
-        ExperimentObservationImport.is_active.is_(True),
-    ).order_by(ExperimentObservationImport.created_at.desc()).limit(100)
+    q = (
+        select(ExperimentObservationImport)
+        .where(
+            ExperimentObservationImport.brand_id == brand_id,
+            ExperimentObservationImport.is_active.is_(True),
+        )
+        .order_by(ExperimentObservationImport.created_at.desc())
+        .limit(100)
+    )
     return list((await db.execute(q)).scalars().all())
 
 
 async def list_experiment_live_results(db: AsyncSession, brand_id: uuid.UUID) -> list[ExperimentLiveResult]:
-    q = select(ExperimentLiveResult).where(
-        ExperimentLiveResult.brand_id == brand_id,
-        ExperimentLiveResult.is_active.is_(True),
-    ).order_by(ExperimentLiveResult.created_at.desc()).limit(200)
+    q = (
+        select(ExperimentLiveResult)
+        .where(
+            ExperimentLiveResult.brand_id == brand_id,
+            ExperimentLiveResult.is_active.is_(True),
+        )
+        .order_by(ExperimentLiveResult.created_at.desc())
+        .limit(200)
+    )
     return list((await db.execute(q)).scalars().all())
 
 
 async def create_experiment_observation_import(
-    db: AsyncSession, brand_id: uuid.UUID, source: str, observations: list[dict[str, Any]],
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    source: str,
+    observations: list[dict[str, Any]],
 ) -> dict[str, int]:
     matched = 0
 
@@ -271,11 +316,17 @@ async def recompute_experiment_truth(db: AsyncSession, brand_id: uuid.UUID) -> d
 
 # ── C. CRM / Contacts ─────────────────────────────────────────────────
 
+
 async def list_crm_contacts(db: AsyncSession, brand_id: uuid.UUID) -> list[CrmContact]:
-    q = select(CrmContact).where(
-        CrmContact.brand_id == brand_id,
-        CrmContact.is_active.is_(True),
-    ).order_by(CrmContact.created_at.desc()).limit(200)
+    q = (
+        select(CrmContact)
+        .where(
+            CrmContact.brand_id == brand_id,
+            CrmContact.is_active.is_(True),
+        )
+        .order_by(CrmContact.created_at.desc())
+        .limit(200)
+    )
     return list((await db.execute(q)).scalars().all())
 
 
@@ -297,10 +348,15 @@ async def create_crm_contact(db: AsyncSession, brand_id: uuid.UUID, data: dict[s
 
 
 async def list_crm_syncs(db: AsyncSession, brand_id: uuid.UUID) -> list[CrmSync]:
-    q = select(CrmSync).where(
-        CrmSync.brand_id == brand_id,
-        CrmSync.is_active.is_(True),
-    ).order_by(CrmSync.created_at.desc()).limit(50)
+    q = (
+        select(CrmSync)
+        .where(
+            CrmSync.brand_id == brand_id,
+            CrmSync.is_active.is_(True),
+        )
+        .order_by(CrmSync.created_at.desc())
+        .limit(50)
+    )
     return list((await db.execute(q)).scalars().all())
 
 
@@ -342,11 +398,17 @@ async def run_crm_sync(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, int]:
 
 # ── Email ──────────────────────────────────────────────────────────────
 
+
 async def list_email_requests(db: AsyncSession, brand_id: uuid.UUID) -> list[EmailSendRequest]:
-    q = select(EmailSendRequest).where(
-        EmailSendRequest.brand_id == brand_id,
-        EmailSendRequest.is_active.is_(True),
-    ).order_by(EmailSendRequest.created_at.desc()).limit(200)
+    q = (
+        select(EmailSendRequest)
+        .where(
+            EmailSendRequest.brand_id == brand_id,
+            EmailSendRequest.is_active.is_(True),
+        )
+        .order_by(EmailSendRequest.created_at.desc())
+        .limit(200)
+    )
     return list((await db.execute(q)).scalars().all())
 
 
@@ -392,6 +454,7 @@ async def execute_pending_emails(db: AsyncSession, brand_id: uuid.UUID) -> dict[
     for req in pending:
         if has_smtp or has_esp:
             from packages.clients.external_clients import SmtpEmailClient
+
             client = SmtpEmailClient()
             result = await client.send_email(
                 to_email=req.to_email,
@@ -425,11 +488,17 @@ async def execute_pending_emails(db: AsyncSession, brand_id: uuid.UUID) -> dict[
 
 # ── SMS ────────────────────────────────────────────────────────────────
 
+
 async def list_sms_requests(db: AsyncSession, brand_id: uuid.UUID) -> list[SmsSendRequest]:
-    q = select(SmsSendRequest).where(
-        SmsSendRequest.brand_id == brand_id,
-        SmsSendRequest.is_active.is_(True),
-    ).order_by(SmsSendRequest.created_at.desc()).limit(200)
+    q = (
+        select(SmsSendRequest)
+        .where(
+            SmsSendRequest.brand_id == brand_id,
+            SmsSendRequest.is_active.is_(True),
+        )
+        .order_by(SmsSendRequest.created_at.desc())
+        .limit(200)
+    )
     return list((await db.execute(q)).scalars().all())
 
 
@@ -468,6 +537,7 @@ async def execute_pending_sms(db: AsyncSession, brand_id: uuid.UUID) -> dict[str
     for req in pending:
         if has_sms:
             from packages.clients.external_clients import TwilioSmsClient
+
             client = TwilioSmsClient()
             result = await client.send_sms(
                 to_phone=req.to_phone,
@@ -500,11 +570,17 @@ async def execute_pending_sms(db: AsyncSession, brand_id: uuid.UUID) -> dict[str
 
 # ── Messaging Blockers ────────────────────────────────────────────────
 
+
 async def list_messaging_blockers(db: AsyncSession, brand_id: uuid.UUID) -> list[MessagingBlocker]:
-    q = select(MessagingBlocker).where(
-        MessagingBlocker.brand_id == brand_id,
-        MessagingBlocker.is_active.is_(True),
-    ).order_by(MessagingBlocker.created_at.desc()).limit(100)
+    q = (
+        select(MessagingBlocker)
+        .where(
+            MessagingBlocker.brand_id == brand_id,
+            MessagingBlocker.is_active.is_(True),
+        )
+        .order_by(MessagingBlocker.created_at.desc())
+        .limit(100)
+    )
     return list((await db.execute(q)).scalars().all())
 
 

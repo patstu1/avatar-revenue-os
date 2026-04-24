@@ -1,4 +1,5 @@
 """Autonomous Content Farm models — niche scores, warmup plans, fleet status, voice profiles."""
+
 import uuid
 from typing import Optional
 
@@ -11,6 +12,7 @@ from packages.db.base import Base
 
 class NicheScore(Base):
     """Scored niche + platform combination for content farm targeting."""
+
     __tablename__ = "af_niche_scores"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -30,9 +32,12 @@ class NicheScore(Base):
 
 class AccountWarmupPlan(Base):
     """Warmup plan for a specific creator account."""
+
     __tablename__ = "af_warmup_plans"
 
-    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     current_phase: Mapped[str] = mapped_column(String(30), default="seed")
     age_days: Mapped[int] = mapped_column(Integer, default=0)
@@ -47,9 +52,12 @@ class AccountWarmupPlan(Base):
 
 class FleetStatusReport(Base):
     """Periodic fleet status snapshot across all accounts."""
+
     __tablename__ = "af_fleet_reports"
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     total_accounts: Mapped[int] = mapped_column(Integer, default=0)
     accounts_warming: Mapped[int] = mapped_column(Integer, default=0)
     accounts_scaling: Mapped[int] = mapped_column(Integer, default=0)
@@ -65,9 +73,12 @@ class FleetStatusReport(Base):
 
 class AccountVoiceProfile(Base):
     """Persistent voice differentiation profile for an account."""
+
     __tablename__ = "af_voice_profiles"
 
-    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True, unique=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=False, index=True, unique=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     style: Mapped[str] = mapped_column(String(60), nullable=False)
     vocabulary_level: Mapped[str] = mapped_column(String(30), nullable=False)
@@ -84,10 +95,15 @@ class AccountVoiceProfile(Base):
 
 class ContentRepurposeRecord(Base):
     """Tracks repurposed content derivatives."""
+
     __tablename__ = "af_repurpose_records"
 
-    source_content_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=False, index=True)
-    derived_brief_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("content_briefs.id"), nullable=False, index=True)
+    source_content_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=False, index=True
+    )
+    derived_brief_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_briefs.id"), nullable=False, index=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     target_platform: Mapped[str] = mapped_column(String(60), nullable=False)
     target_content_type: Mapped[str] = mapped_column(String(60), nullable=False)
@@ -97,6 +113,7 @@ class ContentRepurposeRecord(Base):
 
 class CompetitorAccount(Base):
     """Competitor account being monitored."""
+
     __tablename__ = "af_competitor_accounts"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -114,9 +131,12 @@ class CompetitorAccount(Base):
 
 class DailyIntelligenceReport(Base):
     """Daily system intelligence summary for operator."""
+
     __tablename__ = "af_daily_reports"
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     report_date: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
     content_created: Mapped[int] = mapped_column(Integer, default=0)
     content_approved: Mapped[int] = mapped_column(Integer, default=0)

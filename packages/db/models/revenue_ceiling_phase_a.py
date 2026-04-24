@@ -1,4 +1,5 @@
 """Revenue Ceiling Phase A: offer ladders, owned audience, sequences, funnel metrics/leaks."""
+
 import uuid
 from typing import Optional
 
@@ -14,7 +15,9 @@ class OfferLadder(Base):
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     opportunity_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
     offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True)
     top_of_funnel_asset: Mapped[str] = mapped_column(String(500), default="")
     first_monetization_step: Mapped[str] = mapped_column(Text, default="")
@@ -50,8 +53,12 @@ class OwnedAudienceEvent(Base):
     __tablename__ = "owned_audience_events"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), index=True)
-    asset_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("owned_audience_assets.id"), index=True)
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), index=True
+    )
+    asset_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("owned_audience_assets.id"), index=True
+    )
     event_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     value_contribution: Mapped[float] = mapped_column(Float, default=0.0)
     source_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
@@ -71,7 +78,9 @@ class MessageSequence(Base):
 class MessageSequenceStep(Base):
     __tablename__ = "message_sequence_steps"
 
-    sequence_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("message_sequences.id"), nullable=False, index=True)
+    sequence_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("message_sequences.id"), nullable=False, index=True
+    )
     step_order: Mapped[int] = mapped_column(Integer, nullable=False)
     channel: Mapped[str] = mapped_column(String(20), default="email")
     subject_or_title: Mapped[Optional[str]] = mapped_column(String(500))

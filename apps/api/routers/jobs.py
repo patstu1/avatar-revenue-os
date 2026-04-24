@@ -1,4 +1,5 @@
 """System job monitoring endpoints."""
+
 import uuid
 from typing import Optional
 
@@ -24,6 +25,7 @@ async def list_jobs(
     page_size: int = Query(50, ge=1, le=100),
 ):
     from apps.api.deps import require_brand_access
+
     if brand_id:
         await require_brand_access(brand_id, current_user, db)
     filters = {"organization_id": current_user.organization_id}
@@ -57,6 +59,7 @@ async def list_provider_costs(
     page: int = Query(1, ge=1),
 ):
     from apps.api.deps import require_brand_access
+
     if brand_id:
         await require_brand_access(brand_id, current_user, db)
     filters = {"organization_id": current_user.organization_id}

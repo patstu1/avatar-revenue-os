@@ -1,4 +1,5 @@
 """Experiment decision and outcome models — A/B test prioritisation and promotion/suppression."""
+
 import uuid
 from typing import Optional
 
@@ -12,14 +13,10 @@ from packages.db.base import Base
 class ExperimentDecision(Base):
     __tablename__ = "experiment_decisions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     experiment_type: Mapped[str] = mapped_column(String(100), nullable=False)
     target_scope_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    target_scope_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    target_scope_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     hypothesis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     expected_upside: Mapped[float] = mapped_column(Float, default=0.0)
     confidence_gap: Mapped[float] = mapped_column(Float, default=0.0)
@@ -35,19 +32,13 @@ class ExperimentDecision(Base):
 class ExperimentOutcome(Base):
     __tablename__ = "experiment_outcomes"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     experiment_decision_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("experiment_decisions.id"), nullable=False, index=True
     )
-    observation_source: Mapped[str] = mapped_column(
-        String(40), default="synthetic_proxy", nullable=False
-    )
+    observation_source: Mapped[str] = mapped_column(String(40), default="synthetic_proxy", nullable=False)
     outcome_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    winner_variant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    winner_variant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     loser_variant_ids_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     confidence_score: Mapped[float] = mapped_column(Float, default=0.0)
     observed_uplift: Mapped[float] = mapped_column(Float, default=0.0)
@@ -60,9 +51,7 @@ class ExperimentOutcomeAction(Base):
 
     __tablename__ = "experiment_outcome_actions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     experiment_outcome_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("experiment_outcomes.id", ondelete="CASCADE"),

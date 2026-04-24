@@ -1,4 +1,5 @@
 """Enterprise Workflow Builder — multi-stage approvals, configurable workflows."""
+
 import uuid
 from typing import Optional
 
@@ -11,8 +12,12 @@ from packages.db.base import Base
 
 class WorkflowDefinition(Base):
     __tablename__ = "wf_definitions"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True
+    )
     workflow_name: Mapped[str] = mapped_column(String(255), nullable=False)
     workflow_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     scope_type: Mapped[str] = mapped_column(String(40), default="org")
@@ -23,7 +28,9 @@ class WorkflowDefinition(Base):
 
 class WorkflowStep(Base):
     __tablename__ = "wf_steps"
-    definition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_definitions.id"), nullable=False, index=True)
+    definition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("wf_definitions.id"), nullable=False, index=True
+    )
     step_order: Mapped[int] = mapped_column(Integer, nullable=False)
     step_name: Mapped[str] = mapped_column(String(120), nullable=False)
     step_type: Mapped[str] = mapped_column(String(40), nullable=False)
@@ -36,7 +43,9 @@ class WorkflowStep(Base):
 
 class WorkflowAssignment(Base):
     __tablename__ = "wf_assignments"
-    definition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_definitions.id"), nullable=False, index=True)
+    definition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("wf_definitions.id"), nullable=False, index=True
+    )
     step_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_steps.id"), nullable=False)
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     role_name: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
@@ -45,8 +54,12 @@ class WorkflowAssignment(Base):
 
 class WorkflowInstance(Base):
     __tablename__ = "wf_instances"
-    definition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_definitions.id"), nullable=False, index=True)
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True)
+    definition_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("wf_definitions.id"), nullable=False, index=True
+    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True
+    )
     resource_type: Mapped[str] = mapped_column(String(60), nullable=False)
     resource_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     current_step_order: Mapped[int] = mapped_column(Integer, default=1)
@@ -57,7 +70,9 @@ class WorkflowInstance(Base):
 
 class WorkflowInstanceStep(Base):
     __tablename__ = "wf_instance_steps"
-    instance_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_instances.id"), nullable=False, index=True)
+    instance_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("wf_instances.id"), nullable=False, index=True
+    )
     step_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_steps.id"), nullable=False)
     step_order: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
@@ -68,7 +83,9 @@ class WorkflowInstanceStep(Base):
 
 class WorkflowApproval(Base):
     __tablename__ = "wf_approvals"
-    instance_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_instances.id"), nullable=False, index=True)
+    instance_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("wf_instances.id"), nullable=False, index=True
+    )
     step_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_steps.id"), nullable=False)
     approved_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -77,7 +94,9 @@ class WorkflowApproval(Base):
 
 class WorkflowRejection(Base):
     __tablename__ = "wf_rejections"
-    instance_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_instances.id"), nullable=False, index=True)
+    instance_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("wf_instances.id"), nullable=False, index=True
+    )
     step_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_steps.id"), nullable=False)
     rejected_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
@@ -86,7 +105,9 @@ class WorkflowRejection(Base):
 
 class WorkflowOverride(Base):
     __tablename__ = "wf_overrides"
-    instance_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("wf_instances.id"), nullable=False, index=True)
+    instance_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("wf_instances.id"), nullable=False, index=True
+    )
     overridden_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     override_type: Mapped[str] = mapped_column(String(40), default="skip_step")

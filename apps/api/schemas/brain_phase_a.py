@@ -1,4 +1,5 @@
 """Pydantic schemas for Brain Architecture Phase A."""
+
 from __future__ import annotations
 
 from datetime import datetime

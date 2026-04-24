@@ -12,6 +12,7 @@ table's UniqueConstraint(provider, provider_event_id) for
 idempotence, then calls ``activate_client_from_payment`` — the same
 chain Stripe webhooks use. No parallel client-creation path.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -39,73 +40,97 @@ class Invoice(Base):
     activated at ``mark_paid`` time via the Batch 9 chain, mirroring
     the Stripe-webhook path).
     """
+
     __tablename__ = "invoices"
-    __table_args__ = (
-        UniqueConstraint("org_id", "invoice_number",
-                         name="uq_invoices_org_number"),
-    )
+    __table_args__ = (UniqueConstraint("org_id", "invoice_number", name="uq_invoices_org_number"),)
 
     org_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
     )
     brand_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True,
+        UUID(as_uuid=True),
+        ForeignKey("brands.id"),
+        nullable=True,
     )
     proposal_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("proposals.id"),
-        nullable=True, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("proposals.id"),
+        nullable=True,
+        index=True,
     )
     client_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("clients.id"),
-        nullable=True, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("clients.id"),
+        nullable=True,
+        index=True,
     )
 
     avenue_slug: Mapped[str | None] = mapped_column(
-        String(60), nullable=True, index=True,
+        String(60),
+        nullable=True,
+        index=True,
     )
     invoice_number: Mapped[str] = mapped_column(String(100), nullable=False)
     total_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(
-        String(10), default="usd", nullable=False,
+        String(10),
+        default="usd",
+        nullable=False,
     )
 
     # status: draft / sent / paid / overdue / void
     status: Mapped[str] = mapped_column(
-        String(30), default="draft", nullable=False, index=True,
+        String(30),
+        default="draft",
+        nullable=False,
+        index=True,
     )
 
     due_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True,
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
     )
     sent_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     paid_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     payment_method: Mapped[str | None] = mapped_column(
-        String(30), nullable=True,
+        String(30),
+        nullable=True,
     )
     payment_reference: Mapped[str | None] = mapped_column(
-        String(255), nullable=True,
+        String(255),
+        nullable=True,
     )
 
     recipient_email: Mapped[str | None] = mapped_column(
-        String(255), nullable=True,
+        String(255),
+        nullable=True,
     )
     recipient_name: Mapped[str | None] = mapped_column(
-        String(255), nullable=True,
+        String(255),
+        nullable=True,
     )
     recipient_company: Mapped[str | None] = mapped_column(
-        String(255), nullable=True,
+        String(255),
+        nullable=True,
     )
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False,
+        Boolean,
+        default=True,
+        nullable=False,
     )
 
 
@@ -113,20 +138,26 @@ class InvoiceLineItem(Base):
     __tablename__ = "invoice_line_items"
 
     invoice_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("invoices.id"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("invoices.id"),
+        nullable=False,
+        index=True,
     )
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     unit_amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     total_amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(
-        String(10), default="usd", nullable=False,
+        String(10),
+        default="usd",
+        nullable=False,
     )
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False,
+        Boolean,
+        default=True,
+        nullable=False,
     )
 
 
@@ -139,29 +170,40 @@ class InvoiceMilestone(Base):
     one, the whole invoice flips paid and all pending milestones are
     marked paid together.
     """
+
     __tablename__ = "invoice_milestones"
 
     invoice_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("invoices.id"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("invoices.id"),
+        nullable=False,
+        index=True,
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     due_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     # status: pending / paid / void
     status: Mapped[str] = mapped_column(
-        String(30), default="pending", nullable=False, index=True,
+        String(30),
+        default="pending",
+        nullable=False,
+        index=True,
     )
     paid_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     payment_reference: Mapped[str | None] = mapped_column(
-        String(255), nullable=True,
+        String(255),
+        nullable=True,
     )
 
     is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False,
+        Boolean,
+        default=True,
+        nullable=False,
     )

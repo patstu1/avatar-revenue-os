@@ -12,6 +12,7 @@ follower_count < 500 (a fixed threshold), but the portfolio's smallest account h
 15,000 followers, the suppress decision was driven by an artificial ceiling that
 doesn't apply. This module would flag that decision for re-evaluation.
 """
+
 from __future__ import annotations
 
 
@@ -82,9 +83,7 @@ def override_recommendation_action(action: str, calibration_ctx: dict) -> str:
     return action
 
 
-def filter_suppress_decisions(
-    decisions: list[dict], calibration_ctx: dict
-) -> list[dict]:
+def filter_suppress_decisions(decisions: list[dict], calibration_ctx: dict) -> list[dict]:
     """Filter out suppress/throttle decisions that are ceiling artifacts.
 
     Returns only decisions where suppression is justified by portfolio-relative

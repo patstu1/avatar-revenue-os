@@ -2,20 +2,36 @@
 
 Pure functions. No I/O.
 """
+
 from __future__ import annotations
 
 import hashlib
 from typing import Any
 
 DIMENSIONS = [
-    "hook_strength", "clarity", "novelty", "conversion_fit", "trust_risk",
-    "fatigue_risk", "duplication_risk", "platform_fit", "offer_fit", "brand_fit",
+    "hook_strength",
+    "clarity",
+    "novelty",
+    "conversion_fit",
+    "trust_risk",
+    "fatigue_risk",
+    "duplication_risk",
+    "platform_fit",
+    "offer_fit",
+    "brand_fit",
 ]
 
 WEIGHTS = {
-    "hook_strength": 0.15, "clarity": 0.10, "novelty": 0.10, "conversion_fit": 0.15,
-    "trust_risk": 0.10, "fatigue_risk": 0.10, "duplication_risk": 0.10,
-    "platform_fit": 0.08, "offer_fit": 0.07, "brand_fit": 0.05,
+    "hook_strength": 0.15,
+    "clarity": 0.10,
+    "novelty": 0.10,
+    "conversion_fit": 0.15,
+    "trust_risk": 0.10,
+    "fatigue_risk": 0.10,
+    "duplication_risk": 0.10,
+    "platform_fit": 0.08,
+    "offer_fit": 0.07,
+    "brand_fit": 0.05,
 }
 
 PASS_THRESHOLD = 0.60
@@ -85,7 +101,9 @@ def _score_hook(content: dict) -> dict:
     hook = content.get("hook_text") or content.get("title", "")
     length = len(hook)
     has_question = "?" in hook
-    has_power_word = any(w in hook.lower() for w in ("secret", "never", "stop", "don't", "best", "worst", "free", "proven", "how", "why"))
+    has_power_word = any(
+        w in hook.lower() for w in ("secret", "never", "stop", "don't", "best", "worst", "free", "proven", "how", "why")
+    )
 
     score = 0.3
     if length > 10:
@@ -96,7 +114,11 @@ def _score_hook(content: dict) -> dict:
         score += 0.15
     if has_power_word:
         score += 0.25
-    return {"score": round(min(1.0, score), 3), "explanation": f"Hook length {length}, question={has_question}, power_words={has_power_word}", "data_present": bool(hook)}
+    return {
+        "score": round(min(1.0, score), 3),
+        "explanation": f"Hook length {length}, question={has_question}, power_words={has_power_word}",
+        "data_present": bool(hook),
+    }
 
 
 def _score_clarity(content: dict) -> dict:
@@ -117,7 +139,11 @@ def _score_novelty(content: dict, ctx: dict) -> dict:
     title = (content.get("title") or "").lower()
     similar = sum(1 for t in recent_titles if _jaccard(title, t.lower()) > 0.5)
     score = max(0.1, 1.0 - similar * 0.25)
-    return {"score": round(score, 3), "explanation": f"{similar} similar recent titles found", "data_present": bool(recent_titles)}
+    return {
+        "score": round(score, 3),
+        "explanation": f"{similar} similar recent titles found",
+        "data_present": bool(recent_titles),
+    }
 
 
 def _score_conversion_fit(content: dict, ctx: dict) -> dict:
@@ -128,23 +154,37 @@ def _score_conversion_fit(content: dict, ctx: dict) -> dict:
         score += 0.35
     if has_offer:
         score += 0.35
-    return {"score": round(min(1.0, score), 3), "explanation": f"CTA={has_cta}, offer={has_offer}", "data_present": has_cta or has_offer}
+    return {
+        "score": round(min(1.0, score), 3),
+        "explanation": f"CTA={has_cta}, offer={has_offer}",
+        "data_present": has_cta or has_offer,
+    }
 
 
 def _score_trust_risk(content: dict, ctx: dict) -> dict:
     text = ((content.get("body_text") or "") + " " + (content.get("hook_text") or "")).lower()
-    risk_words = sum(1 for w in ("guaranteed", "100%", "risk-free", "get rich", "no risk", "instant results", "miracle") if w in text)
+    risk_words = sum(
+        1 for w in ("guaranteed", "100%", "risk-free", "get rich", "no risk", "instant results", "miracle") if w in text
+    )
     account_health = ctx.get("account_health", "healthy")
     health_penalty = 0.3 if account_health in ("critical", "warning") else 0
     score = max(0.0, 1.0 - risk_words * 0.25 - health_penalty)
-    return {"score": round(score, 3), "explanation": f"{risk_words} trust-risk phrases, health={account_health}", "data_present": True}
+    return {
+        "score": round(score, 3),
+        "explanation": f"{risk_words} trust-risk phrases, health={account_health}",
+        "data_present": True,
+    }
 
 
 def _score_fatigue_risk(content: dict, ctx: dict) -> dict:
     fatigue = float(ctx.get("fatigue_score", 0) or 0)
     recent_count = int(ctx.get("recent_post_count", 0) or 0)
     score = max(0.1, 1.0 - fatigue - (recent_count / 50))
-    return {"score": round(min(1.0, score), 3), "explanation": f"fatigue={fatigue:.2f}, recent_posts={recent_count}", "data_present": True}
+    return {
+        "score": round(min(1.0, score), 3),
+        "explanation": f"fatigue={fatigue:.2f}, recent_posts={recent_count}",
+        "data_present": True,
+    }
 
 
 def _score_duplication_risk(content: dict, ctx: dict) -> dict:
@@ -155,7 +195,11 @@ def _score_duplication_risk(content: dict, ctx: dict) -> dict:
     content_hash = hashlib.sha256(body.encode()).hexdigest()[:16]
     is_duplicate = content_hash in existing_hashes
     score = 0.0 if is_duplicate else 1.0
-    return {"score": score, "explanation": "Exact duplicate detected" if is_duplicate else "No duplication", "data_present": True}
+    return {
+        "score": score,
+        "explanation": "Exact duplicate detected" if is_duplicate else "No duplication",
+        "data_present": True,
+    }
 
 
 def _score_platform_fit(content: dict, ctx: dict) -> dict:
@@ -169,7 +213,11 @@ def _score_platform_fit(content: dict, ctx: dict) -> dict:
         "linkedin": {"text_post": 1.0, "long_video": 0.7, "carousel": 0.8},
     }
     score = fit_map.get(platform, {}).get(content_type, 0.5)
-    return {"score": round(score, 3), "explanation": f"{content_type} on {platform}", "data_present": bool(platform and content_type)}
+    return {
+        "score": round(score, 3),
+        "explanation": f"{content_type} on {platform}",
+        "data_present": bool(platform and content_type),
+    }
 
 
 def _score_offer_fit(content: dict, ctx: dict) -> dict:
@@ -189,24 +237,32 @@ def _score_brand_fit(content: dict, ctx: dict) -> dict:
         score += 0.25
     if tone:
         score += 0.25
-    return {"score": round(min(1.0, score), 3), "explanation": f"niche={'set' if niche else 'missing'}, tone={'set' if tone else 'missing'}", "data_present": bool(niche)}
+    return {
+        "score": round(min(1.0, score), 3),
+        "explanation": f"niche={'set' if niche else 'missing'}, tone={'set' if tone else 'missing'}",
+        "data_present": bool(niche),
+    }
 
 
 def _generate_improvements(dims: dict[str, dict]) -> list[dict[str, Any]]:
     improvements = []
     for d, info in dims.items():
         if info["score"] < WARN_THRESHOLD:
-            improvements.append({
-                "dimension": d,
-                "action": _improvement_action(d, info),
-                "priority": "critical" if info["score"] < BLOCK_FLOOR else "high",
-            })
+            improvements.append(
+                {
+                    "dimension": d,
+                    "action": _improvement_action(d, info),
+                    "priority": "critical" if info["score"] < BLOCK_FLOOR else "high",
+                }
+            )
         elif info["score"] < PASS_THRESHOLD:
-            improvements.append({
-                "dimension": d,
-                "action": _improvement_action(d, info),
-                "priority": "medium",
-            })
+            improvements.append(
+                {
+                    "dimension": d,
+                    "action": _improvement_action(d, info),
+                    "priority": "medium",
+                }
+            )
     return sorted(improvements, key=lambda x: {"critical": 0, "high": 1, "medium": 2}.get(x["priority"], 3))
 
 

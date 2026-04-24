@@ -1,4 +1,5 @@
 """Content Form Selection service — recompute + read."""
+
 from __future__ import annotations
 
 import os
@@ -50,16 +51,22 @@ async def recompute_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> di
     if not brand:
         raise ValueError("Brand not found")
 
-    accounts = list((await db.execute(
-        select(CreatorAccount).where(
-            CreatorAccount.brand_id == brand_id,
-            CreatorAccount.is_active.is_(True),
+    accounts = list(
+        (
+            await db.execute(
+                select(CreatorAccount).where(
+                    CreatorAccount.brand_id == brand_id,
+                    CreatorAccount.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
 
-    offers = list((await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-    )).scalars().all())
+    offers = list(
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
+    )
 
     has_avatar = bool(os.getenv("TAVUS_API_KEY") or os.getenv("HEYGEN_API_KEY"))
     has_voice = bool(os.getenv("ELEVENLABS_API_KEY"))
@@ -88,30 +95,40 @@ async def recompute_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> di
     for rec in all_recs:
         row = dict(rec)
         acct_id = row.pop("account_id", None)
-        db.add(ContentFormRecommendation(
-            brand_id=brand_id,
-            account_id=uuid.UUID(acct_id) if acct_id else None,
-            **row,
-        ))
+        db.add(
+            ContentFormRecommendation(
+                brand_id=brand_id,
+                account_id=uuid.UUID(acct_id) if acct_id else None,
+                **row,
+            )
+        )
 
     await db.flush()
 
     # Pattern memory boost
-    wp_rows = list((await db.execute(
-        select(WinningPatternMemory).where(
-            WinningPatternMemory.brand_id == brand_id,
-            WinningPatternMemory.is_active.is_(True),
-            WinningPatternMemory.content_form.isnot(None),
+    wp_rows = list(
+        (
+            await db.execute(
+                select(WinningPatternMemory).where(
+                    WinningPatternMemory.brand_id == brand_id,
+                    WinningPatternMemory.is_active.is_(True),
+                    WinningPatternMemory.content_form.isnot(None),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     form_max_win: dict[str, float] = {}
     for wp in wp_rows:
         cf = wp.content_form
         if cf:
             form_max_win[cf] = max(form_max_win.get(cf, 0.0), float(wp.win_score or 0.0))
-    rec_rows = list((await db.execute(
-        select(ContentFormRecommendation).where(ContentFormRecommendation.brand_id == brand_id)
-    )).scalars().all())
+    rec_rows = list(
+        (await db.execute(select(ContentFormRecommendation).where(ContentFormRecommendation.brand_id == brand_id)))
+        .scalars()
+        .all()
+    )
     boost_factor = 0.02
     for rec in rec_rows:
         max_win = form_max_win.get(rec.recommended_content_form)
@@ -120,13 +137,20 @@ async def recompute_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> di
 
     # Promote-winner rule boost
     from packages.db.models.promote_winner import PromotedWinnerRule
-    promo_rows = list((await db.execute(
-        select(PromotedWinnerRule).where(
-            PromotedWinnerRule.brand_id == brand_id,
-            PromotedWinnerRule.is_active.is_(True),
-            PromotedWinnerRule.rule_type == "default_content_form",
+
+    promo_rows = list(
+        (
+            await db.execute(
+                select(PromotedWinnerRule).where(
+                    PromotedWinnerRule.brand_id == brand_id,
+                    PromotedWinnerRule.is_active.is_(True),
+                    PromotedWinnerRule.rule_type == "default_content_form",
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
     for promo in promo_rows:
         for rec in rec_rows:
             if rec.recommended_content_form == promo.rule_key:
@@ -134,13 +158,22 @@ async def recompute_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> di
 
     # Account-state content form filtering
     from packages.db.models.account_state_intel import AccountStateReport
-    state_rows = list((await db.execute(
-        select(AccountStateReport).where(AccountStateReport.brand_id == brand_id, AccountStateReport.is_active.is_(True))
-    )).scalars().all())
+
+    state_rows = list(
+        (
+            await db.execute(
+                select(AccountStateReport).where(
+                    AccountStateReport.brand_id == brand_id, AccountStateReport.is_active.is_(True)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
     if state_rows:
         allowed_forms: set[str] = set()
         for sr in state_rows:
-            for f in (sr.suitable_content_forms or []):
+            for f in sr.suitable_content_forms or []:
                 allowed_forms.add(f)
         if allowed_forms:
             for rec in rec_rows:
@@ -149,9 +182,20 @@ async def recompute_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> di
 
     # Failure-family suppression blocking
     from packages.db.models.failure_family import SuppressionRule
-    ff_rules = list((await db.execute(
-        select(SuppressionRule).where(SuppressionRule.brand_id == brand_id, SuppressionRule.is_active.is_(True), SuppressionRule.family_type == "content_form")
-    )).scalars().all())
+
+    ff_rules = list(
+        (
+            await db.execute(
+                select(SuppressionRule).where(
+                    SuppressionRule.brand_id == brand_id,
+                    SuppressionRule.is_active.is_(True),
+                    SuppressionRule.family_type == "content_form",
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
     suppressed_forms = {r.family_key for r in ff_rules}
     for rec in rec_rows:
         if rec.recommended_content_form in suppressed_forms:
@@ -163,12 +207,18 @@ async def recompute_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> di
 
 
 async def recompute_mix(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
-    rows = list((await db.execute(
-        select(ContentFormRecommendation).where(
-            ContentFormRecommendation.brand_id == brand_id,
-            ContentFormRecommendation.is_active.is_(True),
+    rows = list(
+        (
+            await db.execute(
+                select(ContentFormRecommendation).where(
+                    ContentFormRecommendation.brand_id == brand_id,
+                    ContentFormRecommendation.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all())
+        .scalars()
+        .all()
+    )
 
     rec_dicts = [
         {
@@ -195,13 +245,13 @@ async def recompute_blockers(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
     has_avatar = bool(os.getenv("TAVUS_API_KEY") or os.getenv("HEYGEN_API_KEY"))
     has_voice = bool(os.getenv("ELEVENLABS_API_KEY"))
 
-    content_count = (await db.execute(
-        select(func.count(ContentItem.id)).where(ContentItem.brand_id == brand_id)
-    )).scalar() or 0
+    content_count = (
+        await db.execute(select(func.count(ContentItem.id)).where(ContentItem.brand_id == brand_id))
+    ).scalar() or 0
 
-    offer_count = (await db.execute(
-        select(func.count(Offer.id)).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-    )).scalar() or 0
+    offer_count = (
+        await db.execute(select(func.count(Offer.id)).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))
+    ).scalar() or 0
 
     blockers = detect_content_form_blockers(
         has_avatar=has_avatar,
@@ -220,24 +270,42 @@ async def recompute_blockers(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
 
 
 async def list_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> list:
-    return list((await db.execute(
-        select(ContentFormRecommendation)
-        .where(ContentFormRecommendation.brand_id == brand_id, ContentFormRecommendation.is_active.is_(True))
-        .order_by(ContentFormRecommendation.confidence.desc())
-    )).scalars().all())
+    return list(
+        (
+            await db.execute(
+                select(ContentFormRecommendation)
+                .where(ContentFormRecommendation.brand_id == brand_id, ContentFormRecommendation.is_active.is_(True))
+                .order_by(ContentFormRecommendation.confidence.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
 
 
 async def list_mix_reports(db: AsyncSession, brand_id: uuid.UUID) -> list:
-    return list((await db.execute(
-        select(ContentFormMixReport)
-        .where(ContentFormMixReport.brand_id == brand_id, ContentFormMixReport.is_active.is_(True))
-        .order_by(ContentFormMixReport.total_expected_upside.desc())
-    )).scalars().all())
+    return list(
+        (
+            await db.execute(
+                select(ContentFormMixReport)
+                .where(ContentFormMixReport.brand_id == brand_id, ContentFormMixReport.is_active.is_(True))
+                .order_by(ContentFormMixReport.total_expected_upside.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
 
 
 async def list_blockers(db: AsyncSession, brand_id: uuid.UUID) -> list:
-    return list((await db.execute(
-        select(ContentFormBlocker)
-        .where(ContentFormBlocker.brand_id == brand_id, ContentFormBlocker.is_active.is_(True))
-        .order_by(ContentFormBlocker.severity.asc())
-    )).scalars().all())
+    return list(
+        (
+            await db.execute(
+                select(ContentFormBlocker)
+                .where(ContentFormBlocker.brand_id == brand_id, ContentFormBlocker.is_active.is_(True))
+                .order_by(ContentFormBlocker.severity.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )

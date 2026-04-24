@@ -6,6 +6,7 @@ loop. The existing ``QAReport`` table is content-layer scoped (keyed by
 analogue (``ProductionQAReview``) so ProductionJob-scoped QA + retry
 can be reasoned over without touching the legacy schema.
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -38,6 +39,7 @@ class ProductionQAReview(Base):
     summary and reviewer attribution. Retry bookkeeping lives on the
     ProductionJob row (attempt_count, retry_limit, last_qa_report_id).
     """
+
     __tablename__ = "production_qa_reviews"
 
     org_id: Mapped[uuid.UUID] = mapped_column(
@@ -52,9 +54,7 @@ class ProductionQAReview(Base):
 
     attempt: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
-    result: Mapped[str] = mapped_column(
-        String(20), nullable=False, index=True
-    )
+    result: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     composite_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     scores_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     issues_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
@@ -77,6 +77,7 @@ class Delivery(Base):
     generation is delegated to the email_templates / SMTP client layer;
     this row is the canonical record that a delivery was produced.
     """
+
     __tablename__ = "deliveries"
 
     org_id: Mapped[uuid.UUID] = mapped_column(
@@ -107,9 +108,7 @@ class Delivery(Base):
     # Batch 9: set by the follow-up sender beat task when the scheduled
     # message is actually delivered. Selected by
     # `followup_sent_at IS NULL AND followup_scheduled_at <= now()`.
-    followup_sent_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    followup_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 

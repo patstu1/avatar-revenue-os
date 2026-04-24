@@ -3,6 +3,7 @@
 Scans marketplace APIs (ClickBank, Amazon, ShareASale) for top-performing products
 in each active niche. Creates new Offer records for products meeting quality thresholds.
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,9 +31,12 @@ async def _discover_clickbank_offers(niche: str, brand_id: uuid.UUID) -> list[di
         return []
 
     category_map = {
-        "personal_finance": "business-investing", "make_money_online": "e-business-e-marketing",
-        "health_fitness": "health-fitness", "self_improvement": "self-help",
-        "education_courses": "education", "cooking_recipes": "cooking-food-wine",
+        "personal_finance": "business-investing",
+        "make_money_online": "e-business-e-marketing",
+        "health_fitness": "health-fitness",
+        "self_improvement": "self-help",
+        "education_courses": "education",
+        "cooking_recipes": "cooking-food-wine",
     }
     category = category_map.get(niche, "")
     result = await client.fetch_marketplace(category=category, max_results=10)
@@ -47,14 +51,16 @@ async def _discover_clickbank_offers(niche: str, brand_id: uuid.UUID) -> list[di
     for p in products:
         gravity = float(p.get("gravity", 0) or 0)
         if gravity >= MIN_GRAVITY_CLICKBANK:
-            discovered.append({
-                "name": p.get("title", p.get("name", "Unknown")),
-                "vendor": p.get("vendor", ""),
-                "payout": float(p.get("averageEarningsPerSale", 0) or 0),
-                "gravity": gravity,
-                "program": "clickbank",
-                "niche": niche,
-            })
+            discovered.append(
+                {
+                    "name": p.get("title", p.get("name", "Unknown")),
+                    "vendor": p.get("vendor", ""),
+                    "payout": float(p.get("averageEarningsPerSale", 0) or 0),
+                    "gravity": gravity,
+                    "program": "clickbank",
+                    "niche": niche,
+                }
+            )
     return discovered
 
 
@@ -86,11 +92,16 @@ async def _discover_amazon_products(niche: str, brand_id: uuid.UUID) -> list[dic
         title = info.get("Title", {}).get("DisplayValue", "Unknown")
         asin = item.get("ASIN", "")
         price = item.get("Offers", {}).get("Listings", [{}])[0].get("Price", {}).get("Amount", 0)
-        discovered.append({
-            "name": title, "asin": asin, "price": float(price or 0),
-            "payout": float(price or 0) * 0.05,
-            "program": "amazon", "niche": niche,
-        })
+        discovered.append(
+            {
+                "name": title,
+                "asin": asin,
+                "price": float(price or 0),
+                "payout": float(price or 0) * 0.05,
+                "program": "amazon",
+                "niche": niche,
+            }
+        )
     return discovered
 
 
@@ -98,20 +109,22 @@ async def _persist_discovered_offers(db, brand_id: uuid.UUID, discovered: list[d
     """Create Offer records for newly discovered products."""
     created = 0
     for d in discovered:
-        existing = (await db.execute(
-            select(Offer).where(Offer.brand_id == brand_id, Offer.name == d["name"])
-        )).scalar_one_or_none()
+        existing = (
+            await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.name == d["name"]))
+        ).scalar_one_or_none()
         if existing:
             continue
 
-        db.add(Offer(
-            brand_id=brand_id,
-            name=d["name"],
-            monetization_method="affiliate",
-            payout_amount=d.get("payout", 0),
-            epc=d.get("payout", 0) * 0.02,
-            conversion_rate=0.02,
-        ))
+        db.add(
+            Offer(
+                brand_id=brand_id,
+                name=d["name"],
+                monetization_method="affiliate",
+                payout_amount=d.get("payout", 0),
+                epc=d.get("payout", 0) * 0.02,
+                conversion_rate=0.02,
+            )
+        )
         created += 1
     return created
 

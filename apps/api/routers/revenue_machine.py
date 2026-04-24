@@ -1,4 +1,5 @@
 """Revenue Machine API — The capstone operating model."""
+
 from typing import Optional
 
 from fastapi import APIRouter, Query
@@ -14,6 +15,7 @@ router = APIRouter()
 # Request schemas
 # ---------------------------------------------------------------------------
 
+
 class RecordFeeRequest(BaseModel):
     fee_type: str = Field(..., description="Fee category: content_generation, transaction_processing, etc.")
     transaction_amount: float = Field(..., ge=0, description="Base transaction amount the fee is calculated on")
@@ -23,6 +25,7 @@ class RecordFeeRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/machine/report")
 async def get_machine_report(current_user: CurrentUser, db: DBSession):
@@ -44,7 +47,10 @@ async def get_triggers(
 ):
     """Active contextual spend triggers for the current user."""
     return await rms.get_active_spend_triggers(
-        db, current_user.organization_id, current_user.id, current_action,
+        db,
+        current_user.organization_id,
+        current_user.id,
+        current_action,
     )
 
 
@@ -76,6 +82,7 @@ async def record_fee(
     plan_tier = body.plan_tier
     if not plan_tier:
         from apps.api.services.revenue_machine_service import _get_plan_tier
+
         plan_tier = await _get_plan_tier(db, current_user.organization_id)
 
     return await rms.record_transaction_fee(

@@ -189,13 +189,7 @@ async def test_lead_qualification_persistence(api_client, db_session, sample_org
     assert r.status_code == 200
 
     rows = list(
-        (
-            await db_session.execute(
-                select(LeadOpportunity).where(LeadOpportunity.brand_id == bid_uuid)
-            )
-        )
-        .scalars()
-        .all()
+        (await db_session.execute(select(LeadOpportunity).where(LeadOpportunity.brand_id == bid_uuid))).scalars().all()
     )
     assert len(rows) >= 1, "Expected at least one LeadOpportunity row in the DB"
     assert rows[0].qualification_tier in {"hot", "warm", "cold"}, (
@@ -224,9 +218,7 @@ async def test_owned_offer_persistence(api_client, db_session, sample_org_data):
     rows = list(
         (
             await db_session.execute(
-                select(OwnedOfferRecommendation).where(
-                    OwnedOfferRecommendation.brand_id == bid_uuid
-                )
+                select(OwnedOfferRecommendation).where(OwnedOfferRecommendation.brand_id == bid_uuid)
             )
         )
         .scalars()
@@ -266,9 +258,7 @@ async def test_high_intent_lead_becomes_closer_opportunity(api_client, sample_or
 
     for i, action in enumerate(data):
         action_type = action.get("action_type")
-        assert isinstance(action_type, str) and action_type, (
-            f"Action[{i}] has an invalid action_type: {action_type!r}"
-        )
+        assert isinstance(action_type, str) and action_type, f"Action[{i}] has an invalid action_type: {action_type!r}"
 
 
 # ===========================================================================
@@ -327,6 +317,5 @@ def test_worker_tasks_registered():
     ]
     for name in expected:
         assert name in app.tasks, (
-            f"Celery task not registered: '{name}'. "
-            f"Tasks currently registered: {sorted(app.tasks.keys())}"
+            f"Celery task not registered: '{name}'. Tasks currently registered: {sorted(app.tasks.keys())}"
         )

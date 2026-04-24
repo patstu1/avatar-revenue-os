@@ -88,21 +88,23 @@ PLATFORM_FEE_RATES: dict[str, dict[str, float]] = {
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 async def _get_org_brand_ids(db: AsyncSession, org_id: uuid.UUID) -> list[uuid.UUID]:
-    rows = (
-        await db.execute(select(Brand.id).where(Brand.organization_id == org_id))
-    ).scalars().all()
+    rows = (await db.execute(select(Brand.id).where(Brand.organization_id == org_id))).scalars().all()
     return list(rows)
 
 
 async def _get_plan_tier(db: AsyncSession, org_id: uuid.UUID) -> str:
     plan = (
         await db.execute(
-            select(PlanSubscription.plan_tier).where(
+            select(PlanSubscription.plan_tier)
+            .where(
                 PlanSubscription.organization_id == org_id,
                 PlanSubscription.status == "active",
                 PlanSubscription.is_active.is_(True),
-            ).order_by(PlanSubscription.started_at.desc()).limit(1)
+            )
+            .order_by(PlanSubscription.started_at.desc())
+            .limit(1)
         )
     ).scalar_one_or_none()
     return plan or "free"
@@ -111,11 +113,14 @@ async def _get_plan_tier(db: AsyncSession, org_id: uuid.UUID) -> str:
 async def _get_plan_row(db: AsyncSession, org_id: uuid.UUID):
     return (
         await db.execute(
-            select(PlanSubscription).where(
+            select(PlanSubscription)
+            .where(
                 PlanSubscription.organization_id == org_id,
                 PlanSubscription.status == "active",
                 PlanSubscription.is_active.is_(True),
-            ).order_by(PlanSubscription.started_at.desc()).limit(1)
+            )
+            .order_by(PlanSubscription.started_at.desc())
+            .limit(1)
         )
     ).scalar_one_or_none()
 
@@ -135,6 +140,7 @@ async def _get_ledger(db: AsyncSession, org_id: uuid.UUID):
 # 1. Full Revenue Machine Report
 # ---------------------------------------------------------------------------
 
+
 async def get_revenue_machine_report(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """Gather all metrics from DB, pass to scoring engine, return full report."""
     now = datetime.now(timezone.utc)
@@ -142,10 +148,8 @@ async def get_revenue_machine_report(db: AsyncSession, org_id: uuid.UUID) -> dic
     brand_ids = await _get_org_brand_ids(db, org_id)
 
     org_users = (
-        await db.execute(
-            select(User).where(User.organization_id == org_id, User.is_active.is_(True))
-        )
-    ).scalars().all()
+        (await db.execute(select(User).where(User.organization_id == org_id, User.is_active.is_(True)))).scalars().all()
+    )
 
     ledger = await _get_ledger(db, org_id)
     plan_row = await _get_plan_row(db, org_id)
@@ -180,43 +184,59 @@ async def get_revenue_machine_report(db: AsyncSession, org_id: uuid.UUID) -> dic
         ).scalar() or 0
 
     credit_txns = (
-        await db.execute(
-            select(CreditTransaction).where(
-                CreditTransaction.organization_id == org_id,
-                CreditTransaction.transacted_at >= thirty_days_ago,
+        (
+            await db.execute(
+                select(CreditTransaction).where(
+                    CreditTransaction.organization_id == org_id,
+                    CreditTransaction.transacted_at >= thirty_days_ago,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     packs = (
-        await db.execute(
-            select(PackPurchase).where(
-                PackPurchase.organization_id == org_id,
-                PackPurchase.purchased_at >= thirty_days_ago,
-                PackPurchase.status == "completed",
+        (
+            await db.execute(
+                select(PackPurchase).where(
+                    PackPurchase.organization_id == org_id,
+                    PackPurchase.purchased_at >= thirty_days_ago,
+                    PackPurchase.status == "completed",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     telemetry_rows = (
-        await db.execute(
-            select(MonetizationTelemetryEvent).where(
-                MonetizationTelemetryEvent.organization_id == org_id,
-                MonetizationTelemetryEvent.occurred_at >= thirty_days_ago,
+        (
+            await db.execute(
+                select(MonetizationTelemetryEvent).where(
+                    MonetizationTelemetryEvent.organization_id == org_id,
+                    MonetizationTelemetryEvent.occurred_at >= thirty_days_ago,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     period_start = now.replace(day=1).strftime("%Y-%m-%d")
     meter_rows = (
-        await db.execute(
-            select(UsageMeterSnapshot).where(
-                UsageMeterSnapshot.organization_id == org_id,
-                UsageMeterSnapshot.period_start == period_start,
-                UsageMeterSnapshot.is_active.is_(True),
+        (
+            await db.execute(
+                select(UsageMeterSnapshot).where(
+                    UsageMeterSnapshot.organization_id == org_id,
+                    UsageMeterSnapshot.period_start == period_start,
+                    UsageMeterSnapshot.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     # Shape data for the scoring engine
     monthly_price = plan_row.monthly_price if plan_row else 0.0
@@ -230,20 +250,12 @@ async def get_revenue_machine_report(db: AsyncSession, org_id: uuid.UUID) -> dic
             "used_credits": ledger.used_credits if ledger else 0,
             "features_used": (plan_row.features_json if plan_row and plan_row.features_json else []),
             "spend_history": [],
-            "signup_date": (
-                u.created_at.isoformat()
-                if hasattr(u, "created_at") and u.created_at
-                else None
-            ),
+            "signup_date": (u.created_at.isoformat() if hasattr(u, "created_at") and u.created_at else None),
         }
         for u in org_users
     ]
 
-    subscriptions_data = (
-        [{"monthly_amount": plan_row.monthly_price, "status": plan_row.status}]
-        if plan_row
-        else []
-    )
+    subscriptions_data = [{"monthly_amount": plan_row.monthly_price, "status": plan_row.status}] if plan_row else []
 
     credit_txn_data = [
         {
@@ -264,10 +276,12 @@ async def get_revenue_machine_report(db: AsyncSession, org_id: uuid.UUID) -> dic
 
     usage_data = []
     if meter_rows:
-        usage_data.append({
-            "plan": plan_tier,
-            "meters": {m.meter_type: m.units_used for m in meter_rows},
-        })
+        usage_data.append(
+            {
+                "plan": plan_tier,
+                "meters": {m.meter_type: m.units_used for m in meter_rows},
+            }
+        )
 
     events_data = [
         TelemetryEvent(
@@ -311,6 +325,7 @@ async def get_revenue_machine_report(db: AsyncSession, org_id: uuid.UUID) -> dic
 # ---------------------------------------------------------------------------
 # 2. Elite Readiness Scorecard
 # ---------------------------------------------------------------------------
+
 
 async def get_elite_readiness(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """Compute the 7-question elite readiness scorecard using real DB data."""
@@ -488,6 +503,7 @@ async def get_elite_readiness(db: AsyncSession, org_id: uuid.UUID) -> dict:
 # 3. Active Spend Triggers
 # ---------------------------------------------------------------------------
 
+
 async def get_active_spend_triggers(
     db: AsyncSession,
     org_id: uuid.UUID,
@@ -514,56 +530,68 @@ async def get_active_spend_triggers(
 
     period_start = now.replace(day=1).strftime("%Y-%m-%d")
     meter_rows = (
-        await db.execute(
-            select(UsageMeterSnapshot).where(
-                UsageMeterSnapshot.organization_id == org_id,
-                UsageMeterSnapshot.period_start == period_start,
-                UsageMeterSnapshot.is_active.is_(True),
+        (
+            await db.execute(
+                select(UsageMeterSnapshot).where(
+                    UsageMeterSnapshot.organization_id == org_id,
+                    UsageMeterSnapshot.period_start == period_start,
+                    UsageMeterSnapshot.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     triggers: list[dict] = []
 
     if remaining < 50:
-        triggers.append({
-            "trigger_id": "low_credits",
-            "type": "credit_topup",
-            "urgency": 0.95 if remaining < 10 else 0.75,
-            "message": f"Only {remaining} credits remaining — top up to keep generating",
-            "recommended_action": "purchase_credit_pack",
-            "recommended_pack": "credit_500" if remaining < 10 else "credit_2000",
-        })
+        triggers.append(
+            {
+                "trigger_id": "low_credits",
+                "type": "credit_topup",
+                "urgency": 0.95 if remaining < 10 else 0.75,
+                "message": f"Only {remaining} credits remaining — top up to keep generating",
+                "recommended_action": "purchase_credit_pack",
+                "recommended_pack": "credit_500" if remaining < 10 else "credit_2000",
+            }
+        )
 
     if total > 0 and remaining / total < 0.2 and remaining >= 50:
-        triggers.append({
-            "trigger_id": "credit_exhaustion_near",
-            "type": "credit_warning",
-            "urgency": 0.6,
-            "message": f"Credit balance at {remaining / total * 100:.0f}% — consider replenishing",
-            "recommended_action": "purchase_credit_pack",
-        })
+        triggers.append(
+            {
+                "trigger_id": "credit_exhaustion_near",
+                "type": "credit_warning",
+                "urgency": 0.6,
+                "message": f"Credit balance at {remaining / total * 100:.0f}% — consider replenishing",
+                "recommended_action": "purchase_credit_pack",
+            }
+        )
 
     for m in meter_rows:
         if m.units_limit > 0 and m.utilization_pct >= 80:
-            triggers.append({
-                "trigger_id": f"meter_ceiling_{m.meter_type}",
-                "type": "meter_warning",
-                "urgency": min(m.utilization_pct / 100.0, 0.95),
-                "message": f"{m.meter_type} at {m.utilization_pct:.0f}% of limit",
-                "recommended_action": "upgrade_plan" if m.utilization_pct >= 95 else "monitor",
-            })
+            triggers.append(
+                {
+                    "trigger_id": f"meter_ceiling_{m.meter_type}",
+                    "type": "meter_warning",
+                    "urgency": min(m.utilization_pct / 100.0, 0.95),
+                    "message": f"{m.meter_type} at {m.utilization_pct:.0f}% of limit",
+                    "recommended_action": "upgrade_plan" if m.utilization_pct >= 95 else "monitor",
+                }
+            )
 
     if plan_tier in ("free", "starter"):
         next_tier = "starter" if plan_tier == "free" else "professional"
-        triggers.append({
-            "trigger_id": "plan_upgrade",
-            "type": "plan_upgrade",
-            "urgency": 0.5,
-            "message": "Upgrade for higher limits, more features, and lower transaction fees",
-            "recommended_action": "upgrade_plan",
-            "recommended_tier": next_tier,
-        })
+        triggers.append(
+            {
+                "trigger_id": "plan_upgrade",
+                "type": "plan_upgrade",
+                "urgency": 0.5,
+                "message": "Upgrade for higher limits, more features, and lower transaction fees",
+                "recommended_action": "upgrade_plan",
+                "recommended_tier": next_tier,
+            }
+        )
 
     _ACTION_TRIGGER_MAP: dict[str, dict] = {
         "generating_content": {
@@ -625,6 +653,7 @@ async def get_active_spend_triggers(
 # ---------------------------------------------------------------------------
 # 4. Operating Model Health — 5 engines
 # ---------------------------------------------------------------------------
+
 
 async def get_operating_model_health(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """Compute health of all 5 operating engines."""
@@ -739,9 +768,7 @@ async def get_operating_model_health(db: AsyncSession, org_id: uuid.UUID) -> dic
     ).scalar() or 0
     automation_score = min(
         100.0,
-        mult_events * 5
-        + mult_conversions * 15
-        + (20 if plan_tier in ("business", "enterprise") else 0),
+        mult_events * 5 + mult_conversions * 15 + (20 if plan_tier in ("business", "enterprise") else 0),
     )
 
     def _status(score: float) -> str:
@@ -810,6 +837,7 @@ async def get_operating_model_health(db: AsyncSession, org_id: uuid.UUID) -> dic
 # ---------------------------------------------------------------------------
 # 5. Transaction Fee Summary
 # ---------------------------------------------------------------------------
+
 
 async def get_transaction_fee_summary(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """Compute projected platform fees from recent transactions."""
@@ -918,6 +946,7 @@ async def get_transaction_fee_summary(db: AsyncSession, org_id: uuid.UUID) -> di
 # 6. Premium Output Catalog
 # ---------------------------------------------------------------------------
 
+
 async def get_premium_output_catalog(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """Return available premium outputs with plan-aware pricing."""
     plan_tier = await _get_plan_tier(db, org_id)
@@ -987,6 +1016,7 @@ async def get_premium_output_catalog(db: AsyncSession, org_id: uuid.UUID) -> dic
 # ---------------------------------------------------------------------------
 # 7. Record Transaction Fee
 # ---------------------------------------------------------------------------
+
 
 async def record_transaction_fee(
     db: AsyncSession,

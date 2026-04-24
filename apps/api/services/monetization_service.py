@@ -1,4 +1,5 @@
 """Monetization Machine Service — credits, meters, plans, packs, telemetry, ascension."""
+
 from __future__ import annotations
 
 import uuid
@@ -66,9 +67,14 @@ PRICING_LADDER = [
         "max_seats": 5,
         "max_brands": 5,
         "features": [
-            "all_content_forms", "unlimited_platforms", "priority_support",
-            "advanced_analytics", "experiment_engine", "offer_lab",
-            "affiliate_intel", "brand_governance",
+            "all_content_forms",
+            "unlimited_platforms",
+            "priority_support",
+            "advanced_analytics",
+            "experiment_engine",
+            "offer_lab",
+            "affiliate_intel",
+            "brand_governance",
         ],
         "meter_limits": {
             "content_generations": 500,
@@ -86,9 +92,15 @@ PRICING_LADDER = [
         "max_seats": 15,
         "max_brands": 20,
         "features": [
-            "everything_in_professional", "autonomous_execution", "brain_decisions",
-            "agent_mesh", "digital_twin", "revenue_intelligence",
-            "enterprise_security", "workflow_builder", "custom_integrations",
+            "everything_in_professional",
+            "autonomous_execution",
+            "brain_decisions",
+            "agent_mesh",
+            "digital_twin",
+            "revenue_intelligence",
+            "enterprise_security",
+            "workflow_builder",
+            "custom_integrations",
         ],
         "meter_limits": {
             "content_generations": 2_000,
@@ -106,9 +118,14 @@ PRICING_LADDER = [
         "max_seats": -1,
         "max_brands": -1,
         "features": [
-            "everything_in_business", "dedicated_support", "sla",
-            "custom_models", "white_label", "api_priority",
-            "compliance_controls", "sso",
+            "everything_in_business",
+            "dedicated_support",
+            "sla",
+            "custom_models",
+            "white_label",
+            "api_priority",
+            "compliance_controls",
+            "sso",
         ],
         "meter_limits": {
             "content_generations": -1,
@@ -219,6 +236,7 @@ METER_CREDIT_COSTS: dict[str, int] = {
 # Core credit operations
 # ---------------------------------------------------------------------------
 
+
 async def get_credit_balance(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """Return current credit balance for the organization."""
     row = (
@@ -308,7 +326,13 @@ async def spend_credits(
     db.add(txn)
     await db.flush()
 
-    logger.info("credits.spent", org_id=str(org_id), amount=effective_amount, meter_type=meter_type, remaining=ledger.remaining_credits)
+    logger.info(
+        "credits.spent",
+        org_id=str(org_id),
+        amount=effective_amount,
+        meter_type=meter_type,
+        remaining=ledger.remaining_credits,
+    )
 
     return {
         "spent": effective_amount,
@@ -394,20 +418,25 @@ async def purchase_credits(
 # Usage & plan
 # ---------------------------------------------------------------------------
 
+
 async def get_usage_summary(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """All meter usage for the current billing period."""
     now = datetime.now(timezone.utc)
     period_start = now.replace(day=1).strftime("%Y-%m-%d")
 
     rows = (
-        await db.execute(
-            select(UsageMeterSnapshot).where(
-                UsageMeterSnapshot.organization_id == org_id,
-                UsageMeterSnapshot.period_start == period_start,
-                UsageMeterSnapshot.is_active.is_(True),
+        (
+            await db.execute(
+                select(UsageMeterSnapshot).where(
+                    UsageMeterSnapshot.organization_id == org_id,
+                    UsageMeterSnapshot.period_start == period_start,
+                    UsageMeterSnapshot.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     meters = []
     total_used = 0
@@ -415,14 +444,16 @@ async def get_usage_summary(db: AsyncSession, org_id: uuid.UUID) -> dict:
     total_overage_cost = 0.0
 
     for row in rows:
-        meters.append({
-            "meter_type": row.meter_type,
-            "units_used": row.units_used,
-            "units_limit": row.units_limit,
-            "utilization_pct": row.utilization_pct,
-            "overage_units": row.overage_units,
-            "overage_cost": row.overage_cost,
-        })
+        meters.append(
+            {
+                "meter_type": row.meter_type,
+                "units_used": row.units_used,
+                "units_limit": row.units_limit,
+                "utilization_pct": row.utilization_pct,
+                "overage_units": row.overage_units,
+                "overage_cost": row.overage_cost,
+            }
+        )
         total_used += row.units_used
         total_limit += row.units_limit
         total_overage_cost += row.overage_cost
@@ -441,11 +472,13 @@ async def get_plan_details(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """Current plan with limits and usage."""
     plan = (
         await db.execute(
-            select(PlanSubscription).where(
+            select(PlanSubscription)
+            .where(
                 PlanSubscription.organization_id == org_id,
                 PlanSubscription.status == "active",
                 PlanSubscription.is_active.is_(True),
-            ).order_by(PlanSubscription.started_at.desc())
+            )
+            .order_by(PlanSubscription.started_at.desc())
         )
     ).scalar_one_or_none()
 
@@ -490,9 +523,21 @@ ASCENSION_TRIGGERS = [
     {"trigger": "credit_exhaustion", "label": "Credits running low", "upgrade_tiers": ["starter", "professional"]},
     {"trigger": "seat_limit", "label": "Team seats maxed out", "upgrade_tiers": ["professional", "business"]},
     {"trigger": "brand_limit", "label": "Brand limit reached", "upgrade_tiers": ["professional", "business"]},
-    {"trigger": "feature_gate", "label": "Attempted gated feature", "upgrade_tiers": ["professional", "business", "enterprise"]},
-    {"trigger": "meter_ceiling", "label": "Usage meter at >80%", "upgrade_tiers": ["starter", "professional", "business"]},
-    {"trigger": "high_engagement", "label": "Power user pattern detected", "upgrade_tiers": ["professional", "business"]},
+    {
+        "trigger": "feature_gate",
+        "label": "Attempted gated feature",
+        "upgrade_tiers": ["professional", "business", "enterprise"],
+    },
+    {
+        "trigger": "meter_ceiling",
+        "label": "Usage meter at >80%",
+        "upgrade_tiers": ["starter", "professional", "business"],
+    },
+    {
+        "trigger": "high_engagement",
+        "label": "Power user pattern detected",
+        "upgrade_tiers": ["professional", "business"],
+    },
     {"trigger": "revenue_velocity", "label": "Revenue growing fast", "upgrade_tiers": ["business", "enterprise"]},
     {"trigger": "api_volume", "label": "API call volume surging", "upgrade_tiers": ["business", "enterprise"]},
 ]
@@ -511,19 +556,23 @@ async def get_ascension_profile(
     active_triggers = []
 
     if balance["remaining_credits"] < 50:
-        active_triggers.append({
-            **next(t for t in ASCENSION_TRIGGERS if t["trigger"] == "credit_exhaustion"),
-            "urgency": 0.9,
-            "context": f"Only {balance['remaining_credits']} credits remaining",
-        })
+        active_triggers.append(
+            {
+                **next(t for t in ASCENSION_TRIGGERS if t["trigger"] == "credit_exhaustion"),
+                "urgency": 0.9,
+                "context": f"Only {balance['remaining_credits']} credits remaining",
+            }
+        )
 
     for meter in usage.get("meters", []):
         if meter["utilization_pct"] > 80:
-            active_triggers.append({
-                **next(t for t in ASCENSION_TRIGGERS if t["trigger"] == "meter_ceiling"),
-                "urgency": min(meter["utilization_pct"] / 100.0, 1.0),
-                "context": f"{meter['meter_type']} at {meter['utilization_pct']:.0f}% utilization",
-            })
+            active_triggers.append(
+                {
+                    **next(t for t in ASCENSION_TRIGGERS if t["trigger"] == "meter_ceiling"),
+                    "urgency": min(meter["utilization_pct"] / 100.0, 1.0),
+                    "context": f"{meter['meter_type']} at {meter['utilization_pct']:.0f}% utilization",
+                }
+            )
 
     current_tier = plan["plan_tier"]
     tier_index = next((i for i, p in enumerate(PRICING_LADDER) if p["tier"] == current_tier), 0)
@@ -531,7 +580,7 @@ async def get_ascension_profile(
 
     savings = 0.0
     if recommended_plan and recommended_plan["monthly_price"] > 0:
-        savings = (recommended_plan["monthly_price"] * 12 - recommended_plan["annual_price"])
+        savings = recommended_plan["monthly_price"] * 12 - recommended_plan["annual_price"]
 
     return {
         "current_tier": current_tier,
@@ -558,28 +607,34 @@ async def get_multiplication_opportunities(
     opportunities: list[dict] = []
 
     if balance["remaining_credits"] < 100:
-        opportunities.append({
-            "type": "credit_topup",
-            "message": "Running low on credits — top up to keep momentum",
-            "recommended_pack": "credit_500",
-            "urgency": 0.85,
-        })
+        opportunities.append(
+            {
+                "type": "credit_topup",
+                "message": "Running low on credits — top up to keep momentum",
+                "recommended_pack": "credit_500",
+                "urgency": 0.85,
+            }
+        )
 
     if current_action and current_action in ("digital_twin_sim", "experiment_run", "offer_lab_test"):
-        opportunities.append({
-            "type": "power_feature_upsell",
-            "message": f"Unlock unlimited {current_action.replace('_', ' ')} with a plan upgrade",
-            "recommended_tier": "business",
-            "urgency": 0.7,
-        })
+        opportunities.append(
+            {
+                "type": "power_feature_upsell",
+                "message": f"Unlock unlimited {current_action.replace('_', ' ')} with a plan upgrade",
+                "recommended_tier": "business",
+                "urgency": 0.7,
+            }
+        )
 
     if plan["plan_tier"] in ("free", "starter"):
-        opportunities.append({
-            "type": "plan_upgrade",
-            "message": "Upgrade to Professional for 5x more credits and advanced features",
-            "recommended_tier": "professional",
-            "urgency": 0.6,
-        })
+        opportunities.append(
+            {
+                "type": "plan_upgrade",
+                "message": "Upgrade to Professional for 5x more credits and advanced features",
+                "recommended_tier": "professional",
+                "urgency": 0.6,
+            }
+        )
 
     recent_events = (
         await db.execute(
@@ -604,6 +659,7 @@ async def get_multiplication_opportunities(
 # ---------------------------------------------------------------------------
 # Health report
 # ---------------------------------------------------------------------------
+
 
 async def get_monetization_health(db: AsyncSession, org_id: uuid.UUID) -> dict:
     """Full monetization machine health report."""
@@ -663,9 +719,7 @@ async def get_monetization_health(db: AsyncSession, org_id: uuid.UUID) -> dict:
         )
     ).scalar() or 0.0
 
-    credit_utilization = (
-        balance["used_credits"] / max(balance["total_credits"], 1)
-    ) * 100
+    credit_utilization = (balance["used_credits"] / max(balance["total_credits"], 1)) * 100
 
     health_score = 50.0
     if plan["plan_tier"] != "free":
@@ -678,9 +732,7 @@ async def get_monetization_health(db: AsyncSession, org_id: uuid.UUID) -> dict:
         health_score += 15
     health_score = min(health_score, 100.0)
 
-    conversion_rate = (
-        (multiplication_conversions / max(multiplication_offered, 1)) * 100
-    )
+    conversion_rate = (multiplication_conversions / max(multiplication_offered, 1)) * 100
 
     return {
         "health_score": round(health_score, 1),
@@ -705,6 +757,7 @@ async def get_monetization_health(db: AsyncSession, org_id: uuid.UUID) -> dict:
 # Static catalog accessors
 # ---------------------------------------------------------------------------
 
+
 def get_pricing_ladder() -> list[dict]:
     """Return complete pricing architecture."""
     return PRICING_LADDER
@@ -718,6 +771,7 @@ def get_outcome_packs() -> list[dict]:
 # ---------------------------------------------------------------------------
 # Telemetry
 # ---------------------------------------------------------------------------
+
 
 async def record_telemetry(
     db: AsyncSession,

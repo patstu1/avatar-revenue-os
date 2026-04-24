@@ -3,6 +3,7 @@
 Revision ID: om_001
 Revises: qg_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -17,7 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table("om_objection_signals",
+    op.create_table(
+        "om_objection_signals",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -41,7 +43,8 @@ def upgrade() -> None:
     op.create_index("ix_oms_brand", "om_objection_signals", ["brand_id"])
     op.create_index("ix_oms_type", "om_objection_signals", ["objection_type"])
 
-    op.create_table("om_objection_clusters",
+    op.create_table(
+        "om_objection_clusters",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -59,7 +62,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_omc_brand", "om_objection_clusters", ["brand_id"])
 
-    op.create_table("om_objection_responses",
+    op.create_table(
+        "om_objection_responses",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -75,7 +79,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table("om_priority_reports",
+    op.create_table(
+        "om_priority_reports",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),

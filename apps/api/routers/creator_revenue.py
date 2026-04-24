@@ -1,4 +1,5 @@
 """API routers for Creator Revenue Avenues Phase A."""
+
 from __future__ import annotations
 
 import uuid

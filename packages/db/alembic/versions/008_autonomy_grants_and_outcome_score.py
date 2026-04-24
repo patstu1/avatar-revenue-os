@@ -4,6 +4,7 @@ Revision ID: 008_autonomy_grants
 Revises: 007_publish_policy
 Create Date: 2026-04-16
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
@@ -26,10 +27,7 @@ def _table_exists(name: str) -> bool:
 def _column_exists(table: str, column: str) -> bool:
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
-            "WHERE table_name = :t AND column_name = :c)"
-        ),
+        sa.text("SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = :t AND column_name = :c)"),
         {"t": table, "c": column},
     )
     return result.scalar()
@@ -38,16 +36,27 @@ def _column_exists(table: str, column: str) -> bool:
 def upgrade() -> None:
     # --- operator_actions: add outcome_score and was_auto_approved ---
     if not _column_exists("operator_actions", "outcome_score"):
-        op.add_column("operator_actions", sa.Column(
-            "outcome_score", sa.Float(), nullable=True,
-            comment="Post-execution outcome: >0 = positive impact, <0 = negative, NULL = not yet measured",
-        ))
+        op.add_column(
+            "operator_actions",
+            sa.Column(
+                "outcome_score",
+                sa.Float(),
+                nullable=True,
+                comment="Post-execution outcome: >0 = positive impact, <0 = negative, NULL = not yet measured",
+            ),
+        )
 
     if not _column_exists("operator_actions", "was_auto_approved"):
-        op.add_column("operator_actions", sa.Column(
-            "was_auto_approved", sa.Boolean(), server_default=sa.text("false"), nullable=False,
-            comment="True if auto-promoted from assisted to autonomous via brand_autonomy_grants",
-        ))
+        op.add_column(
+            "operator_actions",
+            sa.Column(
+                "was_auto_approved",
+                sa.Boolean(),
+                server_default=sa.text("false"),
+                nullable=False,
+                comment="True if auto-promoted from assisted to autonomous via brand_autonomy_grants",
+            ),
+        )
 
     # --- brand_autonomy_grants table ---
     if not _table_exists("brand_autonomy_grants"):

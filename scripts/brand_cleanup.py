@@ -18,6 +18,7 @@ Usage:
   docker exec aro-api python scripts/brand_cleanup.py --apply    # apply archive
   docker exec aro-api python scripts/brand_cleanup.py --apply --delete-safe
 """
+
 import argparse
 import json
 import sys
@@ -38,7 +39,7 @@ ARCHIVE_SLUGS = {
 DELETE_CANDIDATE_SLUGS = {
     "audit-brand",
     "cascade-brand",
-    "ep2b-test",          # (two duplicate brands share this slug)
+    "ep2b-test",  # (two duplicate brands share this slug)
     "revenue-machine",
     "handoff-brand-62f67c",
 }
@@ -103,8 +104,10 @@ MEANINGFUL_TABLES = {
 def _collect_fk_tables(conn) -> list[str]:
     """Find every table that has a FK constraint pointing at brands.id."""
     from sqlalchemy import text
-    rows = conn.execute(text(
-        """
+
+    rows = conn.execute(
+        text(
+            """
         SELECT DISTINCT tc.table_name
         FROM information_schema.table_constraints tc
         JOIN information_schema.key_column_usage kcu
@@ -116,12 +119,14 @@ def _collect_fk_tables(conn) -> list[str]:
           AND ccu.column_name = 'id'
         ORDER BY tc.table_name
         """
-    )).fetchall()
+        )
+    ).fetchall()
     return [r[0] for r in rows]
 
 
 def _count_refs_in_table(conn, table: str, brand_id: str) -> int:
     from sqlalchemy import text
+
     try:
         return int(
             conn.execute(
@@ -139,10 +144,7 @@ def _snapshot_brand(conn, brand_id: str, name: str, slug: str, fk_tables: list[s
     from sqlalchemy import text
 
     meta = conn.execute(
-        text(
-            "SELECT name, slug, is_active, created_at, updated_at "
-            "FROM brands WHERE id = :bid"
-        ),
+        text("SELECT name, slug, is_active, created_at, updated_at FROM brands WHERE id = :bid"),
         {"bid": brand_id},
     ).fetchone()
     if not meta:
@@ -187,10 +189,7 @@ def _snapshot_brand(conn, brand_id: str, name: str, slug: str, fk_tables: list[s
     # Real publish proof
     real_publishes = int(
         conn.execute(
-            text(
-                "SELECT COUNT(*) FROM publish_jobs "
-                "WHERE brand_id = :bid AND platform_post_url LIKE 'https://%'"
-            ),
+            text("SELECT COUNT(*) FROM publish_jobs WHERE brand_id = :bid AND platform_post_url LIKE 'https://%'"),
             {"bid": brand_id},
         ).scalar()
         or 0
@@ -227,6 +226,7 @@ def _classify(snapshot: dict) -> str:
 def _archive_brands(conn, slugs: set[str], apply: bool) -> list[dict]:
     """Set is_active=false on each brand with a matching slug."""
     from sqlalchemy import text
+
     results = []
     for slug in slugs:
         rows = conn.execute(
@@ -250,6 +250,7 @@ def _archive_brands(conn, slugs: set[str], apply: bool) -> list[dict]:
 def _delete_brand(conn, brand_id: str) -> bool:
     """Hard-delete a brand by id. Used only for SAFE_TO_DELETE classifications."""
     from sqlalchemy import text
+
     result = conn.execute(
         text("DELETE FROM brands WHERE id = :bid"),
         {"bid": brand_id},
@@ -288,15 +289,12 @@ def main(apply: bool, delete_safe: bool):
             ).fetchone()
             if row:
                 bp_count = conn.execute(
-                    text(
-                        "SELECT COUNT(*) FROM buffer_profiles WHERE brand_id = :bid"
-                    ),
+                    text("SELECT COUNT(*) FROM buffer_profiles WHERE brand_id = :bid"),
                     {"bid": str(row[0])},
                 ).scalar()
                 real_pubs = conn.execute(
                     text(
-                        "SELECT COUNT(*) FROM publish_jobs "
-                        "WHERE brand_id = :bid AND platform_post_url LIKE 'https://%'"
+                        "SELECT COUNT(*) FROM publish_jobs WHERE brand_id = :bid AND platform_post_url LIKE 'https://%'"
                     ),
                     {"bid": str(row[0])},
                 ).scalar()
@@ -308,9 +306,7 @@ def main(apply: bool, delete_safe: bool):
                     "real_publishes": int(real_pubs or 0),
                 }
                 report["live_brands"].append(entry)
-                print(
-                    f"  [OK] {row[1]:25s} slug={slug:20s} buffer={bp_count} real_pubs={real_pubs} active={row[2]}"
-                )
+                print(f"  [OK] {row[1]:25s} slug={slug:20s} buffer={bp_count} real_pubs={real_pubs} active={row[2]}")
             else:
                 print(f"  [MISSING] {slug}")
 
@@ -322,9 +318,7 @@ def main(apply: bool, delete_safe: bool):
         archive_results = _archive_brands(conn, ARCHIVE_SLUGS, apply=apply)
         report["archive_operations"] = archive_results
         for r in archive_results:
-            print(
-                f"  [{r['action']:14s}] {r['name']:25s} slug={r['slug']:25s} was_active={r['was_active']}"
-            )
+            print(f"  [{r['action']:14s}] {r['name']:25s} slug={r['slug']:25s} was_active={r['was_active']}")
         if apply:
             conn.commit()
 
@@ -339,9 +333,7 @@ def main(apply: bool, delete_safe: bool):
 
         # Collect ALL rows matching delete candidate slugs (handles duplicate ep2b-test)
         candidate_rows = conn.execute(
-            text(
-                "SELECT id, name, slug FROM brands WHERE slug = ANY(:slugs) ORDER BY slug, created_at"
-            ),
+            text("SELECT id, name, slug FROM brands WHERE slug = ANY(:slugs) ORDER BY slug, created_at"),
             {"slugs": list(DELETE_CANDIDATE_SLUGS)},
         ).fetchall()
 
@@ -375,9 +367,7 @@ def main(apply: bool, delete_safe: bool):
                 if snap["is_active"]:
                     if apply:
                         conn.execute(
-                            text(
-                                "UPDATE brands SET is_active = false, updated_at = NOW() WHERE id = :bid"
-                            ),
+                            text("UPDATE brands SET is_active = false, updated_at = NOW() WHERE id = :bid"),
                             {"bid": snap["brand_id"]},
                         )
                         action = "ARCHIVED"
@@ -395,10 +385,7 @@ def main(apply: bool, delete_safe: bool):
                     "reason": f"{snap['total_meaningful_refs']} meaningful refs, {snap['real_publishes_with_platform_url']} real publishes",
                 }
                 report["candidate_archive_operations"].append(entry)
-                print(
-                    f"  [{action:14s}] {snap['name']:25s} slug={snap['slug']:25s} "
-                    f"class={snap['classification']}"
-                )
+                print(f"  [{action:14s}] {snap['name']:25s} slug={snap['slug']:25s} class={snap['classification']}")
         if apply:
             conn.commit()
 
@@ -420,9 +407,7 @@ def main(apply: bool, delete_safe: bool):
                                 "success": ok,
                             }
                         )
-                        print(
-                            f"  [DELETED]  {snap['name']} ({snap['slug']}) id={snap['brand_id']}"
-                        )
+                        print(f"  [DELETED]  {snap['name']} ({snap['slug']}) id={snap['brand_id']}")
                     except Exception as e:
                         report["deletes_skipped"].append(
                             {
@@ -431,9 +416,7 @@ def main(apply: bool, delete_safe: bool):
                                 "reason": f"delete_error: {e}",
                             }
                         )
-                        print(
-                            f"  [DELETE_ERROR] {snap['name']}: {e}"
-                        )
+                        print(f"  [DELETE_ERROR] {snap['name']}: {e}")
                 else:
                     report["deletes_skipped"].append(
                         {
@@ -442,9 +425,7 @@ def main(apply: bool, delete_safe: bool):
                             "reason": "dry_run_or_delete_flag_not_set",
                         }
                     )
-                    print(
-                        f"  [WOULD_DELETE] {snap['name']} ({snap['slug']}) - pass --apply --delete-safe to execute"
-                    )
+                    print(f"  [WOULD_DELETE] {snap['name']} ({snap['slug']}) - pass --apply --delete-safe to execute")
             else:
                 report["deletes_skipped"].append(
                     {
@@ -453,9 +434,7 @@ def main(apply: bool, delete_safe: bool):
                         "reason": snap["classification"],
                     }
                 )
-                print(
-                    f"  [KEPT]     {snap['name']} ({snap['slug']}) - {snap['classification']}"
-                )
+                print(f"  [KEPT]     {snap['name']} ({snap['slug']}) - {snap['classification']}")
 
         if apply and delete_safe:
             conn.commit()
@@ -481,10 +460,7 @@ def main(apply: bool, delete_safe: bool):
                 {"bid": str(row[0])},
             ).scalar()
             real_pubs = conn.execute(
-                text(
-                    "SELECT COUNT(*) FROM publish_jobs "
-                    "WHERE brand_id = :bid AND platform_post_url LIKE 'https://%'"
-                ),
+                text("SELECT COUNT(*) FROM publish_jobs WHERE brand_id = :bid AND platform_post_url LIKE 'https://%'"),
                 {"bid": str(row[0])},
             ).scalar()
             verification[slug] = {
@@ -495,9 +471,7 @@ def main(apply: bool, delete_safe: bool):
             }
             ok = row[2] and (bp or real_pubs >= 0)
             tag = "INTACT" if ok else "WARNING"
-            print(
-                f"  [{tag}] {row[1]:25s} active={row[2]} buffer={bp} real_pubs={real_pubs}"
-            )
+            print(f"  [{tag}] {row[1]:25s} active={row[2]} buffer={bp} real_pubs={real_pubs}")
         report["verification"] = verification
 
     # ── Write JSON artifact ───────────────────────────────────────────

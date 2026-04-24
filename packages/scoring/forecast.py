@@ -7,6 +7,7 @@ Formula:
 
 All inputs are explicit. No hidden assumptions.
 """
+
 from dataclasses import dataclass
 
 FORMULA_VERSION = "v1"
@@ -59,10 +60,16 @@ def compute_profit_forecast(inp: ForecastInput) -> ForecastResult:
     epc = (revenue / clicks) if clicks > 0 else 0.0
     roi = (profit / total_cost) if total_cost > 0 else 0.0
 
-    signal_count = sum(1 for v in [
-        inp.expected_impressions, inp.expected_ctr, inp.expected_conversion_rate,
-        inp.expected_value_per_conversion
-    ] if v > 0)
+    signal_count = sum(
+        1
+        for v in [
+            inp.expected_impressions,
+            inp.expected_ctr,
+            inp.expected_conversion_rate,
+            inp.expected_value_per_conversion,
+        ]
+        if v > 0
+    )
 
     if signal_count == 4 and inp.expected_impressions >= 1000:
         confidence = "high"

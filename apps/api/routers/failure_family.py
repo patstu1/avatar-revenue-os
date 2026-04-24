@@ -1,4 +1,5 @@
 """Failure-Family Suppression API."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -46,7 +47,9 @@ async def list_events(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSess
 
 
 @router.post("/{brand_id}/failure-families/decay-check", response_model=RecomputeSummaryOut)
-async def decay_check(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def decay_check(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await svc.run_decay_check(db, brand_id)
     await db.commit()

@@ -1,4 +1,5 @@
 """Expansion Pack 2 Phase A — lead qualification, closer actions, owned offer recommendations."""
+
 from __future__ import annotations
 
 import uuid
@@ -45,32 +46,20 @@ async def recompute_lead_qualification(db: AsyncSession, brand_id: uuid.UUID) ->
 
     # Active offers → scoring parameters
     offers = list(
-        (
-            await db.execute(
-                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
     existing_offer_count = len(offers)
     avg_offer_aov = (
-        sum(float(o.average_order_value or 0) for o in offers) / existing_offer_count
-        if existing_offer_count
-        else 0.0
+        sum(float(o.average_order_value or 0) for o in offers) / existing_offer_count if existing_offer_count else 0.0
     )
     avg_offer_cvr = (
-        sum(float(o.conversion_rate or 0) for o in offers) / existing_offer_count
-        if existing_offer_count
-        else 0.0
+        sum(float(o.conversion_rate or 0) for o in offers) / existing_offer_count if existing_offer_count else 0.0
     )
 
     # Audience size from creator accounts
     aud_scalar = (
         await db.execute(
-            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(
-                CreatorAccount.brand_id == brand_id
-            )
+            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(CreatorAccount.brand_id == brand_id)
         )
     ).scalar()
     audience_size = int(aud_scalar or 0)
@@ -87,15 +76,7 @@ async def recompute_lead_qualification(db: AsyncSession, brand_id: uuid.UUID) ->
 
     # Comment clusters (limit 50) — each cluster is treated as a lead signal
     clusters = list(
-        (
-            await db.execute(
-                select(CommentCluster)
-                .where(CommentCluster.brand_id == brand_id)
-                .limit(50)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(CommentCluster).where(CommentCluster.brand_id == brand_id).limit(50))).scalars().all()
     )
 
     # Build (lead_source, message_text) pairs from clusters or synthetics
@@ -113,9 +94,7 @@ async def recompute_lead_qualification(db: AsyncSession, brand_id: uuid.UUID) ->
     # Delete old rows in FK-safe order: CloserAction → LeadOpportunity → LeadQualificationReport
     await db.execute(delete(CloserAction).where(CloserAction.brand_id == brand_id))
     await db.execute(delete(LeadOpportunity).where(LeadOpportunity.brand_id == brand_id))
-    await db.execute(
-        delete(LeadQualificationReport).where(LeadQualificationReport.brand_id == brand_id)
-    )
+    await db.execute(delete(LeadQualificationReport).where(LeadQualificationReport.brand_id == brand_id))
 
     # Score each lead, insert rows
     channel_counter: Counter[str] = Counter()
@@ -204,9 +183,7 @@ async def recompute_lead_qualification(db: AsyncSession, brand_id: uuid.UUID) ->
     avg_composite = total_composite / n if n else 0.0
     avg_expected_value = total_expected_value / n if n else 0.0
     top_channel = channel_counter.most_common(1)[0][0] if channel_counter else "email"
-    top_action = (
-        action_counter.most_common(1)[0][0] if action_counter else "low_priority_follow_up"
-    )
+    top_action = action_counter.most_common(1)[0][0] if action_counter else "low_priority_follow_up"
 
     # Insert new LeadQualificationReport
     db.add(
@@ -238,36 +215,20 @@ async def recompute_lead_qualification(db: AsyncSession, brand_id: uuid.UUID) ->
     return {"leads_scored": n, "hot": hot, "warm": warm, "cold": cold}
 
 
-async def recompute_owned_offer_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_owned_offer_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     # Active offers → existing_offer_types
     offers = list(
-        (
-            await db.execute(
-                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
-    existing_offer_types = list(
-        {getattr(o.monetization_method, "value", str(o.monetization_method)) for o in offers}
-    )
+    existing_offer_types = list({getattr(o.monetization_method, "value", str(o.monetization_method)) for o in offers})
 
     # ContentItem rows (limit 100)
     items = list(
-        (
-            await db.execute(
-                select(ContentItem).where(ContentItem.brand_id == brand_id).limit(100)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(100))).scalars().all()
     )
 
     # PerformanceMetric aggregates per content item
@@ -326,15 +287,7 @@ async def recompute_owned_offer_recommendations(
 
     # CommentCluster → top_comment_themes (limit 20)
     clusters = list(
-        (
-            await db.execute(
-                select(CommentCluster)
-                .where(CommentCluster.brand_id == brand_id)
-                .limit(20)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(CommentCluster).where(CommentCluster.brand_id == brand_id).limit(20))).scalars().all()
     )
     top_comment_themes = [c.cluster_label for c in clusters if c.cluster_label]
 
@@ -368,9 +321,7 @@ async def recompute_owned_offer_recommendations(
     # total_audience_size
     aud_scalar = (
         await db.execute(
-            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(
-                CreatorAccount.brand_id == brand_id
-            )
+            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(CreatorAccount.brand_id == brand_id)
         )
     ).scalar()
     total_audience_size = int(aud_scalar or 0)
@@ -389,9 +340,7 @@ async def recompute_owned_offer_recommendations(
     )
 
     # Delete old rows and insert fresh ones
-    await db.execute(
-        delete(OwnedOfferRecommendation).where(OwnedOfferRecommendation.brand_id == brand_id)
-    )
+    await db.execute(delete(OwnedOfferRecommendation).where(OwnedOfferRecommendation.brand_id == brand_id))
 
     for opp in opportunities:
         r = _strip_meta(opp)
@@ -542,9 +491,7 @@ async def get_closer_actions(db: AsyncSession, brand_id: uuid.UUID) -> list[dict
     return [_ca_dict(r) for r in rows]
 
 
-async def get_lead_qualification_report(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_lead_qualification_report(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -559,9 +506,7 @@ async def get_lead_qualification_report(
     return [_lqr_dict(r) for r in rows]
 
 
-async def get_owned_offer_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_owned_offer_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

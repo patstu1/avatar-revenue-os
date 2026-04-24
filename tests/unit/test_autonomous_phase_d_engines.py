@@ -1,4 +1,5 @@
 """Unit tests for Autonomous Execution Phase D pure scoring engines."""
+
 from packages.scoring.autonomous_phase_d_engine import (
     AGENT_TYPES,
     compute_override_policies,
@@ -27,6 +28,7 @@ def _base_ctx() -> dict:
 
 
 # ---- Agent orchestration ----
+
 
 def test_agent_cycle_returns_all_agents():
     results = run_agent_cycle(_base_ctx())
@@ -57,6 +59,7 @@ def test_agent_cycle_with_low_health():
 
 
 # ---- Revenue pressure ----
+
 
 def _pressure_ctx() -> dict:
     return {
@@ -101,6 +104,7 @@ def test_pressure_launches_populated():
 
 # ---- Override policies ----
 
+
 def test_override_default_guarded():
     policies = compute_override_policies(
         ["publish_content", "launch_new_account"],
@@ -128,6 +132,7 @@ def test_override_includes_rollback():
 
 
 # ---- Blocker detection ----
+
 
 def test_blockers_missing_credential():
     state = {"credentials_missing": ["youtube_api", "tiktok_api"], "offers_count": 1}
@@ -180,16 +185,19 @@ def test_blockers_clean_state_no_blockers():
 
 # ---- Escalation generation ----
 
+
 def test_escalations_from_blockers():
-    blockers = [{
-        "blocker": "missing_credential",
-        "severity": "high",
-        "affected_scope": "credential:youtube",
-        "operator_action_needed": "Connect YouTube API.",
-        "deadline_or_urgency": "within_24h",
-        "consequence_if_ignored": "YouTube publishing blocked.",
-        "explanation": "YouTube credential missing.",
-    }]
+    blockers = [
+        {
+            "blocker": "missing_credential",
+            "severity": "high",
+            "affected_scope": "credential:youtube",
+            "operator_action_needed": "Connect YouTube API.",
+            "deadline_or_urgency": "within_24h",
+            "consequence_if_ignored": "YouTube publishing blocked.",
+            "explanation": "YouTube credential missing.",
+        }
+    ]
     pressure = {"next_commands_json": []}
     escalations = generate_escalations(blockers, pressure)
     assert len(escalations) == 1
@@ -210,15 +218,17 @@ def test_escalations_from_pressure():
 
 
 def test_escalations_combined():
-    blockers = [{
-        "blocker": "budget_blocked",
-        "severity": "high",
-        "affected_scope": "brand:paid",
-        "operator_action_needed": "Increase budget.",
-        "deadline_or_urgency": "immediate",
-        "consequence_if_ignored": "Paid tests stop.",
-        "explanation": "Budget depleted.",
-    }]
+    blockers = [
+        {
+            "blocker": "budget_blocked",
+            "severity": "high",
+            "affected_scope": "brand:paid",
+            "operator_action_needed": "Increase budget.",
+            "deadline_or_urgency": "immediate",
+            "consequence_if_ignored": "Paid tests stop.",
+            "explanation": "Budget depleted.",
+        }
+    ]
     pressure = {
         "next_commands_json": [
             {"action": "scale_winner_x", "priority": "medium", "explanation": "Winner X not scaled."},

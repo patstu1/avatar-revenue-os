@@ -1,5 +1,6 @@
 """Kill ledger engine — underperformer identification and hindsight review
 (pure functions, no I/O, no SQLAlchemy)."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -55,6 +56,7 @@ _REPLACEMENT_TEMPLATES: dict[str, str] = {
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, float(value)))
 
@@ -99,6 +101,7 @@ def _failure_count(candidate: dict, thresholds: dict[str, float]) -> tuple[int, 
 # Engine 1 — Kill candidate evaluator
 # ---------------------------------------------------------------------------
 
+
 def evaluate_kill_candidates(
     underperformers: list[dict],
     thresholds: dict,
@@ -142,9 +145,19 @@ def evaluate_kill_candidates(
 
         # ------------------------------------------------------------------ performance snapshot
         snapshot_keys = [
-            "engagement_rate", "revenue", "impressions", "conversion_rate",
-            "aov", "follower_growth_rate", "revenue_share", "ltv",
-            "throughput", "roas", "conversions", "ctr", "renewal_rate",
+            "engagement_rate",
+            "revenue",
+            "impressions",
+            "conversion_rate",
+            "aov",
+            "follower_growth_rate",
+            "revenue_share",
+            "ltv",
+            "throughput",
+            "roas",
+            "conversions",
+            "ctr",
+            "renewal_rate",
         ]
         performance_snapshot: dict[str, Any] = {}
         for k in snapshot_keys:
@@ -171,12 +184,7 @@ def evaluate_kill_candidates(
         }
 
         # ------------------------------------------------------------------ confidence
-        confidence = round(_clamp(
-            0.30
-            + fail_ratio * 0.40
-            + _clamp(total_checked / 5.0) * 0.20
-            + 0.10
-        ), 3)
+        confidence = round(_clamp(0.30 + fail_ratio * 0.40 + _clamp(total_checked / 5.0) * 0.20 + 0.10), 3)
 
         # ------------------------------------------------------------------ explanation
         explanation = (
@@ -186,16 +194,18 @@ def evaluate_kill_candidates(
             f"Recommendation: {base_rec}. Confidence {confidence:.2f}."
         )
 
-        results.append({
-            "scope_type": scope_type,
-            "scope_id": scope_id,
-            "kill_reason": kill_reason,
-            "performance_snapshot": performance_snapshot,
-            "replacement_recommendation": replacement_recommendation,
-            "confidence": confidence,
-            "explanation": explanation,
-            KILL_LEDGER: True,
-        })
+        results.append(
+            {
+                "scope_type": scope_type,
+                "scope_id": scope_id,
+                "kill_reason": kill_reason,
+                "performance_snapshot": performance_snapshot,
+                "replacement_recommendation": replacement_recommendation,
+                "confidence": confidence,
+                "explanation": explanation,
+                KILL_LEDGER: True,
+            }
+        )
 
     results.sort(key=lambda r: r["confidence"], reverse=True)
     return results
@@ -204,6 +214,7 @@ def evaluate_kill_candidates(
 # ---------------------------------------------------------------------------
 # Engine 2 — Kill hindsight review
 # ---------------------------------------------------------------------------
+
 
 def review_kill_hindsight(
     kill_entry: dict,
@@ -241,8 +252,14 @@ def review_kill_hindsight(
     neutral_metrics: list[str] = []
 
     comparison_keys = [
-        "revenue", "engagement_rate", "conversion_rate", "roas",
-        "impressions", "ltv", "throughput", "ctr",
+        "revenue",
+        "engagement_rate",
+        "conversion_rate",
+        "roas",
+        "impressions",
+        "ltv",
+        "throughput",
+        "ctr",
     ]
 
     for key in comparison_keys:

@@ -1,4 +1,5 @@
 """Content Routing service — classify tasks, route to providers, track costs."""
+
 from __future__ import annotations
 
 import uuid
@@ -18,16 +19,31 @@ from packages.scoring.tiered_routing_engine import (
 )
 
 
-async def route_task(db: AsyncSession, brand_id: uuid.UUID, task_description: str, platform: str, content_type: str = "text", is_promoted: bool = False, campaign_type: str = "organic") -> dict[str, Any]:
+async def route_task(
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    task_description: str,
+    platform: str,
+    content_type: str = "text",
+    is_promoted: bool = False,
+    campaign_type: str = "organic",
+) -> dict[str, Any]:
     from packages.db.models.pattern_memory import WinningPatternCluster
+
     hero_override = False
     try:
-        top_cluster = (await db.execute(
-            select(WinningPatternCluster)
-            .where(WinningPatternCluster.brand_id == brand_id, WinningPatternCluster.platform == platform, WinningPatternCluster.is_active.is_(True))
-            .order_by(WinningPatternCluster.avg_win_score.desc())
-            .limit(1)
-        )).scalar_one_or_none()
+        top_cluster = (
+            await db.execute(
+                select(WinningPatternCluster)
+                .where(
+                    WinningPatternCluster.brand_id == brand_id,
+                    WinningPatternCluster.platform == platform,
+                    WinningPatternCluster.is_active.is_(True),
+                )
+                .order_by(WinningPatternCluster.avg_win_score.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         if top_cluster and top_cluster.avg_win_score >= 0.6:
             hero_override = True
     except Exception:
@@ -35,6 +51,7 @@ async def route_task(db: AsyncSession, brand_id: uuid.UUID, task_description: st
 
     try:
         from apps.api.services.capital_allocator_service import get_allocation_for_target
+
         alloc = await get_allocation_for_target(db, brand_id, "platform", platform)
         if alloc.get("provider_tier") == "hero":
             hero_override = True
@@ -45,11 +62,15 @@ async def route_task(db: AsyncSession, brand_id: uuid.UUID, task_description: st
 
     try:
         from packages.db.models.account_state_intel import AccountStateReport
-        state_report = (await db.execute(
-            select(AccountStateReport)
-            .where(AccountStateReport.brand_id == brand_id, AccountStateReport.is_active.is_(True))
-            .order_by(AccountStateReport.created_at.desc()).limit(1)
-        )).scalar_one_or_none()
+
+        state_report = (
+            await db.execute(
+                select(AccountStateReport)
+                .where(AccountStateReport.brand_id == brand_id, AccountStateReport.is_active.is_(True))
+                .order_by(AccountStateReport.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         if state_report:
             if state_report.current_state in ("newborn", "warming", "weak", "suppressed", "blocked"):
                 hero_override = False
@@ -77,22 +98,48 @@ async def route_task(db: AsyncSession, brand_id: uuid.UUID, task_description: st
 
 
 async def list_routing_decisions(db: AsyncSession, brand_id: uuid.UUID) -> list:
-    return list((await db.execute(
-        select(ContentRoutingDecision).where(ContentRoutingDecision.brand_id == brand_id, ContentRoutingDecision.is_active.is_(True)).order_by(ContentRoutingDecision.created_at.desc()).limit(100)
-    )).scalars().all())
+    return list(
+        (
+            await db.execute(
+                select(ContentRoutingDecision)
+                .where(ContentRoutingDecision.brand_id == brand_id, ContentRoutingDecision.is_active.is_(True))
+                .order_by(ContentRoutingDecision.created_at.desc())
+                .limit(100)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
 
 async def get_cost_reports(db: AsyncSession, brand_id: uuid.UUID) -> list:
-    return list((await db.execute(
-        select(ContentRoutingCostReport).where(ContentRoutingCostReport.brand_id == brand_id, ContentRoutingCostReport.is_active.is_(True)).order_by(ContentRoutingCostReport.created_at.desc()).limit(30)
-    )).scalars().all())
+    return list(
+        (
+            await db.execute(
+                select(ContentRoutingCostReport)
+                .where(ContentRoutingCostReport.brand_id == brand_id, ContentRoutingCostReport.is_active.is_(True))
+                .order_by(ContentRoutingCostReport.created_at.desc())
+                .limit(30)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
 
 async def recompute_cost_report(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    decisions = list((await db.execute(
-        select(ContentRoutingDecision).where(ContentRoutingDecision.brand_id == brand_id, ContentRoutingDecision.is_active.is_(True))
-    )).scalars().all())
+    decisions = list(
+        (
+            await db.execute(
+                select(ContentRoutingDecision).where(
+                    ContentRoutingDecision.brand_id == brand_id, ContentRoutingDecision.is_active.is_(True)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     by_provider: dict[str, float] = {}
     by_tier: dict[str, float] = {}
@@ -106,14 +153,22 @@ async def recompute_cost_report(db: AsyncSession, brand_id: uuid.UUID) -> dict[s
         by_ct[d.content_type] = by_ct.get(d.content_type, 0) + cost
         total_cost += cost
 
-    await db.execute(delete(ContentRoutingCostReport).where(ContentRoutingCostReport.brand_id == brand_id, ContentRoutingCostReport.report_date == today))
-    db.add(ContentRoutingCostReport(
-        brand_id=brand_id, report_date=today, total_cost=round(total_cost, 4),
-        total_decisions=len(decisions),
-        by_provider={k: round(v, 4) for k, v in by_provider.items()},
-        by_tier={k: round(v, 4) for k, v in by_tier.items()},
-        by_content_type={k: round(v, 4) for k, v in by_ct.items()},
-    ))
+    await db.execute(
+        delete(ContentRoutingCostReport).where(
+            ContentRoutingCostReport.brand_id == brand_id, ContentRoutingCostReport.report_date == today
+        )
+    )
+    db.add(
+        ContentRoutingCostReport(
+            brand_id=brand_id,
+            report_date=today,
+            total_cost=round(total_cost, 4),
+            total_decisions=len(decisions),
+            by_provider={k: round(v, 4) for k, v in by_provider.items()},
+            by_tier={k: round(v, 4) for k, v in by_tier.items()},
+            by_content_type={k: round(v, 4) for k, v in by_ct.items()},
+        )
+    )
     await db.flush()
     return {"rows_processed": 1, "status": "completed"}
 

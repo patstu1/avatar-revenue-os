@@ -4,6 +4,7 @@ Aggregates all intelligence subsystem outputs into actionable endpoints
 that the operator can use to understand what the system knows, what it
 recommends, and what it has learned.
 """
+
 import uuid
 
 from fastapi import APIRouter, Query
@@ -42,7 +43,9 @@ async def get_generation_context(
     and promoted rules that should influence the next generation.
     """
     return await intel.get_generation_intelligence(
-        db, brand_id, platform=platform,
+        db,
+        brand_id,
+        platform=platform,
     )
 
 
@@ -60,7 +63,8 @@ async def check_kill_ledger(
     Returns whether the action is blocked and why.
     """
     return await intel.check_kill_ledger(
-        db, brand_id,
+        db,
+        brand_id,
         entity_type=entity_type,
         pattern_type=pattern_type,
         pattern_key=pattern_key,

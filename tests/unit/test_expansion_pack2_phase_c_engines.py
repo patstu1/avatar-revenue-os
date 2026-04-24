@@ -14,12 +14,22 @@ def test_recommend_referral_program():
 
     # Test Case 1: High-value, loyal customer segment
     customer_segment_data_high_value = [
-        {"segment_name": "High-Value Loyal", "loyalty_score": 0.9, "avg_purchase_value": 1000.0, "estimated_size": 1000},
+        {
+            "segment_name": "High-Value Loyal",
+            "loyalty_score": 0.9,
+            "avg_purchase_value": 1000.0,
+            "estimated_size": 1000,
+        },
         {"segment_name": "Standard", "loyalty_score": 0.5, "avg_purchase_value": 100.0, "estimated_size": 5000},
     ]
     historical_referral_data_tiered = [
         {"program_type": "tiered_cash_bonus", "referral_bonus": 50.0, "referred_bonus": 25.0, "conversion_rate": 0.18},
-        {"program_type": "standard_cash_bonus", "referral_bonus": 15.0, "referred_bonus": 10.0, "conversion_rate": 0.07},
+        {
+            "program_type": "standard_cash_bonus",
+            "referral_bonus": 15.0,
+            "referred_bonus": 10.0,
+            "conversion_rate": 0.07,
+        },
     ]
 
     recommendation_high_value = recommend_referral_program(
@@ -33,7 +43,7 @@ def test_recommend_referral_program():
     assert recommendation_high_value["referral_bonus"] == 50.0
     assert recommendation_high_value["referred_bonus"] == 25.0
     assert recommendation_high_value["estimated_conversion_rate"] == 0.18
-    assert recommendation_high_value["estimated_revenue_impact"] == 0.18 * 1000 * 1000.0 # 180000.0
+    assert recommendation_high_value["estimated_revenue_impact"] == 0.18 * 1000 * 1000.0  # 180000.0
     assert recommendation_high_value["confidence"] > 0.75
     assert "tiered cash bonus" in recommendation_high_value["explanation"]
     assert "High-Value Loyal" in recommendation_high_value["explanation"]
@@ -41,12 +51,27 @@ def test_recommend_referral_program():
 
     # Test Case 2: New customer segment
     customer_segment_data_new_customer = [
-        {"segment_name": "New Customer Engaged", "loyalty_score": 0.3, "avg_purchase_value": 50.0, "estimated_size": 2000},
+        {
+            "segment_name": "New Customer Engaged",
+            "loyalty_score": 0.3,
+            "avg_purchase_value": 50.0,
+            "estimated_size": 2000,
+        },
         {"segment_name": "Standard", "loyalty_score": 0.2, "avg_purchase_value": 30.0, "estimated_size": 5000},
     ]
     historical_referral_data_discount = [
-        {"program_type": "discount_for_next_purchase", "referral_bonus": 20.0, "referred_bonus": 10.0, "conversion_rate": 0.12},
-        {"program_type": "standard_cash_bonus", "referral_bonus": 15.0, "referred_bonus": 10.0, "conversion_rate": 0.07},
+        {
+            "program_type": "discount_for_next_purchase",
+            "referral_bonus": 20.0,
+            "referred_bonus": 10.0,
+            "conversion_rate": 0.12,
+        },
+        {
+            "program_type": "standard_cash_bonus",
+            "referral_bonus": 15.0,
+            "referred_bonus": 10.0,
+            "conversion_rate": 0.07,
+        },
     ]
 
     recommendation_new_customer = recommend_referral_program(
@@ -60,7 +85,7 @@ def test_recommend_referral_program():
     assert recommendation_new_customer["referral_bonus"] == 20.0
     assert recommendation_new_customer["referred_bonus"] == 10.0
     assert recommendation_new_customer["estimated_conversion_rate"] == 0.12
-    assert recommendation_new_customer["estimated_revenue_impact"] == 0.12 * 2000 * 50.0 # 12000.0
+    assert recommendation_new_customer["estimated_revenue_impact"] == 0.12 * 2000 * 50.0  # 12000.0
     assert recommendation_new_customer["confidence"] > 0.6
     assert "discount-based program" in recommendation_new_customer["explanation"]
     assert "New Customer Engaged" in recommendation_new_customer["explanation"]
@@ -71,7 +96,12 @@ def test_recommend_referral_program():
         {"segment_name": "General Audience", "loyalty_score": 0.2, "avg_purchase_value": 75.0, "estimated_size": 10000},
     ]
     historical_referral_data_standard = [
-        {"program_type": "standard_cash_bonus", "referral_bonus": 15.0, "referred_bonus": 10.0, "conversion_rate": 0.07},
+        {
+            "program_type": "standard_cash_bonus",
+            "referral_bonus": 15.0,
+            "referred_bonus": 10.0,
+            "conversion_rate": 0.07,
+        },
     ]
 
     recommendation_general = recommend_referral_program(
@@ -85,7 +115,7 @@ def test_recommend_referral_program():
     assert recommendation_general["referral_bonus"] == 15.0
     assert recommendation_general["referred_bonus"] == 10.0
     assert recommendation_general["estimated_conversion_rate"] == 0.07
-    assert recommendation_general["estimated_revenue_impact"] == 0.07 * 10000 * 75.0 # 52500.0
+    assert recommendation_general["estimated_revenue_impact"] == 0.07 * 10000 * 75.0  # 52500.0
     assert recommendation_general["confidence"] > 0.5
     assert "Standard cash bonus" in recommendation_general["explanation"]
     assert "General Audience" in recommendation_general["explanation"]
@@ -103,6 +133,7 @@ def test_recommend_referral_program():
     assert recommendation_empty["confidence"] == 0.5
     assert "No specific recommendation due to insufficient data" in recommendation_empty["explanation"]
 
+
 def test_analyze_competitive_gaps():
     brand_id = uuid.uuid4()
 
@@ -112,7 +143,13 @@ def test_analyze_competitive_gaps():
         {"offer_id": str(offer_id_1), "name": "Premium Widget", "features": ["A", "B"], "pricing": 120.0},
     ]
     competitor_offers_1 = [
-        {"competitor_name": "Budget Widgets Inc.", "offer_id": "comp_1", "name": "Standard Widget", "features": ["A", "B"], "pricing": 90.0},
+        {
+            "competitor_name": "Budget Widgets Inc.",
+            "offer_id": "comp_1",
+            "name": "Standard Widget",
+            "features": ["A", "B"],
+            "pricing": 90.0,
+        },
     ]
     market_feedback_1 = []
 
@@ -128,7 +165,7 @@ def test_analyze_competitive_gaps():
     assert report_1["estimated_impact"] == (120.0 - 90.0) * 100
     assert report_1["confidence"] == 0.8
     assert "more expensive" in report_1["gap_description"]
-    assert report_1["niche"] == "premium" # Based on "Premium Widget"
+    assert report_1["niche"] == "premium"  # Based on "Premium Widget"
     assert report_1["sub_niche"] == "general"
     assert report_1["monetization_opportunity"] == "price_adjustment"
     assert report_1["expected_difficulty"] == "medium"
@@ -140,7 +177,13 @@ def test_analyze_competitive_gaps():
         {"offer_id": str(offer_id_2), "name": "Basic App", "features": ["Login", "Profile"], "pricing": 10.0},
     ]
     competitor_offers_2 = [
-        {"competitor_name": "Feature Rich Apps Co.", "offer_id": "comp_2", "name": "Advanced App", "features": ["Login", "Profile", "Analytics", "Sharing"], "pricing": 12.0},
+        {
+            "competitor_name": "Feature Rich Apps Co.",
+            "offer_id": "comp_2",
+            "name": "Advanced App",
+            "features": ["Login", "Profile", "Analytics", "Sharing"],
+            "pricing": 12.0,
+        },
     ]
     market_feedback_2 = []
 
@@ -157,7 +200,7 @@ def test_analyze_competitive_gaps():
     assert report_2["confidence"] == 0.7
     assert "missing key features" in report_2["gap_description"]
     assert "Analytics" in report_2["gap_description"]
-    assert report_2["niche"] == "mid-market" # Based on "Basic App"
+    assert report_2["niche"] == "mid-market"  # Based on "Basic App"
     assert report_2["sub_niche"] == "general"
     assert report_2["monetization_opportunity"] == "feature_development"
     assert report_2["expected_difficulty"] == "high"
@@ -190,8 +233,8 @@ def test_analyze_competitive_gaps():
     assert report_3["estimated_impact"] == 15000.0
     assert report_3["confidence"] == 0.9
     assert "Significant negative market feedback" in report_3["gap_description"]
-    assert report_3["niche"] == "mid-market" # Based on "Service Pro"
-    assert report_3["sub_niche"] == "consulting" # "service" in "service pro" triggers consulting
+    assert report_3["niche"] == "mid-market"  # Based on "Service Pro"
+    assert report_3["sub_niche"] == "consulting"  # "service" in "service pro" triggers consulting
     assert report_3["monetization_opportunity"] == "product_improvement"
     assert report_3["expected_difficulty"] == "high"
     assert report_3["expected_upside"] == 15000.0 * 3
@@ -202,7 +245,13 @@ def test_analyze_competitive_gaps():
         {"offer_id": str(offer_id_4), "name": "Balanced Solution", "features": ["X", "Y", "Z"], "pricing": 100.0},
     ]
     competitor_offers_4 = [
-        {"competitor_name": "Similar Co.", "offer_id": "comp_4", "name": "Balanced Solution Alt", "features": ["X", "Y", "Z"], "pricing": 105.0},
+        {
+            "competitor_name": "Similar Co.",
+            "offer_id": "comp_4",
+            "name": "Balanced Solution Alt",
+            "features": ["X", "Y", "Z"],
+            "pricing": 105.0,
+        },
     ]
     market_feedback_4 = [
         {"feedback_id": "fb_g", "offer_id": str(offer_id_4), "sentiment": "positive", "comment": "Good product"},
@@ -239,6 +288,7 @@ def test_analyze_competitive_gaps():
     assert report_5["confidence"] == 0.2
     assert "Brand has no offers to compare" in report_5["gap_description"]
 
+
 def test_identify_sponsor_targets():
     brand_id = uuid.uuid4()
 
@@ -264,8 +314,24 @@ def test_identify_sponsor_targets():
         },
     ]
     brand_audience_data_tech = [
-        {"name": "Tech Enthusiasts", "estimated_size": 50000, "revenue_contribution": 100000.0, "conversion_rate": 0.05, "avg_ltv": 200.0, "platforms": ["YouTube", "Instagram"], "loyalty_score": 0.5},
-        {"name": "Casual Viewers", "estimated_size": 100000, "revenue_contribution": 50000.0, "conversion_rate": 0.01, "avg_ltv": 50.0, "platforms": ["Facebook"], "loyalty_score": 0.1},
+        {
+            "name": "Tech Enthusiasts",
+            "estimated_size": 50000,
+            "revenue_contribution": 100000.0,
+            "conversion_rate": 0.05,
+            "avg_ltv": 200.0,
+            "platforms": ["YouTube", "Instagram"],
+            "loyalty_score": 0.5,
+        },
+        {
+            "name": "Casual Viewers",
+            "estimated_size": 100000,
+            "revenue_contribution": 50000.0,
+            "conversion_rate": 0.01,
+            "avg_ltv": 50.0,
+            "platforms": ["Facebook"],
+            "loyalty_score": 0.1,
+        },
     ]
 
     target_high_fit = identify_sponsor_targets(
@@ -295,7 +361,15 @@ def test_identify_sponsor_targets():
         },
     ]
     brand_audience_data_food = [
-        {"name": "Foodies", "estimated_size": 20000, "revenue_contribution": 80000.0, "conversion_rate": 0.03, "avg_ltv": 40.0, "platforms": ["Instagram"], "loyalty_score": 0.3},
+        {
+            "name": "Foodies",
+            "estimated_size": 20000,
+            "revenue_contribution": 80000.0,
+            "conversion_rate": 0.03,
+            "avg_ltv": 40.0,
+            "platforms": ["Instagram"],
+            "loyalty_score": 0.3,
+        },
     ]
 
     target_low_fit = identify_sponsor_targets(
@@ -319,6 +393,7 @@ def test_identify_sponsor_targets():
     )
     assert target_no_sponsors["target_company_name"] == "N/A"
     assert target_no_sponsors["explanation"] == "No suitable sponsor targets identified."
+
 
 def test_generate_sponsor_outreach_sequence():
     sponsor_target_id = uuid.uuid4()
@@ -344,7 +419,13 @@ def test_generate_sponsor_outreach_sequence():
         },
     ]
     historical_outreach_performance_tech = [
-        {"sequence_name": "Tech Enterprise Outreach", "response_rate": 0.18, "conversion_rate": 0.03, "industry": "tech", "company_size_category": "enterprise"},
+        {
+            "sequence_name": "Tech Enterprise Outreach",
+            "response_rate": 0.18,
+            "conversion_rate": 0.03,
+            "industry": "tech",
+            "company_size_category": "enterprise",
+        },
     ]
 
     sequence_tech = generate_sponsor_outreach_sequence(
@@ -359,7 +440,9 @@ def test_generate_sponsor_outreach_sequence():
     assert sequence_tech["sequence_name"] == "Tech Enterprise Outreach"
     assert len(sequence_tech["steps"]) == 1
     assert sequence_tech["estimated_response_rate"] > 0.15
-    assert sequence_tech["expected_value"] == sequence_tech["estimated_response_rate"] * 0.03 * estimated_deal_value_tech
+    assert (
+        sequence_tech["expected_value"] == sequence_tech["estimated_response_rate"] * 0.03 * estimated_deal_value_tech
+    )
     assert sequence_tech["confidence"] > 0.7
     assert "Selected 'Tech Enterprise Outreach' template" in sequence_tech["explanation"]
     assert "Adjusted with historical data" in sequence_tech["explanation"]
@@ -389,7 +472,13 @@ def test_generate_sponsor_outreach_sequence():
         },
     ]
     historical_outreach_performance_fashion = [
-        {"sequence_name": "SMB Fashion Outreach", "response_rate": 0.12, "conversion_rate": 0.02, "industry": "fashion", "company_size_category": "smb"},
+        {
+            "sequence_name": "SMB Fashion Outreach",
+            "response_rate": 0.12,
+            "conversion_rate": 0.02,
+            "industry": "fashion",
+            "company_size_category": "smb",
+        },
     ]
 
     sequence_fashion = generate_sponsor_outreach_sequence(
@@ -424,7 +513,13 @@ def test_generate_sponsor_outreach_sequence():
         },
     ]
     historical_outreach_performance_general = [
-        {"sequence_name": "Standard Cold Outreach", "response_rate": 0.06, "conversion_rate": 0.01, "industry": "", "company_size_category": ""},
+        {
+            "sequence_name": "Standard Cold Outreach",
+            "response_rate": 0.06,
+            "conversion_rate": 0.01,
+            "industry": "",
+            "company_size_category": "",
+        },
     ]
 
     sequence_general = generate_sponsor_outreach_sequence(
@@ -439,7 +534,10 @@ def test_generate_sponsor_outreach_sequence():
     assert sequence_general["sequence_name"] == "Standard Cold Outreach"
     assert len(sequence_general["steps"]) == 1
     assert sequence_general["estimated_response_rate"] > 0.05
-    assert sequence_general["expected_value"] == sequence_general["estimated_response_rate"] * 0.01 * estimated_deal_value_general
+    assert (
+        sequence_general["expected_value"]
+        == sequence_general["estimated_response_rate"] * 0.01 * estimated_deal_value_general
+    )
     assert sequence_general["confidence"] > 0.5
     assert "Selected 'Standard Cold Outreach' template" in sequence_general["explanation"]
 
@@ -469,9 +567,12 @@ def test_generate_sponsor_outreach_sequence():
 
     assert sequence_no_hist["sequence_name"] == "Standard Cold Outreach"
     assert sequence_no_hist["estimated_response_rate"] == 0.05  # Should not be adjusted
-    assert sequence_no_hist["expected_value"] == 0.05 * 0.1 * estimated_deal_value_no_hist  # Uses default conversion rate
+    assert (
+        sequence_no_hist["expected_value"] == 0.05 * 0.1 * estimated_deal_value_no_hist
+    )  # Uses default conversion rate
     assert "Initial response rate based on template effectiveness" in sequence_no_hist["explanation"]
     assert "Adjusted with historical data" not in sequence_no_hist["explanation"]
+
 
 def test_analyze_profit_guardrails_violation():
     """A metric below its min-threshold must produce a violation with the guardrail action."""
@@ -480,8 +581,13 @@ def test_analyze_profit_guardrails_violation():
         {"metric_name": "profit_margin", "value": 0.15},
     ]
     defined_guardrails = [
-        {"metric_name": "profit_margin", "threshold": 0.2, "direction": "min",
-         "warning_buffer": 0.05, "action": "throttle_ads"},
+        {
+            "metric_name": "profit_margin",
+            "threshold": 0.2,
+            "direction": "min",
+            "warning_buffer": 0.05,
+            "action": "throttle_ads",
+        },
     ]
 
     results = analyze_profit_guardrails(
@@ -510,8 +616,13 @@ def test_analyze_profit_guardrails_ok():
         {"metric_name": "profit_margin", "value": 0.35},
     ]
     defined_guardrails = [
-        {"metric_name": "profit_margin", "threshold": 0.2, "direction": "min",
-         "warning_buffer": 0.05, "action": "throttle_ads"},
+        {
+            "metric_name": "profit_margin",
+            "threshold": 0.2,
+            "direction": "min",
+            "warning_buffer": 0.05,
+            "action": "throttle_ads",
+        },
     ]
 
     results = analyze_profit_guardrails(brand_id, financial_metrics, defined_guardrails)
@@ -528,8 +639,13 @@ def test_analyze_profit_guardrails_warning():
         {"metric_name": "profit_margin", "value": 0.22},
     ]
     defined_guardrails = [
-        {"metric_name": "profit_margin", "threshold": 0.2, "direction": "min",
-         "warning_buffer": 0.05, "action": "throttle_ads"},
+        {
+            "metric_name": "profit_margin",
+            "threshold": 0.2,
+            "direction": "min",
+            "warning_buffer": 0.05,
+            "action": "throttle_ads",
+        },
     ]
 
     results = analyze_profit_guardrails(brand_id, financial_metrics, defined_guardrails)
@@ -545,8 +661,13 @@ def test_analyze_profit_guardrails_max_direction_violation():
         {"metric_name": "customer_acquisition_cost", "value": 200.0},
     ]
     defined_guardrails = [
-        {"metric_name": "customer_acquisition_cost", "threshold": 150.0,
-         "direction": "max", "warning_buffer": 25.0, "action": "reduce_paid_acquisition"},
+        {
+            "metric_name": "customer_acquisition_cost",
+            "threshold": 150.0,
+            "direction": "max",
+            "warning_buffer": 25.0,
+            "action": "reduce_paid_acquisition",
+        },
     ]
 
     results = analyze_profit_guardrails(brand_id, financial_metrics, defined_guardrails)

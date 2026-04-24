@@ -10,6 +10,7 @@ Formula (v1):
 
 All component scores normalized to [0, 1]. Penalties in [0, 0.3].
 """
+
 from dataclasses import dataclass
 
 FORMULA_VERSION = "v1"

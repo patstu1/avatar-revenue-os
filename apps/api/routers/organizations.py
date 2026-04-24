@@ -1,4 +1,5 @@
 """Organization management endpoints."""
+
 import uuid
 from typing import Optional
 
@@ -31,14 +32,20 @@ async def get_organization(org_id: uuid.UUID, current_user: CurrentUser, db: DBS
 
 
 @router.patch("/{org_id}", response_model=OrganizationResponse)
-async def update_organization(
-    org_id: uuid.UUID, current_user: CurrentUser, db: DBSession, name: Optional[str] = None
-):
+async def update_organization(org_id: uuid.UUID, current_user: CurrentUser, db: DBSession, name: Optional[str] = None):
     if current_user.organization_id != org_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     try:
         org = await org_service.update(db, org_id, name=name)
     except ValueError:
         raise HTTPException(status_code=404, detail="Organization not found")
-    await log_action(db, "organization.updated", organization_id=org_id, user_id=current_user.id, actor_type="human", entity_type="organization", entity_id=org_id)
+    await log_action(
+        db,
+        "organization.updated",
+        organization_id=org_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="organization",
+        entity_id=org_id,
+    )
     return org

@@ -1,4 +1,5 @@
 """Unit tests for AI Gatekeeper engine."""
+
 from packages.scoring.gatekeeper_engine import (
     REQUIRED_LAYERS,
     SEVERITY_CRITICAL,
@@ -107,15 +108,20 @@ def test_truth_synthetic_unlabeled():
 
 
 def test_closure_complete():
-    r = evaluate_execution_closure("brain", has_execution_path=True, has_downstream_action=True, has_blocker_handling=True)
+    r = evaluate_execution_closure(
+        "brain", has_execution_path=True, has_downstream_action=True, has_blocker_handling=True
+    )
     assert r["gate_passed"] is True
     assert r["dead_end_detected"] is False
 
 
 def test_closure_dead_end():
     r = evaluate_execution_closure(
-        "brain", has_execution_path=False, has_downstream_action=True,
-        has_blocker_handling=True, pending_actions_count=5,
+        "brain",
+        has_execution_path=False,
+        has_downstream_action=True,
+        has_blocker_handling=True,
+        pending_actions_count=5,
     )
     assert r["dead_end_detected"] is True
     assert r["gate_passed"] is False
@@ -124,8 +130,11 @@ def test_closure_dead_end():
 
 def test_closure_stale_blocker():
     r = evaluate_execution_closure(
-        "brain", has_execution_path=True, has_downstream_action=True,
-        has_blocker_handling=True, stale_blocker_count=3,
+        "brain",
+        has_execution_path=True,
+        has_downstream_action=True,
+        has_blocker_handling=True,
+        stale_blocker_count=3,
     )
     assert r["stale_blocker_detected"] is True
     assert r["gate_passed"] is False
@@ -133,8 +142,11 @@ def test_closure_stale_blocker():
 
 def test_closure_orphaned_recommendation():
     r = evaluate_execution_closure(
-        "brain", has_execution_path=True, has_downstream_action=True,
-        has_blocker_handling=True, orphaned_recommendations=2,
+        "brain",
+        has_execution_path=True,
+        has_downstream_action=True,
+        has_blocker_handling=True,
+        orphaned_recommendations=2,
     )
     assert r["orphaned_recommendation"] is True
     assert r["gate_passed"] is False
@@ -144,23 +156,31 @@ def test_closure_orphaned_recommendation():
 
 
 def test_tests_sufficient():
-    r = evaluate_test_sufficiency("brain", unit_test_count=5, integration_test_count=2, has_critical_path_tests=True, has_high_risk_tests=True)
+    r = evaluate_test_sufficiency(
+        "brain", unit_test_count=5, integration_test_count=2, has_critical_path_tests=True, has_high_risk_tests=True
+    )
     assert r["gate_passed"] is True
 
 
 def test_tests_zero():
-    r = evaluate_test_sufficiency("brain", unit_test_count=0, integration_test_count=0, has_critical_path_tests=False, has_high_risk_tests=False)
+    r = evaluate_test_sufficiency(
+        "brain", unit_test_count=0, integration_test_count=0, has_critical_path_tests=False, has_high_risk_tests=False
+    )
     assert r["gate_passed"] is False
     assert r["severity"] == SEVERITY_CRITICAL
 
 
 def test_tests_no_critical_path():
-    r = evaluate_test_sufficiency("brain", unit_test_count=10, integration_test_count=0, has_critical_path_tests=False, has_high_risk_tests=True)
+    r = evaluate_test_sufficiency(
+        "brain", unit_test_count=10, integration_test_count=0, has_critical_path_tests=False, has_high_risk_tests=True
+    )
     assert r["gate_passed"] is False
 
 
 def test_tests_below_minimum_total():
-    r = evaluate_test_sufficiency("brain", unit_test_count=1, integration_test_count=0, has_critical_path_tests=True, has_high_risk_tests=True)
+    r = evaluate_test_sufficiency(
+        "brain", unit_test_count=1, integration_test_count=0, has_critical_path_tests=True, has_high_risk_tests=True
+    )
     assert r["gate_passed"] is False
 
 
@@ -175,7 +195,9 @@ def test_dependency_met():
 
 
 def test_dependency_blocked():
-    r = evaluate_dependency_readiness("live_execution_phase2", "stripe", credential_present=False, integration_live=False)
+    r = evaluate_dependency_readiness(
+        "live_execution_phase2", "stripe", credential_present=False, integration_live=False
+    )
     assert r["blocked_by_external"] is True
     assert r["gate_passed"] is False
 
@@ -228,7 +250,9 @@ def test_command_quality_good():
     r = evaluate_operator_command_quality(
         "growth_commander",
         "Scale YouTube channel to 50k subs by Q3",
-        has_target=True, has_metric=True, has_deadline=True,
+        has_target=True,
+        has_metric=True,
+        has_deadline=True,
     )
     assert r["gate_passed"] is True
     assert r["is_actionable"] is True
@@ -240,7 +264,9 @@ def test_command_quality_vague():
     r = evaluate_operator_command_quality(
         "copilot",
         "do stuff",
-        has_target=False, has_metric=False, has_deadline=False,
+        has_target=False,
+        has_metric=False,
+        has_deadline=False,
     )
     assert r["gate_passed"] is False
     assert r["is_actionable"] is False
@@ -251,7 +277,9 @@ def test_command_quality_partial():
     r = evaluate_operator_command_quality(
         "scale_alerts",
         "Add 2 new TikTok accounts for fitness niche",
-        has_target=True, has_metric=False, has_deadline=False,
+        has_target=True,
+        has_metric=False,
+        has_deadline=False,
     )
     assert r["is_actionable"] is True
     assert r["has_measurable_outcome"] is False
@@ -263,8 +291,10 @@ def test_command_quality_partial():
 def test_expansion_granted():
     r = evaluate_expansion_permission(
         "next_phase",
-        prerequisites_met=True, blockers_resolved=True,
-        test_coverage_sufficient=True, dependencies_ready=True,
+        prerequisites_met=True,
+        blockers_resolved=True,
+        test_coverage_sufficient=True,
+        dependencies_ready=True,
         critical_gates_passing=True,
     )
     assert r["permission_granted"] is True
@@ -274,8 +304,10 @@ def test_expansion_granted():
 def test_expansion_blocked_prerequisites():
     r = evaluate_expansion_permission(
         "next_phase",
-        prerequisites_met=False, blockers_resolved=True,
-        test_coverage_sufficient=True, dependencies_ready=True,
+        prerequisites_met=False,
+        blockers_resolved=True,
+        test_coverage_sufficient=True,
+        dependencies_ready=True,
     )
     assert r["permission_granted"] is False
     assert "prerequisites not met" in r["blocking_reasons"]
@@ -284,8 +316,10 @@ def test_expansion_blocked_prerequisites():
 def test_expansion_blocked_multiple_reasons():
     r = evaluate_expansion_permission(
         "production_deploy",
-        prerequisites_met=False, blockers_resolved=False,
-        test_coverage_sufficient=False, dependencies_ready=False,
+        prerequisites_met=False,
+        blockers_resolved=False,
+        test_coverage_sufficient=False,
+        dependencies_ready=False,
         critical_gates_passing=False,
     )
     assert r["permission_granted"] is False
@@ -370,8 +404,10 @@ def test_detect_mislabeled_live():
 def test_detect_queued_no_execution():
     r = evaluate_execution_closure(
         "autonomous_execution",
-        has_execution_path=False, has_downstream_action=True,
-        has_blocker_handling=True, pending_actions_count=10,
+        has_execution_path=False,
+        has_downstream_action=True,
+        has_blocker_handling=True,
+        pending_actions_count=10,
     )
     assert r["dead_end_detected"] is True
     assert r["gate_passed"] is False
@@ -380,8 +416,10 @@ def test_detect_queued_no_execution():
 def test_detect_blocker_prevents_expansion():
     r = evaluate_expansion_permission(
         "new_pack",
-        prerequisites_met=True, blockers_resolved=False,
-        test_coverage_sufficient=True, dependencies_ready=True,
+        prerequisites_met=True,
+        blockers_resolved=False,
+        test_coverage_sufficient=True,
+        dependencies_ready=True,
     )
     assert r["permission_granted"] is False
     assert "unresolved blockers" in r["blocking_reasons"]

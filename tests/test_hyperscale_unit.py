@@ -1,4 +1,5 @@
 """Unit tests for hyper-scale execution engine."""
+
 from packages.scoring.hyperscale_engine import (
     balance_market_workload,
     build_scale_health,
@@ -13,7 +14,11 @@ from packages.scoring.hyperscale_engine import (
 
 class TestPartitioning:
     def test_partitions_by_brand(self):
-        tasks = [{"brand_id": "a", "task_type": "gen"}, {"brand_id": "b", "task_type": "gen"}, {"brand_id": "a", "task_type": "gen"}]
+        tasks = [
+            {"brand_id": "a", "task_type": "gen"},
+            {"brand_id": "b", "task_type": "gen"},
+            {"brand_id": "a", "task_type": "gen"},
+        ]
         segs = partition_workload(tasks)
         assert len(segs) >= 2
 
@@ -80,7 +85,11 @@ class TestCeiling:
 
 class TestPriority:
     def test_sorted_by_priority(self):
-        tasks = [{"priority": 10, "created_at": "a"}, {"priority": 90, "created_at": "b"}, {"priority": 50, "created_at": "c"}]
+        tasks = [
+            {"priority": 10, "created_at": "a"},
+            {"priority": 90, "created_at": "b"},
+            {"priority": 50, "created_at": "c"},
+        ]
         result = schedule_priority(tasks)
         assert result[0]["priority"] == 90
         assert result[-1]["priority"] == 10
@@ -88,7 +97,10 @@ class TestPriority:
 
 class TestMarketBalance:
     def test_identifies_overloaded(self):
-        allocs = [{"market": "us", "allocated_capacity": 10, "used_capacity": 15}, {"market": "eu", "allocated_capacity": 10, "used_capacity": 3}]
+        allocs = [
+            {"market": "us", "allocated_capacity": 10, "used_capacity": 15},
+            {"market": "eu", "allocated_capacity": 10, "used_capacity": 3},
+        ]
         result = balance_market_workload(allocs)
         assert result[0]["status"] == "overloaded"
         assert result[1]["status"] == "healthy"

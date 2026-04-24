@@ -3,6 +3,7 @@
 Every function evaluates real system state and returns pass/fail with severity.
 No soft passes. No fake approvals. If something is incomplete, say so.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,6 +47,7 @@ SYSTEM_MODULES = {
 
 # ── 1. Completion Gate ─────────────────────────────────────────────────
 
+
 def evaluate_completion(
     module_name: str,
     layers_present: dict[str, bool],
@@ -79,6 +81,7 @@ def evaluate_completion(
 
 # ── 2. Truth Gate ──────────────────────────────────────────────────────
 
+
 def evaluate_truth(
     module_name: str,
     claimed_status: str,
@@ -105,12 +108,14 @@ def evaluate_truth(
         "severity": severity,
         "explanation": (
             f"TRUTH VIOLATION: '{module_name}' claims '{claimed_status}' but is actually '{actual_status}'"
-            if mismatch else f"'{module_name}' truth status verified: {actual_status}"
+            if mismatch
+            else f"'{module_name}' truth status verified: {actual_status}"
         ),
     }
 
 
 # ── 3. Execution Closure Gate ──────────────────────────────────────────
+
 
 def evaluate_execution_closure(
     module_name: str,
@@ -127,7 +132,9 @@ def evaluate_execution_closure(
     orphaned = orphaned_recommendations > 0
 
     passed = has_execution_path and has_downstream_action and not dead_end and not stale and not orphaned
-    severity = SEVERITY_CRITICAL if dead_end else SEVERITY_HIGH if stale else SEVERITY_MEDIUM if orphaned else SEVERITY_LOW
+    severity = (
+        SEVERITY_CRITICAL if dead_end else SEVERITY_HIGH if stale else SEVERITY_MEDIUM if orphaned else SEVERITY_LOW
+    )
 
     issues = []
     if dead_end:
@@ -155,6 +162,7 @@ def evaluate_execution_closure(
 
 # ── 4. Test Sufficiency Gate ──────────────────────────────────────────
 
+
 def evaluate_test_sufficiency(
     module_name: str,
     unit_test_count: int,
@@ -165,7 +173,15 @@ def evaluate_test_sufficiency(
     """Check test coverage — zero tests on high-risk flows is a gate failure."""
     total = unit_test_count + integration_test_count
     passed = total >= 3 and has_critical_path_tests
-    severity = SEVERITY_CRITICAL if total == 0 else SEVERITY_HIGH if not has_critical_path_tests else SEVERITY_MEDIUM if not has_high_risk_tests else SEVERITY_LOW
+    severity = (
+        SEVERITY_CRITICAL
+        if total == 0
+        else SEVERITY_HIGH
+        if not has_critical_path_tests
+        else SEVERITY_MEDIUM
+        if not has_high_risk_tests
+        else SEVERITY_LOW
+    )
 
     return {
         "module_name": module_name,
@@ -183,6 +199,7 @@ def evaluate_test_sufficiency(
 
 
 # ── 5. Dependency Readiness Gate ──────────────────────────────────────
+
 
 def evaluate_dependency_readiness(
     module_name: str,
@@ -207,12 +224,17 @@ def evaluate_dependency_readiness(
         "severity": severity,
         "explanation": (
             f"'{module_name}' dependency on '{provider_key}': "
-            + ("ready" if met else f"blocked — credential={'present' if credential_present else 'MISSING'}, integration={'live' if integration_live else 'NOT LIVE'}")
+            + (
+                "ready"
+                if met
+                else f"blocked — credential={'present' if credential_present else 'MISSING'}, integration={'live' if integration_live else 'NOT LIVE'}"
+            )
         ),
     }
 
 
 # ── 6. Contradiction Detection ────────────────────────────────────────
+
 
 def detect_contradictions(
     states: list[dict[str, Any]],
@@ -224,35 +246,42 @@ def detect_contradictions(
     contradictions = []
 
     for i, a in enumerate(states):
-        for b in states[i + 1:]:
+        for b in states[i + 1 :]:
             # Module claims live but dependency says blocked
             if a.get("status") == "live" and b.get("status") == "blocked" and a.get("depends_on") == b.get("module"):
-                contradictions.append({
-                    "module_a": a["module"],
-                    "module_b": b["module"],
-                    "contradiction_type": "live_depends_on_blocked",
-                    "description": f"'{a['module']}' claims live but depends on '{b['module']}' which is blocked",
-                    "severity": SEVERITY_CRITICAL,
-                    "gate_passed": False,
-                })
+                contradictions.append(
+                    {
+                        "module_a": a["module"],
+                        "module_b": b["module"],
+                        "contradiction_type": "live_depends_on_blocked",
+                        "description": f"'{a['module']}' claims live but depends on '{b['module']}' which is blocked",
+                        "severity": SEVERITY_CRITICAL,
+                        "gate_passed": False,
+                    }
+                )
 
             # Both claim primary for same capability
-            if (a.get("claims", {}).get("capability") == b.get("claims", {}).get("capability")
+            if (
+                a.get("claims", {}).get("capability") == b.get("claims", {}).get("capability")
                 and a.get("claims", {}).get("role") == "primary"
-                and b.get("claims", {}).get("role") == "primary"):
-                contradictions.append({
-                    "module_a": a["module"],
-                    "module_b": b["module"],
-                    "contradiction_type": "duplicate_primary",
-                    "description": f"Both '{a['module']}' and '{b['module']}' claim primary for '{a['claims']['capability']}'",
-                    "severity": SEVERITY_HIGH,
-                    "gate_passed": False,
-                })
+                and b.get("claims", {}).get("role") == "primary"
+            ):
+                contradictions.append(
+                    {
+                        "module_a": a["module"],
+                        "module_b": b["module"],
+                        "contradiction_type": "duplicate_primary",
+                        "description": f"Both '{a['module']}' and '{b['module']}' claim primary for '{a['claims']['capability']}'",
+                        "severity": SEVERITY_HIGH,
+                        "gate_passed": False,
+                    }
+                )
 
     return contradictions
 
 
 # ── 7. Operator Command Quality Gate ──────────────────────────────────
+
 
 def evaluate_operator_command_quality(
     command_source: str,
@@ -265,7 +294,7 @@ def evaluate_operator_command_quality(
     is_actionable = len(command_text.strip()) > 10 and has_target
     is_specific = has_target and (has_metric or has_deadline)
     has_measurable = has_metric
-    quality = (0.3 * is_actionable + 0.4 * is_specific + 0.3 * has_measurable)
+    quality = 0.3 * is_actionable + 0.4 * is_specific + 0.3 * has_measurable
     passed = quality >= 0.5
 
     severity = SEVERITY_HIGH if quality < 0.3 else SEVERITY_MEDIUM if not passed else SEVERITY_LOW
@@ -289,6 +318,7 @@ def evaluate_operator_command_quality(
 
 
 # ── 8. Expansion Permission Gate ─────────────────────────────────────
+
 
 def evaluate_expansion_permission(
     expansion_target: str,
@@ -331,6 +361,7 @@ def evaluate_expansion_permission(
 
 # ── 9. Alert Generation ──────────────────────────────────────────────
 
+
 def generate_gatekeeper_alerts(
     completion_reports: list[dict],
     truth_reports: list[dict],
@@ -344,74 +375,91 @@ def generate_gatekeeper_alerts(
 
     for r in completion_reports:
         if not r.get("gate_passed"):
-            alerts.append({
-                "gate_type": "completion",
-                "severity": r.get("severity", SEVERITY_HIGH),
-                "title": f"Incomplete module: {r.get('module_name', '?')}",
-                "description": r.get("explanation", ""),
-                "source_module": r.get("module_name"),
-                "operator_action": f"Complete missing layers: {', '.join(r.get('missing_layers', []))}",
-            })
+            alerts.append(
+                {
+                    "gate_type": "completion",
+                    "severity": r.get("severity", SEVERITY_HIGH),
+                    "title": f"Incomplete module: {r.get('module_name', '?')}",
+                    "description": r.get("explanation", ""),
+                    "source_module": r.get("module_name"),
+                    "operator_action": f"Complete missing layers: {', '.join(r.get('missing_layers', []))}",
+                }
+            )
 
     for r in truth_reports:
         if not r.get("gate_passed"):
-            alerts.append({
-                "gate_type": "truth",
-                "severity": r.get("severity", SEVERITY_CRITICAL),
-                "title": f"Truth mismatch: {r.get('module_name', '?')}",
-                "description": r.get("explanation", ""),
-                "source_module": r.get("module_name"),
-                "operator_action": "Fix truth label to match actual status",
-            })
+            alerts.append(
+                {
+                    "gate_type": "truth",
+                    "severity": r.get("severity", SEVERITY_CRITICAL),
+                    "title": f"Truth mismatch: {r.get('module_name', '?')}",
+                    "description": r.get("explanation", ""),
+                    "source_module": r.get("module_name"),
+                    "operator_action": "Fix truth label to match actual status",
+                }
+            )
 
     for r in closure_reports:
         if not r.get("gate_passed"):
-            alerts.append({
-                "gate_type": "execution_closure",
-                "severity": r.get("severity", SEVERITY_HIGH),
-                "title": f"Execution gap: {r.get('module_name', '?')}",
-                "description": r.get("explanation", ""),
-                "source_module": r.get("module_name"),
-                "operator_action": "Resolve dead-end flows and stale blockers",
-            })
+            alerts.append(
+                {
+                    "gate_type": "execution_closure",
+                    "severity": r.get("severity", SEVERITY_HIGH),
+                    "title": f"Execution gap: {r.get('module_name', '?')}",
+                    "description": r.get("explanation", ""),
+                    "source_module": r.get("module_name"),
+                    "operator_action": "Resolve dead-end flows and stale blockers",
+                }
+            )
 
     for r in test_reports:
         if not r.get("gate_passed"):
-            alerts.append({
-                "gate_type": "test_sufficiency",
-                "severity": r.get("severity", SEVERITY_MEDIUM),
-                "title": f"Insufficient tests: {r.get('module_name', '?')}",
-                "description": r.get("explanation", ""),
-                "source_module": r.get("module_name"),
-                "operator_action": "Add critical path tests",
-            })
+            alerts.append(
+                {
+                    "gate_type": "test_sufficiency",
+                    "severity": r.get("severity", SEVERITY_MEDIUM),
+                    "title": f"Insufficient tests: {r.get('module_name', '?')}",
+                    "description": r.get("explanation", ""),
+                    "source_module": r.get("module_name"),
+                    "operator_action": "Add critical path tests",
+                }
+            )
 
     for r in dependency_reports:
         if not r.get("gate_passed"):
-            alerts.append({
-                "gate_type": "dependency",
-                "severity": r.get("severity", SEVERITY_HIGH),
-                "title": f"Dependency blocked: {r.get('module_name', '?')} → {r.get('provider_key', '?')}",
-                "description": r.get("explanation", ""),
-                "source_module": r.get("module_name"),
-                "operator_action": f"Set credentials for {r.get('provider_key', '?')}",
-            })
+            alerts.append(
+                {
+                    "gate_type": "dependency",
+                    "severity": r.get("severity", SEVERITY_HIGH),
+                    "title": f"Dependency blocked: {r.get('module_name', '?')} → {r.get('provider_key', '?')}",
+                    "description": r.get("explanation", ""),
+                    "source_module": r.get("module_name"),
+                    "operator_action": f"Set credentials for {r.get('provider_key', '?')}",
+                }
+            )
 
     for r in contradiction_reports:
-        alerts.append({
-            "gate_type": "contradiction",
-            "severity": r.get("severity", SEVERITY_CRITICAL),
-            "title": f"Contradiction: {r.get('module_a', '?')} ↔ {r.get('module_b', '?')}",
-            "description": r.get("description", ""),
-            "source_module": f"{r.get('module_a')},{r.get('module_b')}",
-            "operator_action": "Resolve contradictory state",
-        })
+        alerts.append(
+            {
+                "gate_type": "contradiction",
+                "severity": r.get("severity", SEVERITY_CRITICAL),
+                "title": f"Contradiction: {r.get('module_a', '?')} ↔ {r.get('module_b', '?')}",
+                "description": r.get("description", ""),
+                "source_module": f"{r.get('module_a')},{r.get('module_b')}",
+                "operator_action": "Resolve contradictory state",
+            }
+        )
 
-    alerts.sort(key=lambda a: {SEVERITY_CRITICAL: 0, SEVERITY_HIGH: 1, SEVERITY_MEDIUM: 2, SEVERITY_LOW: 3}.get(a.get("severity", "medium"), 2))
+    alerts.sort(
+        key=lambda a: {SEVERITY_CRITICAL: 0, SEVERITY_HIGH: 1, SEVERITY_MEDIUM: 2, SEVERITY_LOW: 3}.get(
+            a.get("severity", "medium"), 2
+        )
+    )
     return alerts
 
 
 # ── 10. Audit Ledger ──────────────────────────────────────────────────
+
 
 def build_audit_entry(
     gate_type: str,

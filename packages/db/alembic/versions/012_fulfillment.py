@@ -6,6 +6,7 @@ Create Date: 2026-04-20
 
 Batch 3C. Additive. Each table guarded by ``IF NOT EXISTS``.
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -19,9 +20,7 @@ depends_on = None
 def _table_exists(name: str) -> bool:
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"
-        ),
+        sa.text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"),
         {"t": name},
     )
     return bool(result.scalar())
@@ -36,12 +35,16 @@ def _base_cols():
             server_default=sa.text("gen_random_uuid()"),
         ),
         sa.Column(
-            "created_at", sa.DateTime(timezone=True),
-            server_default=sa.func.now(), nullable=False,
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
         ),
         sa.Column(
-            "updated_at", sa.DateTime(timezone=True),
-            server_default=sa.func.now(), nullable=False,
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
         ),
     )
 
@@ -53,7 +56,9 @@ def upgrade() -> None:
             *_base_cols(),
             sa.Column("org_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False),
             sa.Column("client_id", UUID(as_uuid=True), sa.ForeignKey("clients.id"), nullable=False),
-            sa.Column("intake_submission_id", UUID(as_uuid=True), sa.ForeignKey("intake_submissions.id"), nullable=True),
+            sa.Column(
+                "intake_submission_id", UUID(as_uuid=True), sa.ForeignKey("intake_submissions.id"), nullable=True
+            ),
             sa.Column("proposal_id", UUID(as_uuid=True), sa.ForeignKey("proposals.id"), nullable=True),
             sa.Column("payment_id", UUID(as_uuid=True), sa.ForeignKey("payments.id"), nullable=True),
             sa.Column("title", sa.String(500), nullable=False),
@@ -67,8 +72,7 @@ def upgrade() -> None:
             sa.Column("notes", sa.Text, nullable=True),
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
         )
-        for col in ("org_id", "client_id", "intake_submission_id",
-                    "proposal_id", "payment_id", "status"):
+        for col in ("org_id", "client_id", "intake_submission_id", "proposal_id", "payment_id", "status"):
             op.create_index(f"ix_client_projects_{col}", "client_projects", [col])
 
     if not _table_exists("project_briefs"):
@@ -87,7 +91,9 @@ def upgrade() -> None:
             sa.Column("deliverables_json", JSONB, nullable=True),
             sa.Column("assets_json", JSONB, nullable=True),
             sa.Column("generator", sa.String(50), nullable=False, server_default="template_v1"),
-            sa.Column("source_intake_submission_id", UUID(as_uuid=True), sa.ForeignKey("intake_submissions.id"), nullable=True),
+            sa.Column(
+                "source_intake_submission_id", UUID(as_uuid=True), sa.ForeignKey("intake_submissions.id"), nullable=True
+            ),
             sa.Column("approved_by", sa.String(255), nullable=True),
             sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True),
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),

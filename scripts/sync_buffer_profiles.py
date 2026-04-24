@@ -9,6 +9,7 @@ Usage:
 
 Without --brand-id, uses the first active brand.
 """
+
 import argparse
 import asyncio
 import sys
@@ -32,9 +33,9 @@ async def main(brand_id_str: str | None = None):
             brand_id = uuid.UUID(brand_id_str)
             brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
         else:
-            brand = (await db.execute(
-                select(Brand).where(Brand.is_active.is_(True)).order_by(Brand.created_at).limit(1)
-            )).scalar_one_or_none()
+            brand = (
+                await db.execute(select(Brand).where(Brand.is_active.is_(True)).order_by(Brand.created_at).limit(1))
+            ).scalar_one_or_none()
 
         if not brand:
             print("FAIL: No active brand found.")
@@ -47,6 +48,7 @@ async def main(brand_id_str: str | None = None):
         # Resolve Buffer API key (DB first, then env)
         db_key = await secrets_service.get_key(db, brand.organization_id, "buffer")
         import os
+
         api_key = db_key or os.environ.get("BUFFER_API_KEY", "")
 
         if not api_key:
@@ -71,9 +73,7 @@ async def main(brand_id_str: str | None = None):
         print(f"\nBuffer returned {len(profiles)} profiles:\n")
 
         # Get existing DB profiles for this brand
-        existing_q = await db.execute(
-            select(BufferProfile).where(BufferProfile.brand_id == brand_id)
-        )
+        existing_q = await db.execute(select(BufferProfile).where(BufferProfile.brand_id == brand_id))
         existing = {p.buffer_profile_id: p for p in existing_q.scalars().all()}
 
         created = 0

@@ -19,6 +19,7 @@ Proves:
        reply_ingestion path still commits (verified by the test DB state
        carrying non-zero ingest side effects even when pipeline skips).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -121,9 +122,7 @@ async def test_inbound_email_persists_full_pipeline(api_client, db_session):
 
     # EmailThread
     thread = (
-        await db_session.execute(
-            select(EmailThread).where(EmailThread.inbox_connection_id == inbox.id)
-        )
+        await db_session.execute(select(EmailThread).where(EmailThread.inbox_connection_id == inbox.id))
     ).scalar_one()
     assert thread.org_id == org_id
     assert thread.from_email == TEST_SENDER
@@ -133,10 +132,8 @@ async def test_inbound_email_persists_full_pipeline(api_client, db_session):
 
     # EmailMessage (idempotent key)
     messages = (
-        await db_session.execute(
-            select(EmailMessage).where(EmailMessage.thread_id == thread.id)
-        )
-    ).scalars().all()
+        (await db_session.execute(select(EmailMessage).where(EmailMessage.thread_id == thread.id))).scalars().all()
+    )
     assert len(messages) == 1
     msg = messages[0]
     assert msg.provider_message_id == TEST_MESSAGE_ID
@@ -145,9 +142,7 @@ async def test_inbound_email_persists_full_pipeline(api_client, db_session):
 
     # EmailClassification
     classification = (
-        await db_session.execute(
-            select(EmailClassification).where(EmailClassification.message_id == msg.id)
-        )
+        await db_session.execute(select(EmailClassification).where(EmailClassification.message_id == msg.id))
     ).scalar_one()
     assert classification.intent  # some intent (pricing_request / warm_interest / unknown)
     assert 0.0 <= classification.confidence <= 1.0
@@ -155,10 +150,8 @@ async def test_inbound_email_persists_full_pipeline(api_client, db_session):
 
     # EmailReplyDraft — reply_engine.create_reply_draft persisted exactly one
     drafts = (
-        await db_session.execute(
-            select(EmailReplyDraft).where(EmailReplyDraft.message_id == msg.id)
-        )
-    ).scalars().all()
+        (await db_session.execute(select(EmailReplyDraft).where(EmailReplyDraft.message_id == msg.id))).scalars().all()
+    )
     assert len(drafts) == 1
     draft = drafts[0]
     assert draft.thread_id == thread.id
@@ -193,19 +186,19 @@ async def test_inbound_email_is_idempotent_on_message_id(api_client, db_session)
 
     # DB confirms: only ONE EmailMessage and ONE EmailReplyDraft
     message_count = (
-        await db_session.execute(
-            select(EmailMessage).where(
-                EmailMessage.provider_message_id == TEST_MESSAGE_ID
-            )
-        )
-    ).scalars().all()
+        (await db_session.execute(select(EmailMessage).where(EmailMessage.provider_message_id == TEST_MESSAGE_ID)))
+        .scalars()
+        .all()
+    )
     assert len(message_count) == 1
 
     draft_count = (
-        await db_session.execute(
-            select(EmailReplyDraft).where(
-                EmailReplyDraft.message_id == uuid.UUID(first_message_id)
+        (
+            await db_session.execute(
+                select(EmailReplyDraft).where(EmailReplyDraft.message_id == uuid.UUID(first_message_id))
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(draft_count) == 1

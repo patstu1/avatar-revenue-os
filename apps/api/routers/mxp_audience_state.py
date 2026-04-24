@@ -1,4 +1,5 @@
 """MXP Audience State — segment state machine reports."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status

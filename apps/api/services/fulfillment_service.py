@@ -8,6 +8,7 @@ Called from:
   - GET/POST project & brief routes (manual)
   - QA/delivery workers (Batch 3D, for retry/finalize transitions)
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -51,23 +52,15 @@ async def create_project_from_intake(
     Emits ``project.created`` only on first insert.
     """
     existing = (
-        await db.execute(
-            select(ClientProject).where(
-                ClientProject.intake_submission_id == intake_submission.id
-            )
-        )
+        await db.execute(select(ClientProject).where(ClientProject.intake_submission_id == intake_submission.id))
     ).scalar_one_or_none()
     if existing is not None:
         return (existing, False)
 
     intake_request = (
-        await db.execute(
-            select(IntakeRequest).where(IntakeRequest.id == intake_submission.intake_request_id)
-        )
+        await db.execute(select(IntakeRequest).where(IntakeRequest.id == intake_submission.intake_request_id))
     ).scalar_one_or_none()
-    client = (
-        await db.execute(select(Client).where(Client.id == intake_submission.client_id))
-    ).scalar_one()
+    client = (await db.execute(select(Client).where(Client.id == intake_submission.client_id))).scalar_one()
 
     title = f"Project for {client.display_name or client.primary_email}"
     description = ""
@@ -80,10 +73,9 @@ async def create_project_from_intake(
     package_slug = None
     if intake_request and intake_request.proposal_id:
         from packages.db.models.proposals import Proposal
+
         proposal = (
-            await db.execute(
-                select(Proposal).where(Proposal.id == intake_request.proposal_id)
-            )
+            await db.execute(select(Proposal).where(Proposal.id == intake_request.proposal_id))
         ).scalar_one_or_none()
         if proposal is not None:
             package_slug = proposal.package_slug
@@ -97,10 +89,9 @@ async def create_project_from_intake(
         avenue_slug = intake_request.avenue_slug
     if avenue_slug is None and intake_request and intake_request.proposal_id:
         from packages.db.models.proposals import Proposal
+
         proposal_row = (
-            await db.execute(
-                select(Proposal).where(Proposal.id == intake_request.proposal_id)
-            )
+            await db.execute(select(Proposal).where(Proposal.id == intake_request.proposal_id))
         ).scalar_one_or_none()
         if proposal_row is not None:
             avenue_slug = proposal_row.avenue_slug
@@ -201,20 +192,22 @@ async def generate_brief_for_project(
     if regenerate:
         current_version = (
             await db.execute(
-                select(func.coalesce(func.max(ProjectBrief.version), 0)).where(
-                    ProjectBrief.project_id == project.id
-                )
+                select(func.coalesce(func.max(ProjectBrief.version), 0)).where(ProjectBrief.project_id == project.id)
             )
         ).scalar() or 0
         # Mark all prior active versions superseded
         prior = (
-            await db.execute(
-                select(ProjectBrief).where(
-                    ProjectBrief.project_id == project.id,
-                    ProjectBrief.is_active.is_(True),
+            (
+                await db.execute(
+                    select(ProjectBrief).where(
+                        ProjectBrief.project_id == project.id,
+                        ProjectBrief.is_active.is_(True),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for p in prior:
             p.status = "superseded"
         await db.flush()
@@ -227,11 +220,7 @@ async def generate_brief_for_project(
     intake_sub = None
     if project.intake_submission_id is not None:
         intake_sub = (
-            await db.execute(
-                select(IntakeSubmission).where(
-                    IntakeSubmission.id == project.intake_submission_id
-                )
-            )
+            await db.execute(select(IntakeSubmission).where(IntakeSubmission.id == project.intake_submission_id))
         ).scalar_one_or_none()
         if intake_sub is not None:
             responses = intake_sub.responses_json or {}
@@ -251,9 +240,7 @@ async def generate_brief_for_project(
         audience=_s("target_audience"),
         tone_and_voice=_s("brand_voice"),
         deliverables_json={"package_slug": project.package_slug} if project.package_slug else None,
-        assets_json=(
-            {"assets_url": _s("assets_url")} if _s("assets_url") else None
-        ),
+        assets_json=({"assets_url": _s("assets_url")} if _s("assets_url") else None),
         generator="template_v1",
         source_intake_submission_id=project.intake_submission_id,
     )
@@ -353,9 +340,7 @@ async def launch_production_for_brief(
 
     # Batch 9: carry avenue_slug from the project.
     project_row = (
-        await db.execute(
-            select(ClientProject).where(ClientProject.id == brief.project_id)
-        )
+        await db.execute(select(ClientProject).where(ClientProject.id == brief.project_id))
     ).scalar_one_or_none()
     avenue_slug = project_row.avenue_slug if project_row is not None else None
 
@@ -402,13 +387,16 @@ async def launch_production_for_brief(
     )
     try:
         from apps.api.services.stage_controller import mark_stage
+
         await mark_stage(
-            db, org_id=job.org_id,
-            entity_type="production_job", entity_id=job.id, stage="queued",
+            db,
+            org_id=job.org_id,
+            entity_type="production_job",
+            entity_id=job.id,
+            stage="queued",
         )
     except Exception as stage_exc:
-        logger.warning("stage_controller.mark_failed",
-                        entity="production_job", error=str(stage_exc)[:150])
+        logger.warning("stage_controller.mark_failed", entity="production_job", error=str(stage_exc)[:150])
     return job
 
 
@@ -428,9 +416,7 @@ async def cascade_intake_to_production(
     flips to True. Every stage is idempotent so retrying this cascade
     across webhook redeliveries / partial failures is safe.
     """
-    project, project_is_new = await create_project_from_intake(
-        db, intake_submission=intake_submission
-    )
+    project, project_is_new = await create_project_from_intake(db, intake_submission=intake_submission)
     brief = await generate_brief_for_project(db, project=project)
     production_job = await launch_production_for_brief(db, brief=brief)
 

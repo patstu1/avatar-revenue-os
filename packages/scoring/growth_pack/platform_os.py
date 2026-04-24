@@ -2,6 +2,7 @@
 
 Supported platforms: tiktok, instagram, youtube, twitter (X), reddit, linkedin, facebook.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -13,7 +14,11 @@ PLATFORM_SPECS: dict[str, dict[str, Any]] = {
         "monetization_styles": ["affiliate_bio_link", "spark_ads", "creator_fund", "lead_gen_comment_funnel"],
         "audience_development": "hook_first_3s_sound_trending_hashtag_niche_stitch",
         "time_to_signal_days_range": {"min": 3, "max": 14},
-        "expansion_conditions": ["avg_completion_rate_above_50pct", "share_rate_rising", "profile_view_rate_above_1pct"],
+        "expansion_conditions": [
+            "avg_completion_rate_above_50pct",
+            "share_rate_rising",
+            "profile_view_rate_above_1pct",
+        ],
         "saturation_indicators": ["sound_fatigue", "hook_format_repetition", "cpm_spike_no_engagement_lift"],
         "warmup_cadence": {
             "week_1": 1,
@@ -30,7 +35,11 @@ PLATFORM_SPECS: dict[str, dict[str, Any]] = {
             "no_community_guideline_strikes",
         ],
         "max_safe_output_per_day": 4,
-        "spam_fatigue_signals": ["shadow_ban_indicator_zero_fyp", "completion_rate_collapse_below_20pct", "report_rate_above_threshold"],
+        "spam_fatigue_signals": [
+            "shadow_ban_indicator_zero_fyp",
+            "completion_rate_collapse_below_20pct",
+            "report_rate_above_threshold",
+        ],
         "account_health_signals": ["community_guideline_strikes", "monetization_eligibility_status", "appeal_pending"],
         "derivative_style_guidance": "Repurpose long-form → sub-60s clips with text overlay hooks; stitch/duet for engagement amplification",
     },

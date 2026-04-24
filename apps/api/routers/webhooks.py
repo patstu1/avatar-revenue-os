@@ -2,6 +2,7 @@
 
 These are public — authentication is via the provider's own verification mechanism.
 """
+
 import os
 import uuid
 from datetime import datetime, timezone
@@ -24,7 +25,9 @@ async def stripe_webhook(request: Request, db: DBSession, stripe_signature: str 
     """Receive and verify a Stripe webhook event."""
     secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
     if not secret:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Stripe webhook secret not configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Stripe webhook secret not configured"
+        )
 
     body = await request.body()
     result = StripeWebhookVerifier.verify(body, stripe_signature, secret)
@@ -35,9 +38,9 @@ async def stripe_webhook(request: Request, db: DBSession, stripe_signature: str 
     # Idempotency: check if event_id already ingested
     event_id = result.get("event_id")
     if event_id:
-        existing = (await db.execute(
-            select(WebhookEvent).where(WebhookEvent.idempotency_key == f"stripe:{event_id}")
-        )).scalar_one_or_none()
+        existing = (
+            await db.execute(select(WebhookEvent).where(WebhookEvent.idempotency_key == f"stripe:{event_id}"))
+        ).scalar_one_or_none()
         if existing:
             return {"status": "duplicate", "event_id": event_id}
 
@@ -68,26 +71,32 @@ async def stripe_webhook(request: Request, db: DBSession, stripe_signature: str 
     obj = payload.get("data", {}).get("object", {})
     if brand_id and event_type in ("checkout.session.completed", "charge.succeeded", "payment_intent.succeeded"):
         from packages.db.models.creator_revenue import CreatorRevenueEvent
+
         revenue = float(obj.get("amount_total", obj.get("amount", 0))) / 100.0
-        db.add(CreatorRevenueEvent(
-            brand_id=brand_id,
-            avenue_type="consulting" if "consulting" in str(meta) else "ugc_services",
-            event_type="stripe_payment",
-            revenue=revenue,
-            cost=0.0,
-            profit=revenue,
-            client_name=obj.get("customer_email") or obj.get("receipt_email") or "",
-            description=f"Stripe {event_type}: ${revenue:.2f}",
-            metadata_json={"stripe_event_id": event_id, "stripe_event_type": event_type},
-        ))
+        db.add(
+            CreatorRevenueEvent(
+                brand_id=brand_id,
+                avenue_type="consulting" if "consulting" in str(meta) else "ugc_services",
+                event_type="stripe_payment",
+                revenue=revenue,
+                cost=0.0,
+                profit=revenue,
+                client_name=obj.get("customer_email") or obj.get("receipt_email") or "",
+                description=f"Stripe {event_type}: ${revenue:.2f}",
+                metadata_json={"stripe_event_id": event_id, "stripe_event_type": event_type},
+            )
+        )
         event.processed = True
         await db.flush()
 
         # ── Write to canonical revenue ledger ──
         try:
             from apps.api.services.monetization_bridge import record_service_payment_to_ledger
+
             await record_service_payment_to_ledger(
-                db, brand_id=brand_id, gross_amount=revenue,
+                db,
+                brand_id=brand_id,
+                gross_amount=revenue,
                 payment_processor="stripe",
                 external_transaction_id=obj.get("payment_intent") or obj.get("id") or "",
                 webhook_ref=f"stripe:{event_id}" if event_id else None,
@@ -96,12 +105,14 @@ async def stripe_webhook(request: Request, db: DBSession, stripe_signature: str 
             )
         except Exception as ledger_err:
             import structlog
+
             structlog.get_logger().warning("stripe.ledger_write_failed", error=str(ledger_err))
 
     # ── Stripe Billing: subscription & credit-pack events ──
     import structlog as _sl
 
     from apps.api.services import stripe_billing_service as sbs
+
     _billing_log = _sl.get_logger()
 
     try:
@@ -135,8 +146,13 @@ async def stripe_webhook(request: Request, db: DBSession, stripe_signature: str 
 
     try:
         await _process_operator_payment_event(
-            db, event_type=event_type, obj=obj, meta=meta,
-            brand_id=brand_id, event_id=event_id, webhook_event=event,
+            db,
+            event_type=event_type,
+            obj=obj,
+            meta=meta,
+            brand_id=brand_id,
+            event_id=event_id,
+            webhook_event=event,
         )
     except Exception as op_err:
         logger.error("stripe.operator_payment_error", event_type=event_type, error=str(op_err))
@@ -183,9 +199,9 @@ async def _process_operator_payment_event(
             webhook_ref = f"stripe_checkout:{event_id}" if event_id else None
             # Idempotency: check ledger for duplicate webhook_ref
             if webhook_ref:
-                existing = (await db.execute(
-                    select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref)
-                )).scalar_one_or_none()
+                existing = (
+                    await db.execute(select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref))
+                ).scalar_one_or_none()
                 if existing:
                     return
 
@@ -214,12 +230,17 @@ async def _process_operator_payment_event(
             await db.flush()
 
             await emit_event(
-                db, domain="monetization", event_type="ledger.stripe_checkout",
+                db,
+                domain="monetization",
+                event_type="ledger.stripe_checkout",
                 summary=f"Stripe checkout payment: ${amount:.2f}",
-                org_id=org_id, brand_id=brand_id,
-                entity_type="revenue_ledger", entity_id=entry.id,
+                org_id=org_id,
+                brand_id=brand_id,
+                entity_type="revenue_ledger",
+                entity_id=entry.id,
                 details={
-                    "gross": amount, "source": "stripe_checkout",
+                    "gross": amount,
+                    "source": "stripe_checkout",
                     "offer_id": str(offer_id) if offer_id else None,
                     "stripe_event_id": event_id,
                 },
@@ -233,9 +254,9 @@ async def _process_operator_payment_event(
         if amount > 0:
             webhook_ref = f"stripe_invoice:{event_id}" if event_id else None
             if webhook_ref:
-                existing = (await db.execute(
-                    select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref)
-                )).scalar_one_or_none()
+                existing = (
+                    await db.execute(select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref))
+                ).scalar_one_or_none()
                 if existing:
                     return
 
@@ -265,12 +286,17 @@ async def _process_operator_payment_event(
             await db.flush()
 
             await emit_event(
-                db, domain="monetization", event_type="ledger.stripe_invoice_paid",
+                db,
+                domain="monetization",
+                event_type="ledger.stripe_invoice_paid",
                 summary=f"Stripe invoice paid: ${amount:.2f}",
-                org_id=org_id, brand_id=brand_id,
-                entity_type="revenue_ledger", entity_id=entry.id,
+                org_id=org_id,
+                brand_id=brand_id,
+                entity_type="revenue_ledger",
+                entity_id=entry.id,
                 details={
-                    "gross": amount, "source": "stripe_invoice",
+                    "gross": amount,
+                    "source": "stripe_invoice",
                     "offer_id": str(offer_id) if offer_id else None,
                     "stripe_event_id": event_id,
                 },
@@ -284,9 +310,9 @@ async def _process_operator_payment_event(
         if refund_amount > 0:
             webhook_ref = f"stripe_refund:{event_id}" if event_id else None
             if webhook_ref:
-                existing = (await db.execute(
-                    select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref)
-                )).scalar_one_or_none()
+                existing = (
+                    await db.execute(select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref))
+                ).scalar_one_or_none()
                 if existing:
                     return
 
@@ -295,13 +321,15 @@ async def _process_operator_payment_event(
             original_payment_intent = obj.get("payment_intent", "")
             original_entry = None
             if original_payment_intent:
-                original_entry = (await db.execute(
-                    select(RevenueLedgerEntry).where(
-                        RevenueLedgerEntry.brand_id == brand_id,
-                        RevenueLedgerEntry.external_transaction_id == original_payment_intent,
-                        RevenueLedgerEntry.is_refund.is_(False),
+                original_entry = (
+                    await db.execute(
+                        select(RevenueLedgerEntry).where(
+                            RevenueLedgerEntry.brand_id == brand_id,
+                            RevenueLedgerEntry.external_transaction_id == original_payment_intent,
+                            RevenueLedgerEntry.is_refund.is_(False),
+                        )
                     )
-                )).scalar_one_or_none()
+                ).scalar_one_or_none()
 
             entry = RevenueLedgerEntry(
                 revenue_source_type="refund",
@@ -336,13 +364,18 @@ async def _process_operator_payment_event(
             await db.flush()
 
             await emit_event(
-                db, domain="monetization", event_type="ledger.stripe_refund",
+                db,
+                domain="monetization",
+                event_type="ledger.stripe_refund",
                 summary=f"Stripe refund: -${refund_amount:.2f}",
-                org_id=org_id, brand_id=brand_id,
-                entity_type="revenue_ledger", entity_id=entry.id,
+                org_id=org_id,
+                brand_id=brand_id,
+                entity_type="revenue_ledger",
+                entity_id=entry.id,
                 severity="warning",
                 details={
-                    "refund_amount": refund_amount, "source": "stripe_refund",
+                    "refund_amount": refund_amount,
+                    "source": "stripe_refund",
                     "original_entry_id": str(original_entry.id) if original_entry else None,
                     "stripe_event_id": event_id,
                 },
@@ -359,9 +392,9 @@ async def _process_operator_payment_event(
 
         webhook_ref = f"stripe_sub_created:{event_id}" if event_id else None
         if webhook_ref:
-            existing = (await db.execute(
-                select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref)
-            )).scalar_one_or_none()
+            existing = (
+                await db.execute(select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref))
+            ).scalar_one_or_none()
             if existing:
                 return
 
@@ -391,12 +424,17 @@ async def _process_operator_payment_event(
             await db.flush()
 
             await emit_event(
-                db, domain="monetization", event_type="ledger.stripe_subscription_created",
+                db,
+                domain="monetization",
+                event_type="ledger.stripe_subscription_created",
                 summary=f"New subscription: ${plan_amount:.2f}/{interval}",
-                org_id=org_id, brand_id=brand_id,
-                entity_type="revenue_ledger", entity_id=entry.id,
+                org_id=org_id,
+                brand_id=brand_id,
+                entity_type="revenue_ledger",
+                entity_id=entry.id,
                 details={
-                    "amount": plan_amount, "interval": interval,
+                    "amount": plan_amount,
+                    "interval": interval,
                     "subscription_id": obj.get("id", ""),
                     "stripe_event_id": event_id,
                 },
@@ -408,9 +446,12 @@ async def _process_operator_payment_event(
     elif event_type == "customer.subscription.deleted" and brand_id:
         sub_id = obj.get("id", "")
         await emit_event(
-            db, domain="monetization", event_type="stripe.subscription_cancelled",
+            db,
+            domain="monetization",
+            event_type="stripe.subscription_cancelled",
             summary=f"Subscription cancelled: {sub_id}",
-            org_id=org_id, brand_id=brand_id,
+            org_id=org_id,
+            brand_id=brand_id,
             severity="warning",
             details={
                 "subscription_id": sub_id,
@@ -432,11 +473,18 @@ def _safe_uuid(val):
 
 
 @router.post("/webhooks/shopify")
-async def shopify_webhook(request: Request, db: DBSession, x_shopify_hmac_sha256: str = Header(alias="X-Shopify-Hmac-SHA256"), x_shopify_topic: str = Header(alias="X-Shopify-Topic", default="")):
+async def shopify_webhook(
+    request: Request,
+    db: DBSession,
+    x_shopify_hmac_sha256: str = Header(alias="X-Shopify-Hmac-SHA256"),
+    x_shopify_topic: str = Header(alias="X-Shopify-Topic", default=""),
+):
     """Receive and verify a Shopify webhook event."""
     secret = os.environ.get("SHOPIFY_WEBHOOK_SECRET", "")
     if not secret:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Shopify webhook secret not configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Shopify webhook secret not configured"
+        )
 
     body = await request.body()
     result = ShopifyWebhookVerifier.verify(body, x_shopify_hmac_sha256, secret)
@@ -451,15 +499,16 @@ async def shopify_webhook(request: Request, db: DBSession, x_shopify_hmac_sha256
     idem_key = f"shopify:{shopify_id}" if shopify_id else None
 
     if idem_key:
-        existing = (await db.execute(
-            select(WebhookEvent).where(WebhookEvent.idempotency_key == idem_key)
-        )).scalar_one_or_none()
+        existing = (
+            await db.execute(select(WebhookEvent).where(WebhookEvent.idempotency_key == idem_key))
+        ).scalar_one_or_none()
         if existing:
             return {"status": "duplicate", "shopify_id": shopify_id}
 
     brand_id = _resolve_shopify_brand_id(payload)
     if not brand_id:
         import structlog
+
         structlog.get_logger().warning(
             "shopify_webhook.no_brand_id",
             shopify_id=shopify_id,
@@ -481,34 +530,40 @@ async def shopify_webhook(request: Request, db: DBSession, x_shopify_hmac_sha256
 
     if brand_id and x_shopify_topic in ("orders/paid", "orders/create"):
         from packages.db.models.creator_revenue import CreatorRevenueEvent
+
         total = float(payload.get("total_price", 0))
         if total > 0:
             order_id = payload.get("id", "")
-            db.add(CreatorRevenueEvent(
-                brand_id=brand_id,
-                avenue_type="ecommerce",
-                event_type="shopify_order",
-                revenue=total,
-                cost=0.0,
-                profit=total,
-                client_name=payload.get("email") or payload.get("customer", {}).get("email", ""),
-                description=f"Shopify order #{payload.get('order_number', order_id)}: ${total:.2f}",
-                metadata_json={
-                    "shopify_order_id": str(order_id),
-                    "shopify_topic": x_shopify_topic,
-                    "shopify_webhook_id": shopify_id,
-                    "order_number": payload.get("order_number"),
-                    "line_items_count": len(payload.get("line_items", [])),
-                },
-            ))
+            db.add(
+                CreatorRevenueEvent(
+                    brand_id=brand_id,
+                    avenue_type="ecommerce",
+                    event_type="shopify_order",
+                    revenue=total,
+                    cost=0.0,
+                    profit=total,
+                    client_name=payload.get("email") or payload.get("customer", {}).get("email", ""),
+                    description=f"Shopify order #{payload.get('order_number', order_id)}: ${total:.2f}",
+                    metadata_json={
+                        "shopify_order_id": str(order_id),
+                        "shopify_topic": x_shopify_topic,
+                        "shopify_webhook_id": shopify_id,
+                        "order_number": payload.get("order_number"),
+                        "line_items_count": len(payload.get("line_items", [])),
+                    },
+                )
+            )
             event.processed = True
             await db.flush()
 
             # ── Write to canonical revenue ledger ──
             try:
                 from apps.api.services.monetization_bridge import record_product_sale_to_ledger
+
                 await record_product_sale_to_ledger(
-                    db, brand_id=brand_id, gross_amount=total,
+                    db,
+                    brand_id=brand_id,
+                    gross_amount=total,
                     payment_processor="shopify",
                     webhook_ref=idem_key,
                     external_transaction_id=str(order_id),
@@ -517,10 +572,12 @@ async def shopify_webhook(request: Request, db: DBSession, x_shopify_hmac_sha256
                 )
             except Exception as ledger_err:
                 import structlog
+
                 structlog.get_logger().warning("shopify.ledger_write_failed", error=str(ledger_err))
 
     elif brand_id and x_shopify_topic in ("orders/refunded", "refunds/create"):
         from packages.db.models.creator_revenue import CreatorRevenueEvent
+
         refund_amount = 0.0
         for refund in payload.get("refunds", [payload]):
             for txn in refund.get("transactions", []):
@@ -528,20 +585,22 @@ async def shopify_webhook(request: Request, db: DBSession, x_shopify_hmac_sha256
         if not refund_amount:
             refund_amount = float(payload.get("total_price", 0))
         if refund_amount > 0:
-            db.add(CreatorRevenueEvent(
-                brand_id=brand_id,
-                avenue_type="ecommerce",
-                event_type="shopify_refund",
-                revenue=-refund_amount,
-                cost=0.0,
-                profit=-refund_amount,
-                client_name=payload.get("email") or "",
-                description=f"Shopify refund #{payload.get('order_number', '')}: -${refund_amount:.2f}",
-                metadata_json={
-                    "shopify_order_id": str(payload.get("id", "")),
-                    "shopify_topic": x_shopify_topic,
-                },
-            ))
+            db.add(
+                CreatorRevenueEvent(
+                    brand_id=brand_id,
+                    avenue_type="ecommerce",
+                    event_type="shopify_refund",
+                    revenue=-refund_amount,
+                    cost=0.0,
+                    profit=-refund_amount,
+                    client_name=payload.get("email") or "",
+                    description=f"Shopify refund #{payload.get('order_number', '')}: -${refund_amount:.2f}",
+                    metadata_json={
+                        "shopify_order_id": str(payload.get("id", "")),
+                        "shopify_topic": x_shopify_topic,
+                    },
+                )
+            )
             event.processed = True
             await db.flush()
 
@@ -551,21 +610,27 @@ async def shopify_webhook(request: Request, db: DBSession, x_shopify_hmac_sha256
 
                 # Find original ledger entry for this order
                 from packages.db.models.revenue_ledger import RevenueLedgerEntry
-                original = (await db.execute(
-                    select(RevenueLedgerEntry).where(
-                        RevenueLedgerEntry.brand_id == brand_id,
-                        RevenueLedgerEntry.external_transaction_id == str(payload.get("id", "")),
+
+                original = (
+                    await db.execute(
+                        select(RevenueLedgerEntry).where(
+                            RevenueLedgerEntry.brand_id == brand_id,
+                            RevenueLedgerEntry.external_transaction_id == str(payload.get("id", "")),
+                        )
                     )
-                )).scalar_one_or_none()
+                ).scalar_one_or_none()
                 if original:
                     await record_refund_to_ledger(
-                        db, brand_id=brand_id, refund_amount=refund_amount,
+                        db,
+                        brand_id=brand_id,
+                        refund_amount=refund_amount,
                         refund_of_id=original.id,
                         reason=f"Shopify refund: {x_shopify_topic}",
                         webhook_ref=f"{idem_key}_refund" if idem_key else None,
                     )
             except Exception as ledger_err:
                 import structlog
+
                 structlog.get_logger().warning("shopify.refund_ledger_write_failed", error=str(ledger_err))
 
     return {"status": "accepted", "topic": x_shopify_topic, "webhook_event_id": str(event.id)}
@@ -601,6 +666,7 @@ def _resolve_shopify_brand_id(payload: dict):
 # =====================================================================
 # Generic Media Job Webhook — handles ALL media providers
 # =====================================================================
+
 
 @router.post("/webhooks/media/{provider_key}")
 async def media_webhook(provider_key: str, request: Request, db: DBSession):
@@ -644,12 +710,14 @@ async def media_webhook(provider_key: str, request: Request, db: DBSession):
         return {"status": "accepted", "detail": "no job_id in payload"}
 
     # ── 3. Look up MediaJob ──────────────────────────────────────────
-    job = (await db.execute(
-        select(MediaJob).where(
-            MediaJob.provider == provider_key,
-            MediaJob.provider_job_id == result.job_id,
+    job = (
+        await db.execute(
+            select(MediaJob).where(
+                MediaJob.provider == provider_key,
+                MediaJob.provider_job_id == result.job_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if job is None:
         logger.warning(
@@ -722,8 +790,10 @@ async def media_webhook(provider_key: str, request: Request, db: DBSession):
         from apps.api.services.event_bus import emit_event
 
         event_type = (
-            "media.job_completed" if result.status == "completed"
-            else "media.job_failed" if result.status == "failed"
+            "media.job_completed"
+            if result.status == "completed"
+            else "media.job_failed"
+            if result.status == "failed"
             else "media.job_updated"
         )
         await emit_event(
@@ -758,6 +828,7 @@ async def media_webhook(provider_key: str, request: Request, db: DBSession):
 # =====================================================================
 # Affiliate Click Tracking Webhook
 # =====================================================================
+
 
 @router.post("/webhooks/affiliate/click")
 async def affiliate_click_webhook(request: Request, db: DBSession):
@@ -826,29 +897,35 @@ async def affiliate_click_webhook(request: Request, db: DBSession):
     if link_id_str:
         try:
             link_uuid = uuid.UUID(link_id_str)
-            af_link = (await db.execute(
-                select(AffiliateLink).where(AffiliateLink.id == link_uuid, AffiliateLink.is_active.is_(True))
-            )).scalar_one_or_none()
+            af_link = (
+                await db.execute(
+                    select(AffiliateLink).where(AffiliateLink.id == link_uuid, AffiliateLink.is_active.is_(True))
+                )
+            ).scalar_one_or_none()
         except (ValueError, AttributeError):
             pass
 
     # Try by short_url match
     if not af_link and normalized.get("short_url"):
-        af_link = (await db.execute(
-            select(AffiliateLink).where(
-                AffiliateLink.short_url == normalized["short_url"],
-                AffiliateLink.is_active.is_(True),
+        af_link = (
+            await db.execute(
+                select(AffiliateLink).where(
+                    AffiliateLink.short_url == normalized["short_url"],
+                    AffiliateLink.is_active.is_(True),
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
 
     # Try by full_url match
     if not af_link and normalized.get("long_url"):
-        af_link = (await db.execute(
-            select(AffiliateLink).where(
-                AffiliateLink.full_url == normalized["long_url"],
-                AffiliateLink.is_active.is_(True),
+        af_link = (
+            await db.execute(
+                select(AffiliateLink).where(
+                    AffiliateLink.full_url == normalized["long_url"],
+                    AffiliateLink.is_active.is_(True),
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
 
     if af_link:
         brand_id = af_link.brand_id
@@ -881,6 +958,7 @@ async def affiliate_click_webhook(request: Request, db: DBSession):
         # ── Emit event via event_bus ────────────────────────────────
         try:
             from apps.api.services.event_bus import emit_event
+
             await emit_event(
                 db,
                 domain="affiliate",
@@ -938,6 +1016,7 @@ async def affiliate_click_webhook(request: Request, db: DBSession):
 # Reference: https://docs.sendgrid.com/for-developers/parsing-email/setting-up-the-inbound-parse-webhook
 # =====================================================================
 
+
 @router.post("/webhooks/inbound-email")
 async def sendgrid_inbound_parse(
     request: Request,
@@ -981,6 +1060,7 @@ async def sendgrid_inbound_parse(
 
     # Parse sender email out of "Name <email@example.com>" form
     import email.utils
+
     sender_email = email.utils.parseaddr(str(sender_full))[1] or ""
 
     # Extract In-Reply-To from raw headers
@@ -994,6 +1074,7 @@ async def sendgrid_inbound_parse(
     body = body_text.strip()
     if not body and body_html:
         import re
+
         body = re.sub(r"<[^>]+>", " ", body_html)
         body = re.sub(r"\s+", " ", body).strip()
 
@@ -1041,7 +1122,8 @@ async def sendgrid_inbound_parse(
         from apps.api.services.reply_ingestion import ingest_reply
 
         result = await ingest_reply(
-            db, org_uuid,
+            db,
+            org_uuid,
             sender_email=sender_email,
             subject=subject,
             body=body,
@@ -1052,6 +1134,7 @@ async def sendgrid_inbound_parse(
         # Also attempt to match against SponsorOutreachSequence records
         try:
             from workers.outreach_worker.tasks import _match_reply_to_outreach
+
             await _match_reply_to_outreach(db, org_uuid, sender_email, subject, body)
             await db.commit()
         except Exception as match_exc:
@@ -1076,34 +1159,51 @@ async def sendgrid_inbound_parse(
         # replies live in Outlook alongside the structured pipeline.
         try:
             from packages.clients.external_clients import SmtpEmailClient as _Smtp
+
             _smtp = await _Smtp.resolve(db, org_uuid)
-            _tag = '[reply]'
-            if result.get('matched_sponsor'):
+            _tag = "[reply]"
+            if result.get("matched_sponsor"):
                 _tag = f"[reply lead {str(result['matched_sponsor'])[:8]}]"
-            elif result.get('classification'):
+            elif result.get("classification"):
                 _tag = f"[reply {result['classification']}]"
-            _cls = result.get('classification')
-            _ms = result.get('matched_sponsor')
-            _md = result.get('matched_deal')
+            _cls = result.get("classification")
+            _ms = result.get("matched_sponsor")
+            _md = result.get("matched_deal")
             _NL = chr(10)
             _fwd_body = (
-                'Inbound reply to ProofHook outreach.' + _NL + _NL
-                + 'From:            ' + str(sender_full) + _NL
-                + 'Subject:         ' + str(subject) + _NL
-                + 'Classification:  ' + str(_cls) + _NL
-                + 'Matched sponsor: ' + str(_ms) + _NL
-                + 'Matched deal:    ' + str(_md) + _NL
-                + _NL + '--- message ---' + _NL + _NL
-                + str(body) + _NL
+                "Inbound reply to ProofHook outreach."
+                + _NL
+                + _NL
+                + "From:            "
+                + str(sender_full)
+                + _NL
+                + "Subject:         "
+                + str(subject)
+                + _NL
+                + "Classification:  "
+                + str(_cls)
+                + _NL
+                + "Matched sponsor: "
+                + str(_ms)
+                + _NL
+                + "Matched deal:    "
+                + str(_md)
+                + _NL
+                + _NL
+                + "--- message ---"
+                + _NL
+                + _NL
+                + str(body)
+                + _NL
             )
             await _smtp.send_email(
-                to_email='hello@proofhook.com',
-                subject=(str(_tag) + ' ' + str(subject))[:500],
+                to_email="hello@proofhook.com",
+                subject=(str(_tag) + " " + str(subject))[:500],
                 body_text=_fwd_body,
             )
-            logger.info('inbound_email.forwarded_to_operator', sender=sender_email)
+            logger.info("inbound_email.forwarded_to_operator", sender=sender_email)
         except Exception as _fwd_exc:
-            logger.warning('inbound_email.forward_failed', error=str(_fwd_exc)[:200])
+            logger.warning("inbound_email.forward_failed", error=str(_fwd_exc)[:200])
 
         return {
             "status": "accepted",

@@ -13,6 +13,7 @@ F. Dashboard: ledger → revenue_by_source → control layer
 Run: python scripts/monetization_proof.py
 Requires: PostgreSQL (docker compose up -d postgres)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -21,7 +22,9 @@ import sys
 import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os"
+)
 os.environ.setdefault("DATABASE_URL_SYNC", "postgresql://avataros:avataros_dev_2026@localhost:5433/avatar_revenue_os")
 
 from sqlalchemy import func, select, text
@@ -30,9 +33,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 import packages.db.models  # noqa
 
 P = F = 0
+
+
 def ok(name, passed, detail=""):
     global P, F
-    P += 1 if passed else 0; F += 0 if passed else 1
+    P += 1 if passed else 0
+    F += 0 if passed else 1
     print(f"  {'✓' if passed else '✗'} {name}" + (f" — {detail}" if detail and not passed else ""))
 
 
@@ -43,10 +49,12 @@ async def main():
 
     engine = create_async_engine(os.environ["DATABASE_URL"], echo=False)
     try:
-        async with engine.begin() as c: await c.execute(text("SELECT 1"))
+        async with engine.begin() as c:
+            await c.execute(text("SELECT 1"))
         print("\n  DB: connected\n")
     except Exception as e:
-        print(f"\n  ✗ DB failed: {e}"); return
+        print(f"\n  ✗ DB failed: {e}")
+        return
 
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -67,11 +75,20 @@ async def main():
 
         # Setup
         org = Organization(name=f"monp_{uuid.uuid4().hex[:6]}", slug=f"monp-{uuid.uuid4().hex[:6]}")
-        db.add(org); await db.flush()
-        user = User(organization_id=org.id, email=f"mp_{uuid.uuid4().hex[:4]}@t.co", hashed_password="x", full_name="MP", role="admin")
-        db.add(user); await db.flush()
+        db.add(org)
+        await db.flush()
+        user = User(
+            organization_id=org.id,
+            email=f"mp_{uuid.uuid4().hex[:4]}@t.co",
+            hashed_password="x",
+            full_name="MP",
+            role="admin",
+        )
+        db.add(user)
+        await db.flush()
         brand = Brand(organization_id=org.id, name="MP Brand", slug=f"mp-{uuid.uuid4().hex[:6]}", niche="proof")
-        db.add(brand); await db.flush()
+        db.add(brand)
+        await db.flush()
         print(f"  Brand: {brand.id}\n")
 
         # ═══════════════════════════════════════════════════════════
@@ -79,47 +96,84 @@ async def main():
         # ═══════════════════════════════════════════════════════════
         print("─── A. AFFILIATE FLOW ───")
 
-        offer = Offer(brand_id=brand.id, name="Test Affiliate", monetization_method=MonetizationMethod.AFFILIATE,
-                       offer_url="https://example.com/aff", payout_amount=25.00, epc=1.50, conversion_rate=0.03, is_active=True)
-        db.add(offer); await db.flush()
+        offer = Offer(
+            brand_id=brand.id,
+            name="Test Affiliate",
+            monetization_method=MonetizationMethod.AFFILIATE,
+            offer_url="https://example.com/aff",
+            payout_amount=25.00,
+            epc=1.50,
+            conversion_rate=0.03,
+            is_active=True,
+        )
+        db.add(offer)
+        await db.flush()
         ok("Offer created", offer.id is not None)
 
-        content = ContentItem(brand_id=brand.id, title="Aff Content", content_type=ContentType.SHORT_VIDEO, status="published")
-        db.add(content); await db.flush()
+        content = ContentItem(
+            brand_id=brand.id, title="Aff Content", content_type=ContentType.SHORT_VIDEO, status="published"
+        )
+        db.add(content)
+        await db.flush()
         await mon.assign_offer_to_content(db, content.id, offer.id, org_id=org.id)
         await db.refresh(content)
         ok("Offer assigned to content", content.offer_id == offer.id)
 
         # Create affiliate chain
-        af_offer = AffiliateOffer(brand_id=brand.id, offer_id_internal=offer.id, product_name="Test Affiliate Product",
-                                   commission_type="cpa", commission_rate=25.0, is_active=True)
-        db.add(af_offer); await db.flush()
+        af_offer = AffiliateOffer(
+            brand_id=brand.id,
+            offer_id_internal=offer.id,
+            product_name="Test Affiliate Product",
+            commission_type="cpa",
+            commission_rate=25.0,
+            is_active=True,
+        )
+        db.add(af_offer)
+        await db.flush()
         ok("AffiliateOffer created", af_offer.id is not None)
 
-        af_link = AffiliateLink(brand_id=brand.id, offer_id=af_offer.id, content_item_id=content.id,
-                                 full_url="https://example.com/aff?ref=test", short_url="https://s.co/abc", is_active=True)
-        db.add(af_link); await db.flush()
+        af_link = AffiliateLink(
+            brand_id=brand.id,
+            offer_id=af_offer.id,
+            content_item_id=content.id,
+            full_url="https://example.com/aff?ref=test",
+            short_url="https://s.co/abc",
+            is_active=True,
+        )
+        db.add(af_link)
+        await db.flush()
         ok("AffiliateLink created", af_link.id is not None)
 
-        af_click = AffiliateClickEvent(brand_id=brand.id, link_id=af_link.id, referrer="youtube.com", platform="youtube")
-        db.add(af_click); await db.flush()
+        af_click = AffiliateClickEvent(
+            brand_id=brand.id, link_id=af_link.id, referrer="youtube.com", platform="youtube"
+        )
+        db.add(af_click)
+        await db.flush()
         ok("Click event recorded", af_click.id is not None)
 
-        af_conv = AffiliateConversionEvent(brand_id=brand.id, link_id=af_link.id, offer_id=af_offer.id,
-                                            conversion_value=50.00, conversion_type="sale")
-        db.add(af_conv); await db.flush()
+        af_conv = AffiliateConversionEvent(
+            brand_id=brand.id, link_id=af_link.id, offer_id=af_offer.id, conversion_value=50.00, conversion_type="sale"
+        )
+        db.add(af_conv)
+        await db.flush()
         ok("Conversion event recorded", af_conv.id is not None)
 
-        af_comm = AffiliateCommissionEvent(brand_id=brand.id, conversion_id=af_conv.id,
-                                            commission_amount=25.00, commission_status="confirmed")
-        db.add(af_comm); await db.flush()
+        af_comm = AffiliateCommissionEvent(
+            brand_id=brand.id, conversion_id=af_conv.id, commission_amount=25.00, commission_status="confirmed"
+        )
+        db.add(af_comm)
+        await db.flush()
         ok("Commission event recorded", af_comm.id is not None)
 
         # Write to canonical ledger
         aff_ledger = await mon.record_affiliate_commission_to_ledger(
-            db, brand_id=brand.id, gross_amount=25.00,
-            offer_id=offer.id, content_item_id=content.id,
-            affiliate_link_id=af_link.id, source_object_id=af_comm.id,
+            db,
+            brand_id=brand.id,
+            gross_amount=25.00,
+            offer_id=offer.id,
+            content_item_id=content.id,
+            affiliate_link_id=af_link.id,
+            source_object_id=af_comm.id,
         )
         ok("Ledger entry (affiliate)", aff_ledger.id is not None)
         ok("Source type = affiliate_commission", aff_ledger.revenue_source_type == "affiliate_commission")
@@ -133,20 +187,36 @@ async def main():
         # ═══════════════════════════════════════════════════════════
         print("─── B. SPONSOR FLOW ───")
 
-        sponsor = SponsorProfile(brand_id=brand.id, sponsor_name="Test Sponsor", industry="tech",
-                                  budget_range_min=1000, budget_range_max=5000)
-        db.add(sponsor); await db.flush()
+        sponsor = SponsorProfile(
+            brand_id=brand.id,
+            sponsor_name="Test Sponsor",
+            industry="tech",
+            budget_range_min=1000,
+            budget_range_max=5000,
+        )
+        db.add(sponsor)
+        await db.flush()
         ok("SponsorProfile created", sponsor.id is not None)
 
-        deal = SponsorOpportunity(brand_id=brand.id, sponsor_id=sponsor.id, deal_value=3000.00,
-                                   status="active", title="Sponsored Content Deal")
-        db.add(deal); await db.flush()
+        deal = SponsorOpportunity(
+            brand_id=brand.id,
+            sponsor_id=sponsor.id,
+            deal_value=3000.00,
+            status="active",
+            title="Sponsored Content Deal",
+        )
+        db.add(deal)
+        await db.flush()
         ok("SponsorOpportunity created", deal.id is not None)
 
         spon_ledger = await mon.record_sponsor_payment_to_ledger(
-            db, brand_id=brand.id, gross_amount=3000.00,
-            sponsor_id=sponsor.id, source_object_id=deal.id,
-            payment_state="confirmed", description="Sponsor deal milestone 1",
+            db,
+            brand_id=brand.id,
+            gross_amount=3000.00,
+            sponsor_id=sponsor.id,
+            source_object_id=deal.id,
+            payment_state="confirmed",
+            description="Sponsor deal milestone 1",
         )
         ok("Ledger entry (sponsor)", spon_ledger.id is not None)
         ok("Source type = sponsor_payment", spon_ledger.revenue_source_type == "sponsor_payment")
@@ -161,8 +231,11 @@ async def main():
         print("─── C. SERVICE FLOW ───")
 
         svc_ledger = await mon.record_service_payment_to_ledger(
-            db, brand_id=brand.id, gross_amount=1500.00,
-            platform_fee=43.50, payment_processor="stripe",
+            db,
+            brand_id=brand.id,
+            gross_amount=1500.00,
+            platform_fee=43.50,
+            payment_processor="stripe",
             external_transaction_id="ch_test_123",
             webhook_ref=f"stripe:evt_{uuid.uuid4().hex[:12]}",
             description="Consulting engagement: brand strategy",
@@ -179,7 +252,9 @@ async def main():
         idempotency_works = False
         try:
             await mon.record_service_payment_to_ledger(
-                db, brand_id=brand.id, gross_amount=1500.00,
+                db,
+                brand_id=brand.id,
+                gross_amount=1500.00,
                 webhook_ref=svc_ledger.webhook_ref,
             )
             await db.flush()
@@ -201,14 +276,25 @@ async def main():
 
         # Re-create test entities for D/E/F (previous ones were rolled back)
         org2 = Organization(name=f"monp2_{uuid.uuid4().hex[:6]}", slug=f"monp2-{uuid.uuid4().hex[:6]}")
-        db.add(org2); await db.flush()
+        db.add(org2)
+        await db.flush()
         brand = Brand(organization_id=org2.id, name="MP Brand2", slug=f"mp2-{uuid.uuid4().hex[:6]}", niche="proof")
-        db.add(brand); await db.flush()
-        offer = Offer(brand_id=brand.id, name="Test Offer 2", monetization_method=MonetizationMethod.AFFILIATE,
-                       payout_amount=20.0, is_active=True)
-        db.add(offer); await db.flush()
-        content = ContentItem(brand_id=brand.id, title="Test Content 2", content_type=ContentType.SHORT_VIDEO, status="published")
-        db.add(content); await db.flush()
+        db.add(brand)
+        await db.flush()
+        offer = Offer(
+            brand_id=brand.id,
+            name="Test Offer 2",
+            monetization_method=MonetizationMethod.AFFILIATE,
+            payout_amount=20.0,
+            is_active=True,
+        )
+        db.add(offer)
+        await db.flush()
+        content = ContentItem(
+            brand_id=brand.id, title="Test Content 2", content_type=ContentType.SHORT_VIDEO, status="published"
+        )
+        db.add(content)
+        await db.flush()
         org = org2
         print()
 
@@ -218,7 +304,9 @@ async def main():
         print("─── D. PRODUCT SALE + REFUND ───")
 
         prod_ledger = await mon.record_product_sale_to_ledger(
-            db, brand_id=brand.id, gross_amount=79.00,
+            db,
+            brand_id=brand.id,
+            gross_amount=79.00,
             payment_processor="shopify",
             webhook_ref=f"shopify:order_{uuid.uuid4().hex[:8]}",
             description="Digital course: Content Creator Playbook",
@@ -227,8 +315,11 @@ async def main():
         ok("Source type = product_sale", prod_ledger.revenue_source_type == "product_sale")
 
         refund = await mon.record_refund_to_ledger(
-            db, brand_id=brand.id, refund_amount=79.00,
-            refund_of_id=prod_ledger.id, reason="Customer requested refund",
+            db,
+            brand_id=brand.id,
+            refund_amount=79.00,
+            refund_of_id=prod_ledger.id,
+            reason="Customer requested refund",
         )
         ok("Refund entry created", refund.id is not None)
         ok("Refund is negative", refund.gross_amount < 0)
@@ -251,12 +342,17 @@ async def main():
         print("─── E. ATTRIBUTION FLOW ───")
 
         unattr = RevenueLedgerEntry(
-            revenue_source_type="service_fee", brand_id=brand.id,
-            gross_amount=500.00, net_amount=500.00, currency="USD",
-            payment_state="confirmed", attribution_state="unattributed",
+            revenue_source_type="service_fee",
+            brand_id=brand.id,
+            gross_amount=500.00,
+            net_amount=500.00,
+            currency="USD",
+            payment_state="confirmed",
+            attribution_state="unattributed",
             description="Unattributed consulting revenue",
         )
-        db.add(unattr); await db.flush()
+        db.add(unattr)
+        await db.flush()
         ok("Unattributed entry created", unattr.attribution_state == "unattributed")
 
         actions = await mon.surface_monetization_actions(db, org.id, brand.id)
@@ -264,8 +360,12 @@ async def main():
         ok("Unattributed revenue → action", len(unattr_actions) >= 1)
 
         attr_result = await mon.attribute_revenue_event(
-            db, brand.id, revenue=200.00, source="manual",
-            offer_id=offer.id, content_item_id=content.id,
+            db,
+            brand.id,
+            revenue=200.00,
+            source="manual",
+            offer_id=offer.id,
+            content_item_id=content.id,
         )
         ok("Attribution creates ledger entry", attr_result["ledger_entry"].id is not None)
         ok("Attribution links offer", attr_result["ledger_entry"].offer_id == offer.id)
@@ -299,6 +399,7 @@ async def main():
         ok("Entries have payment_state", all("payment_state" in e for e in entries))
 
         from apps.api.services.control_layer_service import get_control_layer_dashboard
+
         dashboard = await get_control_layer_dashboard(db, org.id)
         ok("Dashboard has health", "health" in dashboard)
         ok("Dashboard revenue ≥ 0", dashboard["health"].get("total_revenue_30d", 0) >= 0)
@@ -310,7 +411,7 @@ async def main():
     # VERDICT
     # ═══════════════════════════════════════════════════════════
     print("=" * 72)
-    print(f"  MONETIZATION PROOF: {P} PASS / {F} FAIL / {P+F} TOTAL")
+    print(f"  MONETIZATION PROOF: {P} PASS / {F} FAIL / {P + F} TOTAL")
     print("=" * 72)
 
     if F == 0:

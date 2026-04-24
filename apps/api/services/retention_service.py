@@ -38,6 +38,7 @@ renew/upsell carry ``extra_json.retention_source='renewal'|'upsell'``
 so downstream queries can tell a first-cycle sale apart from a
 renewal.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -104,13 +105,17 @@ def recurring_period_for_package(package_slug: str | None) -> int | None:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-LAPSED_DAYS_THRESHOLD = 60            # no-payment + no-activity cutoff
+LAPSED_DAYS_THRESHOLD = 60  # no-payment + no-activity cutoff
 EXPANSION_CANDIDATE_MIN_PROJECTS = 1  # any completed project makes a
-                                      # one-time client an expansion target
+# one-time client an expansion target
 
 RETENTION_STATES = (
-    "active", "renewal_due", "renewal_overdue",
-    "lapsed", "churned", "expansion_candidate",
+    "active",
+    "renewal_due",
+    "renewal_overdue",
+    "lapsed",
+    "churned",
+    "expansion_candidate",
 )
 
 
@@ -176,10 +181,14 @@ async def scan_retention_state(db: AsyncSession, client: Client) -> dict:
         days_since_paid = (now - lpa).days
         if days_since_paid < LAPSED_DAYS_THRESHOLD:
             # Expansion-candidate if they have at least one completed project.
-            q = select(ClientProject).where(
-                ClientProject.client_id == client.id,
-                ClientProject.status == "completed",
-            ).limit(EXPANSION_CANDIDATE_MIN_PROJECTS)
+            q = (
+                select(ClientProject)
+                .where(
+                    ClientProject.client_id == client.id,
+                    ClientProject.status == "completed",
+                )
+                .limit(EXPANSION_CANDIDATE_MIN_PROJECTS)
+            )
             has_completed = (await db.execute(q)).first() is not None
             new_state = "expansion_candidate" if has_completed else "active"
             risk = 0.15 if has_completed else 0.05
@@ -211,10 +220,7 @@ async def scan_retention_state(db: AsyncSession, client: Client) -> dict:
                 triggered_by_actor_id="retention_service.scan",
                 details_json={
                     "churn_risk_score": risk,
-                    "next_renewal_at": (
-                        client.next_renewal_at.isoformat()
-                        if client.next_renewal_at else None
-                    ),
+                    "next_renewal_at": (client.next_renewal_at.isoformat() if client.next_renewal_at else None),
                 },
             )
         )
@@ -222,10 +228,7 @@ async def scan_retention_state(db: AsyncSession, client: Client) -> dict:
             db,
             domain="fulfillment",
             event_type="client.retention_state.changed",
-            summary=(
-                f"Client {client.display_name or client.primary_email} "
-                f"{prior_state} → {new_state}"
-            ),
+            summary=(f"Client {client.display_name or client.primary_email} {prior_state} → {new_state}"),
             org_id=client.org_id,
             brand_id=client.brand_id,
             entity_type="client",
@@ -247,14 +250,15 @@ async def scan_retention_state(db: AsyncSession, client: Client) -> dict:
         "previous_state": prior_state,
         "state": new_state,
         "churn_risk_score": risk,
-        "next_renewal_at": (
-            client.next_renewal_at.isoformat() if client.next_renewal_at else None
-        ),
+        "next_renewal_at": (client.next_renewal_at.isoformat() if client.next_renewal_at else None),
     }
 
 
 async def scan_all_retention_states(
-    db: AsyncSession, *, org_id: uuid.UUID | None = None, limit: int = 500,
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID | None = None,
+    limit: int = 500,
 ) -> dict:
     """Beat-task entry — evaluate every active client (optionally
     scoped to one org) and return a summary."""
@@ -288,7 +292,10 @@ async def scan_all_retention_states(
 
 
 async def detect_renewal_due(
-    db: AsyncSession, *, org_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[Client]:
     q = (
         select(Client)
@@ -304,7 +311,10 @@ async def detect_renewal_due(
 
 
 async def detect_reactivation_candidates(
-    db: AsyncSession, *, org_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[Client]:
     q = (
         select(Client)
@@ -320,7 +330,10 @@ async def detect_reactivation_candidates(
 
 
 async def detect_expansion_candidates(
-    db: AsyncSession, *, org_id: uuid.UUID, limit: int = 100,
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
+    limit: int = 100,
 ) -> list[Client]:
     q = (
         select(Client)
@@ -387,24 +400,24 @@ async def trigger_renewal(
     """
     if not force:
         recent = await _recent_retention_event(
-            db, client_id=client.id,
-            event_type="renewal_triggered", within_hours=24,
+            db,
+            client_id=client.id,
+            event_type="renewal_triggered",
+            within_hours=24,
         )
         if recent is not None:
             return {
                 "triggered": False,
                 "reason": "debounce_24h",
                 "retention_event_id": str(recent.id),
-                "proposal_id": (
-                    str(recent.target_proposal_id)
-                    if recent.target_proposal_id else None
-                ),
+                "proposal_id": (str(recent.target_proposal_id) if recent.target_proposal_id else None),
             }
 
     from apps.api.services.proposals_service import (
         LineItemInput,
         create_proposal,
     )
+
     li_inputs = [
         LineItemInput(
             description=str(li.get("description", ""))[:500],
@@ -438,9 +451,7 @@ async def trigger_renewal(
         extra_json={
             "retention_source": "renewal",
             "source_client_id": str(client.id),
-            "source_first_proposal_id": (
-                str(client.first_proposal_id) if client.first_proposal_id else None
-            ),
+            "source_first_proposal_id": (str(client.first_proposal_id) if client.first_proposal_id else None),
         },
     )
 
@@ -470,7 +481,7 @@ async def trigger_renewal(
         event_type="client.retention.renewal_triggered",
         summary=(
             f"Renewal proposal created for {client.display_name or client.primary_email}: "
-            f"${proposal.total_amount_cents/100:,.2f}"
+            f"${proposal.total_amount_cents / 100:,.2f}"
         ),
         org_id=client.org_id,
         brand_id=client.brand_id,
@@ -517,8 +528,10 @@ async def trigger_reactivation(
     unless force=True."""
     if not force:
         recent = await _recent_retention_event(
-            db, client_id=client.id,
-            event_type="reactivation_sent", within_hours=24 * 14,
+            db,
+            client_id=client.id,
+            event_type="reactivation_sent",
+            within_hours=24 * 14,
         )
         if recent is not None:
             return {
@@ -545,8 +558,7 @@ async def trigger_reactivation(
     smtp = await SmtpEmailClient.from_db(db, client.org_id)
     send_result: dict
     if smtp is None:
-        send_result = {"success": False, "error": "no_smtp_configured",
-                       "provider": None}
+        send_result = {"success": False, "error": "no_smtp_configured", "provider": None}
     else:
         send_result = await smtp.send_email(
             to_email=client.primary_email,
@@ -630,24 +642,24 @@ async def trigger_upsell(
     7d unless force=True."""
     if not force:
         recent = await _recent_retention_event(
-            db, client_id=client.id,
-            event_type="upsell_offered", within_hours=24 * 7,
+            db,
+            client_id=client.id,
+            event_type="upsell_offered",
+            within_hours=24 * 7,
         )
         if recent is not None:
             return {
                 "triggered": False,
                 "reason": "debounce_7d",
                 "retention_event_id": str(recent.id),
-                "proposal_id": (
-                    str(recent.target_proposal_id)
-                    if recent.target_proposal_id else None
-                ),
+                "proposal_id": (str(recent.target_proposal_id) if recent.target_proposal_id else None),
             }
 
     from apps.api.services.proposals_service import (
         LineItemInput,
         create_proposal,
     )
+
     li_inputs = [
         LineItemInput(
             description=str(li.get("description", ""))[:500],
@@ -681,9 +693,7 @@ async def trigger_upsell(
         extra_json={
             "retention_source": "upsell",
             "source_client_id": str(client.id),
-            "source_first_proposal_id": (
-                str(client.first_proposal_id) if client.first_proposal_id else None
-            ),
+            "source_first_proposal_id": (str(client.first_proposal_id) if client.first_proposal_id else None),
         },
     )
 
@@ -713,7 +723,7 @@ async def trigger_upsell(
         event_type="client.retention.upsell_offered",
         summary=(
             f"Upsell proposal for {client.display_name or client.primary_email}: "
-            f"${proposal.total_amount_cents/100:,.2f}"
+            f"${proposal.total_amount_cents / 100:,.2f}"
         ),
         org_id=client.org_id,
         brand_id=client.brand_id,
@@ -760,15 +770,15 @@ async def cancel_subscription(
     """
     if client.retention_state == "churned":
         existing = await _recent_retention_event(
-            db, client_id=client.id,
-            event_type="subscription_cancelled", within_hours=24 * 365,
+            db,
+            client_id=client.id,
+            event_type="subscription_cancelled",
+            within_hours=24 * 365,
         )
         return {
             "triggered": False,
             "reason": "already_churned",
-            "retention_event_id": (
-                str(existing.id) if existing is not None else None
-            ),
+            "retention_event_id": (str(existing.id) if existing is not None else None),
         }
 
     prior_state = client.retention_state
@@ -789,9 +799,7 @@ async def cancel_subscription(
         triggered_by_actor_id=actor_id,
         details_json={
             "reason": reason,
-            "effective_at": (
-                effective_at.isoformat() if effective_at else None
-            ),
+            "effective_at": (effective_at.isoformat() if effective_at else None),
             "notes": notes,
         },
     )
@@ -802,10 +810,7 @@ async def cancel_subscription(
         db,
         domain="fulfillment",
         event_type="client.retention.subscription_cancelled",
-        summary=(
-            f"Subscription cancelled for {client.display_name or client.primary_email}: "
-            f"{reason}"
-        ),
+        summary=(f"Subscription cancelled for {client.display_name or client.primary_email}: {reason}"),
         org_id=client.org_id,
         brand_id=client.brand_id,
         entity_type="client",
@@ -840,7 +845,9 @@ async def cancel_subscription(
 
 
 async def compute_retention_book(
-    db: AsyncSession, *, org_id: uuid.UUID,
+    db: AsyncSession,
+    *,
+    org_id: uuid.UUID,
 ) -> dict:
     """Per-avenue rollup of retention states for the GM dashboard.
 

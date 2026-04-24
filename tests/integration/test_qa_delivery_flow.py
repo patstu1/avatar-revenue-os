@@ -14,6 +14,7 @@ Covers:
   6. Project completes when its last job ships.
   7. Reschedule followup emits fresh followup.scheduled event.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -46,6 +47,7 @@ async def _activate_and_get_job(api_client, db_session, headers, org_id, monkeyp
         return {"url": "https://checkout.stripe.com/test", "id": f"plink_{uuid.uuid4().hex[:8]}"}
 
     from apps.api.services import stripe_billing_service
+
     monkeypatch.setattr(stripe_billing_service, "create_payment_link", _fake_create_link)
 
     create = await api_client.post(
@@ -58,9 +60,7 @@ async def _activate_and_get_job(api_client, db_session, headers, org_id, monkeyp
         },
     )
     pid = uuid.UUID(create.json()["id"])
-    await api_client.post(
-        f"/api/v1/proposals/{pid}/payment-link", headers=headers, json={}
-    )
+    await api_client.post(f"/api/v1/proposals/{pid}/payment-link", headers=headers, json={})
 
     event_id = f"evt_qa_{uuid.uuid4().hex[:12]}"
     payload = {
@@ -79,21 +79,20 @@ async def _activate_and_get_job(api_client, db_session, headers, org_id, monkeyp
     }
 
     async def _fake_verify(**kwargs):
-        return {"valid": True, "event_id": event_id,
-                "event_type": "checkout.session.completed", "payload": payload}, None
+        return {
+            "valid": True,
+            "event_id": event_id,
+            "event_type": "checkout.session.completed",
+            "payload": payload,
+        }, None
 
     from apps.api.routers import webhooks as webhooks_mod
+
     monkeypatch.setattr(webhooks_mod, "_verify_webhook_with_candidates", _fake_verify)
 
-    await api_client.post(
-        "/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}"
-    )
+    await api_client.post("/api/v1/webhooks/stripe", headers={"Stripe-Signature": "fake"}, content=b"{}")
 
-    intake = (
-        await db_session.execute(
-            select(IntakeRequest).where(IntakeRequest.org_id == org_id)
-        )
-    ).scalars().all()
+    intake = (await db_session.execute(select(IntakeRequest).where(IntakeRequest.org_id == org_id))).scalars().all()
     intake = intake[-1]
 
     await api_client.post(
@@ -110,18 +109,12 @@ async def _activate_and_get_job(api_client, db_session, headers, org_id, monkeyp
     )
 
     # Fetch the running production job
-    job = (
-        await db_session.execute(
-            select(ProductionJob).where(ProductionJob.org_id == org_id)
-        )
-    ).scalar_one()
+    job = (await db_session.execute(select(ProductionJob).where(ProductionJob.org_id == org_id))).scalar_one()
     return job
 
 
 @pytest.mark.asyncio
-async def test_submit_output_auto_qa_pass_auto_dispatches(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_submit_output_auto_qa_pass_auto_dispatches(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     job = await _activate_and_get_job(api_client, db_session, headers, org_id, monkeypatch)
 
@@ -146,32 +139,30 @@ async def test_submit_output_auto_qa_pass_auto_dispatches(
 
     # Events: qa.passed, delivery.sent, followup.scheduled
     evt_types = (
-        await db_session.execute(
-            select(SystemEvent.event_type).where(
-                SystemEvent.event_domain == "fulfillment",
-                SystemEvent.organization_id == org_id,
-                SystemEvent.event_type.in_(("qa.passed", "delivery.sent", "followup.scheduled")),
+        (
+            await db_session.execute(
+                select(SystemEvent.event_type).where(
+                    SystemEvent.event_domain == "fulfillment",
+                    SystemEvent.organization_id == org_id,
+                    SystemEvent.event_type.in_(("qa.passed", "delivery.sent", "followup.scheduled")),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert "qa.passed" in evt_types
     assert "delivery.sent" in evt_types
     assert "followup.scheduled" in evt_types
 
     # Delivery row exists
-    delivery = (
-        await db_session.execute(
-            select(Delivery).where(Delivery.production_job_id == job.id)
-        )
-    ).scalar_one()
+    delivery = (await db_session.execute(select(Delivery).where(Delivery.production_job_id == job.id))).scalar_one()
     assert delivery.status == "sent"
     assert delivery.followup_scheduled_at is not None
 
 
 @pytest.mark.asyncio
-async def test_force_fail_qa_retries_within_limit(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_force_fail_qa_retries_within_limit(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     job = await _activate_and_get_job(api_client, db_session, headers, org_id, monkeypatch)
     # retry_limit default is 2; attempt_count starts at 1
@@ -203,9 +194,7 @@ async def test_force_fail_qa_retries_within_limit(
 
 
 @pytest.mark.asyncio
-async def test_retry_exhausted_marks_job_failed(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_retry_exhausted_marks_job_failed(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     job = await _activate_and_get_job(api_client, db_session, headers, org_id, monkeypatch)
     job.status = "qa_pending"
@@ -233,20 +222,22 @@ async def test_retry_exhausted_marks_job_failed(
 
     # At least one qa.failed with terminal=True
     evts = (
-        await db_session.execute(
-            select(SystemEvent).where(
-                SystemEvent.event_type == "qa.failed",
-                SystemEvent.entity_id == job.id,
+        (
+            await db_session.execute(
+                select(SystemEvent).where(
+                    SystemEvent.event_type == "qa.failed",
+                    SystemEvent.entity_id == job.id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert any(e.details.get("terminal") is True for e in evts)
 
 
 @pytest.mark.asyncio
-async def test_manual_dispatch_delivery_after_qa_passed(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_manual_dispatch_delivery_after_qa_passed(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     job = await _activate_and_get_job(api_client, db_session, headers, org_id, monkeypatch)
 
@@ -286,9 +277,7 @@ async def test_manual_dispatch_delivery_after_qa_passed(
 
 
 @pytest.mark.asyncio
-async def test_project_marked_completed_when_all_jobs_done(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_project_marked_completed_when_all_jobs_done(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     job = await _activate_and_get_job(api_client, db_session, headers, org_id, monkeypatch)
 
@@ -298,20 +287,14 @@ async def test_project_marked_completed_when_all_jobs_done(
         json={"output_url": "https://cdn.example/out.zip"},
     )
 
-    project = (
-        await db_session.execute(
-            select(ClientProject).where(ClientProject.id == job.project_id)
-        )
-    ).scalar_one()
+    project = (await db_session.execute(select(ClientProject).where(ClientProject.id == job.project_id))).scalar_one()
     await db_session.refresh(project)
     assert project.status == "completed"
     assert project.completed_at is not None
 
 
 @pytest.mark.asyncio
-async def test_reschedule_followup_emits_event(
-    api_client, db_session, sample_org_data, monkeypatch
-):
+async def test_reschedule_followup_emits_event(api_client, db_session, sample_org_data, monkeypatch):
     headers, org_id = await _auth(api_client, sample_org_data)
     job = await _activate_and_get_job(api_client, db_session, headers, org_id, monkeypatch)
 
@@ -320,11 +303,7 @@ async def test_reschedule_followup_emits_event(
         headers=headers,
         json={"output_url": "https://cdn.example/x.zip"},
     )
-    delivery = (
-        await db_session.execute(
-            select(Delivery).where(Delivery.production_job_id == job.id)
-        )
-    ).scalar_one()
+    delivery = (await db_session.execute(select(Delivery).where(Delivery.production_job_id == job.id))).scalar_one()
 
     new_when = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
     r = await api_client.post(
@@ -337,12 +316,16 @@ async def test_reschedule_followup_emits_event(
     assert delivery.followup_scheduled_at is not None
 
     evts = (
-        await db_session.execute(
-            select(SystemEvent).where(
-                SystemEvent.event_type == "followup.scheduled",
-                SystemEvent.entity_id == delivery.id,
+        (
+            await db_session.execute(
+                select(SystemEvent).where(
+                    SystemEvent.event_type == "followup.scheduled",
+                    SystemEvent.entity_id == delivery.id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     # At least 2 followup.scheduled events (original + reschedule)
     assert len(evts) >= 2

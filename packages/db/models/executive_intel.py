@@ -1,4 +1,5 @@
 """Executive Intelligence + Service Layer — KPIs, forecasts, costs, uptime, oversight."""
+
 import uuid
 from typing import Optional
 
@@ -11,8 +12,12 @@ from packages.db.base import Base
 
 class ExecutiveKPIReport(Base):
     __tablename__ = "ei_kpi_reports"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True
+    )
     period: Mapped[str] = mapped_column(String(30), nullable=False)
     total_revenue: Mapped[float] = mapped_column(Float, default=0.0)
     total_profit: Mapped[float] = mapped_column(Float, default=0.0)
@@ -30,7 +35,9 @@ class ExecutiveKPIReport(Base):
 
 class ExecutiveForecast(Base):
     __tablename__ = "ei_forecasts"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True)
     forecast_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     forecast_period: Mapped[str] = mapped_column(String(30), nullable=False)
@@ -44,7 +51,9 @@ class ExecutiveForecast(Base):
 
 class UsageCostReport(Base):
     __tablename__ = "ei_usage_cost"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True)
     period: Mapped[str] = mapped_column(String(30), nullable=False)
     provider_key: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
@@ -56,7 +65,9 @@ class UsageCostReport(Base):
 
 class ProviderUptimeReport(Base):
     __tablename__ = "ei_provider_uptime"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     provider_key: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     period: Mapped[str] = mapped_column(String(30), nullable=False)
     uptime_pct: Mapped[float] = mapped_column(Float, default=100.0)
@@ -69,7 +80,9 @@ class ProviderUptimeReport(Base):
 
 class OversightModeReport(Base):
     __tablename__ = "ei_oversight_mode"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     mode: Mapped[str] = mapped_column(String(30), default="hybrid")
     auto_approved_count: Mapped[int] = mapped_column(Integer, default=0)
     human_reviewed_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -81,7 +94,9 @@ class OversightModeReport(Base):
 
 class ServiceHealthReport(Base):
     __tablename__ = "ei_service_health"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     service_name: Mapped[str] = mapped_column(String(80), nullable=False)
     health_status: Mapped[str] = mapped_column(String(20), default="healthy")
     active_issues: Mapped[int] = mapped_column(Integer, default=0)
@@ -91,7 +106,9 @@ class ServiceHealthReport(Base):
 
 class ExecutiveAlert(Base):
     __tablename__ = "ei_alerts"
-    organization_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
+    )
     alert_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     severity: Mapped[str] = mapped_column(String(20), default="medium")
     title: Mapped[str] = mapped_column(String(500), nullable=False)

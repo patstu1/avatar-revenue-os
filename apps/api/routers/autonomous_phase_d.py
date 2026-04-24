@@ -1,4 +1,5 @@
 """Autonomous execution Phase D — agent orchestration, revenue pressure, overrides, blockers, escalations."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -28,7 +29,9 @@ async def _require_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
 
 @router.get("/{brand_id}/agent-runs", response_model=AgentOrchestrationBundleOut)
 async def list_agent_runs(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -40,7 +43,9 @@ async def list_agent_runs(
 
 @router.post("/{brand_id}/agent-runs/recompute", response_model=RecomputeSummaryOut)
 async def recompute_agent_runs(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -57,7 +62,9 @@ async def recompute_agent_runs(
 
 @router.get("/{brand_id}/revenue-pressure", response_model=list[RevenuePressureReportOut])
 async def list_revenue_pressure(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(10, ge=1, le=50),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -69,7 +76,9 @@ async def list_revenue_pressure(
 
 @router.post("/{brand_id}/revenue-pressure/recompute", response_model=RecomputeSummaryOut)
 async def recompute_revenue_pressure(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -86,7 +95,9 @@ async def recompute_revenue_pressure(
 
 @router.get("/{brand_id}/override-policies", response_model=list[OverridePolicyOut])
 async def list_override_policies(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -98,7 +109,9 @@ async def list_override_policies(
 
 @router.post("/{brand_id}/override-policies/recompute", response_model=RecomputeSummaryOut)
 async def recompute_override_policies(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -115,7 +128,9 @@ async def recompute_override_policies(
 
 @router.get("/{brand_id}/blocker-detection", response_model=list[BlockerDetectionReportOut])
 async def list_blocker_detection(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -127,7 +142,9 @@ async def list_blocker_detection(
 
 @router.post("/{brand_id}/blocker-detection/recompute", response_model=RecomputeSummaryOut)
 async def recompute_blocker_detection(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -144,7 +161,9 @@ async def recompute_blocker_detection(
 
 @router.get("/{brand_id}/operator-escalations", response_model=EscalationBundleOut)
 async def list_operator_escalations(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(50, ge=1, le=200),
 ):
     await _require_brand(brand_id, current_user, db)

@@ -15,6 +15,7 @@ Stripe-side work (payment-link creation on stripe.com) is delegated to
 `stripe_billing_service.create_payment_link` — this service only
 persists the result.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -213,6 +214,7 @@ async def mark_proposal_sent(
     # ── Stage controller: proposal → sent (Batch 4) ──
     try:
         from apps.api.services.stage_controller import mark_stage
+
         await mark_stage(
             db,
             org_id=proposal.org_id,
@@ -221,9 +223,9 @@ async def mark_proposal_sent(
             stage="sent",
         )
     except Exception as stage_exc:
-        logger.warning("stage_controller.mark_failed",
-                        entity="proposal", entity_id=str(proposal.id),
-                        error=str(stage_exc)[:150])
+        logger.warning(
+            "stage_controller.mark_failed", entity="proposal", entity_id=str(proposal.id), error=str(stage_exc)[:150]
+        )
     return proposal
 
 
@@ -276,7 +278,7 @@ async def record_payment_link(
         db,
         domain="monetization",
         event_type="payment.link.created",
-        summary=f"Payment link created: ${amount_cents/100:.2f} {currency.upper()}",
+        summary=f"Payment link created: ${amount_cents / 100:.2f} {currency.upper()}",
         org_id=org_id,
         brand_id=brand_id,
         entity_type="payment_link",
@@ -363,7 +365,7 @@ async def record_payment_from_stripe(
     # once resolved. Keeps every downstream entity (Client, IntakeRequest,
     # ClientProject, ProductionJob, Delivery) tagged with the avenue that
     # earned the revenue.
-    avenue_slug = (meta.get("avenue") or meta.get("avenue_slug") or None)
+    avenue_slug = meta.get("avenue") or meta.get("avenue_slug") or None
     if isinstance(avenue_slug, str):
         avenue_slug = avenue_slug[:60] or None
     else:
@@ -422,11 +424,7 @@ async def record_payment_from_stripe(
         await db.flush()
 
     if payment_link_id is not None:
-        link = (
-            await db.execute(
-                select(PaymentLink).where(PaymentLink.id == payment_link_id)
-            )
-        ).scalar_one_or_none()
+        link = (await db.execute(select(PaymentLink).where(PaymentLink.id == payment_link_id))).scalar_one_or_none()
         if link is not None:
             link.status = "completed"
             link.completed_at = now
@@ -436,7 +434,7 @@ async def record_payment_from_stripe(
         db,
         domain="monetization",
         event_type="payment.completed",
-        summary=f"Payment captured: ${amount_cents/100:.2f} {currency.upper()} ({event_type})",
+        summary=f"Payment captured: ${amount_cents / 100:.2f} {currency.upper()} ({event_type})",
         org_id=org_id,
         brand_id=brand_id,
         entity_type="payment",
@@ -470,23 +468,27 @@ async def record_payment_from_stripe(
     try:
         if brand_id is not None and amount_cents > 0:
             from packages.clients.analytics_emitter import emit_analytics_event
+
             await emit_analytics_event(
-                db, brand_id=brand_id,
+                db,
+                brand_id=brand_id,
                 source="stripe_webhook",
                 event_type="payment.succeeded",
                 metric_value=float(amount_cents) / 100.0,
                 truth_level="verified",
                 platform="stripe",
                 external_post_id=event_id,
-                raw_json={"proposal_id": str(proposal_id) if proposal_id else None,
-                          "currency": currency, "event_type": event_type},
+                raw_json={
+                    "proposal_id": str(proposal_id) if proposal_id else None,
+                    "currency": currency,
+                    "event_type": event_type,
+                },
             )
             await db.flush()
     except Exception as _aexc:
         import structlog as _sl
-        _sl.get_logger().warning("analytics_emit_failed",
-                                  source="stripe_webhook",
-                                  error=str(_aexc)[:200])
+
+        _sl.get_logger().warning("analytics_emit_failed", source="stripe_webhook", error=str(_aexc)[:200])
     return payment
 
 
@@ -496,9 +498,7 @@ async def record_payment_from_stripe(
 
 
 async def _require_proposal(db: AsyncSession, proposal_id: uuid.UUID) -> Proposal:
-    proposal = (
-        await db.execute(select(Proposal).where(Proposal.id == proposal_id))
-    ).scalar_one_or_none()
+    proposal = (await db.execute(select(Proposal).where(Proposal.id == proposal_id))).scalar_one_or_none()
     if proposal is None:
         raise LookupError(f"proposal {proposal_id} not found")
     return proposal

@@ -1,4 +1,5 @@
 """Async Redis-based sliding-window rate limiter for FastAPI."""
+
 import structlog
 from fastapi import HTTPException, Request, status
 
@@ -13,6 +14,7 @@ async def _get_redis():
         from redis.asyncio import Redis
 
         from apps.api.config import get_settings
+
         settings = get_settings()
         _redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
     return _redis_client

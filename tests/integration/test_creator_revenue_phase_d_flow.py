@@ -1,4 +1,5 @@
 """DB-backed integration tests for Creator Revenue Avenues Phase D — Hub."""
+
 from __future__ import annotations
 
 import uuid
@@ -24,10 +25,18 @@ async def seed_brand(db: AsyncSession):
     brand_id = uuid.uuid4()
     db.add(Organization(id=org_id, name=f"TestOrg-{org_id.hex[:8]}", slug=f"testorg-{org_id.hex[:8]}"))
     await db.flush()
-    db.add(Brand(id=brand_id, organization_id=org_id, name="CRPhaseDTestBrand", slug=f"crd-{brand_id.hex[:8]}", niche="tech"))
+    db.add(
+        Brand(
+            id=brand_id, organization_id=org_id, name="CRPhaseDTestBrand", slug=f"crd-{brand_id.hex[:8]}", niche="tech"
+        )
+    )
     await db.flush()
     for i in range(25):
-        db.add(ContentItem(brand_id=brand_id, title=f"TestContent-{i}", content_type=ContentType.SHORT_VIDEO, status="approved"))
+        db.add(
+            ContentItem(
+                brand_id=brand_id, title=f"TestContent-{i}", content_type=ContentType.SHORT_VIDEO, status="approved"
+            )
+        )
     db.add(Offer(brand_id=brand_id, name="TestOffer", monetization_method=MonetizationMethod.PRODUCT))
     await db.flush()
     return brand_id
@@ -36,6 +45,7 @@ async def seed_brand(db: AsyncSession):
 @pytest.mark.asyncio
 async def test_hub_get_returns_all_9_avenues(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import get_hub
+
     hub = await get_hub(db, seed_brand)
     assert len(hub["entries"]) == 9
     avenues = {e["avenue_type"] for e in hub["entries"]}
@@ -49,6 +59,7 @@ async def test_hub_get_returns_all_9_avenues(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_hub_entries_have_required_fields(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import get_hub
+
     hub = await get_hub(db, seed_brand)
     for e in hub["entries"]:
         assert "avenue_type" in e
@@ -64,17 +75,26 @@ async def test_hub_entries_have_required_fields(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_hub_summary_totals(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import get_hub
+
     hub = await get_hub(db, seed_brand)
     assert "total_expected_value" in hub
     assert "total_revenue_to_date" in hub
     assert "total_blockers" in hub
     assert "event_rollup" in hub
-    assert hub["avenues_live"] + hub["avenues_blocked"] + hub["avenues_executing"] + hub["avenues_queued"] + hub["avenues_recommended"] == 9
+    assert (
+        hub["avenues_live"]
+        + hub["avenues_blocked"]
+        + hub["avenues_executing"]
+        + hub["avenues_queued"]
+        + hub["avenues_recommended"]
+        == 9
+    )
 
 
 @pytest.mark.asyncio
 async def test_hub_recompute_persists_truth(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_truth, recompute_hub
+
     result = await recompute_hub(db, seed_brand)
     assert result["created"] == 9
     truth = await list_truth(db, seed_brand)
@@ -86,6 +106,7 @@ async def test_hub_recompute_persists_truth(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_hub_recompute_idempotent(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_truth, recompute_hub
+
     await recompute_hub(db, seed_brand)
     first = await list_truth(db, seed_brand)
     await recompute_hub(db, seed_brand)
@@ -97,6 +118,7 @@ async def test_hub_recompute_idempotent(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_hub_with_actions_shows_counts(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import get_hub, recompute_live_events, recompute_merch
+
     await recompute_merch(db, seed_brand)
     await recompute_live_events(db, seed_brand)
     hub = await get_hub(db, seed_brand)
@@ -109,6 +131,7 @@ async def test_hub_with_actions_shows_counts(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_blocker_aggregation_in_hub(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import get_hub, recompute_blockers
+
     await recompute_blockers(db, seed_brand)
     hub = await get_hub(db, seed_brand)
     assert hub["total_blockers"] >= 1
@@ -120,15 +143,18 @@ async def test_blocker_aggregation_in_hub(db: AsyncSession, seed_brand):
 async def test_event_rollup_in_hub(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import get_hub
     from packages.db.models.creator_revenue import CreatorRevenueEvent
-    db.add(CreatorRevenueEvent(
-        brand_id=seed_brand,
-        avenue_type="consulting",
-        event_type="deal_closed",
-        revenue=3000,
-        cost=500,
-        profit=2500,
-        client_name="TestClient",
-    ))
+
+    db.add(
+        CreatorRevenueEvent(
+            brand_id=seed_brand,
+            avenue_type="consulting",
+            event_type="deal_closed",
+            revenue=3000,
+            cost=500,
+            profit=2500,
+            client_name="TestClient",
+        )
+    )
     await db.flush()
     hub = await get_hub(db, seed_brand)
     assert hub["event_rollup"]["total_revenue"] == 3000
@@ -140,15 +166,18 @@ async def test_event_rollup_in_hub(db: AsyncSession, seed_brand):
 async def test_truth_state_reflects_revenue(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import get_hub, recompute_merch
     from packages.db.models.creator_revenue import CreatorRevenueEvent
+
     await recompute_merch(db, seed_brand)
-    db.add(CreatorRevenueEvent(
-        brand_id=seed_brand,
-        avenue_type="merch",
-        event_type="order_completed",
-        revenue=100,
-        cost=30,
-        profit=70,
-    ))
+    db.add(
+        CreatorRevenueEvent(
+            brand_id=seed_brand,
+            avenue_type="merch",
+            event_type="order_completed",
+            revenue=100,
+            cost=30,
+            profit=70,
+        )
+    )
     await db.flush()
     hub = await get_hub(db, seed_brand)
     merch = next(e for e in hub["entries"] if e["avenue_type"] == "merch")

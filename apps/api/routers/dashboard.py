@@ -1,4 +1,5 @@
 """Dashboard overview endpoint — reads real persisted data."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query
@@ -40,41 +41,45 @@ async def get_overview(current_user: CurrentUser, db: DBSession):
 
     brand_ids_q = select(Brand.id).where(Brand.organization_id == org_id)
 
-    brands_count = (await db.execute(
-        select(func.count()).select_from(Brand).where(Brand.organization_id == org_id)
-    )).scalar() or 0
+    brands_count = (
+        await db.execute(select(func.count()).select_from(Brand).where(Brand.organization_id == org_id))
+    ).scalar() or 0
 
-    avatars_count = (await db.execute(
-        select(func.count()).select_from(Avatar).where(Avatar.brand_id.in_(brand_ids_q))
-    )).scalar() or 0
+    avatars_count = (
+        await db.execute(select(func.count()).select_from(Avatar).where(Avatar.brand_id.in_(brand_ids_q)))
+    ).scalar() or 0
 
-    offers_count = (await db.execute(
-        select(func.count()).select_from(Offer).where(Offer.brand_id.in_(brand_ids_q))
-    )).scalar() or 0
+    offers_count = (
+        await db.execute(select(func.count()).select_from(Offer).where(Offer.brand_id.in_(brand_ids_q)))
+    ).scalar() or 0
 
-    accounts_count = (await db.execute(
-        select(func.count()).select_from(CreatorAccount).where(CreatorAccount.brand_id.in_(brand_ids_q))
-    )).scalar() or 0
+    accounts_count = (
+        await db.execute(
+            select(func.count()).select_from(CreatorAccount).where(CreatorAccount.brand_id.in_(brand_ids_q))
+        )
+    ).scalar() or 0
 
-    content_count = (await db.execute(
-        select(func.count()).select_from(ContentItem).where(ContentItem.brand_id.in_(brand_ids_q))
-    )).scalar() or 0
+    content_count = (
+        await db.execute(select(func.count()).select_from(ContentItem).where(ContentItem.brand_id.in_(brand_ids_q)))
+    ).scalar() or 0
 
-    publish_count = (await db.execute(
-        select(func.count()).select_from(PublishJob).where(PublishJob.brand_id.in_(brand_ids_q))
-    )).scalar() or 0
+    publish_count = (
+        await db.execute(select(func.count()).select_from(PublishJob).where(PublishJob.brand_id.in_(brand_ids_q)))
+    ).scalar() or 0
 
-    audit_count = (await db.execute(
-        select(func.count()).select_from(AuditLog).where(AuditLog.organization_id == org_id)
-    )).scalar() or 0
+    audit_count = (
+        await db.execute(select(func.count()).select_from(AuditLog).where(AuditLog.organization_id == org_id))
+    ).scalar() or 0
 
     jobs_count = (await db.execute(select(func.count()).select_from(SystemJob))).scalar() or 0
 
-    total_cost = (await db.execute(
-        select(func.coalesce(func.sum(ProviderUsageCost.cost), 0.0)).where(
-            ProviderUsageCost.brand_id.in_(brand_ids_q)
+    total_cost = (
+        await db.execute(
+            select(func.coalesce(func.sum(ProviderUsageCost.cost), 0.0)).where(
+                ProviderUsageCost.brand_id.in_(brand_ids_q)
+            )
         )
-    )).scalar() or 0.0
+    ).scalar() or 0.0
 
     platform_q = await db.execute(
         select(CreatorAccount.platform, func.count())
@@ -84,21 +89,21 @@ async def get_overview(current_user: CurrentUser, db: DBSession):
     active_by_platform = {str(row[0].value): row[1] for row in platform_q.all()}
 
     recent_audit_q = await db.execute(
-        select(AuditLog)
-        .where(AuditLog.organization_id == org_id)
-        .order_by(AuditLog.created_at.desc())
-        .limit(10)
+        select(AuditLog).where(AuditLog.organization_id == org_id).order_by(AuditLog.created_at.desc()).limit(10)
     )
     recent_audits = [
         {"action": a.action, "actor_type": a.actor_type, "entity_type": a.entity_type, "created_at": str(a.created_at)}
         for a in recent_audit_q.scalars().all()
     ]
 
-    recent_jobs_q = await db.execute(
-        select(SystemJob).order_by(SystemJob.created_at.desc()).limit(10)
-    )
+    recent_jobs_q = await db.execute(select(SystemJob).order_by(SystemJob.created_at.desc()).limit(10))
     recent_jobs = [
-        {"job_name": j.job_name, "status": j.status.value if hasattr(j.status, 'value') else str(j.status), "queue": j.queue, "created_at": str(j.created_at)}
+        {
+            "job_name": j.job_name,
+            "status": j.status.value if hasattr(j.status, "value") else str(j.status),
+            "queue": j.queue,
+            "created_at": str(j.created_at),
+        }
         for j in recent_jobs_q.scalars().all()
     ]
 

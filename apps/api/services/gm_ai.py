@@ -13,6 +13,7 @@ ALL account state, and ALL growth intelligence to produce real plans.
 It communicates like a serious operator: direct, data-driven, revenue-obsessed,
 risk-aware, and always thinking about scale timing.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -48,42 +49,69 @@ async def run_full_scan(db: AsyncSession, brand_id: uuid.UUID) -> dict:
         return {"error": "Brand not found"}
 
     # ── Accounts scan ──
-    accounts = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalars().all()
+    accounts = (
+        (
+            await db.execute(
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     account_data = []
     for acct in accounts:
-        platform = acct.platform.value if hasattr(acct.platform, 'value') else str(acct.platform) if acct.platform else "unknown"
-        followers = getattr(acct, 'follower_count', 0) or 0
-        engagement = getattr(acct, 'engagement_rate', 0) or getattr(acct, 'ctr', 0) or 0
-        scale_role = getattr(acct, 'scale_role', None) or "active"
-        saturation = getattr(acct, 'saturation_score', 0) or 0
-        fatigue = getattr(acct, 'fatigue_score', 0) or 0
+        platform = (
+            acct.platform.value
+            if hasattr(acct.platform, "value")
+            else str(acct.platform)
+            if acct.platform
+            else "unknown"
+        )
+        followers = getattr(acct, "follower_count", 0) or 0
+        engagement = getattr(acct, "engagement_rate", 0) or getattr(acct, "ctr", 0) or 0
+        scale_role = getattr(acct, "scale_role", None) or "active"
+        saturation = getattr(acct, "saturation_score", 0) or 0
+        fatigue = getattr(acct, "fatigue_score", 0) or 0
 
-        acct_rev = (await db.execute(
-            select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
-                RevenueLedgerEntry.creator_account_id == acct.id, RevenueLedgerEntry.is_active.is_(True)
+        acct_rev = (
+            await db.execute(
+                select(func.coalesce(func.sum(RevenueLedgerEntry.gross_amount), 0.0)).where(
+                    RevenueLedgerEntry.creator_account_id == acct.id, RevenueLedgerEntry.is_active.is_(True)
+                )
             )
-        )).scalar() or 0.0
+        ).scalar() or 0.0
 
-        content_count = (await db.execute(
-            select(func.count()).select_from(ContentItem).where(ContentItem.creator_account_id == acct.id)
-        )).scalar() or 0
+        content_count = (
+            await db.execute(
+                select(func.count()).select_from(ContentItem).where(ContentItem.creator_account_id == acct.id)
+            )
+        ).scalar() or 0
 
-        account_data.append({
-            "id": str(acct.id), "platform": platform, "followers": followers,
-            "engagement": engagement, "scale_role": scale_role,
-            "saturation": saturation, "fatigue": fatigue,
-            "revenue": float(acct_rev), "content_count": content_count,
-        })
+        account_data.append(
+            {
+                "id": str(acct.id),
+                "platform": platform,
+                "followers": followers,
+                "engagement": engagement,
+                "scale_role": scale_role,
+                "saturation": saturation,
+                "fatigue": fatigue,
+                "revenue": float(acct_rev),
+                "content_count": content_count,
+            }
+        )
 
     # ── Revenue scan ──
     rev_by_source = {}
     rev_q = await db.execute(
         select(RevenueLedgerEntry.revenue_source_type, func.sum(RevenueLedgerEntry.gross_amount), func.count())
-        .where(RevenueLedgerEntry.brand_id == brand_id, RevenueLedgerEntry.occurred_at >= day_90,
-               RevenueLedgerEntry.is_active.is_(True), RevenueLedgerEntry.is_refund.is_(False))
+        .where(
+            RevenueLedgerEntry.brand_id == brand_id,
+            RevenueLedgerEntry.occurred_at >= day_90,
+            RevenueLedgerEntry.is_active.is_(True),
+            RevenueLedgerEntry.is_refund.is_(False),
+        )
         .group_by(RevenueLedgerEntry.revenue_source_type)
     )
     for r in rev_q.all():
@@ -91,55 +119,93 @@ async def run_full_scan(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     total_revenue = sum(d["total"] for d in rev_by_source.values())
 
     # ── Offers scan ──
-    offers = (await db.execute(
-        select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-    )).scalars().all()
-    offer_data = [{"id": str(o.id), "name": o.name, "epc": float(o.epc or 0),
-                    "payout": float(o.payout_amount or 0), "priority": o.priority or 0}
-                   for o in offers]
+    offers = (
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
+    )
+    offer_data = [
+        {
+            "id": str(o.id),
+            "name": o.name,
+            "epc": float(o.epc or 0),
+            "payout": float(o.payout_amount or 0),
+            "priority": o.priority or 0,
+        }
+        for o in offers
+    ]
 
     # ── Patterns scan ──
-    winners = (await db.execute(
-        select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand_id, WinningPatternMemory.is_active.is_(True))
-        .order_by(WinningPatternMemory.win_score.desc()).limit(10)
-    )).scalars().all()
-    losers = (await db.execute(
-        select(LosingPatternMemory).where(LosingPatternMemory.brand_id == brand_id, LosingPatternMemory.is_active.is_(True))
-        .order_by(LosingPatternMemory.fail_score.desc()).limit(5)
-    )).scalars().all()
+    winners = (
+        (
+            await db.execute(
+                select(WinningPatternMemory)
+                .where(WinningPatternMemory.brand_id == brand_id, WinningPatternMemory.is_active.is_(True))
+                .order_by(WinningPatternMemory.win_score.desc())
+                .limit(10)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    losers = (
+        (
+            await db.execute(
+                select(LosingPatternMemory)
+                .where(LosingPatternMemory.brand_id == brand_id, LosingPatternMemory.is_active.is_(True))
+                .order_by(LosingPatternMemory.fail_score.desc())
+                .limit(5)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     # ── Sponsors scan ──
-    sponsor_count = (await db.execute(
-        select(func.count()).select_from(SponsorProfile).where(SponsorProfile.brand_id == brand_id)
-    )).scalar() or 0
-    active_deals = (await db.execute(
-        select(func.count()).select_from(SponsorOpportunity).where(
-            SponsorOpportunity.brand_id == brand_id, SponsorOpportunity.status.in_(["negotiation", "active", "delivering"])
+    sponsor_count = (
+        await db.execute(select(func.count()).select_from(SponsorProfile).where(SponsorProfile.brand_id == brand_id))
+    ).scalar() or 0
+    active_deals = (
+        await db.execute(
+            select(func.count())
+            .select_from(SponsorOpportunity)
+            .where(
+                SponsorOpportunity.brand_id == brand_id,
+                SponsorOpportunity.status.in_(["negotiation", "active", "delivering"]),
+            )
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # ── Content scan ──
-    content_total = (await db.execute(select(func.count()).select_from(ContentItem).where(ContentItem.brand_id == brand_id))).scalar() or 0
-    content_published = (await db.execute(
-        select(func.count()).select_from(ContentItem).where(ContentItem.brand_id == brand_id, ContentItem.status == "published")
-    )).scalar() or 0
-    content_unmonetized = (await db.execute(
-        select(func.count()).select_from(ContentItem).where(
-            ContentItem.brand_id == brand_id, ContentItem.status == "published", ContentItem.offer_id.is_(None)
+    content_total = (
+        await db.execute(select(func.count()).select_from(ContentItem).where(ContentItem.brand_id == brand_id))
+    ).scalar() or 0
+    content_published = (
+        await db.execute(
+            select(func.count())
+            .select_from(ContentItem)
+            .where(ContentItem.brand_id == brand_id, ContentItem.status == "published")
         )
-    )).scalar() or 0
+    ).scalar() or 0
+    content_unmonetized = (
+        await db.execute(
+            select(func.count())
+            .select_from(ContentItem)
+            .where(ContentItem.brand_id == brand_id, ContentItem.status == "published", ContentItem.offer_id.is_(None))
+        )
+    ).scalar() or 0
 
     # ── Actions scan ──
-    pending_actions = (await db.execute(
-        select(func.count()).select_from(OperatorAction).where(
-            OperatorAction.brand_id == brand_id, OperatorAction.status == "pending"
+    pending_actions = (
+        await db.execute(
+            select(func.count())
+            .select_from(OperatorAction)
+            .where(OperatorAction.brand_id == brand_id, OperatorAction.status == "pending")
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     # ── Memory scan ──
-    memory_count = (await db.execute(
-        select(func.count()).select_from(MemoryEntry).where(MemoryEntry.brand_id == brand_id)
-    )).scalar() or 0
+    memory_count = (
+        await db.execute(select(func.count()).select_from(MemoryEntry).where(MemoryEntry.brand_id == brand_id))
+    ).scalar() or 0
 
     # Aggregate platform data
     platforms = {}
@@ -245,11 +311,11 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
     # routing). Order reflects ProofHook lead-gen efficiency, not audience
     # reach, because we're generating PACKAGE LEADS, not audience.
     priority_platforms = [
-        "email_outbound",       # cold outbound is the primary lead source
-        "linkedin",             # decision-maker reach
-        "youtube",              # high-intent search
-        "x",                    # founder reach
-        "email_newsletter",     # warm lead nurture
+        "email_outbound",  # cold outbound is the primary lead source
+        "linkedin",  # decision-maker reach
+        "youtube",  # high-intent search
+        "x",  # founder reach
+        "email_newsletter",  # warm lead nurture
     ]
 
     for i, platform in enumerate(priority_platforms):
@@ -266,15 +332,21 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
             target_accounts = 1
             acct_count = 0
 
-        platform_plan.append({
-            "platform": platform,
-            "priority": i + 1,
-            "current_accounts": acct_count,
-            "target_accounts": target_accounts,
-            "action": action,
-            "timing": "immediate" if action in ("scale", "warmup") else "week_1" if action == "launch" and i < 2 else "week_2_4",
-            "role": "inbound_lead_source",  # all channels are package-lead sources
-        })
+        platform_plan.append(
+            {
+                "platform": platform,
+                "priority": i + 1,
+                "current_accounts": acct_count,
+                "target_accounts": target_accounts,
+                "action": action,
+                "timing": "immediate"
+                if action in ("scale", "warmup")
+                else "week_1"
+                if action == "launch" and i < 2
+                else "week_2_4",
+                "role": "inbound_lead_source",  # all channels are package-lead sources
+            }
+        )
 
     # ── Inbound channel role plan — package-lead-generation focused ──
     # These are the ROLES each inbound channel plays in lead generation,
@@ -283,19 +355,43 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
     # qualified package leads for a creative services catalog.
     if not has_revenue:
         archetype_plan = [
-            {"archetype": "outbound_cold_email", "count": 2, "purpose": "Generate inbound qualified package leads from cold outbound"},
-            {"archetype": "decision_maker_reach", "count": 1, "purpose": "Reach buyers where they browse (LinkedIn / X founder networks)"},
+            {
+                "archetype": "outbound_cold_email",
+                "count": 2,
+                "purpose": "Generate inbound qualified package leads from cold outbound",
+            },
+            {
+                "archetype": "decision_maker_reach",
+                "count": 1,
+                "purpose": "Reach buyers where they browse (LinkedIn / X founder networks)",
+            },
         ]
     elif not has_multiple_sources:
         archetype_plan = [
-            {"archetype": "outbound_cold_email", "count": 2, "purpose": "Scale the channel that's generating lead volume"},
-            {"archetype": "intent_search_content", "count": 1, "purpose": "Capture high-intent buyers searching for creative services"},
-            {"archetype": "referral_loop", "count": 1, "purpose": "Convert delivered packages into upsell and referral leads"},
+            {
+                "archetype": "outbound_cold_email",
+                "count": 2,
+                "purpose": "Scale the channel that's generating lead volume",
+            },
+            {
+                "archetype": "intent_search_content",
+                "count": 1,
+                "purpose": "Capture high-intent buyers searching for creative services",
+            },
+            {
+                "archetype": "referral_loop",
+                "count": 1,
+                "purpose": "Convert delivered packages into upsell and referral leads",
+            },
         ]
     else:
         archetype_plan = [
             {"archetype": "outbound_cold_email", "count": 3, "purpose": "Primary lead engine at scale"},
-            {"archetype": "intent_search_content", "count": 2, "purpose": "Inbound intent capture — high-lead-quality path"},
+            {
+                "archetype": "intent_search_content",
+                "count": 2,
+                "purpose": "Inbound intent capture — high-lead-quality path",
+            },
             {"archetype": "referral_loop", "count": 1, "purpose": "Post-delivery upsell and referral motion"},
             {"archetype": "warm_nurture", "count": 1, "purpose": "Re-engage stale leads into package-first funnel"},
         ]
@@ -306,24 +402,70 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
     # NOT affiliate/sponsor/product/service monetization methods (legacy).
     monetization_plan = {
         "package_catalog_wired": "active" if has_offers else "block_all_revenue_until_fixed",
-        "checkout_link_live": "active" if has_offers and has_revenue else ("pursue_now" if has_offers else "blocked_on_catalog"),
+        "checkout_link_live": "active"
+        if has_offers and has_revenue
+        else ("pursue_now" if has_offers else "blocked_on_catalog"),
         "intake_form_automated": "active" if has_revenue else ("pursue_now" if has_offers else "blocked_on_catalog"),
-        "production_queue_flowing": "active" if has_revenue and has_patterns else ("pursue_now" if has_revenue else "blocked_on_first_payment"),
-        "upsell_loop_triggered": "active" if has_multiple_sources else ("pursue_now" if has_revenue else "blocked_on_first_delivery"),
+        "production_queue_flowing": "active"
+        if has_revenue and has_patterns
+        else ("pursue_now" if has_revenue else "blocked_on_first_payment"),
+        "upsell_loop_triggered": "active"
+        if has_multiple_sources
+        else ("pursue_now" if has_revenue else "blocked_on_first_delivery"),
     }
 
     # ── Expansion triggers — signal-based, not threshold-based ──
     expansion_triggers = [
-        {"trigger": "account_audience_growing_consistently", "action": "add_parallel_account_on_same_platform", "signal": "follower growth rate > 0"},
-        {"trigger": "platform_producing_revenue", "action": "scale_account_count_on_platform", "signal": "any ledger revenue from this platform"},
-        {"trigger": "offer_epc_above_portfolio_average", "action": "create_more_content_for_this_offer", "signal": "offer outperforms the average"},
-        {"trigger": "sponsor_deal_completed_successfully", "action": "pursue_renewal_and_similar_sponsors", "signal": "deal status = completed"},
-        {"trigger": "content_format_wins_repeatedly", "action": "double_output_in_winning_format", "signal": "3+ winning pattern instances"},
-        {"trigger": "platform_traction_gaining", "action": "increase_posting_frequency_and_offer_density", "signal": "14d vs prior 14d impression growth > 0"},
-        {"trigger": "platform_traction_losing", "action": "reduce_frequency_adapt_format_or_pivot", "signal": "14d vs prior 14d impression decline"},
-        {"trigger": "new_revenue_source_proven", "action": "expand_that_source_to_more_accounts", "signal": "first ledger entry for a new source type"},
-        {"trigger": "monetization_density_below_portfolio_average", "action": "attach_offers_to_unmonetized_content", "signal": "published content without offers"},
-        {"trigger": "revenue_per_follower_improving", "action": "scale_audience_acquisition_aggressively", "signal": "rev/follower ratio increasing quarter over quarter"},
+        {
+            "trigger": "account_audience_growing_consistently",
+            "action": "add_parallel_account_on_same_platform",
+            "signal": "follower growth rate > 0",
+        },
+        {
+            "trigger": "platform_producing_revenue",
+            "action": "scale_account_count_on_platform",
+            "signal": "any ledger revenue from this platform",
+        },
+        {
+            "trigger": "offer_epc_above_portfolio_average",
+            "action": "create_more_content_for_this_offer",
+            "signal": "offer outperforms the average",
+        },
+        {
+            "trigger": "sponsor_deal_completed_successfully",
+            "action": "pursue_renewal_and_similar_sponsors",
+            "signal": "deal status = completed",
+        },
+        {
+            "trigger": "content_format_wins_repeatedly",
+            "action": "double_output_in_winning_format",
+            "signal": "3+ winning pattern instances",
+        },
+        {
+            "trigger": "platform_traction_gaining",
+            "action": "increase_posting_frequency_and_offer_density",
+            "signal": "14d vs prior 14d impression growth > 0",
+        },
+        {
+            "trigger": "platform_traction_losing",
+            "action": "reduce_frequency_adapt_format_or_pivot",
+            "signal": "14d vs prior 14d impression decline",
+        },
+        {
+            "trigger": "new_revenue_source_proven",
+            "action": "expand_that_source_to_more_accounts",
+            "signal": "first ledger entry for a new source type",
+        },
+        {
+            "trigger": "monetization_density_below_portfolio_average",
+            "action": "attach_offers_to_unmonetized_content",
+            "signal": "published content without offers",
+        },
+        {
+            "trigger": "revenue_per_follower_improving",
+            "action": "scale_audience_acquisition_aggressively",
+            "signal": "rev/follower ratio increasing quarter over quarter",
+        },
     ]
 
     # ── Suppress decisions — based on relative underperformance, not fixed thresholds ──
@@ -332,14 +474,23 @@ async def generate_scale_blueprint(db: AsyncSession, brand_id: uuid.UUID) -> dic
     avg_content_per_account = scan["content"]["total"] / len(accounts) if accounts else 0
     for a in accounts:
         # Suppress if: has content but produces zero revenue AND is below average on all metrics
-        if (a["revenue"] == 0 and a["content_count"] > max(5, avg_content_per_account)
-                and a["followers"] < (total_followers / max(len(accounts), 1)) * 0.2):
-            suppress_list.append({"account_id": a["id"], "platform": a["platform"],
-                                   "reason": f"Zero revenue after {a['content_count']} content pieces, "
-                                             f"audience far below portfolio average"})
+        if (
+            a["revenue"] == 0
+            and a["content_count"] > max(5, avg_content_per_account)
+            and a["followers"] < (total_followers / max(len(accounts), 1)) * 0.2
+        ):
+            suppress_list.append(
+                {
+                    "account_id": a["id"],
+                    "platform": a["platform"],
+                    "reason": f"Zero revenue after {a['content_count']} content pieces, "
+                    f"audience far below portfolio average",
+                }
+            )
     for p in patterns.get("losing", []):
-        suppress_list.append({"pattern": p["name"], "type": p["type"],
-                               "reason": f"Losing pattern (fail_score: {p['score']:.2f})"})
+        suppress_list.append(
+            {"pattern": p["name"], "type": p["type"], "reason": f"Losing pattern (fail_score: {p['score']:.2f})"}
+        )
 
     # ── Immediate actions ──
     immediate_actions = []
@@ -566,8 +717,15 @@ GM_TOOLS = [
             "type": "object",
             "properties": {
                 "title": {"type": "string", "description": "Brief title"},
-                "content_type": {"type": "string", "enum": ["short_video", "long_video", "static_image", "carousel", "text_post", "story"], "description": "Content format"},
-                "target_platform": {"type": "string", "description": "Target platform (youtube, tiktok, instagram, etc.)"},
+                "content_type": {
+                    "type": "string",
+                    "enum": ["short_video", "long_video", "static_image", "carousel", "text_post", "story"],
+                    "description": "Content format",
+                },
+                "target_platform": {
+                    "type": "string",
+                    "description": "Target platform (youtube, tiktok, instagram, etc.)",
+                },
                 "hook": {"type": "string", "description": "Opening hook text"},
                 "angle": {"type": "string", "description": "Content angle / approach"},
                 "key_points": {"type": "array", "items": {"type": "string"}, "description": "Key points to cover"},
@@ -587,7 +745,10 @@ GM_TOOLS = [
             "properties": {
                 "account_id": {"type": "string", "description": "UUID of the creator account"},
                 "posting_capacity_per_day": {"type": "integer", "description": "New daily posting capacity"},
-                "scale_role": {"type": "string", "description": "New scale role: experimental, growth, anchor, cash_cow, diversifier"},
+                "scale_role": {
+                    "type": "string",
+                    "description": "New scale role: experimental, growth, anchor, cash_cow, diversifier",
+                },
             },
             "required": ["account_id"],
         },
@@ -718,7 +879,20 @@ GM_TOOLS = [
             "type": "object",
             "properties": {
                 "name": {"type": "string", "description": "Offer name"},
-                "monetization_method": {"type": "string", "enum": ["affiliate", "sponsor", "product", "course", "consulting", "membership", "lead_gen", "adsense"], "description": "Monetization method"},
+                "monetization_method": {
+                    "type": "string",
+                    "enum": [
+                        "affiliate",
+                        "sponsor",
+                        "product",
+                        "course",
+                        "consulting",
+                        "membership",
+                        "lead_gen",
+                        "adsense",
+                    ],
+                    "description": "Monetization method",
+                },
                 "offer_url": {"type": "string", "description": "Offer URL or landing page"},
                 "payout_amount": {"type": "number", "description": "Expected payout per conversion in USD"},
                 "payout_type": {"type": "string", "description": "cpa, cpc, cpm, rev_share, flat_fee"},
@@ -734,7 +908,10 @@ GM_TOOLS = [
 
 
 async def _check_approval_required(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, action_class: str,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    action_class: str,
 ) -> bool:
     """Check the operator permission matrix to see if this action class requires approval."""
     result = await db.execute(
@@ -751,12 +928,17 @@ async def _check_approval_required(
 
 
 async def _exec_create_content_brief(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Create a real ContentBrief record."""
     if await _check_approval_required(db, org_id, brand_id, "content_creation"):
         action = await emit_action(
-            db, org_id=org_id, brand_id=brand_id,
+            db,
+            org_id=org_id,
+            brand_id=brand_id,
             action_type="gm_create_content_brief",
             title=f"GM wants to create brief: {params['title']}",
             category="approval",
@@ -790,23 +972,31 @@ async def _exec_create_content_brief(
     await db.flush()
 
     await emit_event(
-        db, domain="gm", event_type="gm.content_brief_created",
+        db,
+        domain="gm",
+        event_type="gm.content_brief_created",
         summary=f"GM created content brief: {params['title']}",
-        org_id=org_id, brand_id=brand_id,
-        entity_type="content_brief", entity_id=brief.id,
-        actor_type="system", actor_id="gm_ai",
+        org_id=org_id,
+        brand_id=brand_id,
+        entity_type="content_brief",
+        entity_id=brief.id,
+        actor_type="system",
+        actor_id="gm_ai",
     )
 
     return {"status": "created", "brief_id": str(brief.id), "title": params["title"]}
 
 
 async def _exec_adjust_posting_approach(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Update account posting capacity and/or scale role."""
-    acct = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.id == uuid.UUID(params["account_id"]))
-    )).scalar_one_or_none()
+    acct = (
+        await db.execute(select(CreatorAccount).where(CreatorAccount.id == uuid.UUID(params["account_id"])))
+    ).scalar_one_or_none()
     if not acct:
         return {"status": "error", "message": f"Account {params['account_id']} not found"}
 
@@ -823,23 +1013,29 @@ async def _exec_adjust_posting_approach(
 
 
 async def _exec_pause_account(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Deactivate a creator account."""
     if await _check_approval_required(db, org_id, brand_id, "account_management"):
         action = await emit_action(
-            db, org_id=org_id, brand_id=brand_id,
+            db,
+            org_id=org_id,
+            brand_id=brand_id,
             action_type="gm_pause_account",
             title=f"GM wants to pause account {params['account_id']}",
-            category="approval", priority="high",
+            category="approval",
+            priority="high",
             source_module="gm_ai",
             action_payload=params,
         )
         return {"status": "approval_required", "action_id": str(action.id)}
 
-    acct = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.id == uuid.UUID(params["account_id"]))
-    )).scalar_one_or_none()
+    acct = (
+        await db.execute(select(CreatorAccount).where(CreatorAccount.id == uuid.UUID(params["account_id"])))
+    ).scalar_one_or_none()
     if not acct:
         return {"status": "error", "message": f"Account {params['account_id']} not found"}
 
@@ -847,22 +1043,30 @@ async def _exec_pause_account(
     await db.flush()
 
     await emit_event(
-        db, domain="gm", event_type="gm.account_paused",
+        db,
+        domain="gm",
+        event_type="gm.account_paused",
         summary=f"GM paused account: {params.get('reason', 'no reason')}",
-        org_id=org_id, brand_id=brand_id,
-        entity_type="creator_account", entity_id=acct.id,
-        actor_type="system", actor_id="gm_ai",
+        org_id=org_id,
+        brand_id=brand_id,
+        entity_type="creator_account",
+        entity_id=acct.id,
+        actor_type="system",
+        actor_id="gm_ai",
     )
     return {"status": "paused", "account_id": params["account_id"], "reason": params.get("reason")}
 
 
 async def _exec_resume_account(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Reactivate a creator account."""
-    acct = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.id == uuid.UUID(params["account_id"]))
-    )).scalar_one_or_none()
+    acct = (
+        await db.execute(select(CreatorAccount).where(CreatorAccount.id == uuid.UUID(params["account_id"])))
+    ).scalar_one_or_none()
     if not acct:
         return {"status": "error", "message": f"Account {params['account_id']} not found"}
 
@@ -870,22 +1074,28 @@ async def _exec_resume_account(
     await db.flush()
 
     await emit_event(
-        db, domain="gm", event_type="gm.account_resumed",
+        db,
+        domain="gm",
+        event_type="gm.account_resumed",
         summary="GM resumed account",
-        org_id=org_id, brand_id=brand_id,
-        entity_type="creator_account", entity_id=acct.id,
-        actor_type="system", actor_id="gm_ai",
+        org_id=org_id,
+        brand_id=brand_id,
+        entity_type="creator_account",
+        entity_id=acct.id,
+        actor_type="system",
+        actor_id="gm_ai",
     )
     return {"status": "resumed", "account_id": params["account_id"]}
 
 
 async def _exec_boost_offer(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Increase an offer's priority."""
-    offer = (await db.execute(
-        select(Offer).where(Offer.id == uuid.UUID(params["offer_id"]))
-    )).scalar_one_or_none()
+    offer = (await db.execute(select(Offer).where(Offer.id == uuid.UUID(params["offer_id"])))).scalar_one_or_none()
     if not offer:
         return {"status": "error", "message": f"Offer {params['offer_id']} not found"}
 
@@ -894,23 +1104,34 @@ async def _exec_boost_offer(
     await db.flush()
 
     await emit_event(
-        db, domain="gm", event_type="gm.offer_boosted",
+        db,
+        domain="gm",
+        event_type="gm.offer_boosted",
         summary=f"GM boosted offer '{offer.name}': priority {old_priority} -> {params['new_priority']}. {params.get('reason', '')}",
-        org_id=org_id, brand_id=brand_id,
-        entity_type="offer", entity_id=offer.id,
-        actor_type="system", actor_id="gm_ai",
+        org_id=org_id,
+        brand_id=brand_id,
+        entity_type="offer",
+        entity_id=offer.id,
+        actor_type="system",
+        actor_id="gm_ai",
     )
-    return {"status": "boosted", "offer_id": params["offer_id"], "name": offer.name,
-            "old_priority": old_priority, "new_priority": params["new_priority"]}
+    return {
+        "status": "boosted",
+        "offer_id": params["offer_id"],
+        "name": offer.name,
+        "old_priority": old_priority,
+        "new_priority": params["new_priority"],
+    }
 
 
 async def _exec_suppress_offer(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Lower or deactivate an offer."""
-    offer = (await db.execute(
-        select(Offer).where(Offer.id == uuid.UUID(params["offer_id"]))
-    )).scalar_one_or_none()
+    offer = (await db.execute(select(Offer).where(Offer.id == uuid.UUID(params["offer_id"])))).scalar_one_or_none()
     if not offer:
         return {"status": "error", "message": f"Offer {params['offer_id']} not found"}
 
@@ -921,32 +1142,49 @@ async def _exec_suppress_offer(
     await db.flush()
 
     await emit_event(
-        db, domain="gm", event_type="gm.offer_suppressed",
+        db,
+        domain="gm",
+        event_type="gm.offer_suppressed",
         summary=f"GM suppressed offer '{offer.name}': priority {old_priority} -> {params['new_priority']}. {params.get('reason', '')}",
-        org_id=org_id, brand_id=brand_id,
-        entity_type="offer", entity_id=offer.id,
-        actor_type="system", actor_id="gm_ai",
+        org_id=org_id,
+        brand_id=brand_id,
+        entity_type="offer",
+        entity_id=offer.id,
+        actor_type="system",
+        actor_id="gm_ai",
     )
-    return {"status": "suppressed", "offer_id": params["offer_id"], "name": offer.name,
-            "old_priority": old_priority, "new_priority": params["new_priority"]}
+    return {
+        "status": "suppressed",
+        "offer_id": params["offer_id"],
+        "name": offer.name,
+        "old_priority": old_priority,
+        "new_priority": params["new_priority"],
+    }
 
 
 async def _exec_add_account(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Create a new creator account."""
     if await _check_approval_required(db, org_id, brand_id, "account_management"):
         action = await emit_action(
-            db, org_id=org_id, brand_id=brand_id,
+            db,
+            org_id=org_id,
+            brand_id=brand_id,
             action_type="gm_add_account",
             title=f"GM wants to add {params['platform']} account: @{params['username']}",
-            category="approval", priority="medium",
+            category="approval",
+            priority="medium",
             source_module="gm_ai",
             action_payload=params,
         )
         return {"status": "approval_required", "action_id": str(action.id)}
 
     from packages.db.enums import AccountType, Platform
+
     _platform_aliases = {"x": "twitter", "twitter/x": "twitter", "x/twitter": "twitter"}
     raw = params["platform"].lower().strip()
     raw = _platform_aliases.get(raw, raw)
@@ -968,21 +1206,36 @@ async def _exec_add_account(
     await db.flush()
 
     await emit_event(
-        db, domain="gm", event_type="gm.account_created",
+        db,
+        domain="gm",
+        event_type="gm.account_created",
         summary=f"GM created {params['platform']} account: @{params['username']}",
-        org_id=org_id, brand_id=brand_id,
-        entity_type="creator_account", entity_id=acct.id,
-        actor_type="system", actor_id="gm_ai",
+        org_id=org_id,
+        brand_id=brand_id,
+        entity_type="creator_account",
+        entity_id=acct.id,
+        actor_type="system",
+        actor_id="gm_ai",
     )
-    return {"status": "created", "account_id": str(acct.id), "platform": params["platform"], "username": params["username"]}
+    return {
+        "status": "created",
+        "account_id": str(acct.id),
+        "platform": params["platform"],
+        "username": params["username"],
+    }
 
 
 async def _exec_draft_outreach(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Create an outreach operator action."""
     action = await emit_action(
-        db, org_id=org_id, brand_id=brand_id,
+        db,
+        org_id=org_id,
+        brand_id=brand_id,
         action_type="gm_draft_outreach",
         title=f"Outreach: {params['target_name']} ({params['outreach_type']})",
         description=params["pitch_summary"],
@@ -995,7 +1248,10 @@ async def _exec_draft_outreach(
 
 
 async def _exec_generate_blueprint(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Generate a fresh scale blueprint."""
     bp = await generate_scale_blueprint(db, brand_id)
@@ -1003,11 +1259,16 @@ async def _exec_generate_blueprint(
 
 
 async def _exec_reallocate_budget(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Create a budget reallocation operator action."""
     action = await emit_action(
-        db, org_id=org_id, brand_id=brand_id,
+        db,
+        org_id=org_id,
+        brand_id=brand_id,
         action_type="gm_reallocate_budget",
         title=f"Budget reallocation: {params['from_area']} -> {params['to_area']}",
         description=params.get("rationale", ""),
@@ -1020,11 +1281,15 @@ async def _exec_reallocate_budget(
 
 
 async def _exec_trigger_trend_scan(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Dispatch a trend scan Celery task."""
     try:
         from workers.celery_app import app as celery_app
+
         celery_app.send_task("workers.trend_viral_worker.tasks.trend_light_scan")
         return {"status": "dispatched", "task": "trend_light_scan"}
     except Exception as e:
@@ -1033,15 +1298,21 @@ async def _exec_trigger_trend_scan(
 
 
 async def _exec_express_publish(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Dispatch express publish for a content item."""
     if await _check_approval_required(db, org_id, brand_id, "publishing"):
         action = await emit_action(
-            db, org_id=org_id, brand_id=brand_id,
+            db,
+            org_id=org_id,
+            brand_id=brand_id,
             action_type="gm_express_publish",
             title=f"GM wants to express-publish content {params['content_item_id']}",
-            category="approval", priority="high",
+            category="approval",
+            priority="high",
             source_module="gm_ai",
             entity_type="content_item",
             entity_id=uuid.UUID(params["content_item_id"]),
@@ -1051,6 +1322,7 @@ async def _exec_express_publish(
 
     try:
         from workers.celery_app import app as celery_app
+
         celery_app.send_task(
             "workers.publishing_worker.publish_content",
             args=[params["content_item_id"]],
@@ -1062,7 +1334,10 @@ async def _exec_express_publish(
 
 
 async def _exec_create_offer(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID, params: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    params: dict,
 ) -> dict:
     """Create a new offer."""
     from packages.db.enums import MonetizationMethod
@@ -1094,11 +1369,16 @@ async def _exec_create_offer(
     await db.flush()
 
     await emit_event(
-        db, domain="gm", event_type="gm.offer_created",
+        db,
+        domain="gm",
+        event_type="gm.offer_created",
         summary=f"GM created offer: {params['name']} ({method_str})",
-        org_id=org_id, brand_id=brand_id,
-        entity_type="offer", entity_id=offer.id,
-        actor_type="system", actor_id="gm_ai",
+        org_id=org_id,
+        brand_id=brand_id,
+        entity_type="offer",
+        entity_id=offer.id,
+        actor_type="system",
+        actor_id="gm_ai",
     )
     return {"status": "created", "offer_id": str(offer.id), "name": params["name"], "method": method_str}
 
@@ -1123,8 +1403,11 @@ _TOOL_MAP = {
 
 
 async def _execute_tool(
-    db: AsyncSession, org_id: uuid.UUID, brand_id: uuid.UUID,
-    tool_name: str, tool_input: dict,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    brand_id: uuid.UUID,
+    tool_name: str,
+    tool_input: dict,
 ) -> dict:
     """Execute a GM tool by name and return the result."""
     executor = _TOOL_MAP.get(tool_name)
@@ -1138,6 +1421,7 @@ async def _execute_tool(
 
 
 # ── Main Conversational GM Endpoint ──────────────────────────────────────────
+
 
 async def gm_conversation(
     db: AsyncSession,
@@ -1190,6 +1474,7 @@ async def gm_conversation(
     if not api_key:
         try:
             from apps.api.services import secrets_service
+
             db_keys = await secrets_service.get_all_keys(db, org_id)
             api_key = db_keys.get("anthropic", "")
         except Exception:
@@ -1203,6 +1488,7 @@ async def gm_conversation(
 
     # Phase 5: Call Claude with tool-use loop
     import anthropic
+
     client = anthropic.Anthropic(api_key=api_key)
 
     actions_taken = []
@@ -1244,26 +1530,32 @@ async def gm_conversation(
             if block.type == "text":
                 assistant_content.append({"type": "text", "text": block.text})
             elif block.type == "tool_use":
-                assistant_content.append({
-                    "type": "tool_use",
-                    "id": block.id,
-                    "name": block.name,
-                    "input": block.input,
-                })
+                assistant_content.append(
+                    {
+                        "type": "tool_use",
+                        "id": block.id,
+                        "name": block.name,
+                        "input": block.input,
+                    }
+                )
 
                 # Execute the tool
                 result = await _execute_tool(db, org_id, brand_id, block.name, block.input)
-                actions_taken.append({
-                    "tool": block.name,
-                    "input": block.input,
-                    "result": result,
-                })
+                actions_taken.append(
+                    {
+                        "tool": block.name,
+                        "input": block.input,
+                        "result": result,
+                    }
+                )
 
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": json.dumps(result, default=str),
-                })
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": json.dumps(result, default=str),
+                    }
+                )
 
         # Add the assistant's response (with tool_use blocks) and tool results to the conversation
         messages.append({"role": "assistant", "content": assistant_content})
@@ -1280,6 +1572,7 @@ async def gm_conversation(
 # Startup Prompt — org-level state-aware opener for first-boot conversations
 # ---------------------------------------------------------------------------
 
+
 async def get_startup_prompt(
     db: AsyncSession,
     org_id: uuid.UUID,
@@ -1292,31 +1585,37 @@ async def get_startup_prompt(
     - Brands + accounts but no offers: message about monetization setup
     - Everything present: None (normal operation, no startup prompt needed)
     """
-    brand_count = (await db.execute(
-        select(func.count()).select_from(Brand).where(
-            Brand.organization_id == org_id, Brand.is_active.is_(True)
+    brand_count = (
+        await db.execute(
+            select(func.count()).select_from(Brand).where(Brand.organization_id == org_id, Brand.is_active.is_(True))
         )
-    )).scalar() or 0
+    ).scalar() or 0
 
     account_count = 0
     offer_count = 0
     if brand_count > 0:
-        brand_ids_q = select(Brand.id).where(
-            Brand.organization_id == org_id, Brand.is_active.is_(True)
-        )
-        account_count = (await db.execute(
-            select(func.count()).select_from(CreatorAccount).where(
-                CreatorAccount.brand_id.in_(brand_ids_q),
-                CreatorAccount.is_active.is_(True),
+        brand_ids_q = select(Brand.id).where(Brand.organization_id == org_id, Brand.is_active.is_(True))
+        account_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(CreatorAccount)
+                .where(
+                    CreatorAccount.brand_id.in_(brand_ids_q),
+                    CreatorAccount.is_active.is_(True),
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
 
-        offer_count = (await db.execute(
-            select(func.count()).select_from(Offer).where(
-                Offer.brand_id.in_(brand_ids_q),
-                Offer.is_active.is_(True),
+        offer_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(Offer)
+                .where(
+                    Offer.brand_id.in_(brand_ids_q),
+                    Offer.is_active.is_(True),
+                )
             )
-        )).scalar() or 0
+        ).scalar() or 0
 
     if brand_count == 0 and account_count == 0:
         return (

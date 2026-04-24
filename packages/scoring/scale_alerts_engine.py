@@ -2,34 +2,60 @@
 
 Pure functions — no DB access. Service layer handles persistence.
 """
+
 from __future__ import annotations
 
 SCALE_ALERT_SOURCE = "scale_alerts_engine"
 
 ALERT_TYPES = [
-    "scale_now", "scale_soon", "hold_and_monitor", "do_not_scale_yet",
-    "reduce_existing_account", "suppress_account",
-    "improve_funnel_before_scaling", "improve_offer_before_scaling",
-    "improve_retention_before_scaling", "improve_originality_before_scaling",
-    "expansion_opportunity_detected", "cannibalization_warning",
-    "saturation_warning", "platform_shift_recommendation", "niche_shift_recommendation",
+    "scale_now",
+    "scale_soon",
+    "hold_and_monitor",
+    "do_not_scale_yet",
+    "reduce_existing_account",
+    "suppress_account",
+    "improve_funnel_before_scaling",
+    "improve_offer_before_scaling",
+    "improve_retention_before_scaling",
+    "improve_originality_before_scaling",
+    "expansion_opportunity_detected",
+    "cannibalization_warning",
+    "saturation_warning",
+    "platform_shift_recommendation",
+    "niche_shift_recommendation",
 ]
 
 CANDIDATE_TYPES = [
-    "flagship_expansion", "experimental_account", "niche_spinoff",
-    "offer_specific_account", "platform_specialist_account",
-    "language_expansion_account", "geo_localized_account",
-    "evergreen_authority_account", "trend_capture_account",
-    "high_ticket_conversion_account", "feeder_account",
+    "flagship_expansion",
+    "experimental_account",
+    "niche_spinoff",
+    "offer_specific_account",
+    "platform_specialist_account",
+    "language_expansion_account",
+    "geo_localized_account",
+    "evergreen_authority_account",
+    "trend_capture_account",
+    "high_ticket_conversion_account",
+    "feeder_account",
 ]
 
 BLOCKER_TYPES = [
-    "low_scale_readiness", "weak_funnel_economics", "weak_offer_fit",
-    "weak_retention", "weak_ctr", "weak_conversion_rate",
-    "poor_account_health", "high_content_fatigue", "high_niche_saturation",
-    "high_cannibalization_risk", "poor_audience_separation",
-    "weak_originality", "weak_trust", "insufficient_monetization_depth",
-    "insufficient_posting_capacity", "insufficient_repeatability",
+    "low_scale_readiness",
+    "weak_funnel_economics",
+    "weak_offer_fit",
+    "weak_retention",
+    "weak_ctr",
+    "weak_conversion_rate",
+    "poor_account_health",
+    "high_content_fatigue",
+    "high_niche_saturation",
+    "high_cannibalization_risk",
+    "poor_audience_separation",
+    "weak_originality",
+    "weak_trust",
+    "insufficient_monetization_depth",
+    "insufficient_posting_capacity",
+    "insufficient_repeatability",
     "insufficient_confidence",
 ]
 
@@ -66,10 +92,15 @@ REC_KEY_TO_ALERT = {
     "monitor": "hold_and_monitor",
 }
 
-EXPANSION_ALERT_TYPES = frozenset({
-    "expansion_opportunity_detected", "scale_soon", "scale_now",
-    "platform_shift_recommendation", "niche_shift_recommendation",
-})
+EXPANSION_ALERT_TYPES = frozenset(
+    {
+        "expansion_opportunity_detected",
+        "scale_soon",
+        "scale_now",
+        "platform_shift_recommendation",
+        "niche_shift_recommendation",
+    }
+)
 
 CANNIBALIZATION_SUPPRESS_THRESHOLD = 0.75
 
@@ -147,154 +178,216 @@ def generate_scale_alerts(
         urgency = max(urgency, 60.0)
 
     sm_base = {
-        "readiness": readiness, "inc_new": inc_new, "inc_vol": inc_vol, "rec_key": rec_key,
+        "readiness": readiness,
+        "inc_new": inc_new,
+        "inc_vol": inc_vol,
+        "rec_key": rec_key,
         "severity": _severity_for(alert_type, urgency),
         "dashboard_section": _dashboard_section(alert_type),
     }
-    alerts.append(_strip_engine_meta({
-        "alert_type": alert_type,
-        "title": f"Scale signal: {rec_key.replace('_', ' ')}",
-        "summary": scale_rec.get("explanation", ""),
-        "explanation": f"Readiness {readiness:.0f}/100. New account ΔP ${inc_new:.0f} vs volume ΔP ${inc_vol:.0f}.",
-        "recommended_action": scale_rec.get("explanation", ""),
-        "confidence": min(1.0, readiness / 100),
-        "urgency": round(urgency, 1),
-        "expected_upside": round(max(inc_new, inc_vol), 2),
-        "expected_cost": 150.0 if "add_" in rec_key else 0.0,
-        "expected_time_to_signal_days": 14 if readiness > 60 else 30,
-        "supporting_metrics": sm_base,
-        "blocking_factors": [],
-        SCALE_ALERT_SOURCE: True,
-    }))
+    alerts.append(
+        _strip_engine_meta(
+            {
+                "alert_type": alert_type,
+                "title": f"Scale signal: {rec_key.replace('_', ' ')}",
+                "summary": scale_rec.get("explanation", ""),
+                "explanation": f"Readiness {readiness:.0f}/100. New account ΔP ${inc_new:.0f} vs volume ΔP ${inc_vol:.0f}.",
+                "recommended_action": scale_rec.get("explanation", ""),
+                "confidence": min(1.0, readiness / 100),
+                "urgency": round(urgency, 1),
+                "expected_upside": round(max(inc_new, inc_vol), 2),
+                "expected_cost": 150.0 if "add_" in rec_key else 0.0,
+                "expected_time_to_signal_days": 14 if readiness > 60 else 30,
+                "supporting_metrics": sm_base,
+                "blocking_factors": [],
+                SCALE_ALERT_SOURCE: True,
+            }
+        )
+    )
 
     if cannibalization_risk > 0.5:
         u = round(cannibalization_risk * 70, 1)
-        alerts.append(_strip_engine_meta({
-            "alert_type": "cannibalization_warning",
-            "title": "High cannibalization risk across portfolio",
-            "summary": f"Risk score {cannibalization_risk:.2f} — accounts may be competing for same audience.",
-            "explanation": "Niche overlap between existing accounts is elevated.",
-            "recommended_action": "Diversify niche angles or platforms before adding accounts.",
-            "confidence": 0.7, "urgency": u,
-            "expected_upside": 0, "expected_cost": 0, "expected_time_to_signal_days": 7,
-            "supporting_metrics": {
-                "cannibalization_risk": cannibalization_risk,
-                "severity": _severity_for("cannibalization_warning", u),
-                "dashboard_section": _dashboard_section("cannibalization_warning"),
-            },
-            "blocking_factors": [], SCALE_ALERT_SOURCE: True,
-        }))
+        alerts.append(
+            _strip_engine_meta(
+                {
+                    "alert_type": "cannibalization_warning",
+                    "title": "High cannibalization risk across portfolio",
+                    "summary": f"Risk score {cannibalization_risk:.2f} — accounts may be competing for same audience.",
+                    "explanation": "Niche overlap between existing accounts is elevated.",
+                    "recommended_action": "Diversify niche angles or platforms before adding accounts.",
+                    "confidence": 0.7,
+                    "urgency": u,
+                    "expected_upside": 0,
+                    "expected_cost": 0,
+                    "expected_time_to_signal_days": 7,
+                    "supporting_metrics": {
+                        "cannibalization_risk": cannibalization_risk,
+                        "severity": _severity_for("cannibalization_warning", u),
+                        "dashboard_section": _dashboard_section("cannibalization_warning"),
+                    },
+                    "blocking_factors": [],
+                    SCALE_ALERT_SOURCE: True,
+                }
+            )
+        )
 
     avg_sat = sum(saturation_scores) / max(1, len(saturation_scores)) if saturation_scores else 0
     if avg_sat > 0.6:
         u = round(avg_sat * 60, 1)
-        alerts.append(_strip_engine_meta({
-            "alert_type": "saturation_warning",
-            "title": "Niche saturation elevated",
-            "summary": f"Average saturation {avg_sat:.2f} across accounts.",
-            "explanation": "Content angles are becoming repetitive in this niche.",
-            "recommended_action": "Rotate hooks, enter adjacent sub-niches, or reduce posting frequency.",
-            "confidence": 0.65, "urgency": u,
-            "expected_upside": 0, "expected_cost": 0, "expected_time_to_signal_days": 7,
-            "supporting_metrics": {
-                "avg_saturation": avg_sat,
-                "severity": _severity_for("saturation_warning", u),
-                "dashboard_section": _dashboard_section("saturation_warning"),
-            },
-            "blocking_factors": [], SCALE_ALERT_SOURCE: True,
-        }))
+        alerts.append(
+            _strip_engine_meta(
+                {
+                    "alert_type": "saturation_warning",
+                    "title": "Niche saturation elevated",
+                    "summary": f"Average saturation {avg_sat:.2f} across accounts.",
+                    "explanation": "Content angles are becoming repetitive in this niche.",
+                    "recommended_action": "Rotate hooks, enter adjacent sub-niches, or reduce posting frequency.",
+                    "confidence": 0.65,
+                    "urgency": u,
+                    "expected_upside": 0,
+                    "expected_cost": 0,
+                    "expected_time_to_signal_days": 7,
+                    "supporting_metrics": {
+                        "avg_saturation": avg_sat,
+                        "severity": _severity_for("saturation_warning", u),
+                        "dashboard_section": _dashboard_section("saturation_warning"),
+                    },
+                    "blocking_factors": [],
+                    SCALE_ALERT_SOURCE: True,
+                }
+            )
+        )
     if avg_sat > 0.72:
         u = round(avg_sat * 65, 1)
-        alerts.append(_strip_engine_meta({
-            "alert_type": "niche_shift_recommendation",
-            "title": "Consider adjacent niche or sub-niche shift",
-            "summary": f"Saturation {avg_sat:.2f} — whitespace may be outside current niche core.",
-            "explanation": "Opportunity density may be higher with a differentiated angle or adjacent niche.",
-            "recommended_action": "Model adjacent sub-niches and test hooks before scaling volume.",
-            "confidence": 0.62, "urgency": u,
-            "expected_upside": round(inc_new * 0.3, 2), "expected_cost": 120.0,
-            "expected_time_to_signal_days": 21,
-            "supporting_metrics": {
-                "avg_saturation": avg_sat,
-                "severity": _severity_for("niche_shift_recommendation", u),
-                "dashboard_section": _dashboard_section("niche_shift_recommendation"),
-            },
-            "blocking_factors": [], SCALE_ALERT_SOURCE: True,
-        }))
+        alerts.append(
+            _strip_engine_meta(
+                {
+                    "alert_type": "niche_shift_recommendation",
+                    "title": "Consider adjacent niche or sub-niche shift",
+                    "summary": f"Saturation {avg_sat:.2f} — whitespace may be outside current niche core.",
+                    "explanation": "Opportunity density may be higher with a differentiated angle or adjacent niche.",
+                    "recommended_action": "Model adjacent sub-niches and test hooks before scaling volume.",
+                    "confidence": 0.62,
+                    "urgency": u,
+                    "expected_upside": round(inc_new * 0.3, 2),
+                    "expected_cost": 120.0,
+                    "expected_time_to_signal_days": 21,
+                    "supporting_metrics": {
+                        "avg_saturation": avg_sat,
+                        "severity": _severity_for("niche_shift_recommendation", u),
+                        "dashboard_section": _dashboard_section("niche_shift_recommendation"),
+                    },
+                    "blocking_factors": [],
+                    SCALE_ALERT_SOURCE: True,
+                }
+            )
+        )
 
     avg_fatigue = sum(fatigue_scores) / max(1, len(fatigue_scores)) if fatigue_scores else 0
     if avg_fatigue > 0.55:
         u = round(avg_fatigue * 55, 1)
-        alerts.append(_strip_engine_meta({
-            "alert_type": "improve_retention_before_scaling",
-            "title": "Content fatigue rising",
-            "summary": f"Average fatigue {avg_fatigue:.2f}.",
-            "explanation": "Audience engagement declining due to repetitive content.",
-            "recommended_action": "Refresh templates and creative formats before scaling volume.",
-            "confidence": 0.6, "urgency": u,
-            "expected_upside": 0, "expected_cost": 0, "expected_time_to_signal_days": 14,
-            "supporting_metrics": {
-                "avg_fatigue": avg_fatigue,
-                "severity": _severity_for("improve_retention_before_scaling", u),
-                "dashboard_section": _dashboard_section("improve_retention_before_scaling"),
-            },
-            "blocking_factors": [], SCALE_ALERT_SOURCE: True,
-        }))
+        alerts.append(
+            _strip_engine_meta(
+                {
+                    "alert_type": "improve_retention_before_scaling",
+                    "title": "Content fatigue rising",
+                    "summary": f"Average fatigue {avg_fatigue:.2f}.",
+                    "explanation": "Audience engagement declining due to repetitive content.",
+                    "recommended_action": "Refresh templates and creative formats before scaling volume.",
+                    "confidence": 0.6,
+                    "urgency": u,
+                    "expected_upside": 0,
+                    "expected_cost": 0,
+                    "expected_time_to_signal_days": 14,
+                    "supporting_metrics": {
+                        "avg_fatigue": avg_fatigue,
+                        "severity": _severity_for("improve_retention_before_scaling", u),
+                        "dashboard_section": _dashboard_section("improve_retention_before_scaling"),
+                    },
+                    "blocking_factors": [],
+                    SCALE_ALERT_SOURCE: True,
+                }
+            )
+        )
 
     avg_orig = sum(originality_scores) / max(1, len(originality_scores)) if originality_scores else 0
     if avg_orig > 0.45:
         u = round(avg_orig * 50, 1)
-        alerts.append(_strip_engine_meta({
-            "alert_type": "improve_originality_before_scaling",
-            "title": "Originality drift detected",
-            "summary": f"Average drift score {avg_orig:.2f}.",
-            "explanation": "Content similarity to existing library is increasing.",
-            "recommended_action": "Introduce new angles, formats, or hooks before adding volume.",
-            "confidence": 0.55, "urgency": u,
-            "expected_upside": 0, "expected_cost": 0, "expected_time_to_signal_days": 14,
-            "supporting_metrics": {
-                "avg_originality_drift": avg_orig,
-                "severity": _severity_for("improve_originality_before_scaling", u),
-                "dashboard_section": _dashboard_section("improve_originality_before_scaling"),
-            },
-            "blocking_factors": [], SCALE_ALERT_SOURCE: True,
-        }))
+        alerts.append(
+            _strip_engine_meta(
+                {
+                    "alert_type": "improve_originality_before_scaling",
+                    "title": "Originality drift detected",
+                    "summary": f"Average drift score {avg_orig:.2f}.",
+                    "explanation": "Content similarity to existing library is increasing.",
+                    "recommended_action": "Introduce new angles, formats, or hooks before adding volume.",
+                    "confidence": 0.55,
+                    "urgency": u,
+                    "expected_upside": 0,
+                    "expected_cost": 0,
+                    "expected_time_to_signal_days": 14,
+                    "supporting_metrics": {
+                        "avg_originality_drift": avg_orig,
+                        "severity": _severity_for("improve_originality_before_scaling", u),
+                        "dashboard_section": _dashboard_section("improve_originality_before_scaling"),
+                    },
+                    "blocking_factors": [],
+                    SCALE_ALERT_SOURCE: True,
+                }
+            )
+        )
 
     if trust_avg < 50:
         u = round((100 - trust_avg) * 0.5, 1)
-        alerts.append(_strip_engine_meta({
-            "alert_type": "suppress_account",
-            "title": "Low trust average — stabilize before scaling",
-            "summary": f"Trust avg {trust_avg:.0f}/100.",
-            "explanation": "Account health or engagement quality is below threshold.",
-            "recommended_action": "Address account health issues and engagement quality.",
-            "confidence": 0.6, "urgency": u,
-            "expected_upside": 0, "expected_cost": 0, "expected_time_to_signal_days": 21,
-            "supporting_metrics": {
-                "trust_avg": trust_avg,
-                "severity": _severity_for("suppress_account", u),
-                "dashboard_section": _dashboard_section("suppress_account"),
-            },
-            "blocking_factors": [], SCALE_ALERT_SOURCE: True,
-        }))
+        alerts.append(
+            _strip_engine_meta(
+                {
+                    "alert_type": "suppress_account",
+                    "title": "Low trust average — stabilize before scaling",
+                    "summary": f"Trust avg {trust_avg:.0f}/100.",
+                    "explanation": "Account health or engagement quality is below threshold.",
+                    "recommended_action": "Address account health issues and engagement quality.",
+                    "confidence": 0.6,
+                    "urgency": u,
+                    "expected_upside": 0,
+                    "expected_cost": 0,
+                    "expected_time_to_signal_days": 21,
+                    "supporting_metrics": {
+                        "trust_avg": trust_avg,
+                        "severity": _severity_for("suppress_account", u),
+                        "dashboard_section": _dashboard_section("suppress_account"),
+                    },
+                    "blocking_factors": [],
+                    SCALE_ALERT_SOURCE: True,
+                }
+            )
+        )
 
     if leak_count > 5:
         u = min(80.0, leak_count * 8.0)
-        alerts.append(_strip_engine_meta({
-            "alert_type": "improve_funnel_before_scaling",
-            "title": f"{leak_count} open revenue leaks",
-            "summary": "Fix conversion leaks before adding scale.",
-            "explanation": f"{leak_count} leak reports open — scaling will amplify losses.",
-            "recommended_action": "Prioritize leak fixes from revenue leak dashboard.",
-            "confidence": 0.7, "urgency": u,
-            "expected_upside": 0, "expected_cost": 0, "expected_time_to_signal_days": 7,
-            "supporting_metrics": {
-                "leak_count": leak_count,
-                "severity": _severity_for("improve_funnel_before_scaling", u),
-                "dashboard_section": _dashboard_section("improve_funnel_before_scaling"),
-            },
-            "blocking_factors": [], SCALE_ALERT_SOURCE: True,
-        }))
+        alerts.append(
+            _strip_engine_meta(
+                {
+                    "alert_type": "improve_funnel_before_scaling",
+                    "title": f"{leak_count} open revenue leaks",
+                    "summary": "Fix conversion leaks before adding scale.",
+                    "explanation": f"{leak_count} leak reports open — scaling will amplify losses.",
+                    "recommended_action": "Prioritize leak fixes from revenue leak dashboard.",
+                    "confidence": 0.7,
+                    "urgency": u,
+                    "expected_upside": 0,
+                    "expected_cost": 0,
+                    "expected_time_to_signal_days": 7,
+                    "supporting_metrics": {
+                        "leak_count": leak_count,
+                        "severity": _severity_for("improve_funnel_before_scaling", u),
+                        "dashboard_section": _dashboard_section("improve_funnel_before_scaling"),
+                    },
+                    "blocking_factors": [],
+                    SCALE_ALERT_SOURCE: True,
+                }
+            )
+        )
 
     return dedupe_alerts_by_type(alerts)
 
@@ -356,8 +449,11 @@ def _one_candidate(
         "candidate_type": candidate_type,
         "primary_platform": platform,
         "secondary_platform": next(
-            (p for p in ["instagram", "tiktok", "youtube", "twitter", "reddit", "linkedin", "facebook"]
-             if p != platform and p not in platforms_used),
+            (
+                p
+                for p in ["instagram", "tiktok", "youtube", "twitter", "reddit", "linkedin", "facebook"]
+                if p != platform and p not in platforms_used
+            ),
             None,
         ),
         "niche": niche,
@@ -402,8 +498,13 @@ def generate_launch_candidates(
 
     if candidate_type:
         raw = _one_candidate(
-            candidate_type, scale_rec, accounts, brand_niche,
-            cannibalization_risk, audience_separation, offers,
+            candidate_type,
+            scale_rec,
+            accounts,
+            brand_niche,
+            cannibalization_risk,
+            audience_separation,
+            offers,
         )
         out.append(_strip_engine_meta(raw))
 
@@ -413,8 +514,13 @@ def generate_launch_candidates(
         plat_set = {a.get("platform", "youtube") for a in accounts}
         if len(plat_set) == 1 and not out:
             raw = _one_candidate(
-                "platform_specialist_account", scale_rec, accounts, brand_niche,
-                cannibalization_risk, audience_separation, offers,
+                "platform_specialist_account",
+                scale_rec,
+                accounts,
+                brand_niche,
+                cannibalization_risk,
+                audience_separation,
+                offers,
             )
             raw["supporting_reasons"] = list(raw.get("supporting_reasons", [])) + [
                 "Portfolio concentrated on one platform — diversification candidate.",
@@ -424,8 +530,13 @@ def generate_launch_candidates(
     # Feeder / experimental when monitoring but healthy
     if rec_key == "monitor" and readiness >= 50 and cannibalization_risk < 0.4:
         raw = _one_candidate(
-            "feeder_account", scale_rec, accounts, brand_niche,
-            cannibalization_risk, audience_separation, offers,
+            "feeder_account",
+            scale_rec,
+            accounts,
+            brand_niche,
+            cannibalization_risk,
+            audience_separation,
+            offers,
         )
         raw["urgency"] = min(55.0, float(raw["urgency"]))
         out.append(_strip_engine_meta(raw))
@@ -434,8 +545,13 @@ def generate_launch_candidates(
     inc_new = float(scale_rec.get("incremental_profit_new_account", 0))
     if inc_new > 2000 and cannibalization_risk < 0.5:
         raw = _one_candidate(
-            "high_ticket_conversion_account", scale_rec, accounts, brand_niche,
-            cannibalization_risk, audience_separation, offers,
+            "high_ticket_conversion_account",
+            scale_rec,
+            accounts,
+            brand_niche,
+            cannibalization_risk,
+            audience_separation,
+            offers,
         )
         raw["supporting_reasons"] = list(raw.get("supporting_reasons", [])) + [
             "High incremental profit supports a conversion-focused account.",
@@ -469,65 +585,208 @@ def diagnose_scale_blockers(
     blockers: list[dict] = []
 
     def _add(btype, title, explanation, fix, current, threshold, severity="medium"):
-        blockers.append({
-            "blocker_type": btype, "title": title, "explanation": explanation,
-            "recommended_fix": fix, "current_value": round(float(current), 4),
-            "threshold_value": round(float(threshold), 4), "severity": severity,
-            "evidence": {SCALE_ALERT_SOURCE: True},
-        })
+        blockers.append(
+            {
+                "blocker_type": btype,
+                "title": title,
+                "explanation": explanation,
+                "recommended_fix": fix,
+                "current_value": round(float(current), 4),
+                "threshold_value": round(float(threshold), 4),
+                "severity": severity,
+                "evidence": {SCALE_ALERT_SOURCE: True},
+            }
+        )
 
     if readiness < 35:
-        _add("low_scale_readiness", "Scale readiness too low", f"Score {readiness:.0f}/100 is below safe launch threshold.", "Improve account health, reduce fatigue, increase CTR/CVR.", readiness, 35, "high")
+        _add(
+            "low_scale_readiness",
+            "Scale readiness too low",
+            f"Score {readiness:.0f}/100 is below safe launch threshold.",
+            "Improve account health, reduce fatigue, increase CTR/CVR.",
+            readiness,
+            35,
+            "high",
+        )
 
     n = max(1, len(accounts))
     for a in accounts:
         if float(a.get("fatigue_score", 0)) > 0.6:
-            _add("high_content_fatigue", f"Fatigue on {a.get('username', '?')}", "Content fatigue elevated.", "Rotate hooks and creative templates.", float(a.get("fatigue_score", 0)), 0.6)
+            _add(
+                "high_content_fatigue",
+                f"Fatigue on {a.get('username', '?')}",
+                "Content fatigue elevated.",
+                "Rotate hooks and creative templates.",
+                float(a.get("fatigue_score", 0)),
+                0.6,
+            )
         if float(a.get("saturation_score", 0)) > 0.6:
-            _add("high_niche_saturation", f"Saturation on {a.get('username', '?')}", "Niche saturation high.", "Enter adjacent sub-niche or reduce posting frequency.", float(a.get("saturation_score", 0)), 0.6)
+            _add(
+                "high_niche_saturation",
+                f"Saturation on {a.get('username', '?')}",
+                "Niche saturation high.",
+                "Enter adjacent sub-niche or reduce posting frequency.",
+                float(a.get("saturation_score", 0)),
+                0.6,
+            )
         if float(a.get("originality_drift_score", 0)) > 0.45:
-            _add("weak_originality", f"Originality drift on {a.get('username', '?')}", "Content too similar to existing library.", "Introduce new content formats.", float(a.get("originality_drift_score", 0)), 0.45)
+            _add(
+                "weak_originality",
+                f"Originality drift on {a.get('username', '?')}",
+                "Content too similar to existing library.",
+                "Introduce new content formats.",
+                float(a.get("originality_drift_score", 0)),
+                0.45,
+            )
         if float(a.get("ctr", 0)) < 0.012:
-            _add("weak_ctr", f"Low CTR on {a.get('username', '?')}", "Click-through rate is below viable scaling threshold.", "Test hooks, thumbnails, and first-frame retention.", float(a.get("ctr", 0)), 0.012)
+            _add(
+                "weak_ctr",
+                f"Low CTR on {a.get('username', '?')}",
+                "Click-through rate is below viable scaling threshold.",
+                "Test hooks, thumbnails, and first-frame retention.",
+                float(a.get("ctr", 0)),
+                0.012,
+            )
         if float(a.get("conversion_rate", 0)) < 0.008:
-            _add("weak_conversion_rate", f"Low CVR on {a.get('username', '?')}", "Conversion rate underperforms vs threshold.", "Tighten offer alignment and funnel steps.", float(a.get("conversion_rate", 0)), 0.008)
+            _add(
+                "weak_conversion_rate",
+                f"Low CVR on {a.get('username', '?')}",
+                "Conversion rate underperforms vs threshold.",
+                "Tighten offer alignment and funnel steps.",
+                float(a.get("conversion_rate", 0)),
+                0.008,
+            )
         health = (a.get("account_health") or "healthy").lower()
         if health in ("degraded", "critical", "suspended"):
-            _add("poor_account_health", f"Account health: {health}", "Account health is degraded.", "Stabilize account before scaling.", {"healthy": 1, "warning": 0.75, "degraded": 0.5, "critical": 0.25, "suspended": 0}.get(health, 0.5), 0.75, "high")
+            _add(
+                "poor_account_health",
+                f"Account health: {health}",
+                "Account health is degraded.",
+                "Stabilize account before scaling.",
+                {"healthy": 1, "warning": 0.75, "degraded": 0.5, "critical": 0.25, "suspended": 0}.get(health, 0.5),
+                0.75,
+                "high",
+            )
 
     if trust_avg < 50:
-        _add("weak_trust", "Low trust average", f"Trust {trust_avg:.0f}/100.", "Fix engagement quality and account health.", trust_avg, 50)
+        _add(
+            "weak_trust",
+            "Low trust average",
+            f"Trust {trust_avg:.0f}/100.",
+            "Fix engagement quality and account health.",
+            trust_avg,
+            50,
+        )
     if cannibalization_risk > 0.5:
-        _add("high_cannibalization_risk", "Cannibalization risk elevated", f"Risk {cannibalization_risk:.2f}.", "Separate niche angles or platforms.", cannibalization_risk, 0.5)
+        _add(
+            "high_cannibalization_risk",
+            "Cannibalization risk elevated",
+            f"Risk {cannibalization_risk:.2f}.",
+            "Separate niche angles or platforms.",
+            cannibalization_risk,
+            0.5,
+        )
     if audience_separation < 0.4:
-        _add("poor_audience_separation", "Audience overlap too high", f"Separation {audience_separation:.2f}.", "Diversify niche or platform.", audience_separation, 0.4)
+        _add(
+            "poor_audience_separation",
+            "Audience overlap too high",
+            f"Separation {audience_separation:.2f}.",
+            "Diversify niche or platform.",
+            audience_separation,
+            0.4,
+        )
     if leak_count > 5:
-        _add("weak_funnel_economics", f"{leak_count} open leaks", "Revenue leaks undermining unit economics.", "Fix leaks before scaling.", leak_count, 5)
+        _add(
+            "weak_funnel_economics",
+            f"{leak_count} open leaks",
+            "Revenue leaks undermining unit economics.",
+            "Fix leaks before scaling.",
+            leak_count,
+            5,
+        )
     if offer_count < 2:
-        _add("weak_offer_fit", "Offer catalog too thin", f"Only {offer_count} offer(s).", "Add complementary offers.", offer_count, 2)
+        _add(
+            "weak_offer_fit",
+            "Offer catalog too thin",
+            f"Only {offer_count} offer(s).",
+            "Add complementary offers.",
+            offer_count,
+            2,
+        )
     if monetization_depth < 2:
-        _add("insufficient_monetization_depth", "Monetization depth limited", f"Depth score {monetization_depth}.", "Add offers, bundles, or upsell paths.", monetization_depth, 2)
+        _add(
+            "insufficient_monetization_depth",
+            "Monetization depth limited",
+            f"Depth score {monetization_depth}.",
+            "Add offers, bundles, or upsell paths.",
+            monetization_depth,
+            2,
+        )
     if avg_ctr < 0.015:
-        _add("weak_ctr", "Portfolio CTR below threshold", f"Average CTR {avg_ctr:.4f}.", "Improve hooks and CTR before scaling spend.", avg_ctr, 0.015)
+        _add(
+            "weak_ctr",
+            "Portfolio CTR below threshold",
+            f"Average CTR {avg_ctr:.4f}.",
+            "Improve hooks and CTR before scaling spend.",
+            avg_ctr,
+            0.015,
+        )
     if avg_cvr < 0.01:
-        _add("weak_conversion_rate", "Portfolio conversion below threshold", f"Average CVR {avg_cvr:.4f}.", "Fix funnel and offer-message fit.", avg_cvr, 0.01)
+        _add(
+            "weak_conversion_rate",
+            "Portfolio conversion below threshold",
+            f"Average CVR {avg_cvr:.4f}.",
+            "Fix funnel and offer-message fit.",
+            avg_cvr,
+            0.01,
+        )
     if total_posting_cap < 3:
-        _add("insufficient_posting_capacity", "Posting capacity too low for multi-account scale", f"Total capacity {total_posting_cap}/day.", "Hire editors or reduce account count.", total_posting_cap, 3)
+        _add(
+            "insufficient_posting_capacity",
+            "Posting capacity too low for multi-account scale",
+            f"Total capacity {total_posting_cap}/day.",
+            "Hire editors or reduce account count.",
+            total_posting_cap,
+            3,
+        )
     if readiness < 45 and len(accounts) < 2:
-        _add("insufficient_repeatability", "Limited proof of repeatability", f"{len(accounts)} active account(s).", "Prove one more repeatable winner before launching.", len(accounts), 2)
+        _add(
+            "insufficient_repeatability",
+            "Limited proof of repeatability",
+            f"{len(accounts)} active account(s).",
+            "Prove one more repeatable winner before launching.",
+            len(accounts),
+            2,
+        )
     if expansion_confidence < 0.28:
-        _add("insufficient_confidence", "Expansion confidence low", f"Confidence {expansion_confidence:.2f}.", "Gather more signal before new launches.", expansion_confidence, 0.28)
+        _add(
+            "insufficient_confidence",
+            "Expansion confidence low",
+            f"Confidence {expansion_confidence:.2f}.",
+            "Gather more signal before new launches.",
+            expansion_confidence,
+            0.28,
+        )
 
     avg_fat = sum(float(a.get("fatigue_score", 0)) for a in accounts) / n
     if avg_fat > 0.55:
-        _add("weak_retention", "Retention pressure from fatigue", f"Average fatigue {avg_fat:.2f}.", "Refresh creative before scaling.", avg_fat, 0.55)
+        _add(
+            "weak_retention",
+            "Retention pressure from fatigue",
+            f"Average fatigue {avg_fat:.2f}.",
+            "Refresh creative before scaling.",
+            avg_fat,
+            0.55,
+        )
 
     # Dedupe blocker_type keeping highest severity
     sev_rank = {"high": 3, "medium": 2, "low": 1}
     merged: dict[str, dict] = {}
     for b in blockers:
         t = b["blocker_type"]
-        if t not in merged or sev_rank.get(b.get("severity", "medium"), 2) > sev_rank.get(merged[t].get("severity", "medium"), 2):
+        if t not in merged or sev_rank.get(b.get("severity", "medium"), 2) > sev_rank.get(
+            merged[t].get("severity", "medium"), 2
+        ):
             merged[t] = b
     return list(merged.values())
 

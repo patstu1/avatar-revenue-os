@@ -1,4 +1,5 @@
 """DB-backed integration tests for Objection Mining."""
+
 from __future__ import annotations
 
 import uuid
@@ -43,16 +44,53 @@ async def brand_with_comments(db_session: AsyncSession):
     db_session.add(acct)
     await db_session.flush()
 
-    ci = ContentItem(brand_id=brand.id, creator_account_id=acct.id, title="Product review", content_type=ContentType.SHORT_VIDEO, platform="tiktok", status="published")
+    ci = ContentItem(
+        brand_id=brand.id,
+        creator_account_id=acct.id,
+        title="Product review",
+        content_type=ContentType.SHORT_VIDEO,
+        platform="tiktok",
+        status="published",
+    )
     db_session.add(ci)
     await db_session.flush()
 
     comments = [
-        CommentIngestion(brand_id=brand.id, content_item_id=ci.id, creator_account_id=acct.id, platform="tiktok", comment_text="This is way too expensive, can't afford it"),
-        CommentIngestion(brand_id=brand.id, content_item_id=ci.id, creator_account_id=acct.id, platform="tiktok", comment_text="Is this legit or just a scam? Hard to trust"),
-        CommentIngestion(brand_id=brand.id, content_item_id=ci.id, creator_account_id=acct.id, platform="tiktok", comment_text="Show me proof it actually works, need evidence"),
-        CommentIngestion(brand_id=brand.id, content_item_id=ci.id, creator_account_id=acct.id, platform="tiktok", comment_text="Great video, love it!"),
-        CommentIngestion(brand_id=brand.id, content_item_id=ci.id, creator_account_id=acct.id, platform="tiktok", comment_text="Too complicated and confusing to understand"),
+        CommentIngestion(
+            brand_id=brand.id,
+            content_item_id=ci.id,
+            creator_account_id=acct.id,
+            platform="tiktok",
+            comment_text="This is way too expensive, can't afford it",
+        ),
+        CommentIngestion(
+            brand_id=brand.id,
+            content_item_id=ci.id,
+            creator_account_id=acct.id,
+            platform="tiktok",
+            comment_text="Is this legit or just a scam? Hard to trust",
+        ),
+        CommentIngestion(
+            brand_id=brand.id,
+            content_item_id=ci.id,
+            creator_account_id=acct.id,
+            platform="tiktok",
+            comment_text="Show me proof it actually works, need evidence",
+        ),
+        CommentIngestion(
+            brand_id=brand.id,
+            content_item_id=ci.id,
+            creator_account_id=acct.id,
+            platform="tiktok",
+            comment_text="Great video, love it!",
+        ),
+        CommentIngestion(
+            brand_id=brand.id,
+            content_item_id=ci.id,
+            creator_account_id=acct.id,
+            platform="tiktok",
+            comment_text="Too complicated and confusing to understand",
+        ),
     ]
     db_session.add_all(comments)
     await db_session.flush()
@@ -69,9 +107,9 @@ async def test_recompute_extracts_signals(db_session, brand_with_comments):
     assert result["status"] == "completed"
     assert result["rows_processed"] >= 3
 
-    signals = (await db_session.execute(
-        select(ObjectionSignal).where(ObjectionSignal.brand_id == brand.id)
-    )).scalars().all()
+    signals = (
+        (await db_session.execute(select(ObjectionSignal).where(ObjectionSignal.brand_id == brand.id))).scalars().all()
+    )
     assert len(signals) >= 3
     types = {s.objection_type for s in signals}
     assert "price" in types
@@ -84,9 +122,11 @@ async def test_clusters_created(db_session, brand_with_comments):
     await recompute_objections(db_session, brand.id)
     await db_session.commit()
 
-    clusters = (await db_session.execute(
-        select(ObjectionCluster).where(ObjectionCluster.brand_id == brand.id)
-    )).scalars().all()
+    clusters = (
+        (await db_session.execute(select(ObjectionCluster).where(ObjectionCluster.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(clusters) >= 2
     for c in clusters:
         assert c.signal_count >= 1
@@ -99,9 +139,11 @@ async def test_responses_created(db_session, brand_with_comments):
     await recompute_objections(db_session, brand.id)
     await db_session.commit()
 
-    responses = (await db_session.execute(
-        select(ObjectionResponse).where(ObjectionResponse.brand_id == brand.id)
-    )).scalars().all()
+    responses = (
+        (await db_session.execute(select(ObjectionResponse).where(ObjectionResponse.brand_id == brand.id)))
+        .scalars()
+        .all()
+    )
     assert len(responses) >= 3
     channels = {r.target_channel for r in responses}
     assert "content_brief" in channels
@@ -173,4 +215,5 @@ async def test_idempotent(db_session, brand_with_comments):
 def test_objection_mining_worker_registered():
     import workers.objection_mining_worker.tasks  # noqa: F401
     from workers.celery_app import app
+
     assert "workers.objection_mining_worker.tasks.recompute_objection_mining" in app.tasks

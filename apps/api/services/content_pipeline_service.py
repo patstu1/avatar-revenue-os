@@ -3,6 +3,7 @@
 All business logic lives here. Route handlers are thin wrappers.
 Every AI output is schema-validated before save. Every action is audited.
 """
+
 import hashlib
 import logging
 import uuid
@@ -42,6 +43,7 @@ from packages.scoring.similarity import SimilarityInput, compute_similarity
 
 # ── Schema Validation ────────────────────────────────────────────────────────
 
+
 def _validate_script_output(data: dict) -> dict:
     """Validate AI-generated script output before persistence."""
     required = ["title", "body_text", "full_script"]
@@ -54,6 +56,7 @@ def _validate_script_output(data: dict) -> dict:
 
 
 # ── Brief Operations ─────────────────────────────────────────────────────────
+
 
 async def get_brief(db: AsyncSession, brief_id: uuid.UUID) -> ContentBrief:
     result = await db.execute(select(ContentBrief).where(ContentBrief.id == brief_id))
@@ -75,6 +78,7 @@ async def update_brief(db: AsyncSession, brief_id: uuid.UUID, **kwargs) -> Conte
 
 # ── Script Generation ────────────────────────────────────────────────────────
 
+
 async def generate_script(db: AsyncSession, brief_id: uuid.UUID) -> Script:
     """Generate a script from a brief using real AI providers when available.
 
@@ -84,9 +88,9 @@ async def generate_script(db: AsyncSession, brief_id: uuid.UUID) -> Script:
     brief = await get_brief(db, brief_id)
     brand = (await db.execute(select(Brand).where(Brand.id == brief.brand_id))).scalar_one_or_none()
 
-    existing_count = (await db.execute(
-        select(func.count()).select_from(Script).where(Script.brief_id == brief_id)
-    )).scalar() or 0
+    existing_count = (
+        await db.execute(select(func.count()).select_from(Script).where(Script.brief_id == brief_id))
+    ).scalar() or 0
 
     ai_result = await _try_ai_generation(db, brief, brand)
 
@@ -98,10 +102,7 @@ async def generate_script(db: AsyncSession, brief_id: uuid.UUID) -> Script:
         duration = brief.target_duration_seconds or _estimate_spoken_duration(full_script)
     else:
         hook_text = brief.hook or f"Here's what nobody tells you about {brief.title}"
-        body_text = (
-            f"Today we're breaking down: {brief.title}.\n\n"
-            f"Angle: {brief.angle or 'Data-driven approach'}\n\n"
-        )
+        body_text = f"Today we're breaking down: {brief.title}.\n\nAngle: {brief.angle or 'Data-driven approach'}\n\n"
         if brief.key_points and isinstance(brief.key_points, list):
             for i, point in enumerate(brief.key_points, 1):
                 body_text += f"Point {i}: {point}\n"
@@ -189,11 +190,12 @@ async def _try_ai_generation(db: AsyncSession, brief: ContentBrief, brand) -> Op
         db_api_key = None
         if brand and hasattr(brand, "organization_id") and brand.organization_id:
             from apps.api.services.integration_manager import get_credential
+
             db_api_key = await get_credential(db, brand.organization_id, provider_key)
 
         client = await _get_ai_client(provider_key, api_key=db_api_key)
 
-        if not hasattr(client, '_is_configured') or not client._is_configured():
+        if not hasattr(client, "_is_configured") or not client._is_configured():
             logger.info("AI provider %s not configured, falling back to template", provider_key)
             return None
 
@@ -207,7 +209,7 @@ async def _try_ai_generation(db: AsyncSession, brief: ContentBrief, brand) -> Op
 
         prompt = _build_generation_prompt(brief, brand, meta)
 
-        ct = brief.content_type.value if hasattr(brief.content_type, 'value') else str(brief.content_type or "")
+        ct = brief.content_type.value if hasattr(brief.content_type, "value") else str(brief.content_type or "")
         is_video_script = ct in ("SHORT_VIDEO", "LONG_VIDEO", "REEL", "SHORT", "STORY")
         system_prompt = SCRIPT_SYSTEM_PROMPT if is_video_script else CAPTION_SYSTEM_PROMPT
         max_tokens = 2048 if is_video_script else 1024
@@ -296,6 +298,7 @@ async def score_script(db: AsyncSession, script_id: uuid.UUID) -> dict:
 
 # ── Media Orchestration ──────────────────────────────────────────────────────
 
+
 async def generate_media(db: AsyncSession, script_id: uuid.UUID) -> MediaJob:
     """Create a media generation job. Routes to the best available provider."""
     script = await get_script(db, script_id)
@@ -304,27 +307,48 @@ async def generate_media(db: AsyncSession, script_id: uuid.UUID) -> MediaJob:
     avatar = None
     if brief.creator_account_id:
         from packages.db.models.accounts import CreatorAccount
-        acct = (await db.execute(select(CreatorAccount).where(CreatorAccount.id == brief.creator_account_id))).scalar_one_or_none()
+
+        acct = (
+            await db.execute(select(CreatorAccount).where(CreatorAccount.id == brief.creator_account_id))
+        ).scalar_one_or_none()
         if acct and acct.avatar_id:
             avatar = (await db.execute(select(Avatar).where(Avatar.id == acct.avatar_id))).scalar_one_or_none()
 
     if not avatar:
-        avatars = (await db.execute(
-            select(Avatar).where(Avatar.brand_id == brief.brand_id, Avatar.is_active.is_(True)).limit(1)
-        )).scalars().all()
+        avatars = (
+            (
+                await db.execute(
+                    select(Avatar).where(Avatar.brand_id == brief.brand_id, Avatar.is_active.is_(True)).limit(1)
+                )
+            )
+            .scalars()
+            .all()
+        )
         avatar = avatars[0] if avatars else None
 
     provider = "fallback"
     if avatar:
-        profiles = (await db.execute(
-            select(AvatarProviderProfile).where(AvatarProviderProfile.avatar_id == avatar.id)
-        )).scalars().all()
+        profiles = (
+            (await db.execute(select(AvatarProviderProfile).where(AvatarProviderProfile.avatar_id == avatar.id)))
+            .scalars()
+            .all()
+        )
         if profiles:
             from packages.provider_clients.media_providers import select_provider
-            profile_dicts = [{"provider": p.provider, "capabilities": p.capabilities or {},
-                              "health_status": p.health_status.value if hasattr(p.health_status, 'value') else str(p.health_status),
-                              "is_primary": p.is_primary, "is_fallback": p.is_fallback,
-                              "cost_per_minute": p.cost_per_minute} for p in profiles]
+
+            profile_dicts = [
+                {
+                    "provider": p.provider,
+                    "capabilities": p.capabilities or {},
+                    "health_status": p.health_status.value
+                    if hasattr(p.health_status, "value")
+                    else str(p.health_status),
+                    "is_primary": p.is_primary,
+                    "is_fallback": p.is_fallback,
+                    "cost_per_minute": p.cost_per_minute,
+                }
+                for p in profiles
+            ]
             provider = select_provider("async_video", profile_dicts) or "fallback"
 
     job = MediaJob(
@@ -342,6 +366,7 @@ async def generate_media(db: AsyncSession, script_id: uuid.UUID) -> MediaJob:
     await db.refresh(job)
     try:
         from workers.generation_worker.tasks import generate_media as gen_media_task
+
         gen_media_task.delay(str(script.id), str(avatar.id) if avatar else str(uuid.UUID(int=0)))
     except Exception:
         logger.warning("media_generation_task_dispatch_failed", exc_info=True)
@@ -356,7 +381,9 @@ async def get_media_job(db: AsyncSession, job_id: uuid.UUID) -> MediaJob:
     return job
 
 
-async def finalize_media_job(db: AsyncSession, job_id: uuid.UUID, *, output_config: Optional[dict] = None) -> ContentItem:
+async def finalize_media_job(
+    db: AsyncSession, job_id: uuid.UUID, *, output_config: Optional[dict] = None
+) -> ContentItem:
     """Bridge MediaJob → ContentItem. Called when media generation completes.
 
     Creates the ContentItem + Asset that the QA/approval/publish pipeline expects,
@@ -382,7 +409,9 @@ async def finalize_media_job(db: AsyncSession, job_id: uuid.UUID, *, output_conf
     asset = Asset(
         brand_id=job.brand_id,
         asset_type=job.job_type or "avatar_video",
-        file_path=output_config.get("file_path", f"media/{job_id}/output") if output_config else f"media/{job_id}/output",
+        file_path=output_config.get("file_path", f"media/{job_id}/output")
+        if output_config
+        else f"media/{job_id}/output",
         file_size_bytes=output_config.get("file_size_bytes") if output_config else None,
         mime_type=output_config.get("mime_type", "video/mp4") if output_config else "video/mp4",
         duration_seconds=script.estimated_duration_seconds if script else None,
@@ -421,6 +450,7 @@ async def finalize_media_job(db: AsyncSession, job_id: uuid.UUID, *, output_conf
 
 # ── Content Item + QA ────────────────────────────────────────────────────────
 
+
 async def _ensure_content_item(db: AsyncSession, content_id: uuid.UUID) -> ContentItem:
     result = await db.execute(select(ContentItem).where(ContentItem.id == content_id))
     item = result.scalar_one_or_none()
@@ -447,28 +477,44 @@ async def run_qa(db: AsyncSession, content_id: uuid.UUID) -> QAReport:
     # ── Compute REAL QA inputs from actual content data ──
 
     # Originality: check for uniqueness against existing content in this brand
-    existing_titles = (await db.execute(
-        select(ContentItem.title).where(
-            ContentItem.brand_id == item.brand_id,
-            ContentItem.id != item.id,
-        ).limit(50)
-    )).scalars().all()
-    title_matches = sum(1 for t in existing_titles if t and item.title and
-                        (item.title.lower() in t.lower() or t.lower() in item.title.lower()))
+    existing_titles = (
+        (
+            await db.execute(
+                select(ContentItem.title)
+                .where(
+                    ContentItem.brand_id == item.brand_id,
+                    ContentItem.id != item.id,
+                )
+                .limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    title_matches = sum(
+        1
+        for t in existing_titles
+        if t and item.title and (item.title.lower() in t.lower() or t.lower() in item.title.lower())
+    )
     originality_score = max(0.1, 1.0 - (title_matches * 0.2))
 
     # Compliance: check for required elements
     has_hook = bool(hook_text and len(hook_text.strip()) > 10)
     has_body = bool(script_text and len(script_text.strip()) > 50)
     has_cta = bool(cta_text and len(cta_text.strip()) > 5)
-    has_disclosure = has_offer and ("sponsor" in script_text.lower() or "ad" in script_text.lower() or "affiliate" in script_text.lower() or "partner" in script_text.lower())
+    has_disclosure = has_offer and (
+        "sponsor" in script_text.lower()
+        or "ad" in script_text.lower()
+        or "affiliate" in script_text.lower()
+        or "partner" in script_text.lower()
+    )
     compliance_parts = [has_hook, has_body, has_cta, not has_offer or has_disclosure]
     compliance_score = sum(1 for p in compliance_parts if p) / len(compliance_parts)
 
     # Brand alignment: word count quality + structure presence
     word_quality = min(1.0, word_count / 200) if word_count > 0 else 0.1
     structure_score = (0.3 if has_hook else 0) + (0.4 if has_body else 0) + (0.3 if has_cta else 0)
-    brand_alignment_score = (word_quality * 0.5 + structure_score * 0.5)
+    brand_alignment_score = word_quality * 0.5 + structure_score * 0.5
 
     # Technical quality: based on content completeness and metadata
     has_title = bool(item.title and len(item.title.strip()) > 5)
@@ -525,16 +571,23 @@ async def run_similarity(db: AsyncSession, content_id: uuid.UUID) -> SimilarityR
     """Run similarity check against existing content library."""
     item = await _ensure_content_item(db, content_id)
 
-    existing = (await db.execute(
-        select(ContentItem).where(
-            ContentItem.brand_id == item.brand_id,
-            ContentItem.id != item.id,
-        ).limit(50)
-    )).scalars().all()
+    existing = (
+        (
+            await db.execute(
+                select(ContentItem)
+                .where(
+                    ContentItem.brand_id == item.brand_id,
+                    ContentItem.id != item.id,
+                )
+                .limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     existing_data = [
-        {"id": str(e.id), "title": e.title, "keywords": e.tags if isinstance(e.tags, list) else []}
-        for e in existing
+        {"id": str(e.id), "title": e.title, "keywords": e.tags if isinstance(e.tags, list) else []} for e in existing
     ]
 
     inp = SimilarityInput(
@@ -564,16 +617,31 @@ async def run_similarity(db: AsyncSession, content_id: uuid.UUID) -> SimilarityR
 
 async def get_qa_report(db: AsyncSession, content_id: uuid.UUID) -> dict:
     """Get latest QA and similarity reports for a content item."""
-    qa = (await db.execute(
-        select(QAReport).where(QAReport.content_item_id == content_id).order_by(QAReport.created_at.desc())
-    )).scalars().first()
-    sim = (await db.execute(
-        select(SimilarityReport).where(SimilarityReport.content_item_id == content_id).order_by(SimilarityReport.created_at.desc())
-    )).scalars().first()
+    qa = (
+        (
+            await db.execute(
+                select(QAReport).where(QAReport.content_item_id == content_id).order_by(QAReport.created_at.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
+    sim = (
+        (
+            await db.execute(
+                select(SimilarityReport)
+                .where(SimilarityReport.content_item_id == content_id)
+                .order_by(SimilarityReport.created_at.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
     return {"qa_report": qa, "similarity_report": sim}
 
 
 # ── Approval Workflow ────────────────────────────────────────────────────────
+
 
 async def _determine_approval_mode(qa_score: float, confidence: str, blocking_issues: list) -> tuple[str, bool]:
     """Routing logic: high confidence + low risk = full_auto; medium = guarded; else manual."""
@@ -597,9 +665,15 @@ async def approve_content(db: AsyncSession, content_id: uuid.UUID, user_id: uuid
     from apps.api.services.publish_readiness import check_publish_readiness
 
     item = await _ensure_content_item(db, content_id)
-    qa = (await db.execute(
-        select(QAReport).where(QAReport.content_item_id == content_id).order_by(QAReport.created_at.desc())
-    )).scalars().first()
+    qa = (
+        (
+            await db.execute(
+                select(QAReport).where(QAReport.content_item_id == content_id).order_by(QAReport.created_at.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
 
     readiness = await check_publish_readiness(db, item)
 
@@ -607,10 +681,13 @@ async def approve_content(db: AsyncSession, content_id: uuid.UUID, user_id: uuid
         # Record a REVISION_REQUESTED approval with the readiness blocker reason,
         # and park the item in pending_media so recompute will not pick it up.
         approval = Approval(
-            content_item_id=item.id, brand_id=item.brand_id,
-            requested_by=user_id, reviewed_by=user_id,
+            content_item_id=item.id,
+            brand_id=item.brand_id,
+            requested_by=user_id,
+            reviewed_by=user_id,
             status=ApprovalStatus.REVISION_REQUESTED,
-            decision_mode="readiness_gate", auto_approved=False,
+            decision_mode="readiness_gate",
+            auto_approved=False,
             review_notes=f"readiness_blocker={readiness.reason}: {readiness.detail}",
             qa_report_id=qa.id if qa else None,
             reviewed_at=datetime.now(timezone.utc).isoformat(),
@@ -622,10 +699,13 @@ async def approve_content(db: AsyncSession, content_id: uuid.UUID, user_id: uuid
         return approval
 
     approval = Approval(
-        content_item_id=item.id, brand_id=item.brand_id,
-        requested_by=user_id, reviewed_by=user_id,
+        content_item_id=item.id,
+        brand_id=item.brand_id,
+        requested_by=user_id,
+        reviewed_by=user_id,
         status=ApprovalStatus.APPROVED,
-        decision_mode="manual_override", auto_approved=False,
+        decision_mode="manual_override",
+        auto_approved=False,
         review_notes=notes or "Manually approved",
         qa_report_id=qa.id if qa else None,
         reviewed_at=datetime.now(timezone.utc).isoformat(),
@@ -640,10 +720,13 @@ async def approve_content(db: AsyncSession, content_id: uuid.UUID, user_id: uuid
 async def reject_content(db: AsyncSession, content_id: uuid.UUID, user_id: uuid.UUID, notes: str = "") -> Approval:
     item = await _ensure_content_item(db, content_id)
     approval = Approval(
-        content_item_id=item.id, brand_id=item.brand_id,
-        requested_by=user_id, reviewed_by=user_id,
+        content_item_id=item.id,
+        brand_id=item.brand_id,
+        requested_by=user_id,
+        reviewed_by=user_id,
         status=ApprovalStatus.REJECTED,
-        decision_mode="manual_override", auto_approved=False,
+        decision_mode="manual_override",
+        auto_approved=False,
         review_notes=notes or "Rejected",
         reviewed_at=datetime.now(timezone.utc).isoformat(),
     )
@@ -657,10 +740,13 @@ async def reject_content(db: AsyncSession, content_id: uuid.UUID, user_id: uuid.
 async def request_changes(db: AsyncSession, content_id: uuid.UUID, user_id: uuid.UUID, notes: str = "") -> Approval:
     item = await _ensure_content_item(db, content_id)
     approval = Approval(
-        content_item_id=item.id, brand_id=item.brand_id,
-        requested_by=user_id, reviewed_by=user_id,
+        content_item_id=item.id,
+        brand_id=item.brand_id,
+        requested_by=user_id,
+        reviewed_by=user_id,
         status=ApprovalStatus.REVISION_REQUESTED,
-        decision_mode="manual_override", auto_approved=False,
+        decision_mode="manual_override",
+        auto_approved=False,
         review_notes=notes or "Changes requested",
         reviewed_at=datetime.now(timezone.utc).isoformat(),
     )
@@ -673,9 +759,13 @@ async def request_changes(db: AsyncSession, content_id: uuid.UUID, user_id: uuid
 
 # ── Publishing ───────────────────────────────────────────────────────────────
 
+
 async def schedule_publish(
-    db: AsyncSession, content_id: uuid.UUID, creator_account_id: uuid.UUID,
-    platform: str, scheduled_at: Optional[datetime] = None,
+    db: AsyncSession,
+    content_id: uuid.UUID,
+    creator_account_id: uuid.UUID,
+    platform: str,
+    scheduled_at: Optional[datetime] = None,
 ) -> PublishJob:
     item = await _ensure_content_item(db, content_id)
     if item.status not in ("approved", "scheduled"):
@@ -685,16 +775,20 @@ async def schedule_publish(
     monetization_config = {}
     try:
         from apps.api.services.attribution_builder import build_publish_monetization_context
+
         account = await db.get(CreatorAccount, creator_account_id) if creator_account_id else None
         brand = await db.get(Brand, item.brand_id) if item.brand_id else None
         if account:
             monetization_config = await build_publish_monetization_context(
-                db, item, account,
+                db,
+                item,
+                account,
                 brand_slug=getattr(brand, "slug", "") if brand else "",
             )
     except Exception as exc:
         logger.warning("monetization_context_build_failed", error=str(exc), exc_info=True)
         import traceback
+
         traceback.print_exc()
 
     job = PublishJob(
@@ -730,12 +824,15 @@ async def schedule_publish(
     return job
 
 
-async def publish_now(db: AsyncSession, content_id: uuid.UUID, creator_account_id: uuid.UUID, platform: str) -> PublishJob:
+async def publish_now(
+    db: AsyncSession, content_id: uuid.UUID, creator_account_id: uuid.UUID, platform: str
+) -> PublishJob:
     """Schedule and dispatch a publish job to the Celery publishing worker."""
     job = await schedule_publish(db, content_id, creator_account_id, platform)
     await db.flush()
     try:
         from workers.publishing_worker.tasks import publish_content
+
         publish_content.delay(str(job.id))
     except Exception:
         logger.warning("publish_task_dispatch_failed", exc_info=True)

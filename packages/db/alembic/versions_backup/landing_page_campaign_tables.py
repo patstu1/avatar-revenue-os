@@ -3,6 +3,7 @@
 Revision ID: lpc_001
 Revises: ff_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -18,30 +19,214 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Landing Pages
-    op.create_table("lp_pages", sa.Column("id", sa.UUID(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("brand_id", sa.UUID(), nullable=False), sa.Column("page_type", sa.String(60), nullable=False), sa.Column("offer_id", sa.UUID(), nullable=True), sa.Column("monetization_target", sa.String(120), nullable=True), sa.Column("headline", sa.String(500), nullable=False), sa.Column("subheadline", sa.String(500), nullable=True), sa.Column("hook_angle", sa.String(120), nullable=True), sa.Column("proof_blocks", JSONB(), server_default="[]"), sa.Column("objection_blocks", JSONB(), server_default="[]"), sa.Column("cta_blocks", JSONB(), server_default="[]"), sa.Column("disclosure_blocks", JSONB(), server_default="[]"), sa.Column("media_blocks", JSONB(), server_default="[]"), sa.Column("tracking_params", JSONB(), server_default="{}"), sa.Column("destination_url", sa.String(1000), nullable=True), sa.Column("status", sa.String(30), server_default="draft"), sa.Column("publish_status", sa.String(30), server_default="unpublished"), sa.Column("truth_label", sa.String(40), server_default="recommendation_only"), sa.Column("performance_json", JSONB(), server_default="{}"), sa.Column("blocker_state", sa.String(60), nullable=True), sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")), sa.ForeignKeyConstraint(["brand_id"], ["brands.id"]), sa.ForeignKeyConstraint(["offer_id"], ["offers.id"]), sa.PrimaryKeyConstraint("id"))
+    op.create_table(
+        "lp_pages",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("brand_id", sa.UUID(), nullable=False),
+        sa.Column("page_type", sa.String(60), nullable=False),
+        sa.Column("offer_id", sa.UUID(), nullable=True),
+        sa.Column("monetization_target", sa.String(120), nullable=True),
+        sa.Column("headline", sa.String(500), nullable=False),
+        sa.Column("subheadline", sa.String(500), nullable=True),
+        sa.Column("hook_angle", sa.String(120), nullable=True),
+        sa.Column("proof_blocks", JSONB(), server_default="[]"),
+        sa.Column("objection_blocks", JSONB(), server_default="[]"),
+        sa.Column("cta_blocks", JSONB(), server_default="[]"),
+        sa.Column("disclosure_blocks", JSONB(), server_default="[]"),
+        sa.Column("media_blocks", JSONB(), server_default="[]"),
+        sa.Column("tracking_params", JSONB(), server_default="{}"),
+        sa.Column("destination_url", sa.String(1000), nullable=True),
+        sa.Column("status", sa.String(30), server_default="draft"),
+        sa.Column("publish_status", sa.String(30), server_default="unpublished"),
+        sa.Column("truth_label", sa.String(40), server_default="recommendation_only"),
+        sa.Column("performance_json", JSONB(), server_default="{}"),
+        sa.Column("blocker_state", sa.String(60), nullable=True),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
+        sa.ForeignKeyConstraint(["brand_id"], ["brands.id"]),
+        sa.ForeignKeyConstraint(["offer_id"], ["offers.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
     op.create_index("ix_lpp_brand", "lp_pages", ["brand_id"])
 
-    op.create_table("lp_variants", sa.Column("id", sa.UUID(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("page_id", sa.UUID(), nullable=False), sa.Column("variant_label", sa.String(120), nullable=False), sa.Column("headline", sa.String(500), nullable=False), sa.Column("subheadline", sa.String(500), nullable=True), sa.Column("hook_angle", sa.String(120), nullable=True), sa.Column("cta_blocks", JSONB(), server_default="[]"), sa.Column("is_control", sa.Boolean(), server_default=sa.text("false")), sa.Column("conversion_rate", sa.Float(), server_default="0"), sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")), sa.ForeignKeyConstraint(["page_id"], ["lp_pages.id"]), sa.PrimaryKeyConstraint("id"))
+    op.create_table(
+        "lp_variants",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("page_id", sa.UUID(), nullable=False),
+        sa.Column("variant_label", sa.String(120), nullable=False),
+        sa.Column("headline", sa.String(500), nullable=False),
+        sa.Column("subheadline", sa.String(500), nullable=True),
+        sa.Column("hook_angle", sa.String(120), nullable=True),
+        sa.Column("cta_blocks", JSONB(), server_default="[]"),
+        sa.Column("is_control", sa.Boolean(), server_default=sa.text("false")),
+        sa.Column("conversion_rate", sa.Float(), server_default="0"),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
+        sa.ForeignKeyConstraint(["page_id"], ["lp_pages.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
 
-    op.create_table("lp_blocks", sa.Column("id", sa.UUID(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("page_id", sa.UUID(), nullable=False), sa.Column("block_type", sa.String(40), nullable=False), sa.Column("position", sa.Integer(), server_default="0"), sa.Column("content_json", JSONB(), server_default="{}"), sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")), sa.ForeignKeyConstraint(["page_id"], ["lp_pages.id"]), sa.PrimaryKeyConstraint("id"))
+    op.create_table(
+        "lp_blocks",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("page_id", sa.UUID(), nullable=False),
+        sa.Column("block_type", sa.String(40), nullable=False),
+        sa.Column("position", sa.Integer(), server_default="0"),
+        sa.Column("content_json", JSONB(), server_default="{}"),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
+        sa.ForeignKeyConstraint(["page_id"], ["lp_pages.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
 
-    op.create_table("lp_quality_reports", sa.Column("id", sa.UUID(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("page_id", sa.UUID(), nullable=False), sa.Column("brand_id", sa.UUID(), nullable=False), sa.Column("total_score", sa.Float(), server_default="0"), sa.Column("trust_score", sa.Float(), server_default="0"), sa.Column("conversion_fit", sa.Float(), server_default="0"), sa.Column("objection_coverage", sa.Float(), server_default="0"), sa.Column("verdict", sa.String(10), server_default="unscored"), sa.Column("explanation", sa.Text(), nullable=True), sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")), sa.ForeignKeyConstraint(["page_id"], ["lp_pages.id"]), sa.ForeignKeyConstraint(["brand_id"], ["brands.id"]), sa.PrimaryKeyConstraint("id"))
+    op.create_table(
+        "lp_quality_reports",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("page_id", sa.UUID(), nullable=False),
+        sa.Column("brand_id", sa.UUID(), nullable=False),
+        sa.Column("total_score", sa.Float(), server_default="0"),
+        sa.Column("trust_score", sa.Float(), server_default="0"),
+        sa.Column("conversion_fit", sa.Float(), server_default="0"),
+        sa.Column("objection_coverage", sa.Float(), server_default="0"),
+        sa.Column("verdict", sa.String(10), server_default="unscored"),
+        sa.Column("explanation", sa.Text(), nullable=True),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
+        sa.ForeignKeyConstraint(["page_id"], ["lp_pages.id"]),
+        sa.ForeignKeyConstraint(["brand_id"], ["brands.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
 
-    op.create_table("lp_publish_records", sa.Column("id", sa.UUID(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("page_id", sa.UUID(), nullable=False), sa.Column("brand_id", sa.UUID(), nullable=False), sa.Column("published_url", sa.String(1000), nullable=True), sa.Column("publish_method", sa.String(40), server_default="manual"), sa.Column("truth_label", sa.String(40), server_default="recommendation_only"), sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")), sa.ForeignKeyConstraint(["page_id"], ["lp_pages.id"]), sa.ForeignKeyConstraint(["brand_id"], ["brands.id"]), sa.PrimaryKeyConstraint("id"))
+    op.create_table(
+        "lp_publish_records",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("page_id", sa.UUID(), nullable=False),
+        sa.Column("brand_id", sa.UUID(), nullable=False),
+        sa.Column("published_url", sa.String(1000), nullable=True),
+        sa.Column("publish_method", sa.String(40), server_default="manual"),
+        sa.Column("truth_label", sa.String(40), server_default="recommendation_only"),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
+        sa.ForeignKeyConstraint(["page_id"], ["lp_pages.id"]),
+        sa.ForeignKeyConstraint(["brand_id"], ["brands.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
 
     # Campaigns
-    op.create_table("cp_campaigns", sa.Column("id", sa.UUID(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("brand_id", sa.UUID(), nullable=False), sa.Column("campaign_type", sa.String(60), nullable=False), sa.Column("campaign_name", sa.String(255), nullable=False), sa.Column("objective", sa.Text(), nullable=False), sa.Column("target_platforms", JSONB(), server_default="[]"), sa.Column("target_accounts", JSONB(), server_default="[]"), sa.Column("target_audience", sa.Text(), nullable=True), sa.Column("content_family", sa.String(80), nullable=True), sa.Column("hook_family", sa.String(80), nullable=True), sa.Column("landing_page_id", sa.UUID(), nullable=True), sa.Column("cta_family", sa.String(80), nullable=True), sa.Column("offer_id", sa.UUID(), nullable=True), sa.Column("monetization_path", sa.String(80), nullable=True), sa.Column("followup_path", sa.String(120), nullable=True), sa.Column("budget_tier", sa.String(20), server_default="bulk"), sa.Column("expected_upside", sa.Float(), server_default="0"), sa.Column("expected_cost", sa.Float(), server_default="0"), sa.Column("confidence", sa.Float(), server_default="0"), sa.Column("launch_status", sa.String(30), server_default="draft"), sa.Column("truth_label", sa.String(40), server_default="recommendation_only"), sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")), sa.ForeignKeyConstraint(["brand_id"], ["brands.id"]), sa.ForeignKeyConstraint(["landing_page_id"], ["lp_pages.id"]), sa.ForeignKeyConstraint(["offer_id"], ["offers.id"]), sa.PrimaryKeyConstraint("id"))
+    op.create_table(
+        "cp_campaigns",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("brand_id", sa.UUID(), nullable=False),
+        sa.Column("campaign_type", sa.String(60), nullable=False),
+        sa.Column("campaign_name", sa.String(255), nullable=False),
+        sa.Column("objective", sa.Text(), nullable=False),
+        sa.Column("target_platforms", JSONB(), server_default="[]"),
+        sa.Column("target_accounts", JSONB(), server_default="[]"),
+        sa.Column("target_audience", sa.Text(), nullable=True),
+        sa.Column("content_family", sa.String(80), nullable=True),
+        sa.Column("hook_family", sa.String(80), nullable=True),
+        sa.Column("landing_page_id", sa.UUID(), nullable=True),
+        sa.Column("cta_family", sa.String(80), nullable=True),
+        sa.Column("offer_id", sa.UUID(), nullable=True),
+        sa.Column("monetization_path", sa.String(80), nullable=True),
+        sa.Column("followup_path", sa.String(120), nullable=True),
+        sa.Column("budget_tier", sa.String(20), server_default="bulk"),
+        sa.Column("expected_upside", sa.Float(), server_default="0"),
+        sa.Column("expected_cost", sa.Float(), server_default="0"),
+        sa.Column("confidence", sa.Float(), server_default="0"),
+        sa.Column("launch_status", sa.String(30), server_default="draft"),
+        sa.Column("truth_label", sa.String(40), server_default="recommendation_only"),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
+        sa.ForeignKeyConstraint(["brand_id"], ["brands.id"]),
+        sa.ForeignKeyConstraint(["landing_page_id"], ["lp_pages.id"]),
+        sa.ForeignKeyConstraint(["offer_id"], ["offers.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
     op.create_index("ix_cpc_brand", "cp_campaigns", ["brand_id"])
 
-    op.create_table("cp_variants", sa.Column("id", sa.UUID(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("campaign_id", sa.UUID(), nullable=False), sa.Column("variant_label", sa.String(120), nullable=False), sa.Column("hook_family", sa.String(80), nullable=True), sa.Column("cta_family", sa.String(80), nullable=True), sa.Column("landing_page_id", sa.UUID(), nullable=True), sa.Column("is_control", sa.Boolean(), server_default=sa.text("false")), sa.Column("performance_json", JSONB(), server_default="{}"), sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")), sa.ForeignKeyConstraint(["campaign_id"], ["cp_campaigns.id"]), sa.ForeignKeyConstraint(["landing_page_id"], ["lp_pages.id"]), sa.PrimaryKeyConstraint("id"))
+    op.create_table(
+        "cp_variants",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("campaign_id", sa.UUID(), nullable=False),
+        sa.Column("variant_label", sa.String(120), nullable=False),
+        sa.Column("hook_family", sa.String(80), nullable=True),
+        sa.Column("cta_family", sa.String(80), nullable=True),
+        sa.Column("landing_page_id", sa.UUID(), nullable=True),
+        sa.Column("is_control", sa.Boolean(), server_default=sa.text("false")),
+        sa.Column("performance_json", JSONB(), server_default="{}"),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
+        sa.ForeignKeyConstraint(["campaign_id"], ["cp_campaigns.id"]),
+        sa.ForeignKeyConstraint(["landing_page_id"], ["lp_pages.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
 
-    op.create_table("cp_assets", sa.Column("id", sa.UUID(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("campaign_id", sa.UUID(), nullable=False), sa.Column("content_item_id", sa.UUID(), nullable=True), sa.Column("asset_role", sa.String(60), nullable=False), sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")), sa.ForeignKeyConstraint(["campaign_id"], ["cp_campaigns.id"]), sa.ForeignKeyConstraint(["content_item_id"], ["content_items.id"]), sa.PrimaryKeyConstraint("id"))
+    op.create_table(
+        "cp_assets",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("campaign_id", sa.UUID(), nullable=False),
+        sa.Column("content_item_id", sa.UUID(), nullable=True),
+        sa.Column("asset_role", sa.String(60), nullable=False),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
+        sa.ForeignKeyConstraint(["campaign_id"], ["cp_campaigns.id"]),
+        sa.ForeignKeyConstraint(["content_item_id"], ["content_items.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
 
-    op.create_table("cp_destinations", sa.Column("id", sa.UUID(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("campaign_id", sa.UUID(), nullable=False), sa.Column("landing_page_id", sa.UUID(), nullable=True), sa.Column("destination_url", sa.String(1000), nullable=True), sa.Column("destination_type", sa.String(40), nullable=False), sa.Column("is_primary", sa.Boolean(), server_default=sa.text("true")), sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")), sa.ForeignKeyConstraint(["campaign_id"], ["cp_campaigns.id"]), sa.ForeignKeyConstraint(["landing_page_id"], ["lp_pages.id"]), sa.PrimaryKeyConstraint("id"))
+    op.create_table(
+        "cp_destinations",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("campaign_id", sa.UUID(), nullable=False),
+        sa.Column("landing_page_id", sa.UUID(), nullable=True),
+        sa.Column("destination_url", sa.String(1000), nullable=True),
+        sa.Column("destination_type", sa.String(40), nullable=False),
+        sa.Column("is_primary", sa.Boolean(), server_default=sa.text("true")),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
+        sa.ForeignKeyConstraint(["campaign_id"], ["cp_campaigns.id"]),
+        sa.ForeignKeyConstraint(["landing_page_id"], ["lp_pages.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
 
-    op.create_table("cp_blockers", sa.Column("id", sa.UUID(), nullable=False), sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False), sa.Column("campaign_id", sa.UUID(), nullable=False), sa.Column("brand_id", sa.UUID(), nullable=False), sa.Column("blocker_type", sa.String(60), nullable=False), sa.Column("description", sa.Text(), nullable=False), sa.Column("severity", sa.String(20), server_default="high"), sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")), sa.ForeignKeyConstraint(["campaign_id"], ["cp_campaigns.id"]), sa.ForeignKeyConstraint(["brand_id"], ["brands.id"]), sa.PrimaryKeyConstraint("id"))
+    op.create_table(
+        "cp_blockers",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("campaign_id", sa.UUID(), nullable=False),
+        sa.Column("brand_id", sa.UUID(), nullable=False),
+        sa.Column("blocker_type", sa.String(60), nullable=False),
+        sa.Column("description", sa.Text(), nullable=False),
+        sa.Column("severity", sa.String(20), server_default="high"),
+        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true")),
+        sa.ForeignKeyConstraint(["campaign_id"], ["cp_campaigns.id"]),
+        sa.ForeignKeyConstraint(["brand_id"], ["brands.id"]),
+        sa.PrimaryKeyConstraint("id"),
+    )
 
 
 def downgrade() -> None:
-    for t in ("cp_blockers", "cp_destinations", "cp_assets", "cp_variants", "cp_campaigns", "lp_publish_records", "lp_quality_reports", "lp_blocks", "lp_variants", "lp_pages"):
+    for t in (
+        "cp_blockers",
+        "cp_destinations",
+        "cp_assets",
+        "cp_variants",
+        "cp_campaigns",
+        "lp_publish_records",
+        "lp_quality_reports",
+        "lp_blocks",
+        "lp_variants",
+        "lp_pages",
+    ):
         op.drop_table(t)

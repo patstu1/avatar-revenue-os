@@ -1,4 +1,5 @@
 """MXP Deal Desk — strategy recommendations for deals."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status

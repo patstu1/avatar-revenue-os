@@ -28,6 +28,7 @@ Usage:
     # result["text"] -> modified content with real links + disclosure
     # result["links_injected"] -> list of link records created
 """
+
 from __future__ import annotations
 
 import logging
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 # ── Network → Link Generator Dispatch ────────────────────────────────
 
+
 def _generate_tracked_url(placement: dict[str, Any]) -> dict[str, Any]:
     """Generate a tracked affiliate URL based on the placement's network.
 
@@ -52,6 +54,7 @@ def _generate_tracked_url(placement: dict[str, Any]) -> dict[str, Any]:
 
     if network == "amazon":
         from packages.clients.affiliate_network_clients import AmazonAssociatesLinkGenerator
+
         gen = AmazonAssociatesLinkGenerator(associate_tag=placement.get("associate_tag", ""))
         asin = placement.get("asin", "")
         if not asin:
@@ -63,6 +66,7 @@ def _generate_tracked_url(placement: dict[str, Any]) -> dict[str, Any]:
 
     elif network == "impact":
         from packages.clients.affiliate_network_clients import ImpactClient
+
         client = ImpactClient()
         campaign_id = placement.get("campaign_id", "")
         destination_url = placement.get("destination_url", "")
@@ -79,6 +83,7 @@ def _generate_tracked_url(placement: dict[str, Any]) -> dict[str, Any]:
 
     elif network == "shareasale":
         from packages.clients.affiliate_network_clients import ShareASaleClient
+
         client = ShareASaleClient()
         destination_url = placement.get("destination_url", "")
         if not destination_url:
@@ -92,6 +97,7 @@ def _generate_tracked_url(placement: dict[str, Any]) -> dict[str, Any]:
 
     elif network == "cj":
         from packages.clients.affiliate_network_clients import CJClient
+
         client = CJClient()
         advertiser_id = placement.get("advertiser_id", "")
         destination_url = placement.get("destination_url", "")
@@ -105,17 +111,21 @@ def _generate_tracked_url(placement: dict[str, Any]) -> dict[str, Any]:
 
     elif network == "clickbank":
         from packages.clients.affiliate_program_clients import ClickBankClient
+
         vendor = placement.get("vendor", "")
         affiliate_id = placement.get("affiliate_id", "")
         if not vendor or not affiliate_id:
             return {"success": False, "error": "vendor and affiliate_id required for clickbank links"}
         url = ClickBankClient.build_hop_link(
-            vendor, affiliate_id, tracking_id=placement.get("tracking_id", ""),
+            vendor,
+            affiliate_id,
+            tracking_id=placement.get("tracking_id", ""),
         )
         return {"success": True, "tracked_url": url, "network": "clickbank"}
 
     elif network == "etsy":
         from packages.clients.affiliate_program_clients import EtsyAffiliateClient
+
         listing_url = placement.get("destination_url", placement.get("listing_url", ""))
         affiliate_id = placement.get("affiliate_id", "")
         if not listing_url or not affiliate_id:
@@ -133,11 +143,13 @@ def _generate_tracked_url(placement: dict[str, Any]) -> dict[str, Any]:
 async def _shorten_url(long_url: str, title: str = "") -> dict[str, Any]:
     """Shorten a URL using the configured link shortener backend."""
     from packages.clients.link_shortener import LinkShortener
+
     shortener = LinkShortener()
     return await shortener.shorten(long_url, title=title)
 
 
 # ── Content Injection ────────────────────────────────────────────────
+
 
 def _inject_link_into_text(
     text: str,
@@ -206,6 +218,7 @@ def _inject_link_into_text(
 
 # ── Main Entry Point ─────────────────────────────────────────────────
 
+
 async def inject_affiliate_links(
     content_text: str,
     affiliate_placements: list[dict[str, Any]],
@@ -251,10 +264,12 @@ async def inject_affiliate_links(
         # Step 1: Generate the real tracked URL
         link_result = _generate_tracked_url(placement)
         if not link_result.get("success"):
-            errors.append({
-                "placement": placement.get("anchor_text", placement.get("network", "unknown")),
-                "error": link_result.get("error", "link_generation_failed"),
-            })
+            errors.append(
+                {
+                    "placement": placement.get("anchor_text", placement.get("network", "unknown")),
+                    "error": link_result.get("error", "link_generation_failed"),
+                }
+            )
             continue
 
         tracked_url = link_result["tracked_url"]
@@ -277,7 +292,11 @@ async def inject_affiliate_links(
         anchor_text = placement.get("anchor_text", "")
         position = placement.get("position", "inline")
         modified_text = _inject_link_into_text(
-            modified_text, anchor_text, final_url, position=position, platform=platform,
+            modified_text,
+            anchor_text,
+            final_url,
+            position=position,
+            platform=platform,
         )
 
         link_info = {
@@ -326,17 +345,22 @@ async def inject_affiliate_links(
                     error=str(e),
                     offer_id=placement.get("offer_id"),
                 )
-                errors.append({
-                    "placement": anchor_text,
-                    "error": f"db_persist_failed: {e}",
-                })
+                errors.append(
+                    {
+                        "placement": anchor_text,
+                        "error": f"db_persist_failed: {e}",
+                    }
+                )
 
     # Step 5: Add FTC disclosure
     disclosure_added = False
     if add_disclosure and links_injected:
         from apps.api.services.disclosure_injection_service import inject_disclosure_into_content
+
         disclosure_result = inject_disclosure_into_content(
-            modified_text, platform or "default", "affiliate",
+            modified_text,
+            platform or "default",
+            "affiliate",
         )
         modified_text = disclosure_result["text"]
         disclosure_added = disclosure_result.get("disclosure_injected", False)
@@ -345,6 +369,7 @@ async def inject_affiliate_links(
     if db and brand_id and links_injected:
         try:
             from apps.api.services.event_bus import emit_event
+
             await emit_event(
                 db,
                 domain="affiliate",
@@ -377,6 +402,7 @@ async def inject_affiliate_links(
 
 # ── Batch Pre-Generation (async network calls) ──────────────────────
 
+
 async def pregenerate_tracking_links(
     placements: list[dict[str, Any]],
     *,
@@ -395,6 +421,7 @@ async def pregenerate_tracking_links(
 
         if network == "impact":
             from packages.clients.affiliate_network_clients import ImpactClient
+
             client = ImpactClient()
             result = await client.create_tracking_link(
                 placement.get("campaign_id", ""),

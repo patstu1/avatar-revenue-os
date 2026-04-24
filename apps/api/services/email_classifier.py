@@ -3,6 +3,7 @@
 Classifies inbound messages and determines reply mode (auto_send / draft / escalate).
 Uses keyword patterns first (fast, no API cost), with optional LLM upgrade for ambiguous cases.
 """
+
 from __future__ import annotations
 
 import re
@@ -27,37 +28,67 @@ _PATTERNS: dict[str, list[tuple[str, float]]] = {
     # subject-only match is penalized to 0.7x in classify_email(), which
     # keeps noisy Re:/Fwd: subject matches out of auto_send.
     "warm_interest": [
-        (r"(?i)\b(interested|love to|sounds great|let'?s do|count me in|i'?m in|let'?s chat|let'?s talk|would love|happy to|excited|looking forward|tell me more|sounds interesting|intrigued)\b", 0.88),
+        (
+            r"(?i)\b(interested|love to|sounds great|let'?s do|count me in|i'?m in|let'?s chat|let'?s talk|would love|happy to|excited|looking forward|tell me more|sounds interesting|intrigued)\b",
+            0.88,
+        ),
     ],
     "proof_request": [
-        (r"(?i)\b(examples?|portfolio|case stud|samples?|show me|see your work|demo|proof|previous work|past work|results you'?ve)\b", 0.88),
+        (
+            r"(?i)\b(examples?|portfolio|case stud|samples?|show me|see your work|demo|proof|previous work|past work|results you'?ve)\b",
+            0.88,
+        ),
     ],
     "pricing_request": [
-        (r"(?i)\b(how much|pricing|rates?|cost|price|(?<!not in )budget|investment|quote|proposal|what do you charge|packages?|plans?)\b", 0.88),
+        (
+            r"(?i)\b(how much|pricing|rates?|cost|price|(?<!not in )budget|investment|quote|proposal|what do you charge|packages?|plans?)\b",
+            0.88,
+        ),
     ],
     "meeting_request": [
-        (r"(?i)\b(schedule|calendar|meet|call|zoom|availability|free on|available|book a time|set up a call|hop on|quick chat|15 min|30 min)\b", 0.84),
+        (
+            r"(?i)\b(schedule|calendar|meet|call|zoom|availability|free on|available|book a time|set up a call|hop on|quick chat|15 min|30 min)\b",
+            0.84,
+        ),
     ],
     "objection": [
-        (r"(?i)\b(too expensive|can'?t afford|not in budget|not a priority|bad timing|already have|using someone|don'?t need|not sure|skeptical|risky|concerned about)\b", 0.87),
+        (
+            r"(?i)\b(too expensive|can'?t afford|not in budget|not a priority|bad timing|already have|using someone|don'?t need|not sure|skeptical|risky|concerned about)\b",
+            0.87,
+        ),
     ],
     "negotiation": [
-        (r"(?i)\b(discount|lower price|negotiate|flexible|deal|counter.?offer|can you do|what if we|volume|bulk|commit to|long.?term)\b", 0.80),
+        (
+            r"(?i)\b(discount|lower price|negotiate|flexible|deal|counter.?offer|can you do|what if we|volume|bulk|commit to|long.?term)\b",
+            0.80,
+        ),
     ],
     "not_now": [
-        (r"(?i)\b(not right now|maybe later|reach out later|next quarter|not a good time|circle back|revisit|touch base later|few months|not yet)\b", 0.88),
+        (
+            r"(?i)\b(not right now|maybe later|reach out later|next quarter|not a good time|circle back|revisit|touch base later|few months|not yet)\b",
+            0.88,
+        ),
     ],
     "unsubscribe": [
-        (r"(?i)\b(unsubscribe|remove me|stop.?email|don'?t contact|opt.?out|take me off|no more emails|stop sending)\b", 0.95),
+        (
+            r"(?i)\b(unsubscribe|remove me|stop.?email|don'?t contact|opt.?out|take me off|no more emails|stop sending)\b",
+            0.95,
+        ),
     ],
     "support": [
         (r"(?i)\b(help with|issue|problem|broken|not working|bug|error|support|trouble|fix|resolve)\b", 0.80),
     ],
     "intake_reply": [
-        (r"(?i)\b(here'?s the|attached|brand guide|assets?|logos?|brief|intake|onboarding|filled out|completed the|here you go)\b", 0.86),
+        (
+            r"(?i)\b(here'?s the|attached|brand guide|assets?|logos?|brief|intake|onboarding|filled out|completed the|here you go)\b",
+            0.86,
+        ),
     ],
     "revision_request": [
-        (r"(?i)\b(revision|change|update|modify|adjust|tweak|redo|different|not quite|close but|almost|feedback on)\b", 0.82),
+        (
+            r"(?i)\b(revision|change|update|modify|adjust|tweak|redo|different|not quite|close but|almost|feedback on)\b",
+            0.82,
+        ),
     ],
     "payment_question": [
         (r"(?i)\b(invoice|pay|payment|stripe|billing|charge|receipt|paid|wire|transfer)\b", 0.84),
@@ -66,7 +97,10 @@ _PATTERNS: dict[str, list[tuple[str, float]]] = {
         (r"(?i)\b(refer|recommend|friend|colleague|someone who|know someone|introduce you|connect you with)\b", 0.86),
     ],
     "escalation": [
-        (r"(?i)\b(legal|lawyer|attorney|sue|lawsuit|refund|chargeback|fraud|scam|furious|outraged|unacceptable|threatening|demand)\b", 0.92),
+        (
+            r"(?i)\b(legal|lawyer|attorney|sue|lawsuit|refund|chargeback|fraud|scam|furious|outraged|unacceptable|threatening|demand)\b",
+            0.92,
+        ),
     ],
 }
 
@@ -150,7 +184,7 @@ def _strip_quoted_content(body: str) -> str:
 # in the policy engine regardless of any other signal. Keep in sync with
 # reply_policy.CLASSIFIER_ESCALATION_INTENTS.
 ESCALATE_INTENTS = {
-    "escalation",        # legal / refund / fraud / threats
+    "escalation",  # legal / refund / fraud / threats
     "revision_request",  # needs the operator to process actual change
 }
 
@@ -319,9 +353,7 @@ STAGE_TRANSITIONS: dict[str, dict[str, str]] = {
 }
 
 
-def compute_stage_transition(
-    current_stage: str, intent: str
-) -> str | None:
+def compute_stage_transition(current_stage: str, intent: str) -> str | None:
     """Given current sales stage and classified intent, return new stage or None if no change."""
     transitions = STAGE_TRANSITIONS.get(intent, {})
     new_stage = transitions.get(current_stage)
@@ -369,9 +401,7 @@ async def classify_and_persist(
     from packages.db.models.email_pipeline import EmailClassification
 
     existing = (
-        await db.execute(
-            select(EmailClassification).where(EmailClassification.message_id == message.id)
-        )
+        await db.execute(select(EmailClassification).where(EmailClassification.message_id == message.id))
     ).scalar_one_or_none()
     if existing is not None:
         return existing

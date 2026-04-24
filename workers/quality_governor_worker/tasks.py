@@ -1,4 +1,5 @@
 """Quality Governor workers — score pending content for all brands."""
+
 import logging
 
 from celery import shared_task
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 async def _run():
     from apps.api.services.quality_governor_service import recompute_brand_quality
+
     async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
     count = 0

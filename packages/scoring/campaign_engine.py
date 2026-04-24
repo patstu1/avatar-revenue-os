@@ -1,9 +1,19 @@
 """Campaign Constructor Engine — build, variant, detect blockers. Pure functions."""
+
 from __future__ import annotations
 
 from typing import Any
 
-CAMPAIGN_TYPES = ["affiliate", "lead_gen", "product_conversion", "creator_revenue", "sponsor", "newsletter_growth", "authority_building", "experiment"]
+CAMPAIGN_TYPES = [
+    "affiliate",
+    "lead_gen",
+    "product_conversion",
+    "creator_revenue",
+    "sponsor",
+    "newsletter_growth",
+    "authority_building",
+    "experiment",
+]
 
 
 def construct_campaign(
@@ -62,41 +72,116 @@ def construct_variant(campaign: dict[str, Any], idx: int = 1) -> dict[str, Any]:
 def detect_blockers(campaign: dict[str, Any], system_state: dict[str, Any]) -> list[dict[str, Any]]:
     blockers = []
     if not campaign.get("target_accounts"):
-        blockers.append({"blocker_type": "no_accounts", "description": "Campaign has no target accounts", "severity": "critical"})
-    if not campaign.get("landing_page_id") and campaign.get("campaign_type") not in ("authority_building", "newsletter_growth"):
-        blockers.append({"blocker_type": "no_landing_page", "description": "No landing page linked — monetization has no destination", "severity": "high"})
+        blockers.append(
+            {"blocker_type": "no_accounts", "description": "Campaign has no target accounts", "severity": "critical"}
+        )
+    if not campaign.get("landing_page_id") and campaign.get("campaign_type") not in (
+        "authority_building",
+        "newsletter_growth",
+    ):
+        blockers.append(
+            {
+                "blocker_type": "no_landing_page",
+                "description": "No landing page linked — monetization has no destination",
+                "severity": "high",
+            }
+        )
     if not campaign.get("monetization_path"):
-        blockers.append({"blocker_type": "no_monetization", "description": "No monetization path defined", "severity": "high"})
+        blockers.append(
+            {"blocker_type": "no_monetization", "description": "No monetization path defined", "severity": "high"}
+        )
 
     suppressed_hooks = system_state.get("suppressed_families", [])
     if campaign.get("hook_family") in suppressed_hooks:
-        blockers.append({"blocker_type": "suppressed_hook", "description": f"Hook family '{campaign['hook_family']}' is suppressed", "severity": "high"})
+        blockers.append(
+            {
+                "blocker_type": "suppressed_hook",
+                "description": f"Hook family '{campaign['hook_family']}' is suppressed",
+                "severity": "high",
+            }
+        )
 
     provider_blockers = system_state.get("provider_blockers", [])
     if provider_blockers:
-        blockers.append({"blocker_type": "provider_blocked", "description": f"{len(provider_blockers)} provider(s) blocked", "severity": "medium"})
+        blockers.append(
+            {
+                "blocker_type": "provider_blocked",
+                "description": f"{len(provider_blockers)} provider(s) blocked",
+                "severity": "medium",
+            }
+        )
 
     return blockers
 
 
 def _objective_for_type(ct: str, name: str, method: str) -> str:
-    m = {"affiliate": f"Drive affiliate conversions for {name} via {method}", "lead_gen": f"Capture leads for {name}", "product_conversion": f"Convert audience to {name} buyers", "creator_revenue": f"Generate creator revenue from {name}", "sponsor": f"Execute sponsor campaign for {name}", "newsletter_growth": "Grow newsletter subscribers", "authority_building": f"Build authority in {name} space", "experiment": f"Test hypothesis about {name}"}
+    m = {
+        "affiliate": f"Drive affiliate conversions for {name} via {method}",
+        "lead_gen": f"Capture leads for {name}",
+        "product_conversion": f"Convert audience to {name} buyers",
+        "creator_revenue": f"Generate creator revenue from {name}",
+        "sponsor": f"Execute sponsor campaign for {name}",
+        "newsletter_growth": "Grow newsletter subscribers",
+        "authority_building": f"Build authority in {name} space",
+        "experiment": f"Test hypothesis about {name}",
+    }
     return m.get(ct, f"Execute campaign for {name}")
 
+
 def _default_hook(ct: str) -> str:
-    return {"affiliate": "curiosity", "lead_gen": "free_value", "product_conversion": "direct_pain", "creator_revenue": "authority_led", "sponsor": "brand_fit", "newsletter_growth": "curiosity", "authority_building": "authority_led", "experiment": "curiosity"}.get(ct, "curiosity")
+    return {
+        "affiliate": "curiosity",
+        "lead_gen": "free_value",
+        "product_conversion": "direct_pain",
+        "creator_revenue": "authority_led",
+        "sponsor": "brand_fit",
+        "newsletter_growth": "curiosity",
+        "authority_building": "authority_led",
+        "experiment": "curiosity",
+    }.get(ct, "curiosity")
+
 
 def _default_cta(ct: str) -> str:
-    return {"affiliate": "product_click", "lead_gen": "newsletter_signup", "product_conversion": "direct", "creator_revenue": "direct", "sponsor": "soft", "newsletter_growth": "newsletter_signup", "authority_building": "save_share", "experiment": "soft"}.get(ct, "direct")
+    return {
+        "affiliate": "product_click",
+        "lead_gen": "newsletter_signup",
+        "product_conversion": "direct",
+        "creator_revenue": "direct",
+        "sponsor": "soft",
+        "newsletter_growth": "newsletter_signup",
+        "authority_building": "save_share",
+        "experiment": "soft",
+    }.get(ct, "direct")
+
 
 def _default_followup(ct: str) -> str:
-    return {"affiliate": "email_sequence", "lead_gen": "nurture_sequence", "product_conversion": "cart_abandon_sequence", "creator_revenue": "onboarding_sequence", "sponsor": "report_delivery", "newsletter_growth": "welcome_sequence", "authority_building": "content_drip", "experiment": "observation_only"}.get(ct, "email_followup")
+    return {
+        "affiliate": "email_sequence",
+        "lead_gen": "nurture_sequence",
+        "product_conversion": "cart_abandon_sequence",
+        "creator_revenue": "onboarding_sequence",
+        "sponsor": "report_delivery",
+        "newsletter_growth": "welcome_sequence",
+        "authority_building": "content_drip",
+        "experiment": "observation_only",
+    }.get(ct, "email_followup")
+
 
 def _estimate_upside(offer: dict, acct_count: int) -> float:
     epc = float(offer.get("epc", 1) or 1)
     cvr = float(offer.get("conversion_rate", 0.03) or 0.03)
     return epc * cvr * 1000 * max(1, acct_count)
 
+
 def _estimate_cost(ct: str, acct_count: int) -> float:
-    base = {"affiliate": 5, "lead_gen": 10, "product_conversion": 15, "creator_revenue": 20, "sponsor": 5, "newsletter_growth": 3, "authority_building": 8, "experiment": 5}.get(ct, 5)
+    base = {
+        "affiliate": 5,
+        "lead_gen": 10,
+        "product_conversion": 15,
+        "creator_revenue": 20,
+        "sponsor": 5,
+        "newsletter_growth": 3,
+        "authority_building": 8,
+        "experiment": 5,
+    }.get(ct, 5)
     return base * max(1, acct_count)

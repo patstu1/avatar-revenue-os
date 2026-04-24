@@ -1,4 +1,5 @@
 """Reputation service — brand reputation risk assessment and event tracking."""
+
 from __future__ import annotations
 
 import uuid
@@ -25,9 +26,7 @@ def _strip_meta(d: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def recompute_reputation(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_reputation(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -44,9 +43,7 @@ async def recompute_reputation(
     # Brand-level data
     aud_scalar = (
         await db.execute(
-            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(
-                CreatorAccount.brand_id == brand_id
-            )
+            select(func.coalesce(func.sum(CreatorAccount.follower_count), 0)).where(CreatorAccount.brand_id == brand_id)
         )
     ).scalar()
     audience_size = int(aud_scalar or 0)
@@ -85,35 +82,25 @@ async def recompute_reputation(
 
     # Account-level signals
     accounts = list(
-        (
-            await db.execute(
-                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(CreatorAccount).where(CreatorAccount.brand_id == brand_id))).scalars().all()
     )
     account_signals: list[dict[str, Any]] = []
     for acc in accounts:
-        account_signals.append({
-            "platform": getattr(acc.platform, "value", str(acc.platform)),
-            "follower_delta": int(acc.follower_count * acc.follower_growth_rate) if acc.follower_growth_rate else 0,
-            "unfollow_rate": max(0.0, -float(acc.follower_growth_rate)) if acc.follower_growth_rate < 0 else 0.0,
-            "strike_count": 0,
-            "engagement_rate": float(acc.conversion_rate or 0),
-            "bot_follower_pct": float(acc.fatigue_score or 0) * 0.1,
-            "comment_texts": [],
-        })
+        account_signals.append(
+            {
+                "platform": getattr(acc.platform, "value", str(acc.platform)),
+                "follower_delta": int(acc.follower_count * acc.follower_growth_rate) if acc.follower_growth_rate else 0,
+                "unfollow_rate": max(0.0, -float(acc.follower_growth_rate)) if acc.follower_growth_rate < 0 else 0.0,
+                "strike_count": 0,
+                "engagement_rate": float(acc.conversion_rate or 0),
+                "bot_follower_pct": float(acc.fatigue_score or 0) * 0.1,
+                "comment_texts": [],
+            }
+        )
 
     # Content-level signals
     items = list(
-        (
-            await db.execute(
-                select(ContentItem).where(ContentItem.brand_id == brand_id).limit(100)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(100))).scalars().all()
     )
     perf_rows = (
         await db.execute(
@@ -129,16 +116,18 @@ async def recompute_reputation(
 
     content_signals: list[dict[str, Any]] = []
     for ci in items:
-        content_signals.append({
-            "title": ci.title or "",
-            "description": "",
-            "has_disclosure": False,
-            "claims": [],
-            "engagement_rate": perf_eng_map.get(ci.id, 0.04),
-            "comment_sentiment": 0.6,
-            "generic_comment_pct": 0.2,
-            "sponsor_name": None,
-        })
+        content_signals.append(
+            {
+                "title": ci.title or "",
+                "description": "",
+                "has_disclosure": False,
+                "claims": [],
+                "engagement_rate": perf_eng_map.get(ci.id, 0.04),
+                "comment_sentiment": 0.6,
+                "generic_comment_pct": 0.2,
+                "sponsor_name": None,
+            }
+        )
 
     # Call engine — single brand-wide assessment
     result = assess_reputation(brand_data, account_signals, content_signals)
@@ -160,8 +149,10 @@ async def recompute_reputation(
     # Create events for each primary risk identified
     event_count = 0
     for risk in r.get("primary_risks", []):
-        severity = "high" if float(risk.get("score", 0)) >= 0.6 else (
-            "medium" if float(risk.get("score", 0)) >= 0.3 else "low"
+        severity = (
+            "high"
+            if float(risk.get("score", 0)) >= 0.6
+            else ("medium" if float(risk.get("score", 0)) >= 0.3 else "low")
         )
         db.add(
             ReputationEvent(
@@ -209,9 +200,7 @@ def _report_dict(x: ReputationReport) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_reputation_reports(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_reputation_reports(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -243,9 +232,7 @@ def _event_dict(x: ReputationEvent) -> dict[str, Any]:
     }
 
 
-async def get_reputation_events(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_reputation_events(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

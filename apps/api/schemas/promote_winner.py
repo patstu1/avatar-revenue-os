@@ -1,4 +1,5 @@
 """Pydantic schemas for Promote-Winner Engine."""
+
 from __future__ import annotations
 
 import uuid

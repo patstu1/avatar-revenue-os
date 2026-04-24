@@ -1,5 +1,6 @@
 """Fleet manager worker — recompute fleet status, generate expansion recommendations with
 specific platform + niche suggestions, persist FleetStatusReport, create operator alerts."""
+
 from __future__ import annotations
 
 import logging
@@ -38,16 +39,22 @@ def recompute_fleet_status(self) -> dict:
 
         for brand in brands:
             try:
-                accounts = session.execute(
-                    select(CreatorAccount).where(CreatorAccount.brand_id == brand.id, CreatorAccount.is_active.is_(True))
-                ).scalars().all()
+                accounts = (
+                    session.execute(
+                        select(CreatorAccount).where(
+                            CreatorAccount.brand_id == brand.id, CreatorAccount.is_active.is_(True)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
 
                 plateaued_accounts = 0
                 active_platforms = Counter()
                 active_niches = Counter()
 
                 for account in accounts:
-                    plat = getattr(account.platform, 'value', str(account.platform)) if account.platform else "unknown"
+                    plat = getattr(account.platform, "value", str(account.platform)) if account.platform else "unknown"
                     niche = account.niche_focus or brand.niche or "general"
                     active_platforms[plat] += 1
                     active_niches[niche] += 1
@@ -72,10 +79,16 @@ def recompute_fleet_status(self) -> dict:
                         fleet_summary["scaling"] += 1
 
                 from datetime import datetime, timedelta, timezone
-                rev_30d = session.execute(
-                    select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0))
-                    .where(PerformanceMetric.brand_id == brand.id, PerformanceMetric.measured_at >= datetime.now(timezone.utc) - timedelta(days=30))
-                ).scalar() or 0.0
+
+                rev_30d = (
+                    session.execute(
+                        select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0)).where(
+                            PerformanceMetric.brand_id == brand.id,
+                            PerformanceMetric.measured_at >= datetime.now(timezone.utc) - timedelta(days=30),
+                        )
+                    ).scalar()
+                    or 0.0
+                )
                 total_revenue_30d += float(rev_30d)
 
                 if plateaued_accounts > 0 and len(accounts) > 0 and plateaued_accounts / len(accounts) >= 0.3:
@@ -83,7 +96,7 @@ def recompute_fleet_status(self) -> dict:
 
                     covered_combos = set()
                     for a in accounts:
-                        p = getattr(a.platform, 'value', str(a.platform)) if a.platform else ""
+                        p = getattr(a.platform, "value", str(a.platform)) if a.platform else ""
                         n = a.niche_focus or brand.niche or ""
                         covered_combos.add(f"{p}:{n}")
 
@@ -106,21 +119,26 @@ def recompute_fleet_status(self) -> dict:
                         "recommended_platform": best_expansion["platform"] if best_expansion else "tiktok",
                         "recommended_niche": best_expansion["niche"] if best_expansion else brand.niche,
                         "niche_score": best_expansion["composite_score"] if best_expansion else 0,
-                        "reason": f"{plateaued_accounts}/{len(accounts)} accounts plateaued. Best opportunity: {best_expansion['niche']} on {best_expansion['platform']} (score {best_expansion['composite_score']:.2f})" if best_expansion else "Fleet saturation detected",
+                        "reason": f"{plateaued_accounts}/{len(accounts)} accounts plateaued. Best opportunity: {best_expansion['niche']} on {best_expansion['platform']} (score {best_expansion['composite_score']:.2f})"
+                        if best_expansion
+                        else "Fleet saturation detected",
                         "suggested_username": f"@{(best_expansion['niche'] if best_expansion else 'new').replace('_', '')}_{uuid.uuid4().hex[:4]}",
                     }
                     expansion_recommendations.append(rec)
 
                     try:
                         from packages.db.models.scale_alerts import OperatorAlert
-                        session.add(OperatorAlert(
-                            brand_id=brand.id,
-                            alert_type="expansion_recommendation",
-                            severity="high",
-                            title=f"Add {rec['recommended_platform'].upper()} account in {rec['recommended_niche'].replace('_', ' ')}",
-                            description=rec["reason"],
-                            operator_action_needed=f"Create a new {rec['recommended_platform']} account for {rec['recommended_niche']} niche. Suggested username: {rec['suggested_username']}",
-                        ))
+
+                        session.add(
+                            OperatorAlert(
+                                brand_id=brand.id,
+                                alert_type="expansion_recommendation",
+                                severity="high",
+                                title=f"Add {rec['recommended_platform'].upper()} account in {rec['recommended_niche'].replace('_', ' ')}",
+                                description=rec["reason"],
+                                operator_action_needed=f"Create a new {rec['recommended_platform']} account for {rec['recommended_niche']} niche. Suggested username: {rec['suggested_username']}",
+                            )
+                        )
                     except Exception:
                         logger.warning("Could not create operator alert for expansion rec")
 
@@ -132,19 +150,23 @@ def recompute_fleet_status(self) -> dict:
         try:
             orgs = session.execute(select(Organization.id).limit(1)).scalars().all()
             if orgs:
-                session.add(FleetStatusReport(
-                    organization_id=orgs[0],
-                    total_accounts=total_accounts,
-                    accounts_warming=fleet_summary["warming"],
-                    accounts_scaling=fleet_summary["scaling"],
-                    accounts_plateaued=fleet_summary["plateaued"],
-                    accounts_suspended=fleet_summary["suspended"],
-                    accounts_retired=fleet_summary["retired"],
-                    total_posts_today=0,
-                    total_revenue_30d=total_revenue_30d,
-                    expansion_recommended=len(expansion_recommendations) > 0,
-                    expansion_details={"recommendations": expansion_recommendations} if expansion_recommendations else {},
-                ))
+                session.add(
+                    FleetStatusReport(
+                        organization_id=orgs[0],
+                        total_accounts=total_accounts,
+                        accounts_warming=fleet_summary["warming"],
+                        accounts_scaling=fleet_summary["scaling"],
+                        accounts_plateaued=fleet_summary["plateaued"],
+                        accounts_suspended=fleet_summary["suspended"],
+                        accounts_retired=fleet_summary["retired"],
+                        total_posts_today=0,
+                        total_revenue_30d=total_revenue_30d,
+                        expansion_recommended=len(expansion_recommendations) > 0,
+                        expansion_details={"recommendations": expansion_recommendations}
+                        if expansion_recommendations
+                        else {},
+                    )
+                )
         except Exception:
             logger.warning("Could not persist FleetStatusReport")
 
@@ -153,8 +175,11 @@ def recompute_fleet_status(self) -> dict:
     for rec in expansion_recommendations:
         logger.info(
             "EXPANSION RECOMMENDED: brand=%s platform=%s niche=%s score=%.2f reason=%s",
-            rec["brand_name"], rec["recommended_platform"], rec["recommended_niche"],
-            rec["niche_score"], rec["reason"],
+            rec["brand_name"],
+            rec["recommended_platform"],
+            rec["recommended_niche"],
+            rec["niche_score"],
+            rec["reason"],
         )
 
     return {

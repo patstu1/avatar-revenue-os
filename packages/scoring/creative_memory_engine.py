@@ -1,4 +1,5 @@
 """Creative Memory Engine — index reusable content atoms and query them."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -6,9 +7,16 @@ from typing import Any
 CREATIVE_MEMORY = "creative_memory_engine"
 
 ATOM_TYPES = [
-    "hook", "opening", "cta", "thumbnail_pattern", "trust_block",
-    "objection_response", "close_angle", "sponsor_safe_pattern",
-    "visual_pacing", "scene_sequence",
+    "hook",
+    "opening",
+    "cta",
+    "thumbnail_pattern",
+    "trust_block",
+    "objection_response",
+    "close_angle",
+    "sponsor_safe_pattern",
+    "visual_pacing",
+    "scene_sequence",
 ]
 
 MAX_ATOMS_PER_RUN = 20
@@ -41,9 +49,7 @@ def _extract_atom_type(item: dict[str, Any]) -> str:
     return "opening"
 
 
-def _performance_summary(
-    item_id: str, performance_data: list[dict[str, Any]]
-) -> dict[str, Any]:
+def _performance_summary(item_id: str, performance_data: list[dict[str, Any]]) -> dict[str, Any]:
     """Aggregate engagement and conversion metrics for a content item."""
     matching = [p for p in performance_data if str(p.get("content_item_id")) == str(item_id)]
     if not matching:
@@ -66,9 +72,7 @@ def _originality_caution(atom_type: str, reuse_count: int) -> float:
     return round(base, 3)
 
 
-def _reuse_recommendations(
-    atom_type: str, niche: str, platform: str, funnel_stage: str
-) -> list[str]:
+def _reuse_recommendations(atom_type: str, niche: str, platform: str, funnel_stage: str) -> list[str]:
     """Suggest contexts where this atom could be redeployed."""
     recs: list[str] = []
     if atom_type == "hook":
@@ -144,28 +148,30 @@ def index_creative_atoms(
             3,
         )
 
-        atoms.append({
-            "content_item_id": item_id,
-            "atom_type": atom_type,
-            "content_json": {
-                "title": item.get("title", ""),
-                "excerpt": (item.get("body") or item.get("text") or "")[:300],
-            },
-            "niche": niche,
-            "platform": platform,
-            "monetization_type": monetization_type,
-            "funnel_stage": funnel_stage,
-            "performance_summary": perf,
-            "reuse_recommendations": recs,
-            "originality_caution_score": caution,
-            "confidence": confidence,
-            "explanation": (
-                f"Extracted {atom_type} atom from '{item.get('title', 'untitled')}'. "
-                f"Avg engagement {perf['avg_engagement']:.4f}, "
-                f"caution {caution:.3f}."
-            ),
-            CREATIVE_MEMORY: True,
-        })
+        atoms.append(
+            {
+                "content_item_id": item_id,
+                "atom_type": atom_type,
+                "content_json": {
+                    "title": item.get("title", ""),
+                    "excerpt": (item.get("body") or item.get("text") or "")[:300],
+                },
+                "niche": niche,
+                "platform": platform,
+                "monetization_type": monetization_type,
+                "funnel_stage": funnel_stage,
+                "performance_summary": perf,
+                "reuse_recommendations": recs,
+                "originality_caution_score": caution,
+                "confidence": confidence,
+                "explanation": (
+                    f"Extracted {atom_type} atom from '{item.get('title', 'untitled')}'. "
+                    f"Avg engagement {perf['avg_engagement']:.4f}, "
+                    f"caution {caution:.3f}."
+                ),
+                CREATIVE_MEMORY: True,
+            }
+        )
 
     return atoms
 

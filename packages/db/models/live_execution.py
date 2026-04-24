@@ -1,4 +1,5 @@
 """Live Execution Closure Phase 1 — analytics, experiment truth, CRM/ESP/SMS."""
+
 import uuid
 from typing import Optional
 
@@ -10,8 +11,10 @@ from packages.db.base import Base
 
 # ── A. Analytics / Attribution ─────────────────────────────────────────
 
+
 class AnalyticsImport(Base):
     """A batch import of external analytics data."""
+
     __tablename__ = "analytics_imports"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -29,12 +32,19 @@ class AnalyticsImport(Base):
 
 class AnalyticsEvent(Base):
     """Individual external analytics event (view, click, engagement, etc.)."""
+
     __tablename__ = "analytics_events"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    import_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("analytics_imports.id"), nullable=True, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
-    creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=True, index=True)
+    import_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("analytics_imports.id"), nullable=True, index=True
+    )
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
+    creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=True, index=True
+    )
     source: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     platform: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
@@ -47,6 +57,7 @@ class AnalyticsEvent(Base):
 
 class ConversionImport(Base):
     """A batch import of conversion/revenue events."""
+
     __tablename__ = "conversion_imports"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -62,12 +73,19 @@ class ConversionImport(Base):
 
 class ConversionEvent(Base):
     """Individual conversion event — purchase, signup, lead, affiliate payout, etc."""
+
     __tablename__ = "conversion_events"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    import_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("conversion_imports.id"), nullable=True, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
-    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True, index=True)
+    import_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("conversion_imports.id"), nullable=True, index=True
+    )
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
+    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True, index=True
+    )
     source: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     conversion_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     revenue: Mapped[float] = mapped_column(Float, default=0.0)
@@ -82,8 +100,10 @@ class ConversionEvent(Base):
 
 # ── B. Experiment Truth ────────────────────────────────────────────────
 
+
 class ExperimentObservationImport(Base):
     """A batch import of live experiment observations."""
+
     __tablename__ = "experiment_observation_imports"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -98,12 +118,19 @@ class ExperimentObservationImport(Base):
 
 class ExperimentLiveResult(Base):
     """Live observation result that can override or complement proxy experiment outcomes."""
+
     __tablename__ = "experiment_live_results"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    import_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("experiment_observation_imports.id"), nullable=True, index=True)
-    experiment_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("experiments.id"), nullable=True, index=True)
-    variant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("experiment_variants.id"), nullable=True, index=True)
+    import_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("experiment_observation_imports.id"), nullable=True, index=True
+    )
+    experiment_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("experiments.id"), nullable=True, index=True
+    )
+    variant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("experiment_variants.id"), nullable=True, index=True
+    )
     source: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     observation_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     metric_name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -118,8 +145,10 @@ class ExperimentLiveResult(Base):
 
 # ── C. CRM / ESP / SMS ────────────────────────────────────────────────
 
+
 class CrmContact(Base):
     """A contact synced to or from an external CRM/ESP."""
+
     __tablename__ = "crm_contacts"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -139,6 +168,7 @@ class CrmContact(Base):
 
 class CrmSync(Base):
     """A batch CRM sync operation."""
+
     __tablename__ = "crm_syncs"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -155,10 +185,13 @@ class CrmSync(Base):
 
 class EmailSendRequest(Base):
     """An email send request queued for execution."""
+
     __tablename__ = "email_send_requests"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    contact_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("crm_contacts.id"), nullable=True, index=True)
+    contact_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("crm_contacts.id"), nullable=True, index=True
+    )
     to_email: Mapped[str] = mapped_column(String(255), nullable=False)
     subject: Mapped[str] = mapped_column(String(500), nullable=False)
     body_html: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -176,10 +209,13 @@ class EmailSendRequest(Base):
 
 class SmsSendRequest(Base):
     """An SMS send request queued for execution."""
+
     __tablename__ = "sms_send_requests"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    contact_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("crm_contacts.id"), nullable=True, index=True)
+    contact_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("crm_contacts.id"), nullable=True, index=True
+    )
     to_phone: Mapped[str] = mapped_column(String(50), nullable=False)
     message_body: Mapped[str] = mapped_column(Text, nullable=False)
     sequence_step: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -195,6 +231,7 @@ class SmsSendRequest(Base):
 
 class MessagingBlocker(Base):
     """Tracks blockers preventing CRM/email/SMS execution."""
+
     __tablename__ = "messaging_blockers"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)

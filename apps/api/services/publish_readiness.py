@@ -34,6 +34,7 @@ This module intentionally does NOT duplicate the Buffer payload validator —
 that validator runs just before the Buffer API call. This one runs BEFORE a
 ContentItem is allowed to transition into `approved` state at all.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -57,9 +58,10 @@ TEXT_ONLY_ALLOWED = {"text_post"}
 @dataclass
 class ReadinessResult:
     """Honest readiness verdict for a ContentItem."""
+
     ok: bool
-    reason: str   # machine-queryable code (empty if ok)
-    detail: str   # short human-readable sentence
+    reason: str  # machine-queryable code (empty if ok)
+    detail: str  # short human-readable sentence
 
     def __bool__(self) -> bool:  # allow `if result:` usage
         return self.ok
@@ -86,14 +88,10 @@ def _is_image_mime(mime: str | None) -> bool:
 async def _load_asset(db: AsyncSession, asset_id: UUID | None) -> Asset | None:
     if not asset_id:
         return None
-    return (
-        await db.execute(select(Asset).where(Asset.id == asset_id))
-    ).scalar_one_or_none()
+    return (await db.execute(select(Asset).where(Asset.id == asset_id))).scalar_one_or_none()
 
 
-async def check_publish_readiness(
-    db: AsyncSession, item: ContentItem
-) -> ReadinessResult:
+async def check_publish_readiness(db: AsyncSession, item: ContentItem) -> ReadinessResult:
     """Single-source-of-truth readiness check for a ContentItem.
 
     Returns a `ReadinessResult` with:
@@ -168,7 +166,10 @@ async def check_publish_readiness(
                 detail=f"video asset {video_asset.id} file_path is not a public http(s) URL",
             )
         # Instagram+Reels specifically require video (enforced by buffer_engine too)
-        if platform == "instagram" and not (_is_video_mime(video_asset.mime_type) or (video_asset.file_path or "").lower().endswith((".mp4", ".mov", ".webm", ".m4v"))):
+        if platform == "instagram" and not (
+            _is_video_mime(video_asset.mime_type)
+            or (video_asset.file_path or "").lower().endswith((".mp4", ".mov", ".webm", ".m4v"))
+        ):
             return ReadinessResult(
                 ok=False,
                 reason="invalid_asset_mime_type",

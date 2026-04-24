@@ -1,4 +1,5 @@
 """Experiment / Promote-Winner Engine — active testing + promotion system."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -19,7 +20,9 @@ class ActiveExperiment(Base):
     tested_variable: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     target_platform: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     target_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
-    target_offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True)
+    target_offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("offers.id"), nullable=True
+    )
     target_niche: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     primary_metric: Mapped[str] = mapped_column(String(60), nullable=False)
     secondary_metrics: Mapped[Optional[dict]] = mapped_column(JSONB, default=list)
@@ -35,7 +38,9 @@ class ActiveExperiment(Base):
 class PWExperimentVariant(Base):
     __tablename__ = "pw_experiment_variants"
 
-    experiment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True)
+    experiment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True
+    )
     variant_name: Mapped[str] = mapped_column(String(255), nullable=False)
     variant_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     is_control: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -48,9 +53,15 @@ class PWExperimentVariant(Base):
 class PWExperimentAssignment(Base):
     __tablename__ = "pw_experiment_assignments"
 
-    experiment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True)
-    variant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_experiment_variants.id"), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
+    experiment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True
+    )
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_experiment_variants.id"), nullable=False, index=True
+    )
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
     assignment_key: Mapped[str] = mapped_column(String(255), nullable=False)
     assigned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -58,9 +69,15 @@ class PWExperimentAssignment(Base):
 class PWExperimentObservation(Base):
     __tablename__ = "pw_experiment_observations"
 
-    experiment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True)
-    variant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_experiment_variants.id"), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True)
+    experiment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True
+    )
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_experiment_variants.id"), nullable=False, index=True
+    )
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True
+    )
     metric_name: Mapped[str] = mapped_column(String(60), nullable=False)
     metric_value: Mapped[float] = mapped_column(Float, default=0.0)
     details_json: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
@@ -69,8 +86,12 @@ class PWExperimentObservation(Base):
 class PWExperimentWinner(Base):
     __tablename__ = "pw_experiment_winners"
 
-    experiment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True)
-    variant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_experiment_variants.id"), nullable=False, index=True)
+    experiment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True
+    )
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_experiment_variants.id"), nullable=False, index=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     win_margin: Mapped[float] = mapped_column(Float, default=0.0)
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
@@ -82,8 +103,12 @@ class PWExperimentWinner(Base):
 class PWExperimentLoser(Base):
     __tablename__ = "pw_experiment_losers"
 
-    experiment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True)
-    variant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_experiment_variants.id"), nullable=False, index=True)
+    experiment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True
+    )
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_experiment_variants.id"), nullable=False, index=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     loss_margin: Mapped[float] = mapped_column(Float, default=0.0)
     suppressed: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -94,8 +119,12 @@ class PromotedWinnerRule(Base):
     __tablename__ = "promoted_winner_rules"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    experiment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True)
-    winner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pw_experiment_winners.id"), nullable=False)
+    experiment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_active_experiments.id"), nullable=False, index=True
+    )
+    winner_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pw_experiment_winners.id"), nullable=False
+    )
     rule_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     rule_key: Mapped[str] = mapped_column(String(255), nullable=False)
     rule_value: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)

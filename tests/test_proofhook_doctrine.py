@@ -14,6 +14,7 @@ Test groups:
     Reply quality    (3)
     Trace / audit    (3)
 """
+
 from __future__ import annotations
 
 from apps.api.services.package_recommender import (
@@ -88,6 +89,7 @@ def _contains_any(text: str, needles: list[str]) -> list[str]:
 #  POSITIONING (2 tests)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestPositioning:
     def test_01_inbound_reply_is_broad_market(self):
         """Every inbound reply template must be broad-market — no vertical words."""
@@ -108,8 +110,7 @@ class TestPositioning:
             )
             hits = _contains_any(reply["body_text"], FORBIDDEN_VERTICAL_WORDS)
             assert not hits, (
-                f"Inbound reply for intent={intent} contained vertical framing: {hits}\n"
-                f"Body:\n{reply['body_text']}"
+                f"Inbound reply for intent={intent} contained vertical framing: {hits}\nBody:\n{reply['body_text']}"
             )
             assert reply.get("broad_market_positioning") is True
 
@@ -133,6 +134,7 @@ class TestPositioning:
 #  PACKAGE ROUTING (4 tests)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestPackageRouting:
     def test_03_starter_is_not_the_default_recommendation(self):
         """A vague warm-interest message with no signals must NOT route to starter."""
@@ -143,8 +145,7 @@ class TestPackageRouting:
             from_email="buyer@acme.co",
         )
         assert rec.slug != "ugc-starter-pack", (
-            "Starter pack was picked as default for a signal-less lead — "
-            "this is the exact bug the user called out."
+            "Starter pack was picked as default for a signal-less lead — this is the exact bug the user called out."
         )
         assert rec.anchor_avoided is True
 
@@ -192,14 +193,14 @@ class TestPackageRouting:
             from_email="cmo@brand.co",
         )
         assert rec.slug == "creative-strategy-funnel-upgrade", (
-            f"Expected creative-strategy-funnel-upgrade, got {rec.slug}. "
-            f"Signals: {rec.signals}"
+            f"Expected creative-strategy-funnel-upgrade, got {rec.slug}. Signals: {rec.signals}"
         )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  NO-CALL (3 tests)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestNoCall:
     def test_07_reply_body_has_no_call_language(self):
@@ -225,9 +226,7 @@ class TestNoCall:
                 ),
             )
             hits = _contains_any(reply["body_text"], FORBIDDEN_CALL_PHRASES)
-            assert not hits, (
-                f"Call language leaked into intent={intent}: {hits}\n{reply['body_text']}"
-            )
+            assert not hits, f"Call language leaked into intent={intent}: {hits}\n{reply['body_text']}"
 
     def test_08_meeting_request_template_has_no_call_offer(self):
         """The meeting_request template must soft-redirect without proposing a call."""
@@ -246,8 +245,11 @@ class TestNoCall:
         hits = _contains_any(reply["body_text"], FORBIDDEN_CALL_PHRASES)
         assert not hits, f"meeting_request template proposed a call: {hits}"
         # Must still push the package + checkout link
-        assert "secure link" in reply["body_text"].lower() or "checkout" in reply["body_text"].lower() \
+        assert (
+            "secure link" in reply["body_text"].lower()
+            or "checkout" in reply["body_text"].lower()
             or "https://" in reply["body_text"]
+        )
 
     def test_09_call_request_pattern_forces_draft(self):
         """FORCED_DRAFT 'call_request' regex must catch explicit call asks."""
@@ -279,6 +281,7 @@ class TestNoCall:
 #  NO-FREE-WORK (3 tests)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 class TestNoFreeWork:
     def test_10_default_reply_has_no_sample_angles_offer(self):
         """With free_preview_enabled=False (default), no reply may offer sample angles."""
@@ -305,8 +308,7 @@ class TestNoFreeWork:
             )
             hits = _contains_any(reply["body_text"], FORBIDDEN_FREE_WORK_PHRASES)
             assert not hits, (
-                f"Free-work language leaked into intent={intent} with defaults: {hits}\n"
-                f"{reply['body_text']}"
+                f"Free-work language leaked into intent={intent} with defaults: {hits}\n{reply['body_text']}"
             )
             assert reply.get("preview_fallback_used") is False
 
@@ -344,8 +346,13 @@ class TestNoFreeWork:
             f"Preview fallback did not use 'recommended angles' framing:\n{reply['body_text']}"
         )
         forbidden = [
-            "samples", "sample angles", "test run", "test runs",
-            "free preview", "spec work", "free work",
+            "samples",
+            "sample angles",
+            "test run",
+            "test runs",
+            "free preview",
+            "spec work",
+            "free work",
         ]
         for f in forbidden:
             assert f not in body_low, f"Preview framing used forbidden word: {f!r}"
@@ -355,6 +362,7 @@ class TestNoFreeWork:
 # ═══════════════════════════════════════════════════════════════════════════
 #  REPLY QUALITY (3 tests)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestReplyQuality:
     def test_13_package_first_reply_contains_checkout_link(self):
@@ -372,9 +380,7 @@ class TestReplyQuality:
                     confidence=0.8,
                 ),
             )
-            assert "https://" in reply["body_text"], (
-                f"{intent} reply has no checkout URL:\n{reply['body_text']}"
-            )
+            assert "https://" in reply["body_text"], f"{intent} reply has no checkout URL:\n{reply['body_text']}"
             assert "growth-content-pack" in reply["body_text"]
 
     def test_14_reply_contains_package_name_and_price(self):
@@ -411,9 +417,7 @@ class TestReplyQuality:
             ),
         )
         word_count = len(reply["body_text"].split())
-        assert word_count <= 150, (
-            f"Reply body is {word_count} words — over the 150-word ceiling.\n{reply['body_text']}"
-        )
+        assert word_count <= 150, f"Reply body is {word_count} words — over the 150-word ceiling.\n{reply['body_text']}"
         # Also: no HTML wrapper, plain text only
         assert reply["body_html"] == "", "Reply must be plain text only (empty body_html)"
 
@@ -421,6 +425,7 @@ class TestReplyQuality:
 # ═══════════════════════════════════════════════════════════════════════════
 #  TRACE / AUDIT (3 tests)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 class TestTraceAudit:
     def test_16_decision_trace_has_recommended_package(self):
@@ -450,7 +455,7 @@ class TestTraceAudit:
         assert settings.calls_enabled is False
         # Simulate what reply_engine does:
         trace = DecisionTrace(intent="warm_interest", confidence=0.9)
-        trace.call_path_suppressed = (not settings.calls_enabled)
+        trace.call_path_suppressed = not settings.calls_enabled
         assert trace.call_path_suppressed is True
         d = trace.to_dict()
         assert d["call_path_suppressed"] is True
@@ -477,6 +482,7 @@ class TestTraceAudit:
 # ═══════════════════════════════════════════════════════════════════════════
 #  SANITY: the forbidden-word lists themselves must be non-empty and consistent
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 def test_forbidden_word_lists_are_non_empty():
     """Guardrail against someone accidentally clearing the forbidden lists."""

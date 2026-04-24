@@ -1,4 +1,5 @@
 """Autonomous Phase A recurring workers — signal scan, queue build, warmup, output, maturity."""
+
 from __future__ import annotations
 
 import uuid as _uuid
@@ -41,30 +42,31 @@ logger = structlog.get_logger()
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _ensure_warmup_policies_seeded(session: Session) -> None:
     """Seed PlatformWarmupPolicy rows from platform specs when the table is empty."""
-    count = session.execute(
-        select(func.count()).select_from(PlatformWarmupPolicy)
-    ).scalar() or 0
+    count = session.execute(select(func.count()).select_from(PlatformWarmupPolicy)).scalar() or 0
     if count > 0:
         return
 
     for sp in seed_platform_warmup_policies():
         wc = sp.get("warmup_cadence", {})
-        session.add(PlatformWarmupPolicy(
-            platform=sp["platform"],
-            initial_posts_per_week_min=wc.get("week_1", 1),
-            initial_posts_per_week_max=wc.get("week_2", 3),
-            steady_state_posts_per_week_min=sp.get("posting_cadence_min", 3),
-            steady_state_posts_per_week_max=sp.get("posting_cadence_max", 14),
-            max_safe_posts_per_day=sp.get("max_safe_output_per_day", 3),
-            ramp_conditions_json=sp.get("expansion_conditions"),
-            account_health_signals_json=sp.get("account_health_signals"),
-            spam_risk_signals_json=sp.get("spam_fatigue_signals"),
-            trust_risk_signals_json=sp.get("saturation_indicators"),
-            scale_ready_conditions_json=sp.get("scale_ready_conditions"),
-            ramp_behavior=sp.get("ramp_behavior", "moderate"),
-        ))
+        session.add(
+            PlatformWarmupPolicy(
+                platform=sp["platform"],
+                initial_posts_per_week_min=wc.get("week_1", 1),
+                initial_posts_per_week_max=wc.get("week_2", 3),
+                steady_state_posts_per_week_min=sp.get("posting_cadence_min", 3),
+                steady_state_posts_per_week_max=sp.get("posting_cadence_max", 14),
+                max_safe_posts_per_day=sp.get("max_safe_output_per_day", 3),
+                ramp_conditions_json=sp.get("expansion_conditions"),
+                account_health_signals_json=sp.get("account_health_signals"),
+                spam_risk_signals_json=sp.get("spam_fatigue_signals"),
+                trust_risk_signals_json=sp.get("saturation_indicators"),
+                scale_ready_conditions_json=sp.get("scale_ready_conditions"),
+                ramp_behavior=sp.get("ramp_behavior", "moderate"),
+            )
+        )
     session.flush()
     logger.info("warmup_policies.seeded")
 
@@ -167,6 +169,7 @@ def _policy_dict(policy: PlatformWarmupPolicy) -> dict:
 # Task 1 — Signal Scan
 # ---------------------------------------------------------------------------
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_a_worker.tasks.run_all_signal_scans")
 def run_all_signal_scans(self) -> dict:
     """Gather TrendSignal, TopicSignal, MacroSignalEvent per brand, score, and persist."""
@@ -177,28 +180,31 @@ def run_all_signal_scans(self) -> dict:
     now = datetime.now(timezone.utc)
 
     with Session(engine) as session:
-        brands = session.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        ).scalars().all()
+        brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
 
         for brand in brands:
             try:
-                trends = session.execute(
-                    select(TrendSignal).where(TrendSignal.brand_id == brand.id)
-                ).scalars().all()
+                trends = session.execute(select(TrendSignal).where(TrendSignal.brand_id == brand.id)).scalars().all()
 
-                topic_sigs = session.execute(
-                    select(TopicSignal)
-                    .join(TopicCandidate, TopicSignal.topic_candidate_id == TopicCandidate.id)
-                    .where(TopicCandidate.brand_id == brand.id)
-                ).scalars().all()
-
-                macro_events = session.execute(
-                    select(MacroSignalEvent).where(
-                        (MacroSignalEvent.brand_id == brand.id)
-                        | (MacroSignalEvent.brand_id.is_(None))
+                topic_sigs = (
+                    session.execute(
+                        select(TopicSignal)
+                        .join(TopicCandidate, TopicSignal.topic_candidate_id == TopicCandidate.id)
+                        .where(TopicCandidate.brand_id == brand.id)
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
+
+                macro_events = (
+                    session.execute(
+                        select(MacroSignalEvent).where(
+                            (MacroSignalEvent.brand_id == brand.id) | (MacroSignalEvent.brand_id.is_(None))
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
 
                 raw_signals: list[dict] = []
                 for t in trends:
@@ -216,10 +222,12 @@ def run_all_signal_scans(self) -> dict:
                 guidelines = brand.brand_guidelines or {}
                 if isinstance(guidelines, dict):
                     for offer in guidelines.get("offers", []):
-                        brand_offers.append({
-                            "name": offer.get("name", ""),
-                            "keywords": offer.get("keywords", []),
-                        })
+                        brand_offers.append(
+                            {
+                                "name": offer.get("name", ""),
+                                "keywords": offer.get("keywords", []),
+                            }
+                        )
 
                 scored = score_signal_batch(raw_signals, brand_offers, brand.niche or "")
 
@@ -239,21 +247,23 @@ def run_all_signal_scans(self) -> dict:
                 session.flush()
 
                 for s in scored:
-                    session.add(NormalizedSignalEvent(
-                        brand_id=brand.id,
-                        scan_run_id=scan_run.id,
-                        signal_type=s["signal_type"],
-                        signal_source=s["source"],
-                        raw_payload_json=s.get("raw_signal"),
-                        normalized_title=s["normalized_title"],
-                        normalized_description=s["normalized_description"],
-                        freshness_score=s["freshness_score"],
-                        monetization_relevance=s["monetization_relevance"],
-                        urgency_score=s["urgency_score"],
-                        confidence=s["confidence"],
-                        explanation=s["explanation"],
-                        is_actionable=True,
-                    ))
+                    session.add(
+                        NormalizedSignalEvent(
+                            brand_id=brand.id,
+                            scan_run_id=scan_run.id,
+                            signal_type=s["signal_type"],
+                            signal_source=s["source"],
+                            raw_payload_json=s.get("raw_signal"),
+                            normalized_title=s["normalized_title"],
+                            normalized_description=s["normalized_description"],
+                            freshness_score=s["freshness_score"],
+                            monetization_relevance=s["monetization_relevance"],
+                            urgency_score=s["urgency_score"],
+                            confidence=s["confidence"],
+                            explanation=s["explanation"],
+                            is_actionable=True,
+                        )
+                    )
                     signals_created += 1
 
                 brands_processed += 1
@@ -281,6 +291,7 @@ def run_all_signal_scans(self) -> dict:
 # Task 2 — Auto Queue Rebuild
 # ---------------------------------------------------------------------------
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_a_worker.tasks.rebuild_all_auto_queues")
 def rebuild_all_auto_queues(self) -> dict:
     """Build posting queue from actionable signals, matching to accounts."""
@@ -292,50 +303,57 @@ def rebuild_all_auto_queues(self) -> dict:
     with Session(engine) as session:
         _ensure_warmup_policies_seeded(session)
 
-        brands = session.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        ).scalars().all()
+        brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
 
-        policies = session.execute(
-            select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True))
-        ).scalars().all()
+        policies = (
+            session.execute(select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True)))
+            .scalars()
+            .all()
+        )
         policy_dicts = [_policy_dict(p) for p in policies]
 
         for brand in brands:
             try:
-                actionable = session.execute(
-                    select(NormalizedSignalEvent).where(
-                        NormalizedSignalEvent.brand_id == brand.id,
-                        NormalizedSignalEvent.is_actionable.is_(True),
-                        NormalizedSignalEvent.is_active.is_(True),
+                actionable = (
+                    session.execute(
+                        select(NormalizedSignalEvent).where(
+                            NormalizedSignalEvent.brand_id == brand.id,
+                            NormalizedSignalEvent.is_actionable.is_(True),
+                            NormalizedSignalEvent.is_active.is_(True),
+                        )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
 
                 if not actionable:
                     brands_processed += 1
                     continue
 
-                accounts = session.execute(
-                    select(CreatorAccount).where(
-                        CreatorAccount.brand_id == brand.id,
-                        CreatorAccount.is_active.is_(True),
+                accounts = (
+                    session.execute(
+                        select(CreatorAccount).where(
+                            CreatorAccount.brand_id == brand.id,
+                            CreatorAccount.is_active.is_(True),
+                        )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
 
-                maturity_rows = session.execute(
-                    select(AccountMaturityReport).where(
-                        AccountMaturityReport.brand_id == brand.id,
-                        AccountMaturityReport.is_active.is_(True),
+                maturity_rows = (
+                    session.execute(
+                        select(AccountMaturityReport).where(
+                            AccountMaturityReport.brand_id == brand.id,
+                            AccountMaturityReport.is_active.is_(True),
+                        )
                     )
-                ).scalars().all()
-                maturity_map: dict[str, AccountMaturityReport] = {
-                    str(mr.account_id): mr for mr in maturity_rows
-                }
+                    .scalars()
+                    .all()
+                )
+                maturity_map: dict[str, AccountMaturityReport] = {str(mr.account_id): mr for mr in maturity_rows}
 
-                account_dicts = [
-                    _account_dict(a, maturity_map.get(str(a.id)))
-                    for a in accounts
-                ]
+                account_dicts = [_account_dict(a, maturity_map.get(str(a.id))) for a in accounts]
 
                 scored_signals = [
                     {
@@ -363,23 +381,25 @@ def rebuild_all_auto_queues(self) -> dict:
 
                 for qi in queue_items:
                     target_id = qi.get("target_account_id")
-                    session.add(AutoQueueItem(
-                        brand_id=brand.id,
-                        queue_item_type=qi["queue_item_type"],
-                        target_account_id=_uuid.UUID(target_id) if target_id else None,
-                        target_account_role=qi.get("target_account_role"),
-                        platform=qi["platform"],
-                        niche=qi.get("niche", ""),
-                        sub_niche=qi.get("sub_niche"),
-                        content_family=qi.get("content_family"),
-                        monetization_path=qi.get("monetization_path"),
-                        priority_score=qi["priority_score"],
-                        urgency_score=qi["urgency_score"],
-                        queue_status=qi["queue_status"],
-                        suppression_flags_json=qi.get("suppression_flags"),
-                        hold_reason=qi.get("hold_reason"),
-                        explanation=qi.get("explanation"),
-                    ))
+                    session.add(
+                        AutoQueueItem(
+                            brand_id=brand.id,
+                            queue_item_type=qi["queue_item_type"],
+                            target_account_id=_uuid.UUID(target_id) if target_id else None,
+                            target_account_role=qi.get("target_account_role"),
+                            platform=qi["platform"],
+                            niche=qi.get("niche", ""),
+                            sub_niche=qi.get("sub_niche"),
+                            content_family=qi.get("content_family"),
+                            monetization_path=qi.get("monetization_path"),
+                            priority_score=qi["priority_score"],
+                            urgency_score=qi["urgency_score"],
+                            queue_status=qi["queue_status"],
+                            suppression_flags_json=qi.get("suppression_flags"),
+                            hold_reason=qi.get("hold_reason"),
+                            explanation=qi.get("explanation"),
+                        )
+                    )
                     items_created += 1
 
                 brands_processed += 1
@@ -406,6 +426,7 @@ def rebuild_all_auto_queues(self) -> dict:
 # Task 3 — Warmup Recompute
 # ---------------------------------------------------------------------------
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_a_worker.tasks.recompute_all_warmup")
 def recompute_all_warmup(self) -> dict:
     """Recompute warmup plans for all active accounts across all brands."""
@@ -417,23 +438,27 @@ def recompute_all_warmup(self) -> dict:
     with Session(engine) as session:
         _ensure_warmup_policies_seeded(session)
 
-        brands = session.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        ).scalars().all()
+        brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
 
-        policies = session.execute(
-            select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True))
-        ).scalars().all()
+        policies = (
+            session.execute(select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True)))
+            .scalars()
+            .all()
+        )
         policy_by_platform = {p.platform: _policy_dict(p) for p in policies}
 
         for brand in brands:
             try:
-                accounts = session.execute(
-                    select(CreatorAccount).where(
-                        CreatorAccount.brand_id == brand.id,
-                        CreatorAccount.is_active.is_(True),
+                accounts = (
+                    session.execute(
+                        select(CreatorAccount).where(
+                            CreatorAccount.brand_id == brand.id,
+                            CreatorAccount.is_active.is_(True),
+                        )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
 
                 session.execute(
                     update(AccountWarmupPlan)
@@ -453,22 +478,24 @@ def recompute_all_warmup(self) -> dict:
                     acct_d = _account_dict(acct)
                     result = compute_warmup_plan(acct_d, policy, [])
 
-                    session.add(AccountWarmupPlan(
-                        brand_id=brand.id,
-                        account_id=acct.id,
-                        platform=platform,
-                        warmup_phase=result["warmup_phase"],
-                        initial_posts_per_week=result["initial_posts_per_week"],
-                        current_posts_per_week=result["current_posts_per_week"],
-                        target_posts_per_week=result["target_posts_per_week"],
-                        engagement_target=result["engagement_target"],
-                        trust_target=result["trust_target"],
-                        content_mix_json=result.get("content_mix"),
-                        failure_signals_json=result.get("failure_signals"),
-                        ramp_conditions_json=result.get("ramp_conditions"),
-                        confidence=0.7,
-                        explanation=result["explanation"],
-                    ))
+                    session.add(
+                        AccountWarmupPlan(
+                            brand_id=brand.id,
+                            account_id=acct.id,
+                            platform=platform,
+                            warmup_phase=result["warmup_phase"],
+                            initial_posts_per_week=result["initial_posts_per_week"],
+                            current_posts_per_week=result["current_posts_per_week"],
+                            target_posts_per_week=result["target_posts_per_week"],
+                            engagement_target=result["engagement_target"],
+                            trust_target=result["trust_target"],
+                            content_mix_json=result.get("content_mix"),
+                            failure_signals_json=result.get("failure_signals"),
+                            ramp_conditions_json=result.get("ramp_conditions"),
+                            confidence=0.7,
+                            explanation=result["explanation"],
+                        )
+                    )
                     plans_created += 1
 
                 brands_processed += 1
@@ -495,6 +522,7 @@ def recompute_all_warmup(self) -> dict:
 # Task 4 — Output Recompute
 # ---------------------------------------------------------------------------
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_a_worker.tasks.recompute_all_output")
 def recompute_all_output(self) -> dict:
     """Recompute output reports and ramp events for all active warmup plans."""
@@ -507,23 +535,27 @@ def recompute_all_output(self) -> dict:
     with Session(engine) as session:
         _ensure_warmup_policies_seeded(session)
 
-        brands = session.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        ).scalars().all()
+        brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
 
-        policies = session.execute(
-            select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True))
-        ).scalars().all()
+        policies = (
+            session.execute(select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True)))
+            .scalars()
+            .all()
+        )
         policy_by_platform = {p.platform: _policy_dict(p) for p in policies}
 
         for brand in brands:
             try:
-                plans = session.execute(
-                    select(AccountWarmupPlan).where(
-                        AccountWarmupPlan.brand_id == brand.id,
-                        AccountWarmupPlan.is_active.is_(True),
+                plans = (
+                    session.execute(
+                        select(AccountWarmupPlan).where(
+                            AccountWarmupPlan.brand_id == brand.id,
+                            AccountWarmupPlan.is_active.is_(True),
+                        )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
 
                 for plan in plans:
                     acct = session.get(CreatorAccount, plan.account_id)
@@ -561,30 +593,36 @@ def recompute_all_output(self) -> dict:
                         .values(is_active=False)
                     )
 
-                    session.add(AccountOutputReport(
-                        brand_id=brand.id,
-                        account_id=acct.id,
-                        platform=platform,
-                        current_output_per_week=output["current_output_per_week"],
-                        recommended_output_per_week=output["recommended_output_per_week"],
-                        max_safe_output_per_week=output["max_safe_output_per_week"],
-                        max_profitable_output_per_week=output["max_profitable_output_per_week"],
-                        throttle_reason=output.get("throttle_reason"),
-                        quality_score=0.5,
-                        monetization_response_score=0.0,
-                        account_health_score=output["health_score"],
-                        saturation_score=0.0,
-                        confidence=0.7,
-                        explanation=output["explanation"],
-                    ))
+                    session.add(
+                        AccountOutputReport(
+                            brand_id=brand.id,
+                            account_id=acct.id,
+                            platform=platform,
+                            current_output_per_week=output["current_output_per_week"],
+                            recommended_output_per_week=output["recommended_output_per_week"],
+                            max_safe_output_per_week=output["max_safe_output_per_week"],
+                            max_profitable_output_per_week=output["max_profitable_output_per_week"],
+                            throttle_reason=output.get("throttle_reason"),
+                            quality_score=0.5,
+                            monetization_response_score=0.0,
+                            account_health_score=output["health_score"],
+                            saturation_score=0.0,
+                            confidence=0.7,
+                            explanation=output["explanation"],
+                        )
+                    )
                     reports_upserted += 1
 
-                    maturity_row = session.execute(
-                        select(AccountMaturityReport).where(
-                            AccountMaturityReport.account_id == acct.id,
-                            AccountMaturityReport.is_active.is_(True),
+                    maturity_row = (
+                        session.execute(
+                            select(AccountMaturityReport).where(
+                                AccountMaturityReport.account_id == acct.id,
+                                AccountMaturityReport.is_active.is_(True),
+                            )
                         )
-                    ).scalars().first()
+                        .scalars()
+                        .first()
+                    )
 
                     maturity_d = {
                         "maturity_state": maturity_row.maturity_state if maturity_row else "warming",
@@ -598,17 +636,19 @@ def recompute_all_output(self) -> dict:
                         output["health_score"],
                     )
                     if ramp:
-                        session.add(OutputRampEvent(
-                            brand_id=brand.id,
-                            account_id=acct.id,
-                            platform=platform,
-                            event_type=ramp["event_type"],
-                            from_output_per_week=ramp["from_output"],
-                            to_output_per_week=ramp["to_output"],
-                            trigger_reason=ramp["reason"],
-                            confidence=ramp["confidence"],
-                            explanation=ramp["reason"],
-                        ))
+                        session.add(
+                            OutputRampEvent(
+                                brand_id=brand.id,
+                                account_id=acct.id,
+                                platform=platform,
+                                event_type=ramp["event_type"],
+                                from_output_per_week=ramp["from_output"],
+                                to_output_per_week=ramp["to_output"],
+                                trigger_reason=ramp["reason"],
+                                confidence=ramp["confidence"],
+                                explanation=ramp["reason"],
+                            )
+                        )
                         ramp_events_created += 1
 
                 brands_processed += 1
@@ -637,6 +677,7 @@ def recompute_all_output(self) -> dict:
 # Task 5 — Maturity Recompute
 # ---------------------------------------------------------------------------
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.autonomous_phase_a_worker.tasks.recompute_all_maturity")
 def recompute_all_maturity(self) -> dict:
     """Recompute maturity state for all active accounts across all brands."""
@@ -648,23 +689,27 @@ def recompute_all_maturity(self) -> dict:
     with Session(engine) as session:
         _ensure_warmup_policies_seeded(session)
 
-        brands = session.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        ).scalars().all()
+        brands = session.execute(select(Brand).where(Brand.is_active.is_(True))).scalars().all()
 
-        policies = session.execute(
-            select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True))
-        ).scalars().all()
+        policies = (
+            session.execute(select(PlatformWarmupPolicy).where(PlatformWarmupPolicy.is_active.is_(True)))
+            .scalars()
+            .all()
+        )
         policy_by_platform = {p.platform: _policy_dict(p) for p in policies}
 
         for brand in brands:
             try:
-                accounts = session.execute(
-                    select(CreatorAccount).where(
-                        CreatorAccount.brand_id == brand.id,
-                        CreatorAccount.is_active.is_(True),
+                accounts = (
+                    session.execute(
+                        select(CreatorAccount).where(
+                            CreatorAccount.brand_id == brand.id,
+                            CreatorAccount.is_active.is_(True),
+                        )
                     )
-                ).scalars().all()
+                    .scalars()
+                    .all()
+                )
 
                 for acct in accounts:
                     platform = acct.platform.value if hasattr(acct.platform, "value") else str(acct.platform)
@@ -672,12 +717,16 @@ def recompute_all_maturity(self) -> dict:
                     if not policy:
                         continue
 
-                    existing = session.execute(
-                        select(AccountMaturityReport).where(
-                            AccountMaturityReport.account_id == acct.id,
-                            AccountMaturityReport.is_active.is_(True),
+                    existing = (
+                        session.execute(
+                            select(AccountMaturityReport).where(
+                                AccountMaturityReport.account_id == acct.id,
+                                AccountMaturityReport.is_active.is_(True),
+                            )
                         )
-                    ).scalars().first()
+                        .scalars()
+                        .first()
+                    )
 
                     acct_d = _account_dict(acct, existing)
                     result = compute_maturity_state(acct_d, [], policy)
@@ -693,21 +742,23 @@ def recompute_all_maturity(self) -> dict:
                         )
 
                     transition_reason = result["explanation"] if result.get("state_changed") else None
-                    session.add(AccountMaturityReport(
-                        brand_id=brand.id,
-                        account_id=acct.id,
-                        platform=platform,
-                        maturity_state=result["maturity_state"],
-                        previous_state=result.get("previous_state"),
-                        days_in_current_state=result["days_in_current_state"],
-                        posts_published=result["posts_published"],
-                        avg_engagement_rate=result["avg_engagement_rate"],
-                        follower_velocity=result["follower_velocity"],
-                        health_score=result["health_score"],
-                        transition_reason=transition_reason,
-                        confidence=0.7,
-                        explanation=result["explanation"],
-                    ))
+                    session.add(
+                        AccountMaturityReport(
+                            brand_id=brand.id,
+                            account_id=acct.id,
+                            platform=platform,
+                            maturity_state=result["maturity_state"],
+                            previous_state=result.get("previous_state"),
+                            days_in_current_state=result["days_in_current_state"],
+                            posts_published=result["posts_published"],
+                            avg_engagement_rate=result["avg_engagement_rate"],
+                            follower_velocity=result["follower_velocity"],
+                            health_score=result["health_score"],
+                            transition_reason=transition_reason,
+                            confidence=0.7,
+                            explanation=result["explanation"],
+                        )
+                    )
                     reports_upserted += 1
 
                 brands_processed += 1

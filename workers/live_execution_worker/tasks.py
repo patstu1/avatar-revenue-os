@@ -1,4 +1,5 @@
 """Celery tasks for Live Execution Closure Phase 1."""
+
 from __future__ import annotations
 
 import uuid
@@ -12,6 +13,7 @@ from workers.base_task import TrackedTask
 
 async def _sync_analytics(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_service import recompute_analytics
+
     async with AsyncSessionLocal() as db:
         await recompute_analytics(db, brand_id)
         await db.commit()
@@ -19,6 +21,7 @@ async def _sync_analytics(brand_id: uuid.UUID) -> None:
 
 async def _sync_experiment_truth(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_service import recompute_experiment_truth
+
     async with AsyncSessionLocal() as db:
         await recompute_experiment_truth(db, brand_id)
         await db.commit()
@@ -26,6 +29,7 @@ async def _sync_experiment_truth(brand_id: uuid.UUID) -> None:
 
 async def _run_crm_sync(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_service import run_crm_sync
+
     async with AsyncSessionLocal() as db:
         await run_crm_sync(db, brand_id)
         await db.commit()
@@ -33,6 +37,7 @@ async def _run_crm_sync(brand_id: uuid.UUID) -> None:
 
 async def _execute_emails(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_service import execute_pending_emails
+
     async with AsyncSessionLocal() as db:
         await execute_pending_emails(db, brand_id)
         await db.commit()
@@ -40,6 +45,7 @@ async def _execute_emails(brand_id: uuid.UUID) -> None:
 
 async def _execute_sms(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_service import execute_pending_sms
+
     async with AsyncSessionLocal() as db:
         await execute_pending_sms(db, brand_id)
         await db.commit()
@@ -47,6 +53,7 @@ async def _execute_sms(brand_id: uuid.UUID) -> None:
 
 async def _recompute_blockers(brand_id: uuid.UUID) -> None:
     from apps.api.services.live_execution_service import recompute_messaging_blockers
+
     async with AsyncSessionLocal() as db:
         await recompute_messaging_blockers(db, brand_id)
         await db.commit()
@@ -54,6 +61,7 @@ async def _recompute_blockers(brand_id: uuid.UUID) -> None:
 
 async def _run_all_brands(coro_factory):
     from packages.db.models.core import Brand
+
     async with AsyncSessionLocal() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
     for bid in brands:

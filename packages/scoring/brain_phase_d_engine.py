@@ -1,4 +1,5 @@
 """Brain Architecture Phase D — meta-monitoring, self-correction, readiness, escalation engines."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -7,18 +8,30 @@ HEALTH_BANDS = ["excellent", "good", "medium", "degraded", "critical"]
 READINESS_BANDS = ["ready", "mostly_ready", "partially_ready", "not_ready", "blocked"]
 URGENCY_LEVELS = ["critical", "high", "medium", "low"]
 CORRECTION_TYPES = [
-    "lower_confidence", "increase_guard_mode", "reduce_output",
-    "increase_suppression", "rerank_priorities", "escalate_missing_data",
-    "pause_paid", "tighten_budget", "flag_dead_agent",
+    "lower_confidence",
+    "increase_guard_mode",
+    "reduce_output",
+    "increase_suppression",
+    "rerank_priorities",
+    "escalate_missing_data",
+    "pause_paid",
+    "tighten_budget",
+    "flag_dead_agent",
 ]
 
 READINESS_ACTIONS = [
-    "launch", "scale", "auto_run", "paid_amplify",
-    "sponsor_push", "high_ticket_push", "expand_platform_count",
+    "launch",
+    "scale",
+    "auto_run",
+    "paid_amplify",
+    "sponsor_push",
+    "high_ticket_push",
+    "expand_platform_count",
 ]
 
 
 # ── Meta-Monitoring Engine ────────────────────────────────────────────
+
 
 def compute_meta_monitoring(ctx: dict[str, Any]) -> dict[str, Any]:
     total_decisions = ctx.get("total_decisions", 0)
@@ -89,28 +102,46 @@ def compute_meta_monitoring(ctx: dict[str, Any]) -> dict[str, Any]:
 
     if decision_quality < 0.6:
         weak_areas.append("decision_quality")
-        corrections.append({"type": "lower_confidence", "target": "brain_decisions", "reason": "Many low-confidence decisions"})
+        corrections.append(
+            {"type": "lower_confidence", "target": "brain_decisions", "reason": "Many low-confidence decisions"}
+        )
     if confidence_drift > 0.4:
         weak_areas.append("confidence_drift")
-        corrections.append({"type": "increase_guard_mode", "target": "policy_engine", "reason": f"Confidence drift at {confidence_drift:.0%}"})
+        corrections.append(
+            {
+                "type": "increase_guard_mode",
+                "target": "policy_engine",
+                "reason": f"Confidence drift at {confidence_drift:.0%}",
+            }
+        )
     if failure_rate > 0.3:
         weak_areas.append("execution_failures")
-        corrections.append({"type": "reduce_output", "target": "content_runner", "reason": f"Failure rate {failure_rate:.0%}"})
+        corrections.append(
+            {"type": "reduce_output", "target": "content_runner", "reason": f"Failure rate {failure_rate:.0%}"}
+        )
     if memory_quality < 0.5:
         weak_areas.append("memory_quality")
-        corrections.append({"type": "escalate_missing_data", "target": "brain_memory", "reason": "Low memory quality / stale entries"})
+        corrections.append(
+            {"type": "escalate_missing_data", "target": "brain_memory", "reason": "Low memory quality / stale entries"}
+        )
     if esc_rate > 0.5:
         weak_areas.append("excessive_escalation")
-        corrections.append({"type": "increase_suppression", "target": "escalation_engine", "reason": f"Escalation rate {esc_rate:.0%}"})
+        corrections.append(
+            {"type": "increase_suppression", "target": "escalation_engine", "reason": f"Escalation rate {esc_rate:.0%}"}
+        )
     if congestion > 0.6:
         weak_areas.append("queue_congestion")
         corrections.append({"type": "reduce_output", "target": "queue", "reason": f"Queue congestion {congestion:.0%}"})
     if dead_agents > 0:
         weak_areas.append("dead_agent_paths")
-        corrections.append({"type": "flag_dead_agent", "target": "agent_mesh", "reason": f"{dead_agents} dead agent paths"})
+        corrections.append(
+            {"type": "flag_dead_agent", "target": "agent_mesh", "reason": f"{dead_agents} dead agent paths"}
+        )
     if wasted_actions > 2:
         weak_areas.append("wasted_actions")
-        corrections.append({"type": "increase_suppression", "target": "arbitration", "reason": f"{wasted_actions} wasted actions"})
+        corrections.append(
+            {"type": "increase_suppression", "target": "arbitration", "reason": f"{wasted_actions} wasted actions"}
+        )
 
     conf = 0.5 + health * 0.3 + (0.1 if total_decisions > 5 else 0) + (0.1 if memory_entries > 5 else 0)
     conf = min(1.0, conf)
@@ -137,44 +168,52 @@ def compute_meta_monitoring(ctx: dict[str, Any]) -> dict[str, Any]:
 
 # ── Self-Correction Engine ────────────────────────────────────────────
 
+
 def compute_self_corrections(monitoring: dict[str, Any]) -> list[dict[str, Any]]:
     corrections: list[dict[str, Any]] = []
 
     for rec in monitoring.get("recommended_corrections", []):
         severity = "high" if monitoring["health_score"] < 0.5 else "medium"
-        corrections.append({
-            "correction_type": rec["type"],
-            "reason": rec["reason"],
-            "effect_target": rec["target"],
-            "severity": severity,
-            "confidence": monitoring["confidence"],
-            "explanation": f"Self-correction: {rec['type']} on {rec['target']}. {rec['reason']}.",
-        })
+        corrections.append(
+            {
+                "correction_type": rec["type"],
+                "reason": rec["reason"],
+                "effect_target": rec["target"],
+                "severity": severity,
+                "confidence": monitoring["confidence"],
+                "explanation": f"Self-correction: {rec['type']} on {rec['target']}. {rec['reason']}.",
+            }
+        )
 
     if monitoring.get("execution_failure_rate", 0) > 0.5:
-        corrections.append({
-            "correction_type": "increase_guard_mode",
-            "reason": f"Execution failure rate {monitoring['execution_failure_rate']:.0%} is dangerous",
-            "effect_target": "all_execution_policies",
-            "severity": "critical",
-            "confidence": 0.9,
-            "explanation": "Critical: high failure rate forces guarded mode across all policies.",
-        })
+        corrections.append(
+            {
+                "correction_type": "increase_guard_mode",
+                "reason": f"Execution failure rate {monitoring['execution_failure_rate']:.0%} is dangerous",
+                "effect_target": "all_execution_policies",
+                "severity": "critical",
+                "confidence": 0.9,
+                "explanation": "Critical: high failure rate forces guarded mode across all policies.",
+            }
+        )
 
     if monitoring.get("queue_congestion", 0) > 0.8:
-        corrections.append({
-            "correction_type": "pause_paid",
-            "reason": "Queue congestion too high for additional paid traffic",
-            "effect_target": "paid_amplification_agent",
-            "severity": "high",
-            "confidence": 0.85,
-            "explanation": "Pause paid amplification until queue congestion drops below threshold.",
-        })
+        corrections.append(
+            {
+                "correction_type": "pause_paid",
+                "reason": "Queue congestion too high for additional paid traffic",
+                "effect_target": "paid_amplification_agent",
+                "severity": "high",
+                "confidence": 0.85,
+                "explanation": "Pause paid amplification until queue congestion drops below threshold.",
+            }
+        )
 
     return corrections
 
 
 # ── Readiness Brain ───────────────────────────────────────────────────
+
 
 def compute_readiness_brain(ctx: dict[str, Any]) -> dict[str, Any]:
     health = ctx.get("health_score", 0.5)
@@ -269,6 +308,7 @@ def compute_readiness_brain(ctx: dict[str, Any]) -> dict[str, Any]:
 
 # ── Brain-Level Escalation ────────────────────────────────────────────
 
+
 def compute_brain_escalations(ctx: dict[str, Any]) -> list[dict[str, Any]]:
     escalations: list[dict[str, Any]] = []
     ctx.get("blockers", [])
@@ -281,107 +321,123 @@ def compute_brain_escalations(ctx: dict[str, Any]) -> list[dict[str, Any]]:
     forbidden = ctx.get("forbidden_actions", [])
 
     if not has_credentials:
-        escalations.append({
-            "escalation_type": "connect_credential",
-            "command": "Connect platform API credentials (TikTok, Instagram, YouTube, X, etc.)",
-            "urgency": "critical",
-            "expected_upside_unlocked": 500.0,
-            "expected_cost_of_delay": 50.0,
-            "value_basis": "illustrative_estimate",
-            "affected_scope": "all_platforms",
-            "confidence": 0.95,
-            "explanation": "Platform credentials required for publishing, analytics, and audience data.",
-        })
+        escalations.append(
+            {
+                "escalation_type": "connect_credential",
+                "command": "Connect platform API credentials (TikTok, Instagram, YouTube, X, etc.)",
+                "urgency": "critical",
+                "expected_upside_unlocked": 500.0,
+                "expected_cost_of_delay": 50.0,
+                "value_basis": "illustrative_estimate",
+                "affected_scope": "all_platforms",
+                "confidence": 0.95,
+                "explanation": "Platform credentials required for publishing, analytics, and audience data.",
+            }
+        )
 
     if not has_offers:
-        escalations.append({
-            "escalation_type": "add_offer",
-            "command": "Add at least one active monetization offer (affiliate, product, service)",
-            "urgency": "critical",
-            "expected_upside_unlocked": 300.0,
-            "expected_cost_of_delay": 30.0,
-            "value_basis": "illustrative_estimate",
-            "affected_scope": "monetization",
-            "confidence": 0.95,
-            "explanation": "No offers configured — monetization cannot proceed.",
-        })
+        escalations.append(
+            {
+                "escalation_type": "add_offer",
+                "command": "Add at least one active monetization offer (affiliate, product, service)",
+                "urgency": "critical",
+                "expected_upside_unlocked": 300.0,
+                "expected_cost_of_delay": 30.0,
+                "value_basis": "illustrative_estimate",
+                "affected_scope": "monetization",
+                "confidence": 0.95,
+                "explanation": "No offers configured — monetization cannot proceed.",
+            }
+        )
 
     if not has_accounts:
-        escalations.append({
-            "escalation_type": "create_account",
-            "command": "Create at least one creator account for content distribution",
-            "urgency": "high",
-            "expected_upside_unlocked": 200.0,
-            "expected_cost_of_delay": 20.0,
-            "value_basis": "illustrative_estimate",
-            "affected_scope": "content_distribution",
-            "confidence": 0.9,
-            "explanation": "No creator accounts — content cannot be published.",
-        })
+        escalations.append(
+            {
+                "escalation_type": "create_account",
+                "command": "Create at least one creator account for content distribution",
+                "urgency": "high",
+                "expected_upside_unlocked": 200.0,
+                "expected_cost_of_delay": 20.0,
+                "value_basis": "illustrative_estimate",
+                "affected_scope": "content_distribution",
+                "confidence": 0.9,
+                "explanation": "No creator accounts — content cannot be published.",
+            }
+        )
 
     if failure_rate > 0.4:
-        escalations.append({
-            "escalation_type": "fix_execution_failures",
-            "command": "Review and fix recurring execution failures before scaling",
-            "urgency": "high",
-            "expected_upside_unlocked": 150.0,
-            "expected_cost_of_delay": 40.0,
-            "value_basis": "illustrative_estimate",
-            "affected_scope": "execution_pipeline",
-            "confidence": 0.85,
-            "explanation": f"Execution failure rate {failure_rate:.0%} is blocking safe operation.",
-        })
+        escalations.append(
+            {
+                "escalation_type": "fix_execution_failures",
+                "command": "Review and fix recurring execution failures before scaling",
+                "urgency": "high",
+                "expected_upside_unlocked": 150.0,
+                "expected_cost_of_delay": 40.0,
+                "value_basis": "illustrative_estimate",
+                "affected_scope": "execution_pipeline",
+                "confidence": 0.85,
+                "explanation": f"Execution failure rate {failure_rate:.0%} is blocking safe operation.",
+            }
+        )
 
     if health < 0.4:
-        escalations.append({
-            "escalation_type": "review_brain_health",
-            "command": "Review meta-monitoring report and address weak areas",
-            "urgency": "high",
-            "expected_upside_unlocked": 100.0,
-            "expected_cost_of_delay": 25.0,
-            "value_basis": "illustrative_estimate",
-            "affected_scope": "brain_health",
-            "confidence": 0.8,
-            "explanation": f"Brain health {health:.0%} is degraded — decision quality at risk.",
-        })
+        escalations.append(
+            {
+                "escalation_type": "review_brain_health",
+                "command": "Review meta-monitoring report and address weak areas",
+                "urgency": "high",
+                "expected_upside_unlocked": 100.0,
+                "expected_cost_of_delay": 25.0,
+                "value_basis": "illustrative_estimate",
+                "affected_scope": "brain_health",
+                "confidence": 0.8,
+                "explanation": f"Brain health {health:.0%} is degraded — decision quality at risk.",
+            }
+        )
 
     if active_blocker_count > 3:
-        escalations.append({
-            "escalation_type": "resolve_blockers",
-            "command": f"Resolve {active_blocker_count} active blockers preventing autonomous operation",
-            "urgency": "high",
-            "expected_upside_unlocked": 80.0,
-            "expected_cost_of_delay": 15.0,
-            "value_basis": "illustrative_estimate",
-            "affected_scope": "multiple_modules",
-            "confidence": 0.8,
-            "explanation": f"{active_blocker_count} unresolved blockers are constraining system throughput.",
-        })
+        escalations.append(
+            {
+                "escalation_type": "resolve_blockers",
+                "command": f"Resolve {active_blocker_count} active blockers preventing autonomous operation",
+                "urgency": "high",
+                "expected_upside_unlocked": 80.0,
+                "expected_cost_of_delay": 15.0,
+                "value_basis": "illustrative_estimate",
+                "affected_scope": "multiple_modules",
+                "confidence": 0.8,
+                "explanation": f"{active_blocker_count} unresolved blockers are constraining system throughput.",
+            }
+        )
 
     if "auto_run" in forbidden and health > 0.5:
-        escalations.append({
-            "escalation_type": "approve_auto_run",
-            "command": "Review and approve autonomous execution mode if system health permits",
-            "urgency": "medium",
-            "expected_upside_unlocked": 60.0,
-            "expected_cost_of_delay": 10.0,
-            "value_basis": "illustrative_estimate",
-            "affected_scope": "execution_mode",
-            "confidence": 0.7,
-            "explanation": "Auto-run is forbidden but health is acceptable. Operator review may unlock it.",
-        })
+        escalations.append(
+            {
+                "escalation_type": "approve_auto_run",
+                "command": "Review and approve autonomous execution mode if system health permits",
+                "urgency": "medium",
+                "expected_upside_unlocked": 60.0,
+                "expected_cost_of_delay": 10.0,
+                "value_basis": "illustrative_estimate",
+                "affected_scope": "execution_mode",
+                "confidence": 0.7,
+                "explanation": "Auto-run is forbidden but health is acceptable. Operator review may unlock it.",
+            }
+        )
 
     if "paid_amplify" in forbidden and has_credentials:
-        escalations.append({
-            "escalation_type": "approve_paid_amplification",
-            "command": "Approve paid amplification budget and review safety guardrails",
-            "urgency": "medium",
-            "expected_upside_unlocked": 100.0,
-            "expected_cost_of_delay": 15.0,
-            "value_basis": "illustrative_estimate",
-            "affected_scope": "paid_traffic",
-            "confidence": 0.7,
-            "explanation": "Paid amplification is blocked. Operator approval and budget allocation needed.",
-        })
+        escalations.append(
+            {
+                "escalation_type": "approve_paid_amplification",
+                "command": "Approve paid amplification budget and review safety guardrails",
+                "urgency": "medium",
+                "expected_upside_unlocked": 100.0,
+                "expected_cost_of_delay": 15.0,
+                "value_basis": "illustrative_estimate",
+                "affected_scope": "paid_traffic",
+                "confidence": 0.7,
+                "explanation": "Paid amplification is blocked. Operator approval and budget allocation needed.",
+            }
+        )
 
     return escalations

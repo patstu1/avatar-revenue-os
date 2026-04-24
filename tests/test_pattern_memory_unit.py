@@ -1,4 +1,5 @@
 """Unit tests for pattern memory engine — pure functions, no DB."""
+
 import pytest
 
 from packages.scoring.pattern_memory_engine import (
@@ -17,23 +18,55 @@ from packages.scoring.pattern_memory_engine import (
 
 # ── fixtures ────────────────────────────────────────────────────────────
 
-def _ci(cid, platform="tiktok", title="Don't buy this until you see the results", form="avatar_short_form", monetization="affiliate"):
-    return {"id": cid, "platform": platform, "content_form": form, "content_type": form, "title": title, "tags": {}, "monetization_method": monetization}
+
+def _ci(
+    cid,
+    platform="tiktok",
+    title="Don't buy this until you see the results",
+    form="avatar_short_form",
+    monetization="affiliate",
+):
+    return {
+        "id": cid,
+        "platform": platform,
+        "content_form": form,
+        "content_type": form,
+        "title": title,
+        "tags": {},
+        "monetization_method": monetization,
+    }
 
 
 def _perf(imp=10000, clicks=500, eng=0.08, rev=45.0, cvr=0.05, profit=30.0):
-    return {"impressions": imp, "clicks": clicks, "engagement_rate": eng, "revenue": rev, "conversion_rate": cvr, "profit": profit}
+    return {
+        "impressions": imp,
+        "clicks": clicks,
+        "engagement_rate": eng,
+        "revenue": rev,
+        "conversion_rate": cvr,
+        "profit": profit,
+    }
 
 
 # ── pattern types ───────────────────────────────────────────────────────
 
+
 def test_pattern_types_minimum():
     assert len(PATTERN_TYPES) >= 7
-    for required in ("hook", "creative_structure", "content_form", "offer_angle", "cta", "monetization", "audience_response"):
+    for required in (
+        "hook",
+        "creative_structure",
+        "content_form",
+        "offer_angle",
+        "cta",
+        "monetization",
+        "audience_response",
+    ):
         assert required in PATTERN_TYPES
 
 
 # ── extraction ──────────────────────────────────────────────────────────
+
 
 class TestExtraction:
     def test_extracts_patterns_from_content(self):
@@ -67,6 +100,7 @@ class TestExtraction:
 
 # ── scoring ─────────────────────────────────────────────────────────────
 
+
 class TestScoring:
     def test_empty_evidence(self):
         r = score_pattern([])
@@ -93,13 +127,18 @@ class TestScoring:
         assert r["confidence"] < r["win_score"]
 
     def test_performance_bands(self):
-        hero = score_pattern([{"engagement_rate": 0.15, "conversion_rate": 0.10, "profit": 150, "impressions": 80000}] * 10)
+        hero = score_pattern(
+            [{"engagement_rate": 0.15, "conversion_rate": 0.10, "profit": 150, "impressions": 80000}] * 10
+        )
         assert hero["performance_band"] == "hero"
-        weak = score_pattern([{"engagement_rate": 0.005, "conversion_rate": 0.002, "profit": 1, "impressions": 200}] * 10)
+        weak = score_pattern(
+            [{"engagement_rate": 0.005, "conversion_rate": 0.002, "profit": 1, "impressions": 200}] * 10
+        )
         assert weak["performance_band"] == "weak"
 
 
 # ── decay ───────────────────────────────────────────────────────────────
+
 
 class TestDecay:
     def test_no_history(self):
@@ -122,6 +161,7 @@ class TestDecay:
 
 # ── clustering ──────────────────────────────────────────────────────────
 
+
 class TestClustering:
     def test_clusters_by_type_and_platform(self):
         patterns = [
@@ -141,10 +181,20 @@ class TestClustering:
 
 # ── reuse ───────────────────────────────────────────────────────────────
 
+
 class TestReuse:
     def test_recommends_cross_platform(self):
         patterns = [
-            {"id": "p1", "pattern_type": "hook", "pattern_name": "curiosity", "platform": "tiktok", "content_form": "short_form", "win_score": 0.8, "confidence": 0.7, "is_winner": True},
+            {
+                "id": "p1",
+                "pattern_type": "hook",
+                "pattern_name": "curiosity",
+                "platform": "tiktok",
+                "content_form": "short_form",
+                "win_score": 0.8,
+                "confidence": 0.7,
+                "is_winner": True,
+            },
         ]
         recs = recommend_reuse(patterns, ["tiktok", "instagram", "youtube"])
         assert len(recs) >= 2
@@ -154,13 +204,23 @@ class TestReuse:
 
     def test_skips_non_winners(self):
         patterns = [
-            {"id": "p1", "pattern_type": "hook", "pattern_name": "weak", "platform": "tiktok", "content_form": "short_form", "win_score": 0.3, "confidence": 0.2, "is_winner": False},
+            {
+                "id": "p1",
+                "pattern_type": "hook",
+                "pattern_name": "weak",
+                "platform": "tiktok",
+                "content_form": "short_form",
+                "win_score": 0.3,
+                "confidence": 0.2,
+                "is_winner": False,
+            },
         ]
         recs = recommend_reuse(patterns, ["instagram"])
         assert len(recs) == 0
 
 
 # ── structured metadata extraction ─────────────────────────────────────
+
 
 class TestStructuredMetadata:
     def test_cta_extracted_from_metadata(self):
@@ -196,6 +256,7 @@ class TestStructuredMetadata:
 
 # ── audience response ───────────────────────────────────────────────────
 
+
 class TestAudienceResponse:
     def test_conversion_winner(self):
         items = [_ci("c1")]
@@ -222,6 +283,7 @@ class TestAudienceResponse:
 
 
 # ── experiment integration ──────────────────────────────────────────────
+
 
 class TestExperimentIntegration:
     def test_suggest_experiments_from_gaps(self):
@@ -251,11 +313,24 @@ class TestExperimentIntegration:
 
 # ── portfolio allocation ────────────────────────────────────────────────
 
+
 class TestPortfolioAllocation:
     def test_allocation_weights(self):
         clusters = [
-            {"cluster_type": "hook", "platform": "tiktok", "cluster_name": "hook winners on tiktok", "avg_win_score": 0.8, "pattern_count": 5},
-            {"cluster_type": "cta", "platform": "instagram", "cluster_name": "cta winners on instagram", "avg_win_score": 0.3, "pattern_count": 2},
+            {
+                "cluster_type": "hook",
+                "platform": "tiktok",
+                "cluster_name": "hook winners on tiktok",
+                "avg_win_score": 0.8,
+                "pattern_count": 5,
+            },
+            {
+                "cluster_type": "cta",
+                "platform": "instagram",
+                "cluster_name": "cta winners on instagram",
+                "avg_win_score": 0.3,
+                "pattern_count": 2,
+            },
         ]
         weights = compute_pattern_allocation_weights(clusters, 1000.0)
         assert len(weights) == 2
@@ -269,7 +344,13 @@ class TestPortfolioAllocation:
 
     def test_hero_tier_assignment(self):
         clusters = [
-            {"cluster_type": "hook", "platform": "tiktok", "cluster_name": "strong", "avg_win_score": 0.7, "pattern_count": 3},
+            {
+                "cluster_type": "hook",
+                "platform": "tiktok",
+                "cluster_name": "strong",
+                "avg_win_score": 0.7,
+                "pattern_count": 3,
+            },
         ]
         weights = compute_pattern_allocation_weights(clusters, 500.0)
         assert weights[0]["provider_tier"] == "hero"

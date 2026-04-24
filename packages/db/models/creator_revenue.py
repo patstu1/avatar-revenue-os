@@ -1,4 +1,5 @@
 """Creator Revenue Avenues Pack — Phase A models."""
+
 import uuid
 from typing import Optional
 
@@ -11,6 +12,7 @@ from packages.db.base import Base
 
 class CreatorRevenueOpportunity(Base):
     """A scored revenue opportunity across UGC, services, or premium access."""
+
     __tablename__ = "creator_revenue_opportunities"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -30,10 +32,13 @@ class CreatorRevenueOpportunity(Base):
 
 class UgcServiceAction(Base):
     """A UGC or creative services execution plan."""
+
     __tablename__ = "ugc_service_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True
+    )
     service_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     target_segment: Mapped[str] = mapped_column(String(120), nullable=False)
     recommended_package: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -50,10 +55,13 @@ class UgcServiceAction(Base):
 
 class ServiceConsultingAction(Base):
     """A services / consulting execution plan."""
+
     __tablename__ = "service_consulting_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True
+    )
     service_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     service_tier: Mapped[str] = mapped_column(String(40), default="standard", index=True)
     target_buyer: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -69,10 +77,13 @@ class ServiceConsultingAction(Base):
 
 class PremiumAccessAction(Base):
     """A premium access / concierge execution plan."""
+
     __tablename__ = "premium_access_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True
+    )
     offer_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     target_segment: Mapped[str] = mapped_column(String(120), nullable=False)
     entry_criteria: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -88,10 +99,13 @@ class PremiumAccessAction(Base):
 
 class LicensingAction(Base):
     """A licensing execution plan."""
+
     __tablename__ = "licensing_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True
+    )
     asset_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     licensing_tier: Mapped[str] = mapped_column(String(40), default="standard", index=True)
     target_buyer_type: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -108,10 +122,13 @@ class LicensingAction(Base):
 
 class SyndicationAction(Base):
     """A syndication execution plan."""
+
     __tablename__ = "syndication_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True
+    )
     syndication_format: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     target_partner: Mapped[str] = mapped_column(String(120), nullable=False)
     revenue_model: Mapped[str] = mapped_column(String(30), default="recurring", index=True)
@@ -127,10 +144,13 @@ class SyndicationAction(Base):
 
 class DataProductAction(Base):
     """A data product execution plan."""
+
     __tablename__ = "data_product_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True
+    )
     product_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     target_segment: Mapped[str] = mapped_column(String(120), nullable=False)
     revenue_model: Mapped[str] = mapped_column(String(30), default="recurring", index=True)
@@ -146,10 +166,13 @@ class DataProductAction(Base):
 
 class MerchAction(Base):
     """A merch / physical product execution plan."""
+
     __tablename__ = "merch_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True
+    )
     product_class: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     target_segment: Mapped[str] = mapped_column(String(120), nullable=False)
     price_band: Mapped[str] = mapped_column(String(60), default="mid")
@@ -165,10 +188,13 @@ class MerchAction(Base):
 
 class LiveEventAction(Base):
     """A live event execution plan."""
+
     __tablename__ = "live_event_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True
+    )
     event_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     audience_segment: Mapped[str] = mapped_column(String(120), nullable=False)
     ticket_model: Mapped[str] = mapped_column(String(40), default="paid", index=True)
@@ -185,10 +211,13 @@ class LiveEventAction(Base):
 
 class OwnedAffiliateProgramAction(Base):
     """An owned affiliate program execution plan."""
+
     __tablename__ = "owned_affiliate_program_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True
+    )
     program_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     target_partner_type: Mapped[str] = mapped_column(String(120), nullable=False)
     incentive_model: Mapped[str] = mapped_column(String(60), default="percentage", index=True)
@@ -205,6 +234,7 @@ class OwnedAffiliateProgramAction(Base):
 
 class AvenueExecutionTruth(Base):
     """Per-avenue execution truth state for the unified Creator Revenue Hub."""
+
     __tablename__ = "avenue_execution_truth"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -225,6 +255,7 @@ class AvenueExecutionTruth(Base):
 
 class CreatorRevenueBlocker(Base):
     """Blockers preventing creator revenue avenue execution."""
+
     __tablename__ = "creator_revenue_blockers"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -239,10 +270,13 @@ class CreatorRevenueBlocker(Base):
 
 class CreatorRevenueEvent(Base):
     """Revenue events tied to creator revenue avenues."""
+
     __tablename__ = "creator_revenue_events"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True)
+    opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True
+    )
     avenue_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     revenue: Mapped[float] = mapped_column(Float, default=0.0)

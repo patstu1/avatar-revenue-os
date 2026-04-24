@@ -1,4 +1,5 @@
 """Authentication endpoints — register, login, me, password reset."""
+
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -120,7 +121,9 @@ async def me(current_user: CurrentUser):
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
 async def forgot_password(
-    body: PasswordResetRequest, db: DBSession, request: Request,
+    body: PasswordResetRequest,
+    db: DBSession,
+    request: Request,
     _=Depends(auth_rate_limit),
 ):
     """Request a password reset email.
@@ -129,15 +132,14 @@ async def forgot_password(
     a reset link is sent via SMTP. Token expires in 1 hour.
     """
     # Look up user by email (case-insensitive)
-    user = (await db.execute(
-        select(User).where(User.email.ilike(body.email))
-    )).scalar_one_or_none()
+    user = (await db.execute(select(User).where(User.email.ilike(body.email)))).scalar_one_or_none()
 
     if user and user.is_active:
         # Generate a URL-safe random token (43 chars)
         raw_token = secrets.token_urlsafe(32)
         # Store a hash of the token so a DB leak doesn't expose reset tokens
         import hashlib
+
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
 
         user.password_reset_token = token_hash
@@ -172,16 +174,22 @@ async def forgot_password(
                 msg["From"] = f"Avatar Revenue OS <{from_email}>"
                 msg["To"] = user.email
                 msg["Subject"] = "Password reset — Avatar Revenue OS"
-                msg.attach(MIMEText(
-                    f"A password reset was requested for your account.\n\n"
-                    f"Click here to reset your password (expires in 1 hour):\n"
-                    f"{reset_link}\n\n"
-                    f"If you did not request this, ignore this email — your password will remain unchanged.",
-                    "plain",
-                ))
+                msg.attach(
+                    MIMEText(
+                        f"A password reset was requested for your account.\n\n"
+                        f"Click here to reset your password (expires in 1 hour):\n"
+                        f"{reset_link}\n\n"
+                        f"If you did not request this, ignore this email — your password will remain unchanged.",
+                        "plain",
+                    )
+                )
                 await aiosmtplib.send(
-                    msg, hostname=host, port=port,
-                    username=username, password=password, start_tls=True,
+                    msg,
+                    hostname=host,
+                    port=port,
+                    username=username,
+                    password=password,
+                    start_tls=True,
                 )
                 logger.info("auth.password_reset_sent", email=user.email)
             else:
@@ -190,7 +198,8 @@ async def forgot_password(
             logger.exception("auth.password_reset_send_failed", email=user.email, error=str(e))
 
         await log_action(
-            db, "user.password_reset_requested",
+            db,
+            "user.password_reset_requested",
             organization_id=user.organization_id,
             user_id=user.id,
             actor_type="human",
@@ -203,16 +212,17 @@ async def forgot_password(
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
 async def reset_password(
-    body: PasswordResetConfirm, db: DBSession, request: Request,
+    body: PasswordResetConfirm,
+    db: DBSession,
+    request: Request,
     _=Depends(auth_rate_limit),
 ):
     """Complete a password reset using the emailed token."""
     import hashlib
+
     token_hash = hashlib.sha256(body.token.encode()).hexdigest()
 
-    user = (await db.execute(
-        select(User).where(User.password_reset_token == token_hash)
-    )).scalar_one_or_none()
+    user = (await db.execute(select(User).where(User.password_reset_token == token_hash))).scalar_one_or_none()
 
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
@@ -234,7 +244,8 @@ async def reset_password(
     await db.flush()
 
     await log_action(
-        db, "user.password_reset_completed",
+        db,
+        "user.password_reset_completed",
         organization_id=user.organization_id,
         user_id=user.id,
         actor_type="human",
@@ -246,14 +257,15 @@ async def reset_password(
 
 @router.post("/change-password", status_code=status.HTTP_200_OK)
 async def change_password(
-    body: PasswordChangeRequest, current_user: CurrentUser, db: DBSession,
-    request: Request, _=Depends(auth_rate_limit),
+    body: PasswordChangeRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+    request: Request,
+    _=Depends(auth_rate_limit),
 ):
     """Change password for a logged-in user. Requires current password."""
     # Re-fetch user to get hashed_password (current_user is a response model)
-    user = (await db.execute(
-        select(User).where(User.id == current_user.id)
-    )).scalar_one_or_none()
+    user = (await db.execute(select(User).where(User.id == current_user.id))).scalar_one_or_none()
 
     if not user or not verify_password(body.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
@@ -262,7 +274,8 @@ async def change_password(
     await db.flush()
 
     await log_action(
-        db, "user.password_changed",
+        db,
+        "user.password_changed",
         organization_id=user.organization_id,
         user_id=user.id,
         actor_type="human",

@@ -1,4 +1,5 @@
 """Unit tests for Account Expansion Advisor engine."""
+
 from packages.scoring.expansion_advisor_engine import (
     EXPAND_REC_KEYS,
     HOLD_REC_KEYS,
@@ -6,7 +7,9 @@ from packages.scoring.expansion_advisor_engine import (
 )
 
 
-def _scale_result(rec_key="add_experimental", inc_new=200, inc_exist=100, readiness=65, exp_conf=0.6, cann=0.2, seg_sep=0.7):
+def _scale_result(
+    rec_key="add_experimental", inc_new=200, inc_exist=100, readiness=65, exp_conf=0.6, cann=0.2, seg_sep=0.7
+):
     return {
         "recommendation_key": rec_key,
         "best_next_account": {"platform_suggestion": "tiktok", "niche_suggestion": "fitness sub-niche"},
@@ -44,7 +47,9 @@ def test_hold_when_scale_says_monitor():
 
 
 def test_hold_when_winners_harder():
-    r = compute_expansion_advisory(_scale_result("scale_winners_harder", inc_new=50, inc_exist=200), _accounts(), "tech", None, 3, 15)
+    r = compute_expansion_advisory(
+        _scale_result("scale_winners_harder", inc_new=50, inc_exist=200), _accounts(), "tech", None, 3, 15
+    )
     assert r["should_add_account_now"] is False
     assert "winners" in r["hold_reason"].lower() or "existing" in r["hold_reason"].lower()
 
@@ -62,13 +67,17 @@ def test_hold_when_improve_funnel():
 
 
 def test_blocker_no_offers():
-    r = compute_expansion_advisory(_scale_result("add_experimental"), _accounts(), "tech", None, offer_count=0, content_count=10)
+    r = compute_expansion_advisory(
+        _scale_result("add_experimental"), _accounts(), "tech", None, offer_count=0, content_count=10
+    )
     assert r["should_add_account_now"] is False
     assert any(b["type"] == "no_offers" for b in r["blockers"])
 
 
 def test_blocker_critical_health():
-    r = compute_expansion_advisory(_scale_result("add_experimental"), _accounts(), "tech", None, 2, 10, avg_account_health="critical")
+    r = compute_expansion_advisory(
+        _scale_result("add_experimental"), _accounts(), "tech", None, 2, 10, avg_account_health="critical"
+    )
     assert r["should_add_account_now"] is False
     assert any(b["type"] == "unhealthy_accounts" for b in r["blockers"])
 
@@ -79,7 +88,9 @@ def test_blocker_low_content():
 
 
 def test_blocker_high_fatigue():
-    r = compute_expansion_advisory(_scale_result("add_experimental"), _accounts(), "tech", None, 2, 10, avg_fatigue=0.85)
+    r = compute_expansion_advisory(
+        _scale_result("add_experimental"), _accounts(), "tech", None, 2, 10, avg_fatigue=0.85
+    )
     assert any(b["type"] == "high_fatigue" for b in r["blockers"])
 
 

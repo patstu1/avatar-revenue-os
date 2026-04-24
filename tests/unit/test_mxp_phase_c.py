@@ -2,6 +2,7 @@
 
 Persistence tests live in tests/integration/test_mxp_phase_c_persistence.py (requires PostgreSQL).
 """
+
 from __future__ import annotations
 
 from packages.scoring.market_timing_engine import evaluate_market_timing

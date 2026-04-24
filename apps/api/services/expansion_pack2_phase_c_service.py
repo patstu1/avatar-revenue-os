@@ -1,4 +1,5 @@
 """Expansion Pack 2 Phase C — referral, competitive gap, sponsor sales, profit guardrail services."""
+
 from __future__ import annotations
 
 import uuid
@@ -25,9 +26,7 @@ from packages.scoring.expansion_pack2_phase_c_engines import (
 )
 
 
-async def recompute_referral_program_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_referral_program_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -59,9 +58,19 @@ async def recompute_referral_program_recommendations(
     # DATA BOUNDARY: Static referral benchmarks — no live referral tracking feed yet.
     # Engine uses these as priors; replace with real program data when available.
     historical_referral_data = [
-        {'program_type': 'tiered_cash_bonus', 'referral_bonus': 50.0, 'referred_bonus': 25.0, 'conversion_rate': 0.15},
-        {'program_type': 'discount_for_next_purchase', 'referral_bonus': 20.0, 'referred_bonus': 10.0, 'conversion_rate': 0.10},
-        {'program_type': 'standard_cash_bonus', 'referral_bonus': 15.0, 'referred_bonus': 10.0, 'conversion_rate': 0.07},
+        {"program_type": "tiered_cash_bonus", "referral_bonus": 50.0, "referred_bonus": 25.0, "conversion_rate": 0.15},
+        {
+            "program_type": "discount_for_next_purchase",
+            "referral_bonus": 20.0,
+            "referred_bonus": 10.0,
+            "conversion_rate": 0.10,
+        },
+        {
+            "program_type": "standard_cash_bonus",
+            "referral_bonus": 15.0,
+            "referred_bonus": 10.0,
+            "conversion_rate": 0.07,
+        },
     ]
 
     await db.execute(delete(ReferralProgramRecommendation).where(ReferralProgramRecommendation.brand_id == brand_id))
@@ -89,15 +98,18 @@ async def recompute_referral_program_recommendations(
     return {"referral_recommendations_count": 1}
 
 
-async def get_referral_program_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_referral_program_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(ReferralProgramRecommendation)
-            .where(ReferralProgramRecommendation.brand_id == brand_id, ReferralProgramRecommendation.is_active.is_(True))
-            .order_by(ReferralProgramRecommendation.estimated_revenue_impact.desc())
-        ))
+        (
+            await db.execute(
+                select(ReferralProgramRecommendation)
+                .where(
+                    ReferralProgramRecommendation.brand_id == brand_id,
+                    ReferralProgramRecommendation.is_active.is_(True),
+                )
+                .order_by(ReferralProgramRecommendation.estimated_revenue_impact.desc())
+            )
+        )
         .scalars()
         .all()
     )
@@ -121,28 +133,20 @@ async def get_referral_program_recommendations(
     ]
 
 
-async def recompute_competitive_gap_reports(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_competitive_gap_reports(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     # Fetch real own offers
     offers = list(
-        (
-            await db.execute(
-                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
     own_offers = [
         {
             "offer_id": str(o.id),
             "name": o.name,
-            "features": o.audience_fit_tags, # Using audience_fit_tags as a proxy for features
+            "features": o.audience_fit_tags,  # Using audience_fit_tags as a proxy for features
             "pricing": o.payout_amount,
         }
         for o in offers
@@ -150,15 +154,42 @@ async def recompute_competitive_gap_reports(
 
     # DATA BOUNDARY: Static competitor benchmarks — no live competitive intel feed yet.
     competitor_offers = [
-        {'competitor_name': 'CompCo Basic', 'offer_id': 'comp_offer_1', 'name': 'Basic Product', 'features': ['A', 'B'], 'pricing': 90.0},
-        {'competitor_name': 'CompCo Premium', 'offer_id': 'comp_offer_2', 'name': 'Premium Product', 'features': ['A', 'B', 'C', 'D'], 'pricing': 150.0},
+        {
+            "competitor_name": "CompCo Basic",
+            "offer_id": "comp_offer_1",
+            "name": "Basic Product",
+            "features": ["A", "B"],
+            "pricing": 90.0,
+        },
+        {
+            "competitor_name": "CompCo Premium",
+            "offer_id": "comp_offer_2",
+            "name": "Premium Product",
+            "features": ["A", "B", "C", "D"],
+            "pricing": 150.0,
+        },
     ]
 
     # DATA BOUNDARY: Static market feedback — no live sentiment feed yet.
     market_feedback = [
-        {'feedback_id': 'fb_1', 'offer_id': own_offers[0]['offer_id'] if own_offers else None, 'sentiment': 'negative', 'comment': 'Missing feature X'},
-        {'feedback_id': 'fb_2', 'offer_id': 'comp_offer_1', 'sentiment': 'positive', 'comment': 'Great value for money'},
-        {'feedback_id': 'fb_3', 'offer_id': own_offers[0]['offer_id'] if own_offers else None, 'sentiment': 'negative', 'comment': 'Too expensive compared to alternatives'},
+        {
+            "feedback_id": "fb_1",
+            "offer_id": own_offers[0]["offer_id"] if own_offers else None,
+            "sentiment": "negative",
+            "comment": "Missing feature X",
+        },
+        {
+            "feedback_id": "fb_2",
+            "offer_id": "comp_offer_1",
+            "sentiment": "positive",
+            "comment": "Great value for money",
+        },
+        {
+            "feedback_id": "fb_3",
+            "offer_id": own_offers[0]["offer_id"] if own_offers else None,
+            "sentiment": "negative",
+            "comment": "Too expensive compared to alternatives",
+        },
     ]
 
     await db.execute(delete(CompetitiveGapReport).where(CompetitiveGapReport.brand_id == brand_id))
@@ -199,15 +230,15 @@ async def recompute_competitive_gap_reports(
     return {"competitive_gap_reports_count": 1}
 
 
-async def get_competitive_gap_reports(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_competitive_gap_reports(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(CompetitiveGapReport)
-            .where(CompetitiveGapReport.brand_id == brand_id, CompetitiveGapReport.is_active.is_(True))
-            .order_by(CompetitiveGapReport.estimated_impact.desc())
-        ))
+        (
+            await db.execute(
+                select(CompetitiveGapReport)
+                .where(CompetitiveGapReport.brand_id == brand_id, CompetitiveGapReport.is_active.is_(True))
+                .order_by(CompetitiveGapReport.estimated_impact.desc())
+            )
+        )
         .scalars()
         .all()
     )
@@ -230,9 +261,7 @@ async def get_competitive_gap_reports(
     ]
 
 
-async def recompute_sponsor_targets(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_sponsor_targets(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -284,7 +313,7 @@ async def recompute_sponsor_targets(
             "conversion_rate": s.conversion_rate,
             "avg_ltv": s.avg_ltv,
             "platforms": s.platforms,
-            "loyalty_score": s.conversion_rate * 10, # Re-using proxy from referral engine
+            "loyalty_score": s.conversion_rate * 10,  # Re-using proxy from referral engine
         }
         for s in audience_segments
     ]
@@ -317,15 +346,15 @@ async def recompute_sponsor_targets(
     return {"sponsor_targets_count": count}
 
 
-async def get_sponsor_targets(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_sponsor_targets(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(SponsorTarget)
-            .where(SponsorTarget.brand_id == brand_id, SponsorTarget.is_active.is_(True))
-            .order_by(SponsorTarget.fit_score.desc())
-        ))
+        (
+            await db.execute(
+                select(SponsorTarget)
+                .where(SponsorTarget.brand_id == brand_id, SponsorTarget.is_active.is_(True))
+                .order_by(SponsorTarget.fit_score.desc())
+            )
+        )
         .scalars()
         .all()
     )
@@ -348,15 +377,17 @@ async def get_sponsor_targets(
     ]
 
 
-async def recompute_sponsor_outreach_sequences(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_sponsor_outreach_sequences(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     sponsor_targets = list(
-        (await db.execute(select(SponsorTarget).where(SponsorTarget.brand_id == brand_id, SponsorTarget.is_active.is_(True))))
+        (
+            await db.execute(
+                select(SponsorTarget).where(SponsorTarget.brand_id == brand_id, SponsorTarget.is_active.is_(True))
+            )
+        )
         .scalars()
         .all()
     )
@@ -364,54 +395,76 @@ async def recompute_sponsor_outreach_sequences(
     # DATA BOUNDARY: Static outreach templates — no live template/CRM integration yet.
     outreach_templates = [
         {
-            'name': 'Tech Enterprise Outreach',
-            'steps': [
-                {'order': 1, 'type': 'email', 'content': 'Personalized email to Tech VP'},
-                {'order': 2, 'type': 'linkedin_message', 'content': 'LinkedIn connection request'},
-                {'order': 3, 'type': 'email', 'content': 'Follow-up with case study'},
+            "name": "Tech Enterprise Outreach",
+            "steps": [
+                {"order": 1, "type": "email", "content": "Personalized email to Tech VP"},
+                {"order": 2, "type": "linkedin_message", "content": "LinkedIn connection request"},
+                {"order": 3, "type": "email", "content": "Follow-up with case study"},
             ],
-            'effectiveness': 0.15,
-            'target_industry': 'tech',
-            'target_company_size_category': 'enterprise',
+            "effectiveness": 0.15,
+            "target_industry": "tech",
+            "target_company_size_category": "enterprise",
         },
         {
-            'name': 'SMB Fashion Outreach',
-            'steps': [
-                {'order': 1, 'type': 'email', 'content': 'Introductory email to Fashion Brand Manager'},
-                {'order': 2, 'type': 'email', 'content': 'Follow-up with lookbook'},
+            "name": "SMB Fashion Outreach",
+            "steps": [
+                {"order": 1, "type": "email", "content": "Introductory email to Fashion Brand Manager"},
+                {"order": 2, "type": "email", "content": "Follow-up with lookbook"},
             ],
-            'effectiveness': 0.10,
-            'target_industry': 'fashion',
-            'target_company_size_category': 'smb',
+            "effectiveness": 0.10,
+            "target_industry": "fashion",
+            "target_company_size_category": "smb",
         },
         {
-            'name': 'Standard Cold Outreach',
-            'steps': [
-                {'order': 1, 'type': 'email', 'content': 'Initial cold email'},
-                {'order': 2, 'type': 'email', 'content': 'Second cold email'},
+            "name": "Standard Cold Outreach",
+            "steps": [
+                {"order": 1, "type": "email", "content": "Initial cold email"},
+                {"order": 2, "type": "email", "content": "Second cold email"},
             ],
-            'effectiveness': 0.05,
-            'target_industry': '',
-            'target_company_size_category': '',
+            "effectiveness": 0.05,
+            "target_industry": "",
+            "target_company_size_category": "",
         },
     ]
 
     # DATA BOUNDARY: Static outreach performance benchmarks — no live CRM data yet.
     historical_outreach_performance = [
-        {'sequence_name': 'Tech Enterprise Outreach', 'response_rate': 0.18, 'conversion_rate': 0.03, 'industry': 'tech', 'company_size_category': 'enterprise'},
-        {'sequence_name': 'SMB Fashion Outreach', 'response_rate': 0.12, 'conversion_rate': 0.02, 'industry': 'fashion', 'company_size_category': 'smb'},
-        {'sequence_name': 'Standard Cold Outreach', 'response_rate': 0.06, 'conversion_rate': 0.01, 'industry': '', 'company_size_category': '',},
+        {
+            "sequence_name": "Tech Enterprise Outreach",
+            "response_rate": 0.18,
+            "conversion_rate": 0.03,
+            "industry": "tech",
+            "company_size_category": "enterprise",
+        },
+        {
+            "sequence_name": "SMB Fashion Outreach",
+            "response_rate": 0.12,
+            "conversion_rate": 0.02,
+            "industry": "fashion",
+            "company_size_category": "smb",
+        },
+        {
+            "sequence_name": "Standard Cold Outreach",
+            "response_rate": 0.06,
+            "conversion_rate": 0.01,
+            "industry": "",
+            "company_size_category": "",
+        },
     ]
 
-    await db.execute(delete(SponsorOutreachSequence).where(SponsorOutreachSequence.sponsor_target_id.in_([t.id for t in sponsor_targets])))
+    await db.execute(
+        delete(SponsorOutreachSequence).where(
+            SponsorOutreachSequence.sponsor_target_id.in_([t.id for t in sponsor_targets])
+        )
+    )
 
     outreach_sequences_count = 0
     for target in sponsor_targets:
         sequence = generate_sponsor_outreach_sequence(
             sponsor_target_id=target.id,
             target_company_name=target.target_company_name,
-            target_company_industry=target.industry, # New parameter
-            estimated_deal_value=target.estimated_deal_value, # New parameter
+            target_company_industry=target.industry,  # New parameter
+            estimated_deal_value=target.estimated_deal_value,  # New parameter
             outreach_templates=outreach_templates,
             historical_outreach_performance=historical_outreach_performance,
         )
@@ -421,9 +474,9 @@ async def recompute_sponsor_outreach_sequences(
                 sequence_name=sequence["sequence_name"],
                 steps=sequence["steps"],
                 estimated_response_rate=sequence["estimated_response_rate"],
-                expected_value=sequence["expected_value"], # New field
+                expected_value=sequence["expected_value"],  # New field
                 confidence=sequence["confidence"],
-                explanation=sequence["explanation"], # New field
+                explanation=sequence["explanation"],  # New field
             )
         )
         outreach_sequences_count += 1
@@ -432,16 +485,16 @@ async def recompute_sponsor_outreach_sequences(
     return {"sponsor_outreach_sequences_count": outreach_sequences_count}
 
 
-async def get_sponsor_outreach_sequences(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_sponsor_outreach_sequences(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(SponsorOutreachSequence)
-            .join(SponsorTarget)
-            .where(SponsorTarget.brand_id == brand_id, SponsorOutreachSequence.is_active.is_(True))
-            .order_by(SponsorOutreachSequence.created_at.desc())
-        ))
+        (
+            await db.execute(
+                select(SponsorOutreachSequence)
+                .join(SponsorTarget)
+                .where(SponsorTarget.brand_id == brand_id, SponsorOutreachSequence.is_active.is_(True))
+                .order_by(SponsorOutreachSequence.created_at.desc())
+            )
+        )
         .scalars()
         .all()
     )
@@ -452,9 +505,9 @@ async def get_sponsor_outreach_sequences(
             "sequence_name": r.sequence_name,
             "steps": r.steps,
             "estimated_response_rate": r.estimated_response_rate,
-            "expected_value": r.expected_value, # New field
+            "expected_value": r.expected_value,  # New field
             "confidence": r.confidence,
-            "explanation": r.explanation, # New field
+            "explanation": r.explanation,  # New field
             "is_active": r.is_active,
             "created_at": r.created_at.isoformat(),
             "updated_at": r.updated_at.isoformat(),
@@ -463,34 +516,38 @@ async def get_sponsor_outreach_sequences(
     ]
 
 
-async def recompute_profit_guardrail_reports(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_profit_guardrail_reports(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     # Derive financial metrics from real offer / audience data
     offers = list(
-        (await db.execute(
-            select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-        )).scalars().all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
     segments = list(
-        (await db.execute(
-            select(AudienceSegment).where(
-                AudienceSegment.brand_id == brand_id,
-                AudienceSegment.is_active.is_(True),
+        (
+            await db.execute(
+                select(AudienceSegment).where(
+                    AudienceSegment.brand_id == brand_id,
+                    AudienceSegment.is_active.is_(True),
+                )
             )
-        )).scalars().all()
+        )
+        .scalars()
+        .all()
     )
 
     total_revenue = sum(getattr(s, "revenue_contribution", 0) or 0 for s in segments)
     total_audience = sum(getattr(s, "estimated_size", 0) or 0 for s in segments)
     avg_ltv = (
-        sum((getattr(s, "avg_ltv", 0) or 0) * (getattr(s, "estimated_size", 0) or 0) for s in segments)
-        / max(1, total_audience)
-    ) if total_audience else 0
+        (
+            sum((getattr(s, "avg_ltv", 0) or 0) * (getattr(s, "estimated_size", 0) or 0) for s in segments)
+            / max(1, total_audience)
+        )
+        if total_audience
+        else 0
+    )
 
     avg_payout = sum(getattr(o, "payout_amount", 0) or 0 for o in offers) / max(1, len(offers)) if offers else 0
     avg_cvr = sum(getattr(o, "conversion_rate", 0) or 0 for o in offers) / max(1, len(offers)) if offers else 0
@@ -534,15 +591,15 @@ async def recompute_profit_guardrail_reports(
     return {"profit_guardrail_reports_count": len(reports)}
 
 
-async def get_profit_guardrail_reports(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_profit_guardrail_reports(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(ProfitGuardrailReport)
-            .where(ProfitGuardrailReport.brand_id == brand_id, ProfitGuardrailReport.is_active.is_(True))
-            .order_by(ProfitGuardrailReport.created_at.desc())
-        ))
+        (
+            await db.execute(
+                select(ProfitGuardrailReport)
+                .where(ProfitGuardrailReport.brand_id == brand_id, ProfitGuardrailReport.is_active.is_(True))
+                .order_by(ProfitGuardrailReport.created_at.desc())
+            )
+        )
         .scalars()
         .all()
     )

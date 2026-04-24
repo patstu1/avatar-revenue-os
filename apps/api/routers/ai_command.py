@@ -12,6 +12,7 @@ This router does NOT replace, simplify, or bypass any existing subsystem.
 Any future richer per-domain service can drop in without changing the shape
 returned to the frontend.
 """
+
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -31,9 +32,7 @@ def _now() -> str:
 async def _assert_brand(db, brand_id: UUID, user) -> bool:
     row = (
         await db.execute(
-            text(
-                "SELECT 1 FROM brands WHERE id = :bid AND organization_id = :oid AND is_active = true"
-            ),
+            text("SELECT 1 FROM brands WHERE id = :bid AND organization_id = :oid AND is_active = true"),
             {"bid": str(brand_id), "oid": str(user.organization_id)},
         )
     ).fetchone()
@@ -44,10 +43,9 @@ async def _assert_brand(db, brand_id: UUID, user) -> bool:
 # 1. /ai-command/providers — returns AIProviderStatus[]
 # ──────────────────────────────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/ai-command/providers")
-async def ai_command_providers(
-    brand_id: UUID, current_user: CurrentUser, db: DBSession
-) -> list[dict[str, Any]]:
+async def ai_command_providers(brand_id: UUID, current_user: CurrentUser, db: DBSession) -> list[dict[str, Any]]:
     """Return the provider stack as AIProviderStatus[] for the frontend.
 
     Backed by:
@@ -93,17 +91,21 @@ async def ai_command_providers(
         else:
             status_value = "healthy"
 
-        results.append({
-            "provider": name,
-            "display_name": name.replace("_", " ").title(),
-            "status": status_value,
-            "circuit_breaker": "open" if status_value == "down" else ("half_open" if status_value == "degraded" else "closed"),
-            "current_load_pct": float(r.get("load_pct") or 0),
-            "error_rate_pct": float(r.get("error_rate_pct") or 0),
-            "cost_per_unit": float(r.get("cost_per_unit") or 0),
-            "avg_latency_ms": int(r.get("avg_latency_ms") or 0),
-            "requests_24h": int(r.get("requests_24h") or 0),
-        })
+        results.append(
+            {
+                "provider": name,
+                "display_name": name.replace("_", " ").title(),
+                "status": status_value,
+                "circuit_breaker": "open"
+                if status_value == "down"
+                else ("half_open" if status_value == "degraded" else "closed"),
+                "current_load_pct": float(r.get("load_pct") or 0),
+                "error_rate_pct": float(r.get("error_rate_pct") or 0),
+                "cost_per_unit": float(r.get("cost_per_unit") or 0),
+                "avg_latency_ms": int(r.get("avg_latency_ms") or 0),
+                "requests_24h": int(r.get("requests_24h") or 0),
+            }
+        )
 
     return results
 
@@ -112,10 +114,9 @@ async def ai_command_providers(
 # 2. /ai-command/quality-gate — returns QualityGateStats
 # ──────────────────────────────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/ai-command/quality-gate")
-async def ai_command_quality_gate(
-    brand_id: UUID, current_user: CurrentUser, db: DBSession
-) -> dict[str, Any]:
+async def ai_command_quality_gate(brand_id: UUID, current_user: CurrentUser, db: DBSession) -> dict[str, Any]:
     """Return quality gate stats in the shape the frontend expects.
 
     Backed by:
@@ -156,14 +157,16 @@ async def ai_command_quality_gate(
             )
         ).fetchone()
         title = title_row[0] if title_row else "Content item"
-        recent_scores.append({
-            "content_id": str(r.content_item_id),
-            "title": title,
-            "overall_score": float(getattr(r, "total_score", 0) or 0),
-            "passed": bool(getattr(r, "publish_allowed", False)),
-            "dimensions": [],
-            "evaluated_at": r.created_at.isoformat() if r.created_at else "",
-        })
+        recent_scores.append(
+            {
+                "content_id": str(r.content_item_id),
+                "title": title,
+                "overall_score": float(getattr(r, "total_score", 0) or 0),
+                "passed": bool(getattr(r, "publish_allowed", False)),
+                "dimensions": [],
+                "evaluated_at": r.created_at.isoformat() if r.created_at else "",
+            }
+        )
 
     return {
         "total_evaluated": total,
@@ -178,10 +181,9 @@ async def ai_command_quality_gate(
 # 3. /ai-command/experiments — returns Experiment[]
 # ──────────────────────────────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/ai-command/experiments")
-async def ai_command_experiments(
-    brand_id: UUID, current_user: CurrentUser, db: DBSession
-) -> list[dict[str, Any]]:
+async def ai_command_experiments(brand_id: UUID, current_user: CurrentUser, db: DBSession) -> list[dict[str, Any]]:
     """Return experiments in the Experiment[] shape the frontend expects.
 
     Backed by:
@@ -209,6 +211,7 @@ async def ai_command_experiments(
     results: list[dict[str, Any]] = []
     from datetime import datetime
     from datetime import timezone as tz
+
     for r in rows:
         started = r[7] or r[8]
         days_running = 0
@@ -217,21 +220,23 @@ async def ai_command_experiments(
                 days_running = max(0, (datetime.now(tz.utc) - started).days)
             except Exception:
                 days_running = 0
-        results.append({
-            "id": str(r[0]),
-            "name": r[1] or "",
-            "status": r[2] or "running",
-            "variant_a": "A",
-            "variant_b": "B",
-            "metric": r[4] or "conversion_rate",
-            "sample_size_a": int(r[5] or 0) // 2,
-            "sample_size_b": int(r[5] or 0) // 2,
-            "lift_pct": 0.0,
-            "confidence_pct": 0.0,
-            "winner": "a" if r[6] else None,
-            "started_at": started.isoformat() if started else "",
-            "days_running": days_running,
-        })
+        results.append(
+            {
+                "id": str(r[0]),
+                "name": r[1] or "",
+                "status": r[2] or "running",
+                "variant_a": "A",
+                "variant_b": "B",
+                "metric": r[4] or "conversion_rate",
+                "sample_size_a": int(r[5] or 0) // 2,
+                "sample_size_b": int(r[5] or 0) // 2,
+                "lift_pct": 0.0,
+                "confidence_pct": 0.0,
+                "winner": "a" if r[6] else None,
+                "started_at": started.isoformat() if started else "",
+                "days_running": days_running,
+            }
+        )
 
     return results
 
@@ -240,10 +245,9 @@ async def ai_command_experiments(
 # 4. /ai-command/budget — returns BudgetData
 # ──────────────────────────────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/ai-command/budget")
-async def ai_command_budget(
-    brand_id: UUID, current_user: CurrentUser, db: DBSession
-) -> dict[str, Any]:
+async def ai_command_budget(brand_id: UUID, current_user: CurrentUser, db: DBSession) -> dict[str, Any]:
     """Return BudgetData in the exact frontend shape.
 
     Backed by:
@@ -324,10 +328,9 @@ async def ai_command_budget(
 # 5. /ai-command/system-health — returns SystemHealthData
 # ──────────────────────────────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/ai-command/system-health")
-async def ai_command_system_health(
-    brand_id: UUID, current_user: CurrentUser, db: DBSession
-) -> dict[str, Any]:
+async def ai_command_system_health(brand_id: UUID, current_user: CurrentUser, db: DBSession) -> dict[str, Any]:
     """Return SystemHealthData in the exact frontend shape.
 
     Backed by:
@@ -367,14 +370,16 @@ async def ai_command_system_health(
         failed = int(r[2] or 0)
         avg_s = float(r[4] or 0)
         status_value = "active" if completed > 0 else ("error" if failed > 0 else "idle")
-        workers.append({
-            "name": r[0] or "default",
-            "status": status_value,
-            "active_tasks": 0,
-            "completed_24h": completed,
-            "failed_24h": failed,
-            "avg_execution_ms": int(avg_s * 1000),
-        })
+        workers.append(
+            {
+                "name": r[0] or "default",
+                "status": status_value,
+                "active_tasks": 0,
+                "completed_24h": completed,
+                "failed_24h": failed,
+                "avg_execution_ms": int(avg_s * 1000),
+            }
+        )
 
     # Error rates
     row_1h = (
@@ -420,10 +425,9 @@ async def ai_command_system_health(
 # 6. /ai-command/activity — returns ActivityEvent[]
 # ──────────────────────────────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/ai-command/activity")
-async def ai_command_activity(
-    brand_id: UUID, current_user: CurrentUser, db: DBSession
-) -> list[dict[str, Any]]:
+async def ai_command_activity(brand_id: UUID, current_user: CurrentUser, db: DBSession) -> list[dict[str, Any]]:
     """Return ActivityEvent[] in the exact frontend shape.
 
     Backed by:
@@ -462,12 +466,14 @@ async def ai_command_activity(
         severity = (r[4] or "info").lower()
         if severity not in ("info", "warning", "error"):
             severity = "info"
-        results.append({
-            "id": str(r[0]),
-            "type": event_type,
-            "message": r[3] or r[1] or "",
-            "timestamp": r[5].isoformat() if r[5] else "",
-            "severity": severity,
-        })
+        results.append(
+            {
+                "id": str(r[0]),
+                "type": event_type,
+                "message": r[3] or r[1] or "",
+                "timestamp": r[5].isoformat() if r[5] else "",
+                "severity": severity,
+            }
+        )
 
     return results

@@ -47,7 +47,7 @@ def _action_from_coarse(coarse: str) -> RecommendedAction:
 
 
 def _confidence_from_engine(exp_conf: float, readiness: float) -> ConfidenceLevel:
-    s = (exp_conf * 0.5 + (readiness / 100) * 0.5)
+    s = exp_conf * 0.5 + (readiness / 100) * 0.5
     if s >= 0.72:
         return ConfidenceLevel.HIGH
     if s >= 0.45:
@@ -59,9 +59,7 @@ def _confidence_from_engine(exp_conf: float, readiness: float) -> ConfidenceLeve
 
 async def sync_account_metrics_from_performance(db: AsyncSession, brand_id: uuid.UUID) -> int:
     """Roll PerformanceMetric into CreatorAccount scale fields (best-effort)."""
-    accounts = (
-        (await db.execute(select(CreatorAccount).where(CreatorAccount.brand_id == brand_id))).scalars().all()
-    )
+    accounts = (await db.execute(select(CreatorAccount).where(CreatorAccount.brand_id == brand_id))).scalars().all()
     updated = 0
     for acct in accounts:
         row = (
@@ -96,9 +94,7 @@ async def _build_snapshots(db: AsyncSession, brand_id: uuid.UUID) -> tuple[list[
     accounts = (
         (
             await db.execute(
-                select(CreatorAccount).where(
-                    CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True)
-                )
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
             )
         )
         .scalars()
@@ -147,7 +143,9 @@ async def _build_snapshots(db: AsyncSession, brand_id: uuid.UUID) -> tuple[list[
                 originality_drift_score=float(acct.originality_drift_score or 0),
                 diminishing_returns_score=float(acct.diminishing_returns_score or 0),
                 posting_capacity_per_day=int(acct.posting_capacity_per_day or 1),
-                account_health=acct.account_health.value if hasattr(acct.account_health, "value") else str(acct.account_health),
+                account_health=acct.account_health.value
+                if hasattr(acct.account_health, "value")
+                else str(acct.account_health),
                 offer_performance_score=offer_pf,
                 scale_role=acct.scale_role,
                 impressions_rollup=imps_ac,
@@ -301,10 +299,14 @@ async def persist_account_scale_roles(db: AsyncSession, brand_id: uuid.UUID, sna
     await db.flush()
 
 
-async def recompute_portfolio_allocations(db: AsyncSession, brand_id: uuid.UUID) -> tuple[list[PortfolioAllocation], uuid.UUID]:
+async def recompute_portfolio_allocations(
+    db: AsyncSession, brand_id: uuid.UUID
+) -> tuple[list[PortfolioAllocation], uuid.UUID]:
     portfolio = (
         await db.execute(
-            select(AccountPortfolio).where(AccountPortfolio.brand_id == brand_id, AccountPortfolio.is_active.is_(True)).limit(1)
+            select(AccountPortfolio)
+            .where(AccountPortfolio.brand_id == brand_id, AccountPortfolio.is_active.is_(True))
+            .limit(1)
         )
     ).scalar_one_or_none()
     if not portfolio:
@@ -320,7 +322,11 @@ async def recompute_portfolio_allocations(db: AsyncSession, brand_id: uuid.UUID)
         await db.flush()
 
     accounts = (
-        (await db.execute(select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))))
+        (
+            await db.execute(
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            )
+        )
         .scalars()
         .all()
     )
@@ -358,7 +364,9 @@ async def recompute_portfolio_allocations(db: AsyncSession, brand_id: uuid.UUID)
         db.add(row)
         allocations.append(row)
 
-    alloc_snap = {"items": [{"account_id": str(row.creator_account_id), "pct": row.allocation_pct} for row in allocations]}
+    alloc_snap = {
+        "items": [{"account_id": str(row.creator_account_id), "pct": row.allocation_pct} for row in allocations]
+    }
     db.add(
         AllocationDecision(
             brand_id=brand_id,
@@ -450,7 +458,9 @@ async def build_scale_command_center(db: AsyncSession, brand_id: uuid.UUID) -> d
                 "follower_growth_rate": float(acct.follower_growth_rate or 0),
                 "content_fatigue": float(acct.fatigue_score or 0),
                 "niche_saturation": float(acct.saturation_score or 0),
-                "account_health": acct.account_health.value if hasattr(acct.account_health, "value") else str(acct.account_health),
+                "account_health": acct.account_health.value
+                if hasattr(acct.account_health, "value")
+                else str(acct.account_health),
                 "originality_drift": float(acct.originality_drift_score or 0),
                 "posting_capacity_per_day": acct.posting_capacity_per_day,
                 "diminishing_returns": float(acct.diminishing_returns_score or 0),
@@ -594,7 +604,9 @@ def _serialize_rec(r: ScaleRecommendation) -> dict[str, Any]:
     return {
         "id": str(r.id),
         "recommendation_key": r.recommendation_key,
-        "recommended_action": r.recommended_action.value if hasattr(r.recommended_action, "value") else str(r.recommended_action),
+        "recommended_action": r.recommended_action.value
+        if hasattr(r.recommended_action, "value")
+        else str(r.recommended_action),
         "creator_account_id": str(r.creator_account_id) if r.creator_account_id else None,
         "incremental_profit_new_account": r.incremental_profit_new_account,
         "incremental_profit_existing_push": r.incremental_profit_existing_push,

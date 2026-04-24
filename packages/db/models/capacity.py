@@ -1,4 +1,5 @@
 """Capacity and queue allocation models — production throughput and throttle decisions."""
+
 import uuid
 from typing import Optional
 
@@ -12,9 +13,7 @@ from packages.db.base import Base
 class CapacityReport(Base):
     __tablename__ = "capacity_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     capacity_type: Mapped[str] = mapped_column(String(100), nullable=False)
     current_capacity: Mapped[float] = mapped_column(Float, default=0.0)
     used_capacity: Mapped[float] = mapped_column(Float, default=0.0)
@@ -30,9 +29,7 @@ class CapacityReport(Base):
 class QueueAllocationDecision(Base):
     __tablename__ = "queue_allocation_decisions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     queue_name: Mapped[str] = mapped_column(String(100), nullable=False)
     priority_score: Mapped[float] = mapped_column(Float, default=0.0)
     allocated_capacity: Mapped[float] = mapped_column(Float, default=0.0)

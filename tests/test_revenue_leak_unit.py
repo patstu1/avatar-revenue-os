@@ -1,4 +1,5 @@
 """Unit tests for revenue leak engine."""
+
 from packages.scoring.revenue_leak_engine import (
     LEAK_TYPES,
     cluster_leaks,
@@ -16,17 +17,50 @@ class TestLeakTypes:
 
 class TestDetection:
     def test_high_impressions_low_ctr(self):
-        data = {"content_items": [{"id": "c1", "impressions": 10000, "clicks": 50, "engagement_rate": 0.01, "revenue": 0, "conversion_rate": 0.005}]}
+        data = {
+            "content_items": [
+                {
+                    "id": "c1",
+                    "impressions": 10000,
+                    "clicks": 50,
+                    "engagement_rate": 0.01,
+                    "revenue": 0,
+                    "conversion_rate": 0.005,
+                }
+            ]
+        }
         leaks = detect_leaks(data)
         assert any(l["leak_type"] == "high_impressions_low_ctr" for l in leaks)
 
     def test_high_clicks_low_conversion(self):
-        data = {"content_items": [{"id": "c1", "impressions": 5000, "clicks": 200, "engagement_rate": 0.04, "revenue": 0, "conversion_rate": 0.001}]}
+        data = {
+            "content_items": [
+                {
+                    "id": "c1",
+                    "impressions": 5000,
+                    "clicks": 200,
+                    "engagement_rate": 0.04,
+                    "revenue": 0,
+                    "conversion_rate": 0.001,
+                }
+            ]
+        }
         leaks = detect_leaks(data)
         assert any(l["leak_type"] == "high_clicks_low_conversion" for l in leaks)
 
     def test_high_engagement_low_monetization(self):
-        data = {"content_items": [{"id": "c1", "impressions": 5000, "clicks": 100, "engagement_rate": 0.08, "revenue": 2, "conversion_rate": 0.02}]}
+        data = {
+            "content_items": [
+                {
+                    "id": "c1",
+                    "impressions": 5000,
+                    "clicks": 100,
+                    "engagement_rate": 0.08,
+                    "revenue": 2,
+                    "conversion_rate": 0.02,
+                }
+            ]
+        }
         leaks = detect_leaks(data)
         assert any(l["leak_type"] == "high_engagement_low_monetization" for l in leaks)
 
@@ -46,7 +80,18 @@ class TestDetection:
         assert any(l["leak_type"] == "under_monetized_account" for l in leaks)
 
     def test_clean_system(self):
-        data = {"content_items": [{"id": "c1", "impressions": 100, "clicks": 10, "engagement_rate": 0.02, "revenue": 50, "conversion_rate": 0.1}]}
+        data = {
+            "content_items": [
+                {
+                    "id": "c1",
+                    "impressions": 100,
+                    "clicks": 10,
+                    "engagement_rate": 0.02,
+                    "revenue": 50,
+                    "conversion_rate": 0.1,
+                }
+            ]
+        }
         leaks = detect_leaks(data)
         assert len(leaks) == 0
 
@@ -65,7 +110,10 @@ class TestClustering:
 
 class TestEstimation:
     def test_total_loss(self):
-        leaks = [{"leak_type": "a", "affected_scope": "content", "estimated_revenue_loss": 50}, {"leak_type": "b", "affected_scope": "offer", "estimated_revenue_loss": 30}]
+        leaks = [
+            {"leak_type": "a", "affected_scope": "content", "estimated_revenue_loss": 50},
+            {"leak_type": "b", "affected_scope": "offer", "estimated_revenue_loss": 30},
+        ]
         est = estimate_total_loss(leaks)
         assert est["total_estimated_loss"] == 80
         assert "a" in est["by_leak_type"]
@@ -73,7 +121,10 @@ class TestEstimation:
 
 class TestCorrections:
     def test_generates_corrections(self):
-        leaks = [{"leak_type": "high_clicks_low_conversion", "severity": "critical"}, {"leak_type": "underused_winner", "severity": "high"}]
+        leaks = [
+            {"leak_type": "high_clicks_low_conversion", "severity": "critical"},
+            {"leak_type": "underused_winner", "severity": "high"},
+        ]
         corrections = generate_corrections(leaks)
         assert len(corrections) == 2
         assert corrections[0]["priority"] == "critical"

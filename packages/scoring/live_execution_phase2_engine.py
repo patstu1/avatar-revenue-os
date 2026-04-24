@@ -1,4 +1,5 @@
 """Live Execution Phase 2 + Buffer Expansion — pure scoring/logic functions."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -106,9 +107,7 @@ _JOB_STATUS_TO_TRUTH: dict[str, str] = {
 
 _BUFFER_TERMINAL_FOR_STALE = frozenset({"published_by_buffer"})
 
-_ANALYTICS_SOURCES = frozenset(
-    k for k, v in SOURCE_CATEGORIES.items() if v == "platform_analytics"
-)
+_ANALYTICS_SOURCES = frozenset(k for k, v in SOURCE_CATEGORIES.items() if v == "platform_analytics")
 
 _BUFFER_SUPPORTED_PLATFORMS = frozenset(
     {
@@ -174,9 +173,7 @@ def determine_sequence_triggers(
     triggers: list[dict[str, Any]] = []
 
     if et == "purchase":
-        triggers.append(
-            {"action_type": "start_conversion_sequence", "reason": "purchase"}
-        )
+        triggers.append({"action_type": "start_conversion_sequence", "reason": "purchase"})
         if conversion_value > 100:
             triggers.append(
                 {
@@ -192,12 +189,9 @@ def determine_sequence_triggers(
                 "reason": "subscription_cancelled",
             }
         )
-        triggers.append(
-            {"action_type": "flag_for_retention", "reason": "subscription_cancelled"}
-        )
+        triggers.append({"action_type": "flag_for_retention", "reason": "subscription_cancelled"})
     elif et in ("deal_stage_changed", "contact_updated", "lead_created") or (
-        source_category == "crm"
-        and et in ("page_view", "form_submit", "email_opened")
+        source_category == "crm" and et in ("page_view", "form_submit", "email_opened")
     ):
         triggers.append(
             {
@@ -206,38 +200,24 @@ def determine_sequence_triggers(
             }
         )
     elif et == "payment_failed":
-        triggers.append(
-            {"action_type": "send_followup_email", "reason": "payment_failed"}
-        )
+        triggers.append({"action_type": "send_followup_email", "reason": "payment_failed"})
         triggers.append({"action_type": "notify_operator", "reason": "payment_failed"})
     elif et == "cart_abandoned":
-        triggers.append(
-            {"action_type": "start_nurture_sequence", "reason": "cart_abandoned"}
-        )
+        triggers.append({"action_type": "start_nurture_sequence", "reason": "cart_abandoned"})
     elif et in ("email_opened", "email_clicked") or source_category == "email":
-        triggers.append(
-            {"action_type": "send_followup_email", "reason": et or "email_engagement"}
-        )
+        triggers.append({"action_type": "send_followup_email", "reason": et or "email_engagement"})
     elif et in ("sms_delivered",) or source_category == "sms":
-        triggers.append(
-            {"action_type": "send_followup_sms", "reason": et or "sms_engagement"}
-        )
+        triggers.append({"action_type": "send_followup_sms", "reason": et or "sms_engagement"})
     elif et in _KNOWN_EVENT_TYPES:
-        triggers.append(
-            {"action_type": "start_nurture_sequence", "reason": "lifecycle_event"}
-        )
+        triggers.append({"action_type": "start_nurture_sequence", "reason": "lifecycle_event"})
 
     if et in _KNOWN_EVENT_TYPES and not triggers:
-        triggers.append(
-            {"action_type": "notify_operator", "reason": "fallback_known_event"}
-        )
+        triggers.append({"action_type": "notify_operator", "reason": "fallback_known_event"})
 
     return triggers
 
 
-def evaluate_payment_sync_readiness(
-    provider: str, api_key_present: bool
-) -> dict[str, Any]:
+def evaluate_payment_sync_readiness(provider: str, api_key_present: bool) -> dict[str, Any]:
     """Payment provider sync: credentials and readiness."""
     p = (provider or "").strip().lower()
     supported = p in PAYMENT_PROVIDERS
@@ -263,9 +243,7 @@ def evaluate_payment_sync_readiness(
     }
 
 
-def evaluate_ad_platform_readiness(
-    platform: str, api_key_present: bool, account_id_present: bool
-) -> dict[str, Any]:
+def evaluate_ad_platform_readiness(platform: str, api_key_present: bool, account_id_present: bool) -> dict[str, Any]:
     """Ad platform import readiness."""
     plat = (platform or "").strip().lower()
     supported = plat in AD_PLATFORMS
@@ -298,9 +276,7 @@ def evaluate_ad_platform_readiness(
     }
 
 
-def evaluate_analytics_sync_readiness(
-    source: str, api_key_present: bool
-) -> dict[str, Any]:
+def evaluate_analytics_sync_readiness(source: str, api_key_present: bool) -> dict[str, Any]:
     """Platform analytics / insights sync readiness."""
     src = (source or "").strip().lower()
     if src not in _ANALYTICS_SOURCES:
@@ -347,11 +323,7 @@ def classify_buffer_truth_state(
         operator_action = None
 
     is_terminal = truth_state in _BUFFER_TERMINAL_FOR_STALE
-    is_stale = (
-        hours_since_submit > STALE_JOB_THRESHOLD_HOURS
-        and not is_terminal
-        and truth_state != "blocked"
-    )
+    is_stale = hours_since_submit > STALE_JOB_THRESHOLD_HOURS and not is_terminal and truth_state != "blocked"
     if is_stale and operator_action is None:
         operator_action = "investigate_stale_buffer_job"
 
@@ -372,9 +344,7 @@ def check_duplicate_submit(content_item_id: str, platform: str, existing_keys: s
 def compute_retry_backoff(attempt_number: int) -> dict[str, Any]:
     """Exponential backoff; escalate after ESCALATION_THRESHOLD attempts."""
     n = max(1, int(attempt_number))
-    backoff_seconds = int(
-        RETRY_BACKOFF_BASE_SECONDS * (RETRY_BACKOFF_MULTIPLIER ** (n - 1))
-    )
+    backoff_seconds = int(RETRY_BACKOFF_BASE_SECONDS * (RETRY_BACKOFF_MULTIPLIER ** (n - 1)))
     should_escalate = n >= ESCALATION_THRESHOLD
     next_action = "escalate" if should_escalate else "retry"
     return {
@@ -419,12 +389,7 @@ def evaluate_buffer_profile_readiness(
     missing_profile_mapping = not (buffer_profile_id and str(buffer_profile_id).strip())
     inactive_profile = not is_active
 
-    profile_ready = (
-        credential_valid
-        and not missing_profile_mapping
-        and not inactive_profile
-        and platform_supported
-    )
+    profile_ready = credential_valid and not missing_profile_mapping and not inactive_profile and platform_supported
 
     blockers: list[str] = []
     if not credential_valid:

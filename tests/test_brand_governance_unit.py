@@ -1,4 +1,5 @@
 """Unit tests for brand governance engine."""
+
 from packages.scoring.brand_governance_engine import (
     check_audience_fit,
     check_multi_brand_isolation,
@@ -26,12 +27,26 @@ class TestVoiceRules:
         assert len(violations) == 0
 
     def test_banned_claim(self):
-        rules = [{"rule_type": "claim", "rule_key": "claims", "rule_value": {"banned_claims": ["100% risk-free"]}, "severity": "hard"}]
+        rules = [
+            {
+                "rule_type": "claim",
+                "rule_key": "claims",
+                "rule_value": {"banned_claims": ["100% risk-free"]},
+                "severity": "hard",
+            }
+        ]
         violations = evaluate_voice_rules("This is 100% risk-free!", rules)
         assert any(v["violation_type"] == "banned_claim" for v in violations)
 
     def test_missing_disclosure(self):
-        rules = [{"rule_type": "disclosure", "rule_key": "ftc", "rule_value": {"required_text": "paid partnership"}, "severity": "hard"}]
+        rules = [
+            {
+                "rule_type": "disclosure",
+                "rule_key": "ftc",
+                "rule_value": {"required_text": "paid partnership"},
+                "severity": "hard",
+            }
+        ]
         violations = evaluate_voice_rules("Buy this product now!", rules)
         assert any(v["violation_type"] == "missing_disclosure" for v in violations)
 
@@ -41,7 +56,12 @@ class TestVoiceRules:
 
 class TestEditorial:
     def test_good_editorial(self):
-        content = {"body_text": "proof results data click link sign up", "hook_text": "professional", "proof_blocks": [1], "cta_blocks": [1]}
+        content = {
+            "body_text": "proof results data click link sign up",
+            "hook_text": "professional",
+            "proof_blocks": [1],
+            "cta_blocks": [1],
+        }
         profile = {"tone_profile": "professional, data-driven"}
         result = score_editorial_compliance(content, [], profile)
         assert result["verdict"] in ("pass", "warn")
@@ -54,13 +74,21 @@ class TestEditorial:
 class TestAudienceFit:
     def test_good_fit(self):
         content = {"content_form": "short_video"}
-        audience = {"preferred_content_forms": ["short_video", "carousel"], "trust_level": "high", "monetization_sensitivity": "low"}
+        audience = {
+            "preferred_content_forms": ["short_video", "carousel"],
+            "trust_level": "high",
+            "monetization_sensitivity": "low",
+        }
         result = check_audience_fit(content, audience)
         assert result["verdict"] == "pass"
 
     def test_wrong_form(self):
         content = {"content_form": "long_video"}
-        audience = {"preferred_content_forms": ["short_video"], "trust_level": "medium", "monetization_sensitivity": "medium"}
+        audience = {
+            "preferred_content_forms": ["short_video"],
+            "trust_level": "medium",
+            "monetization_sensitivity": "medium",
+        }
         result = check_audience_fit(content, audience)
         assert len(result["issues"]) >= 1
 

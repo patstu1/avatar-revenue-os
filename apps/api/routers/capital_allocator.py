@@ -1,4 +1,5 @@
 """Portfolio Capital Allocator API."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -31,7 +32,13 @@ async def list_reports(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSes
 
 
 @router.post("/{brand_id}/capital-allocation/recompute", response_model=RecomputeSummaryOut)
-async def recompute(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, total_budget: float = 1000.0, _rl=Depends(recompute_rate_limit)):
+async def recompute(
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
+    total_budget: float = 1000.0,
+    _rl=Depends(recompute_rate_limit),
+):
     await _require_brand(brand_id, current_user, db)
     result = await svc.recompute_allocation(db, brand_id, total_budget)
     await db.commit()

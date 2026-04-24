@@ -1,4 +1,5 @@
 """Expansion Pack 2 Phase B — pricing, bundling, retention, reactivation services."""
+
 from __future__ import annotations
 
 import uuid
@@ -25,18 +26,14 @@ from packages.scoring.expansion_pack2_phase_b_engines import (
 )
 
 
-async def recompute_pricing_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_pricing_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     # Fetch active offers for the brand
     offers = list(
-        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))))
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
 
     # DATA BOUNDARY: No live sales/market/segment feed exists yet.
@@ -53,7 +50,7 @@ async def recompute_pricing_recommendations(
     for offer in offers:
         recommendation = recommend_pricing(
             offer_id=offer.id,
-            current_price=offer.payout_amount, # Assuming payout_amount is the current price
+            current_price=offer.payout_amount,  # Assuming payout_amount is the current price
             historical_sales_data=historical_sales_data,
             market_data=market_data,
             customer_segment_data=customer_segment_data,
@@ -77,15 +74,15 @@ async def recompute_pricing_recommendations(
     return {"pricing_recommendations_count": len(pricing_recommendations)}
 
 
-async def get_pricing_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_pricing_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(PricingRecommendation)
-            .where(PricingRecommendation.brand_id == brand_id, PricingRecommendation.is_active.is_(True))
-            .order_by(PricingRecommendation.estimated_revenue_impact.desc())
-        ))
+        (
+            await db.execute(
+                select(PricingRecommendation)
+                .where(PricingRecommendation.brand_id == brand_id, PricingRecommendation.is_active.is_(True))
+                .order_by(PricingRecommendation.estimated_revenue_impact.desc())
+            )
+        )
         .scalars()
         .all()
     )
@@ -109,18 +106,14 @@ async def get_pricing_recommendations(
     ]
 
 
-async def recompute_bundle_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_bundle_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     # Fetch active offers for the brand
     offers = list(
-        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))))
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
     available_offers_data = [
         {"id": str(o.id), "name": o.name, "price": o.payout_amount, "features": []} for o in offers
@@ -161,15 +154,15 @@ async def recompute_bundle_recommendations(
     return {"bundle_recommendations_count": len(recommendations)}
 
 
-async def get_bundle_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_bundle_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(BundleRecommendation)
-            .where(BundleRecommendation.brand_id == brand_id, BundleRecommendation.is_active.is_(True))
-            .order_by(BundleRecommendation.estimated_revenue_impact.desc())
-        ))
+        (
+            await db.execute(
+                select(BundleRecommendation)
+                .where(BundleRecommendation.brand_id == brand_id, BundleRecommendation.is_active.is_(True))
+                .order_by(BundleRecommendation.estimated_revenue_impact.desc())
+            )
+        )
         .scalars()
         .all()
     )
@@ -192,20 +185,15 @@ async def get_bundle_recommendations(
     ]
 
 
-async def recompute_retention_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_retention_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     offers = list(
-        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))))
-        .scalars().all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
-    available_retention_offers = [
-        {"offer_id": str(o.id), "type": "discount", "discount": 0.10} for o in offers[:3]
-    ]
+    available_retention_offers = [{"offer_id": str(o.id), "type": "discount", "discount": 0.10} for o in offers[:3]]
 
     # Generate retention recommendations for 3 synthetic customer segments
     segments = [
@@ -224,31 +212,34 @@ async def recompute_retention_recommendations(
             churn_risk_score=seg["churn"],
             available_retention_offers=available_retention_offers,
         )
-        db.add(RetentionRecommendation(
-            brand_id=brand_id,
-            customer_segment=seg["name"],
-            recommendation_type=result["recommendation_type"],
-            action_details=result["action_details"],
-            estimated_retention_lift=result["estimated_retention_lift"],
-            confidence=result["confidence"],
-            explanation=result["explanation"],
-        ))
+        db.add(
+            RetentionRecommendation(
+                brand_id=brand_id,
+                customer_segment=seg["name"],
+                recommendation_type=result["recommendation_type"],
+                action_details=result["action_details"],
+                estimated_retention_lift=result["estimated_retention_lift"],
+                confidence=result["confidence"],
+                explanation=result["explanation"],
+            )
+        )
         count += 1
 
     await db.flush()
     return {"retention_recommendations_count": count}
 
 
-async def get_retention_recommendations(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_retention_recommendations(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(RetentionRecommendation)
-            .where(RetentionRecommendation.brand_id == brand_id, RetentionRecommendation.is_active.is_(True))
-            .order_by(RetentionRecommendation.estimated_retention_lift.desc())
-        ))
-        .scalars().all()
+        (
+            await db.execute(
+                select(RetentionRecommendation)
+                .where(RetentionRecommendation.brand_id == brand_id, RetentionRecommendation.is_active.is_(True))
+                .order_by(RetentionRecommendation.estimated_retention_lift.desc())
+            )
+        )
+        .scalars()
+        .all()
     )
     return [
         {
@@ -268,9 +259,7 @@ async def get_retention_recommendations(
     ]
 
 
-async def recompute_reactivation_campaigns(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_reactivation_campaigns(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -309,15 +298,15 @@ async def recompute_reactivation_campaigns(
     return {"reactivation_campaigns_count": 1}
 
 
-async def get_reactivation_campaigns(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_reactivation_campaigns(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
-        (await db.execute(
-            select(ReactivationCampaign)
-            .where(ReactivationCampaign.brand_id == brand_id, ReactivationCampaign.is_active.is_(True))
-            .order_by(ReactivationCampaign.estimated_revenue_impact.desc())
-        ))
+        (
+            await db.execute(
+                select(ReactivationCampaign)
+                .where(ReactivationCampaign.brand_id == brand_id, ReactivationCampaign.is_active.is_(True))
+                .order_by(ReactivationCampaign.estimated_revenue_impact.desc())
+            )
+        )
         .scalars()
         .all()
     )

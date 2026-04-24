@@ -11,30 +11,49 @@ from packages.scoring.brain_phase_d_engine import (
 
 # ── Meta-Monitoring Engine ────────────────────────────────────────────
 
+
 class TestComputeMetaMonitoring:
     def test_healthy_system(self):
-        r = compute_meta_monitoring({
-            "total_decisions": 10, "low_confidence_decisions": 1,
-            "manual_mode_count": 1, "total_policies": 10,
-            "execution_failures": 0, "total_executions": 10,
-            "memory_entries": 10, "stale_memory_entries": 0,
-            "escalation_count": 0, "agent_run_count": 12,
-            "dead_agent_count": 0, "low_signal_agent_count": 0,
-            "wasted_action_count": 0, "queue_depth": 5,
-        })
+        r = compute_meta_monitoring(
+            {
+                "total_decisions": 10,
+                "low_confidence_decisions": 1,
+                "manual_mode_count": 1,
+                "total_policies": 10,
+                "execution_failures": 0,
+                "total_executions": 10,
+                "memory_entries": 10,
+                "stale_memory_entries": 0,
+                "escalation_count": 0,
+                "agent_run_count": 12,
+                "dead_agent_count": 0,
+                "low_signal_agent_count": 0,
+                "wasted_action_count": 0,
+                "queue_depth": 5,
+            }
+        )
         assert r["health_band"] in ("excellent", "good")
         assert r["health_score"] >= 0.7
 
     def test_degraded_system(self):
-        r = compute_meta_monitoring({
-            "total_decisions": 10, "low_confidence_decisions": 7,
-            "manual_mode_count": 8, "total_policies": 10,
-            "execution_failures": 5, "total_executions": 10,
-            "memory_entries": 10, "stale_memory_entries": 8,
-            "escalation_count": 5, "agent_run_count": 12,
-            "dead_agent_count": 3, "low_signal_agent_count": 5,
-            "wasted_action_count": 4, "queue_depth": 80,
-        })
+        r = compute_meta_monitoring(
+            {
+                "total_decisions": 10,
+                "low_confidence_decisions": 7,
+                "manual_mode_count": 8,
+                "total_policies": 10,
+                "execution_failures": 5,
+                "total_executions": 10,
+                "memory_entries": 10,
+                "stale_memory_entries": 8,
+                "escalation_count": 5,
+                "agent_run_count": 12,
+                "dead_agent_count": 3,
+                "low_signal_agent_count": 5,
+                "wasted_action_count": 4,
+                "queue_depth": 80,
+            }
+        )
         assert r["health_band"] in ("degraded", "critical")
         assert len(r["weak_areas"]) >= 3
         assert len(r["recommended_corrections"]) >= 3
@@ -72,12 +91,17 @@ class TestComputeMetaMonitoring:
 
 # ── Self-Correction Engine ────────────────────────────────────────────
 
+
 class TestComputeSelfCorrections:
     def test_corrections_from_monitoring(self):
-        mon = compute_meta_monitoring({
-            "total_decisions": 10, "low_confidence_decisions": 8,
-            "execution_failures": 5, "total_executions": 10,
-        })
+        mon = compute_meta_monitoring(
+            {
+                "total_decisions": 10,
+                "low_confidence_decisions": 8,
+                "execution_failures": 5,
+                "total_executions": 10,
+            }
+        )
         corrections = compute_self_corrections(mon)
         assert len(corrections) >= 1
         assert all("correction_type" in c for c in corrections)
@@ -97,7 +121,13 @@ class TestComputeSelfCorrections:
         assert len(paid_pauses) >= 1
 
     def test_healthy_system_no_corrections(self):
-        mon = {"health_score": 0.9, "confidence": 0.8, "recommended_corrections": [], "execution_failure_rate": 0.0, "queue_congestion": 0.0}
+        mon = {
+            "health_score": 0.9,
+            "confidence": 0.8,
+            "recommended_corrections": [],
+            "execution_failure_rate": 0.0,
+            "queue_congestion": 0.0,
+        }
         corrections = compute_self_corrections(mon)
         assert len(corrections) == 0
 
@@ -114,39 +144,62 @@ class TestComputeSelfCorrections:
 
 # ── Readiness Brain ───────────────────────────────────────────────────
 
+
 class TestComputeReadinessBrain:
     def test_ready_system(self):
-        r = compute_readiness_brain({
-            "health_score": 0.9, "has_offers": True, "has_accounts": True,
-            "has_warmup_plans": True, "has_memory": True,
-            "account_health_avg": 0.9, "execution_failure_rate": 0.05,
-            "confidence_avg": 0.8, "has_platform_credentials": True,
-            "active_blocker_count": 0, "escalation_rate": 0.0,
-        })
+        r = compute_readiness_brain(
+            {
+                "health_score": 0.9,
+                "has_offers": True,
+                "has_accounts": True,
+                "has_warmup_plans": True,
+                "has_memory": True,
+                "account_health_avg": 0.9,
+                "execution_failure_rate": 0.05,
+                "confidence_avg": 0.8,
+                "has_platform_credentials": True,
+                "active_blocker_count": 0,
+                "escalation_rate": 0.0,
+            }
+        )
         assert r["readiness_band"] in ("ready", "mostly_ready")
         assert len(r["allowed_actions"]) >= 4
 
     def test_blocked_system(self):
-        r = compute_readiness_brain({
-            "health_score": 0.1, "has_offers": False, "has_accounts": False,
-            "has_platform_credentials": False,
-        })
+        r = compute_readiness_brain(
+            {
+                "health_score": 0.1,
+                "has_offers": False,
+                "has_accounts": False,
+                "has_platform_credentials": False,
+            }
+        )
         assert r["readiness_band"] in ("not_ready", "blocked")
         assert len(r["blockers"]) >= 3
         assert len(r["forbidden_actions"]) > len(r["allowed_actions"])
 
     def test_auto_run_requires_high_readiness(self):
-        r = compute_readiness_brain({
-            "health_score": 0.5, "has_offers": True, "has_accounts": True,
-            "execution_failure_rate": 0.3, "confidence_avg": 0.4,
-        })
+        r = compute_readiness_brain(
+            {
+                "health_score": 0.5,
+                "has_offers": True,
+                "has_accounts": True,
+                "execution_failure_rate": 0.3,
+                "confidence_avg": 0.4,
+            }
+        )
         assert "auto_run" in r["forbidden_actions"]
 
     def test_launch_allowed_with_moderate_readiness(self):
-        r = compute_readiness_brain({
-            "health_score": 0.6, "has_offers": True, "has_accounts": True,
-            "has_warmup_plans": True, "account_health_avg": 0.7,
-        })
+        r = compute_readiness_brain(
+            {
+                "health_score": 0.6,
+                "has_offers": True,
+                "has_accounts": True,
+                "has_warmup_plans": True,
+                "account_health_avg": 0.7,
+            }
+        )
         assert "launch" in r["allowed_actions"]
 
     def test_band_is_valid(self):
@@ -163,6 +216,7 @@ class TestComputeReadinessBrain:
 
 
 # ── Brain-Level Escalation ────────────────────────────────────────────
+
 
 class TestComputeBrainEscalations:
     def test_missing_credentials(self):
@@ -181,26 +235,44 @@ class TestComputeBrainEscalations:
         assert "create_account" in types
 
     def test_high_failure_rate(self):
-        esc = compute_brain_escalations({"execution_failure_rate": 0.5, "has_offers": True, "has_accounts": True, "has_platform_credentials": True})
+        esc = compute_brain_escalations(
+            {"execution_failure_rate": 0.5, "has_offers": True, "has_accounts": True, "has_platform_credentials": True}
+        )
         types = [e["escalation_type"] for e in esc]
         assert "fix_execution_failures" in types
 
     def test_low_health(self):
-        esc = compute_brain_escalations({"health_score": 0.2, "has_offers": True, "has_accounts": True, "has_platform_credentials": True})
+        esc = compute_brain_escalations(
+            {"health_score": 0.2, "has_offers": True, "has_accounts": True, "has_platform_credentials": True}
+        )
         types = [e["escalation_type"] for e in esc]
         assert "review_brain_health" in types
 
     def test_forbidden_auto_run(self):
-        esc = compute_brain_escalations({"forbidden_actions": ["auto_run"], "health_score": 0.6, "has_offers": True, "has_accounts": True, "has_platform_credentials": True})
+        esc = compute_brain_escalations(
+            {
+                "forbidden_actions": ["auto_run"],
+                "health_score": 0.6,
+                "has_offers": True,
+                "has_accounts": True,
+                "has_platform_credentials": True,
+            }
+        )
         types = [e["escalation_type"] for e in esc]
         assert "approve_auto_run" in types
 
     def test_no_escalations_when_healthy(self):
-        esc = compute_brain_escalations({
-            "has_platform_credentials": True, "has_offers": True, "has_accounts": True,
-            "health_score": 0.9, "execution_failure_rate": 0.05,
-            "active_blocker_count": 0, "forbidden_actions": [],
-        })
+        esc = compute_brain_escalations(
+            {
+                "has_platform_credentials": True,
+                "has_offers": True,
+                "has_accounts": True,
+                "health_score": 0.9,
+                "execution_failure_rate": 0.05,
+                "active_blocker_count": 0,
+                "forbidden_actions": [],
+            }
+        )
         assert len(esc) == 0
 
     def test_escalation_structure(self):

@@ -1,4 +1,5 @@
 """Unit tests for all 11 MXP database model files — importability, table names, key fields."""
+
 from __future__ import annotations
 
 

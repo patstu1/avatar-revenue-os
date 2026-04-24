@@ -4,6 +4,7 @@ Revision ID: cra_phase_a_001
 Revises: lec_phase1_001
 Create Date: 2025-01-01 00:00:00.000000
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -39,7 +40,13 @@ def upgrade() -> None:
         "ugc_service_actions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("opportunity_id", UUID(as_uuid=True), sa.ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True),
+        sa.Column(
+            "opportunity_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("creator_revenue_opportunities.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("service_type", sa.String(80), nullable=False, index=True),
         sa.Column("target_segment", sa.String(120), nullable=False),
         sa.Column("recommended_package", sa.String(200), nullable=False),
@@ -60,7 +67,13 @@ def upgrade() -> None:
         "service_consulting_actions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("opportunity_id", UUID(as_uuid=True), sa.ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True),
+        sa.Column(
+            "opportunity_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("creator_revenue_opportunities.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("service_type", sa.String(80), nullable=False, index=True),
         sa.Column("service_tier", sa.String(40), server_default="standard", index=True),
         sa.Column("target_buyer", sa.String(120), nullable=False),
@@ -80,7 +93,13 @@ def upgrade() -> None:
         "premium_access_actions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("opportunity_id", UUID(as_uuid=True), sa.ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True),
+        sa.Column(
+            "opportunity_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("creator_revenue_opportunities.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("offer_type", sa.String(80), nullable=False, index=True),
         sa.Column("target_segment", sa.String(120), nullable=False),
         sa.Column("entry_criteria", sa.Text, nullable=True),
@@ -115,7 +134,13 @@ def upgrade() -> None:
         "creator_revenue_events",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("opportunity_id", UUID(as_uuid=True), sa.ForeignKey("creator_revenue_opportunities.id"), nullable=True, index=True),
+        sa.Column(
+            "opportunity_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("creator_revenue_opportunities.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("avenue_type", sa.String(60), nullable=False, index=True),
         sa.Column("event_type", sa.String(60), nullable=False, index=True),
         sa.Column("revenue", sa.Float, server_default="0"),

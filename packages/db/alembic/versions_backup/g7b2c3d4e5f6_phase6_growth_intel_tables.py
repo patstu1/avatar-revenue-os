@@ -5,6 +5,7 @@ Revises: f8a1c2d3e4b5
 Create Date: 2026-03-28
 
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -36,7 +37,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_trust_signal_reports_brand_id"), "trust_signal_reports", ["brand_id"], unique=False)
-    op.create_index(op.f("ix_trust_signal_reports_creator_account_id"), "trust_signal_reports", ["creator_account_id"], unique=False)
+    op.create_index(
+        op.f("ix_trust_signal_reports_creator_account_id"), "trust_signal_reports", ["creator_account_id"], unique=False
+    )
     op.add_column(
         "paid_amplification_jobs",
         sa.Column("is_candidate", sa.Boolean(), nullable=False, server_default="false"),

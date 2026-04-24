@@ -1,4 +1,5 @@
 """Pydantic schemas for Content Routing APIs."""
+
 from __future__ import annotations
 
 import uuid

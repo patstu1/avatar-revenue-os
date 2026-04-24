@@ -1,4 +1,5 @@
 """Promote-Winner API."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -42,15 +43,25 @@ async def create_experiment(brand_id: uuid.UUID, body: CreateExperimentIn, curre
 
 
 @router.post("/{brand_id}/experiments/{experiment_id}/observe", status_code=201)
-async def add_observation(brand_id: uuid.UUID, experiment_id: uuid.UUID, body: AddObservationIn, current_user: OperatorUser, db: DBSession):
+async def add_observation(
+    brand_id: uuid.UUID, experiment_id: uuid.UUID, body: AddObservationIn, current_user: OperatorUser, db: DBSession
+):
     await _require_brand(brand_id, current_user, db)
-    await svc.add_observation(db, experiment_id, body.variant_id, body.metric_name, body.metric_value, body.content_item_id)
+    await svc.add_observation(
+        db, experiment_id, body.variant_id, body.metric_name, body.metric_value, body.content_item_id
+    )
     await db.commit()
     return {"status": "observation_added"}
 
 
 @router.post("/{brand_id}/experiments/{experiment_id}/evaluate")
-async def evaluate_experiment(brand_id: uuid.UUID, experiment_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def evaluate_experiment(
+    brand_id: uuid.UUID,
+    experiment_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
+    _rl=Depends(recompute_rate_limit),
+):
     await _require_brand(brand_id, current_user, db)
     result = await svc.evaluate_experiment(db, experiment_id)
     await db.commit()
@@ -76,7 +87,9 @@ async def list_promoted_rules(brand_id: uuid.UUID, current_user: CurrentUser, db
 
 
 @router.post("/{brand_id}/experiments/decay-check", response_model=RecomputeSummaryOut)
-async def decay_check(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def decay_check(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await svc.run_decay_check(db, brand_id)
     await db.commit()

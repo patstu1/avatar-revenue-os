@@ -1,4 +1,5 @@
 """Unit tests for workflow engine."""
+
 from packages.scoring.workflow_engine import (
     BUILT_IN_TEMPLATES,
     STEP_TYPES,
@@ -30,9 +31,27 @@ class TestWorkflowTypes:
 
 class TestEvaluation:
     STEPS = [
-        {"step_order": 1, "step_name": "Draft", "step_type": "draft_review", "required_role": "generator", "required_action": "approve"},
-        {"step_order": 2, "step_name": "Brand", "step_type": "brand_review", "required_role": "brand_admin", "required_action": "approve"},
-        {"step_order": 3, "step_name": "Publish", "step_type": "publish_approval", "required_role": "publisher", "required_action": "approve"},
+        {
+            "step_order": 1,
+            "step_name": "Draft",
+            "step_type": "draft_review",
+            "required_role": "generator",
+            "required_action": "approve",
+        },
+        {
+            "step_order": 2,
+            "step_name": "Brand",
+            "step_type": "brand_review",
+            "required_role": "brand_admin",
+            "required_action": "approve",
+        },
+        {
+            "step_order": 3,
+            "step_name": "Publish",
+            "step_type": "publish_approval",
+            "required_role": "publisher",
+            "required_action": "approve",
+        },
     ]
 
     def test_correct_role_can_act(self):
@@ -53,7 +72,11 @@ class TestEvaluation:
 
 
 class TestAdvancement:
-    STEPS = [{"step_order": 1, "step_name": "A"}, {"step_order": 2, "step_name": "B"}, {"step_order": 3, "step_name": "C"}]
+    STEPS = [
+        {"step_order": 1, "step_name": "A"},
+        {"step_order": 2, "step_name": "B"},
+        {"step_order": 3, "step_name": "C"},
+    ]
 
     def test_advances_to_next(self):
         r = process_approval({"current_step_order": 1}, self.STEPS)
@@ -97,8 +120,27 @@ class TestTemplates:
 
 class TestPendingActions:
     def test_finds_pending(self):
-        instances = [{"id": "i1", "definition_id": "d1", "current_step_order": 1, "status": "in_progress", "resource_type": "content_item", "resource_id": "r1"}]
-        steps_map = {"d1": [{"step_order": 1, "step_name": "Draft", "step_type": "draft_review", "required_role": "generator", "required_action": "approve"}]}
+        instances = [
+            {
+                "id": "i1",
+                "definition_id": "d1",
+                "current_step_order": 1,
+                "status": "in_progress",
+                "resource_type": "content_item",
+                "resource_id": "r1",
+            }
+        ]
+        steps_map = {
+            "d1": [
+                {
+                    "step_order": 1,
+                    "step_name": "Draft",
+                    "step_type": "draft_review",
+                    "required_role": "generator",
+                    "required_action": "approve",
+                }
+            ]
+        }
         pending = get_pending_actions(instances, steps_map, "generator")
         assert len(pending) == 1
 

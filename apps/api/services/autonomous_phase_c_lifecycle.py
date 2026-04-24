@@ -2,6 +2,7 @@
 
 Closes the loop: proposed → operator_review → approved → executing → completed (or rejected).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -62,6 +63,7 @@ def _validate_transition(current: str, target: str) -> None:
 # Generic status advancement
 # ---------------------------------------------------------------------------
 
+
 async def advance_execution_status(
     db: AsyncSession,
     module: str,
@@ -73,14 +75,16 @@ async def advance_execution_status(
         raise ValueError(f"Unknown module '{module}'. Valid: {sorted(_MODEL_MAP)}")
 
     model_cls, executor_key = _MODEL_MAP[module]
-    record = (await db.execute(
-        select(model_cls).where(model_cls.id == record_id)
-    )).scalar_one_or_none()
+    record = (await db.execute(select(model_cls).where(model_cls.id == record_id))).scalar_one_or_none()
 
     if not record:
         raise ValueError(f"{module} record {record_id} not found")
 
-    current = getattr(record, "execution_status", None) or getattr(record, "run_status", None) or getattr(record, "status", "proposed")
+    current = (
+        getattr(record, "execution_status", None)
+        or getattr(record, "run_status", None)
+        or getattr(record, "status", "proposed")
+    )
     _validate_transition(current, target_status)
 
     # Apply status
@@ -131,8 +135,7 @@ async def advance_execution_status(
 
     await db.flush()
 
-    logger.info("lifecycle.status_advanced", module=module,
-                record_id=str(record_id), new_status=target_status)
+    logger.info("lifecycle.status_advanced", module=module, record_id=str(record_id), new_status=target_status)
 
     return {
         "id": str(record_id),
@@ -147,6 +150,7 @@ async def advance_execution_status(
 # Batch execute approved actions
 # ---------------------------------------------------------------------------
 
+
 async def execute_approved_actions(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     """Find all approved actions for a brand and execute them. Used by Celery worker."""
     results: dict[str, list] = {}
@@ -159,28 +163,35 @@ async def execute_approved_actions(db: AsyncSession, brand_id: uuid.UUID) -> dic
         if not status_col:
             continue
 
-        rows = list((await db.execute(
-            select(model_cls).where(
-                model_cls.brand_id == brand_id,
-                status_col == "approved",
-                model_cls.is_active.is_(True),
+        rows = list(
+            (
+                await db.execute(
+                    select(model_cls).where(
+                        model_cls.brand_id == brand_id,
+                        status_col == "approved",
+                        model_cls.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         executed = []
         for record in rows:
             try:
-                result = await advance_execution_status(
-                    db, module, record.id, "executing"
-                )
+                result = await advance_execution_status(db, module, record.id, "executing")
                 executed.append(result)
             except Exception as exc:
-                logger.exception("lifecycle.batch_execute.error",
-                                 module=module, record_id=str(record.id))
-                executed.append({
-                    "id": str(record.id), "module": module,
-                    "new_status": "failed", "execution_notes": str(exc),
-                })
+                logger.exception("lifecycle.batch_execute.error", module=module, record_id=str(record.id))
+                executed.append(
+                    {
+                        "id": str(record.id),
+                        "module": module,
+                        "new_status": "failed",
+                        "execution_notes": str(exc),
+                    }
+                )
 
         if executed:
             results[module] = executed
@@ -194,6 +205,7 @@ async def execute_approved_actions(db: AsyncSession, brand_id: uuid.UUID) -> dic
 # Paid performance ingestion
 # ---------------------------------------------------------------------------
 
+
 async def ingest_paid_performance(
     db: AsyncSession,
     paid_operator_run_id: uuid.UUID,
@@ -202,18 +214,20 @@ async def ingest_paid_performance(
     """Ingest real ad-platform metrics for a paid operator run and recompute decision."""
     from packages.scoring.autonomous_phase_c_engine import compute_paid_operator_decision
 
-    run = (await db.execute(
-        select(PaidOperatorRun).where(PaidOperatorRun.id == paid_operator_run_id)
-    )).scalar_one_or_none()
+    run = (
+        await db.execute(select(PaidOperatorRun).where(PaidOperatorRun.id == paid_operator_run_id))
+    ).scalar_one_or_none()
     if not run:
         raise ValueError(f"PaidOperatorRun {paid_operator_run_id} not found")
 
     # Deactivate old decisions for this run
     await db.execute(
-        update(PaidOperatorDecision).where(
+        update(PaidOperatorDecision)
+        .where(
             PaidOperatorDecision.paid_operator_run_id == paid_operator_run_id,
             PaidOperatorDecision.is_active.is_(True),
-        ).values(is_active=False)
+        )
+        .values(is_active=False)
     )
 
     perf = {
@@ -256,8 +270,10 @@ async def ingest_paid_performance(
 # Operator notification dispatch
 # ---------------------------------------------------------------------------
 
+
 async def notify_operator_review_items(
-    db: AsyncSession, brand_id: uuid.UUID,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
 ) -> dict[str, Any]:
     """Collect all items in operator_review status and dispatch notifications."""
     from packages.notifications.adapters import NotificationPayload
@@ -269,20 +285,28 @@ async def notify_operator_review_items(
         if not status_col:
             continue
 
-        rows = list((await db.execute(
-            select(model_cls).where(
-                model_cls.brand_id == brand_id,
-                status_col == "operator_review",
-                model_cls.is_active.is_(True),
+        rows = list(
+            (
+                await db.execute(
+                    select(model_cls).where(
+                        model_cls.brand_id == brand_id,
+                        status_col == "operator_review",
+                        model_cls.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         for r in rows:
-            items.append({
-                "module": module,
-                "id": str(r.id),
-                "explanation": getattr(r, "explanation", ""),
-            })
+            items.append(
+                {
+                    "module": module,
+                    "id": str(r.id),
+                    "explanation": getattr(r, "explanation", ""),
+                }
+            )
 
     if not items:
         return {"brand_id": str(brand_id), "notifications_sent": 0, "items": []}
@@ -299,8 +323,9 @@ async def notify_operator_review_items(
     )
 
     # Log notification (in-app always delivered)
-    logger.info("lifecycle.operator_notification", brand_id=str(brand_id),
-                items_count=len(items), payload=payload.to_dict())
+    logger.info(
+        "lifecycle.operator_notification", brand_id=str(brand_id), items_count=len(items), payload=payload.to_dict()
+    )
 
     return {
         "brand_id": str(brand_id),
@@ -313,6 +338,7 @@ async def notify_operator_review_items(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _get_status_col(model_cls):
     if hasattr(model_cls, "execution_status"):

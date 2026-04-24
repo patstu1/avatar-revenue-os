@@ -1,4 +1,5 @@
 """Alternate paths: POST /api/v1/alerts/{id}/acknowledge|resolve (same behavior as under /brands)."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
@@ -19,9 +20,14 @@ async def acknowledge_alert_root(alert_id: uuid.UUID, current_user: CurrentUser,
     if err == "forbidden":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Alert not accessible")
     await log_action(
-        db, "alert.acknowledged",
-        organization_id=current_user.organization_id, brand_id=alert.brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="operator_alert", entity_id=alert_id,
+        db,
+        "alert.acknowledged",
+        organization_id=current_user.organization_id,
+        brand_id=alert.brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="operator_alert",
+        entity_id=alert_id,
     )
     return sas._ser_alert(alert)
 
@@ -34,8 +40,14 @@ async def resolve_alert_root(alert_id: uuid.UUID, body: ResolveRequest, current_
     if err == "forbidden":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Alert not accessible")
     await log_action(
-        db, "alert.resolved",
-        organization_id=current_user.organization_id, brand_id=alert.brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="operator_alert", entity_id=alert_id, details={"notes": body.notes},
+        db,
+        "alert.resolved",
+        organization_id=current_user.organization_id,
+        brand_id=alert.brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="operator_alert",
+        entity_id=alert_id,
+        details={"notes": body.notes},
     )
     return sas._ser_alert(alert)

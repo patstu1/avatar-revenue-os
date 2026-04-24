@@ -1,4 +1,5 @@
 """MXP Market Timing — timing reports and macro signal analysis."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status

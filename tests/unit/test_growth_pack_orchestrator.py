@@ -116,12 +116,14 @@ def test_tiktok_in_platform_allocation():
 
 def test_all_seven_platforms_have_specs():
     from packages.scoring.growth_pack.platform_os import PLATFORM_SPECS
+
     expected = {"tiktok", "instagram", "youtube", "twitter", "reddit", "linkedin", "facebook"}
     assert set(PLATFORM_SPECS.keys()) == expected
 
 
 def test_all_platforms_have_warmup_cadence():
     from packages.scoring.growth_pack.platform_os import PLATFORM_SPECS
+
     for plat, spec in PLATFORM_SPECS.items():
         assert "warmup_cadence" in spec, f"{plat} missing warmup_cadence"
         assert "week_1" in spec["warmup_cadence"], f"{plat} warmup_cadence missing week_1"
@@ -129,6 +131,7 @@ def test_all_platforms_have_warmup_cadence():
 
 def test_all_platforms_have_scale_ready_conditions():
     from packages.scoring.growth_pack.platform_os import PLATFORM_SPECS
+
     for plat, spec in PLATFORM_SPECS.items():
         assert "scale_ready_conditions" in spec, f"{plat} missing scale_ready_conditions"
         assert len(spec["scale_ready_conditions"]) >= 2, f"{plat} has too few scale_ready_conditions"
@@ -136,6 +139,7 @@ def test_all_platforms_have_scale_ready_conditions():
 
 def test_all_platforms_have_max_safe_output():
     from packages.scoring.growth_pack.platform_os import PLATFORM_SPECS
+
     for plat, spec in PLATFORM_SPECS.items():
         assert "max_safe_output_per_day" in spec, f"{plat} missing max_safe_output_per_day"
         assert spec["max_safe_output_per_day"] >= 1

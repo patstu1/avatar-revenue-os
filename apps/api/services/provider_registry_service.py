@@ -1,4 +1,5 @@
 """Provider Registry service — audit, list, readiness, blockers, dependencies."""
+
 from __future__ import annotations
 
 import uuid
@@ -23,6 +24,7 @@ from packages.scoring.provider_registry_engine import (
 # WRITE: Full audit (idempotent upsert from engine)
 # ---------------------------------------------------------------------------
 
+
 async def audit_providers(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     """Run the full provider audit, persist all rows, return summary.
 
@@ -42,9 +44,7 @@ async def audit_providers(db: AsyncSession, brand_id: uuid.UUID) -> dict:
 
     # Check provider_secrets (secrets_service store)
     try:
-        ps_rows = await db.execute(text(
-            "SELECT provider_name FROM provider_secrets WHERE length(encrypted_value) > 0"
-        ))
+        ps_rows = await db.execute(text("SELECT provider_name FROM provider_secrets WHERE length(encrypted_value) > 0"))
         for row in ps_rows:
             db_cred_providers.add(row[0])
     except Exception:
@@ -52,9 +52,11 @@ async def audit_providers(db: AsyncSession, brand_id: uuid.UUID) -> dict:
 
     # Check integration_providers (integration_manager store)
     try:
-        ip_rows = await db.execute(text(
-            "SELECT provider_key FROM integration_providers WHERE api_key_encrypted IS NOT NULL AND length(api_key_encrypted) > 0"
-        ))
+        ip_rows = await db.execute(
+            text(
+                "SELECT provider_key FROM integration_providers WHERE api_key_encrypted IS NOT NULL AND length(api_key_encrypted) > 0"
+            )
+        )
         for row in ip_rows:
             db_cred_providers.add(row[0])
     except Exception:
@@ -71,9 +73,7 @@ async def audit_providers(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     for p in audited:
         existing = (
             await db.execute(
-                select(ProviderRegistryEntry).where(
-                    ProviderRegistryEntry.provider_key == p["provider_key"]
-                )
+                select(ProviderRegistryEntry).where(ProviderRegistryEntry.provider_key == p["provider_key"])
             )
         ).scalar_one_or_none()
 
@@ -90,69 +90,73 @@ async def audit_providers(db: AsyncSession, brand_id: uuid.UUID) -> dict:
             existing.is_optional = p.get("is_optional", False)
             existing.capabilities_json = p.get("capabilities", [])
         else:
-            db.add(ProviderRegistryEntry(
-                provider_key=p["provider_key"],
-                display_name=p["display_name"],
-                category=p["category"],
-                provider_type=p["provider_type"],
-                description=p.get("description"),
-                env_keys=p.get("env_keys", []),
-                credential_status=p["credential_status"],
-                integration_status=p["integration_status"],
-                is_primary=p.get("is_primary", False),
-                is_fallback=p.get("is_fallback", False),
-                is_optional=p.get("is_optional", False),
-                capabilities_json=p.get("capabilities", []),
-            ))
+            db.add(
+                ProviderRegistryEntry(
+                    provider_key=p["provider_key"],
+                    display_name=p["display_name"],
+                    category=p["category"],
+                    provider_type=p["provider_type"],
+                    description=p.get("description"),
+                    env_keys=p.get("env_keys", []),
+                    credential_status=p["credential_status"],
+                    integration_status=p["integration_status"],
+                    is_primary=p.get("is_primary", False),
+                    is_fallback=p.get("is_fallback", False),
+                    is_optional=p.get("is_optional", False),
+                    capabilities_json=p.get("capabilities", []),
+                )
+            )
 
     # ── Capabilities (replace all) ─────────────────────────────────────
     await db.execute(delete(ProviderCapability))
     cap_count = 0
     for p in audited:
         for cap in p.get("capabilities", []):
-            db.add(ProviderCapability(
-                provider_key=p["provider_key"],
-                capability=cap,
-                description=f"{p['display_name']}: {cap}",
-            ))
+            db.add(
+                ProviderCapability(
+                    provider_key=p["provider_key"],
+                    capability=cap,
+                    description=f"{p['display_name']}: {cap}",
+                )
+            )
             cap_count += 1
 
     # ── Dependencies (replace all) ─────────────────────────────────────
     await db.execute(delete(ProviderDependency))
     deps = get_dependency_map()
     for d in deps:
-        db.add(ProviderDependency(
-            provider_key=d["provider_key"],
-            module_path=d["module_path"],
-            dependency_type=d["dependency_type"],
-            description=d.get("description"),
-        ))
+        db.add(
+            ProviderDependency(
+                provider_key=d["provider_key"],
+                module_path=d["module_path"],
+                dependency_type=d["dependency_type"],
+                description=d.get("description"),
+            )
+        )
 
     # ── Readiness reports (replace for brand) ──────────────────────────
-    await db.execute(
-        delete(ProviderReadinessReport).where(
-            ProviderReadinessReport.brand_id == brand_id
-        )
-    )
+    await db.execute(delete(ProviderReadinessReport).where(ProviderReadinessReport.brand_id == brand_id))
     readiness_count = 0
     for p in audited:
         missing = p.get("missing_keys", [])
         action = None
         if missing:
             action = f"Set environment variable(s): {', '.join(missing)}"
-        db.add(ProviderReadinessReport(
-            brand_id=brand_id,
-            provider_key=p["provider_key"],
-            credential_status=p["credential_status"],
-            integration_status=p["integration_status"],
-            is_ready=p["is_ready"],
-            missing_env_keys=missing,
-            operator_action=action,
-            details_json={
-                "effective_status": p.get("effective_status"),
-                "capabilities": p.get("capabilities", []),
-            },
-        ))
+        db.add(
+            ProviderReadinessReport(
+                brand_id=brand_id,
+                provider_key=p["provider_key"],
+                credential_status=p["credential_status"],
+                integration_status=p["integration_status"],
+                is_ready=p["is_ready"],
+                missing_env_keys=missing,
+                operator_action=action,
+                details_json={
+                    "effective_status": p.get("effective_status"),
+                    "capabilities": p.get("capabilities", []),
+                },
+            )
+        )
         readiness_count += 1
 
     # ── Blockers (replace for brand) ───────────────────────────────────
@@ -164,14 +168,16 @@ async def audit_providers(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     )
     blocker_data = get_provider_blockers(str(brand_id))
     for b in blocker_data:
-        db.add(ProviderBlocker(
-            brand_id=brand_id,
-            provider_key=b["provider_key"],
-            blocker_type=b["blocker_type"],
-            severity=b["severity"],
-            description=b["description"],
-            operator_action_needed=b["operator_action_needed"],
-        ))
+        db.add(
+            ProviderBlocker(
+                brand_id=brand_id,
+                provider_key=b["provider_key"],
+                blocker_type=b["blocker_type"],
+                severity=b["severity"],
+                description=b["description"],
+                operator_action_needed=b["operator_action_needed"],
+            )
+        )
 
     await db.flush()
 
@@ -188,53 +194,70 @@ async def audit_providers(db: AsyncSession, brand_id: uuid.UUID) -> dict:
 # READ: All side-effect free
 # ---------------------------------------------------------------------------
 
+
 async def list_providers(db: AsyncSession) -> list[dict]:
     rows = list(
-        (await db.execute(
-            select(ProviderRegistryEntry)
-            .where(ProviderRegistryEntry.is_active.is_(True))
-            .order_by(ProviderRegistryEntry.category, ProviderRegistryEntry.provider_key)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(ProviderRegistryEntry)
+                .where(ProviderRegistryEntry.is_active.is_(True))
+                .order_by(ProviderRegistryEntry.category, ProviderRegistryEntry.provider_key)
+            )
+        )
+        .scalars()
+        .all()
     )
     return [_ser_entry(r) for r in rows]
 
 
 async def list_readiness(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
     rows = list(
-        (await db.execute(
-            select(ProviderReadinessReport)
-            .where(
-                ProviderReadinessReport.brand_id == brand_id,
-                ProviderReadinessReport.is_active.is_(True),
+        (
+            await db.execute(
+                select(ProviderReadinessReport)
+                .where(
+                    ProviderReadinessReport.brand_id == brand_id,
+                    ProviderReadinessReport.is_active.is_(True),
+                )
+                .order_by(ProviderReadinessReport.provider_key)
             )
-            .order_by(ProviderReadinessReport.provider_key)
-        )).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     return [_ser_readiness(r) for r in rows]
 
 
 async def list_dependencies(db: AsyncSession) -> list[dict]:
     rows = list(
-        (await db.execute(
-            select(ProviderDependency)
-            .where(ProviderDependency.is_active.is_(True))
-            .order_by(ProviderDependency.provider_key, ProviderDependency.module_path)
-        )).scalars().all()
+        (
+            await db.execute(
+                select(ProviderDependency)
+                .where(ProviderDependency.is_active.is_(True))
+                .order_by(ProviderDependency.provider_key, ProviderDependency.module_path)
+            )
+        )
+        .scalars()
+        .all()
     )
     return [_ser_dependency(r) for r in rows]
 
 
 async def list_blockers(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
     rows = list(
-        (await db.execute(
-            select(ProviderBlocker)
-            .where(
-                ProviderBlocker.brand_id == brand_id,
-                ProviderBlocker.is_active.is_(True),
-                ProviderBlocker.resolved.is_(False),
+        (
+            await db.execute(
+                select(ProviderBlocker)
+                .where(
+                    ProviderBlocker.brand_id == brand_id,
+                    ProviderBlocker.is_active.is_(True),
+                    ProviderBlocker.resolved.is_(False),
+                )
+                .order_by(ProviderBlocker.severity, ProviderBlocker.provider_key)
             )
-            .order_by(ProviderBlocker.severity, ProviderBlocker.provider_key)
-        )).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     return [_ser_blocker(r) for r in rows]
 
@@ -242,6 +265,7 @@ async def list_blockers(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Serializers
 # ---------------------------------------------------------------------------
+
 
 def _ser_entry(r: ProviderRegistryEntry) -> dict:
     return {

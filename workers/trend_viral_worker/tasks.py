@@ -3,6 +3,7 @@
 Cross-platform replication: when a trend fires, generate platform-specific content for
 EVERY active platform and dispatch via express_publish for fastest time-to-publish.
 """
+
 import logging
 import uuid
 
@@ -30,17 +31,25 @@ MIN_TREND_SCAN_INTERVAL_SECONDS = 60
 
 # ── Platform-specific content format mapping ───────────────────────────────
 _PLATFORM_BRIEF_CONFIG: dict[str, dict] = {
-    Platform.TIKTOK:    {"content_type": ContentType.SHORT_VIDEO, "duration": 45, "tone": "Energetic, punchy, trend-native"},
-    Platform.INSTAGRAM: {"content_type": ContentType.SHORT_VIDEO, "duration": 30, "tone": "Polished, visual-first, aspirational"},
-    Platform.YOUTUBE:   {"content_type": ContentType.SHORT_VIDEO, "duration": 58, "tone": "Urgent, informative, timely"},
-    Platform.X:         {"content_type": ContentType.TEXT_POST,   "duration": 0,  "tone": "Sharp, witty, conversational"},
-    Platform.TWITTER:   {"content_type": ContentType.TEXT_POST,   "duration": 0,  "tone": "Sharp, witty, conversational"},
-    Platform.FACEBOOK:  {"content_type": ContentType.STATIC_IMAGE,"duration": 0,  "tone": "Relatable, shareable"},
-    Platform.LINKEDIN:  {"content_type": ContentType.TEXT_POST,   "duration": 0,  "tone": "Professional, insightful"},
-    Platform.THREADS:   {"content_type": ContentType.TEXT_POST,   "duration": 0,  "tone": "Casual, conversational"},
-    Platform.PINTEREST: {"content_type": ContentType.STATIC_IMAGE,"duration": 0,  "tone": "Visual, aspirational"},
-    Platform.REDDIT:    {"content_type": ContentType.TEXT_POST,   "duration": 0,  "tone": "Authentic, community-native"},
-    Platform.SNAPCHAT:  {"content_type": ContentType.STORY,       "duration": 15, "tone": "Fun, raw, behind-the-scenes"},
+    Platform.TIKTOK: {
+        "content_type": ContentType.SHORT_VIDEO,
+        "duration": 45,
+        "tone": "Energetic, punchy, trend-native",
+    },
+    Platform.INSTAGRAM: {
+        "content_type": ContentType.SHORT_VIDEO,
+        "duration": 30,
+        "tone": "Polished, visual-first, aspirational",
+    },
+    Platform.YOUTUBE: {"content_type": ContentType.SHORT_VIDEO, "duration": 58, "tone": "Urgent, informative, timely"},
+    Platform.X: {"content_type": ContentType.TEXT_POST, "duration": 0, "tone": "Sharp, witty, conversational"},
+    Platform.TWITTER: {"content_type": ContentType.TEXT_POST, "duration": 0, "tone": "Sharp, witty, conversational"},
+    Platform.FACEBOOK: {"content_type": ContentType.STATIC_IMAGE, "duration": 0, "tone": "Relatable, shareable"},
+    Platform.LINKEDIN: {"content_type": ContentType.TEXT_POST, "duration": 0, "tone": "Professional, insightful"},
+    Platform.THREADS: {"content_type": ContentType.TEXT_POST, "duration": 0, "tone": "Casual, conversational"},
+    Platform.PINTEREST: {"content_type": ContentType.STATIC_IMAGE, "duration": 0, "tone": "Visual, aspirational"},
+    Platform.REDDIT: {"content_type": ContentType.TEXT_POST, "duration": 0, "tone": "Authentic, community-native"},
+    Platform.SNAPCHAT: {"content_type": ContentType.STORY, "duration": 15, "tone": "Fun, raw, behind-the-scenes"},
 }
 _DEFAULT_BRIEF_CONFIG = {"content_type": ContentType.SHORT_VIDEO, "duration": 45, "tone": "Urgent, energetic, timely"}
 
@@ -58,22 +67,30 @@ async def _trigger_viral_fast_track(brand_id: uuid.UUID, trend_title: str, niche
 
     async with get_async_session_factory()() as db:
         # Check if we already acted on this trend
-        existing = (await db.execute(
-            select(ContentBrief.id).where(
-                ContentBrief.brand_id == brand_id,
-                ContentBrief.title == trend_title,
+        existing = (
+            await db.execute(
+                select(ContentBrief.id).where(
+                    ContentBrief.brand_id == brand_id,
+                    ContentBrief.title == trend_title,
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
         if existing:
             return {"skipped": True, "reason": "brief_already_exists"}
 
         # ── Discover ALL active platforms for this brand ───────────────
-        accounts = list((await db.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == brand_id,
-                CreatorAccount.is_active.is_(True),
+        accounts = list(
+            (
+                await db.execute(
+                    select(CreatorAccount).where(
+                        CreatorAccount.brand_id == brand_id,
+                        CreatorAccount.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
 
         if not accounts:
             return {"skipped": True, "reason": "no_active_accounts"}
@@ -92,7 +109,9 @@ async def _trigger_viral_fast_track(brand_id: uuid.UUID, trend_title: str, niche
         for acct, plat in platform_accounts:
             try:
                 plat_enum = Platform(plat) if plat in [e.value for e in Platform] else None
-                config = _PLATFORM_BRIEF_CONFIG.get(plat_enum, _DEFAULT_BRIEF_CONFIG) if plat_enum else _DEFAULT_BRIEF_CONFIG
+                config = (
+                    _PLATFORM_BRIEF_CONFIG.get(plat_enum, _DEFAULT_BRIEF_CONFIG) if plat_enum else _DEFAULT_BRIEF_CONFIG
+                )
 
                 brief = ContentBrief(
                     brand_id=brand_id,
@@ -124,15 +143,20 @@ async def _trigger_viral_fast_track(brand_id: uuid.UUID, trend_title: str, niche
                 await db.commit()
 
                 if result.get("success") and result.get("content_item_id"):
-                    generated_items.append({
-                        "platform": plat,
-                        "content_item_id": result["content_item_id"],
-                        "brief_id": str(brief.id),
-                        "approved": result.get("approved", False),
-                    })
+                    generated_items.append(
+                        {
+                            "platform": plat,
+                            "content_item_id": result["content_item_id"],
+                            "brief_id": str(brief.id),
+                            "approved": result.get("approved", False),
+                        }
+                    )
                     logger.info(
                         "VIRAL FAST-TRACK: trend='%s' brand=%s platform=%s approved=%s",
-                        trend_title, brand_id, plat, result.get("approved"),
+                        trend_title,
+                        brand_id,
+                        plat,
+                        result.get("approved"),
                     )
             except Exception:
                 logger.exception("viral fast-track generation failed for platform %s", plat)
@@ -142,6 +166,7 @@ async def _trigger_viral_fast_track(brand_id: uuid.UUID, trend_title: str, niche
         for item in generated_items:
             try:
                 from workers.publishing_worker.tasks import express_publish
+
                 express_publish.apply_async(
                     kwargs={
                         "content_item_id": item["content_item_id"],
@@ -179,9 +204,7 @@ async def _light_scan():
     now = datetime.now(timezone.utc)
 
     async with get_async_session_factory()() as db:
-        brands = list((await db.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        )).scalars().all())
+        brands = list((await db.execute(select(Brand).where(Brand.is_active.is_(True)))).scalars().all())
 
     c = 0
     used_default_interval = 0
@@ -203,11 +226,16 @@ async def _light_scan():
         # ── Check if brand is due for a scan ──────────────────────────
         try:
             async with get_async_session_factory()() as db:
-                last_health = (await db.execute(
-                    select(TrendSourceHealth.created_at).where(
-                        TrendSourceHealth.brand_id == bid,
-                    ).order_by(TrendSourceHealth.created_at.desc()).limit(1)
-                )).scalar_one_or_none()
+                last_health = (
+                    await db.execute(
+                        select(TrendSourceHealth.created_at)
+                        .where(
+                            TrendSourceHealth.brand_id == bid,
+                        )
+                        .order_by(TrendSourceHealth.created_at.desc())
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
 
                 if last_health and (now - last_health).total_seconds() < interval_seconds:
                     skipped_not_due += 1
@@ -223,14 +251,22 @@ async def _light_scan():
                 c += 1
 
                 # ── Viral reactor: trigger fast-track for hot opportunities ──
-                hot_opps = list((await db.execute(
-                    select(ViralOpportunity).where(
-                        ViralOpportunity.brand_id == bid,
-                        ViralOpportunity.composite_score >= VIRAL_SCORE_THRESHOLD,
-                        ViralOpportunity.status == "active",
-                        ViralOpportunity.is_active.is_(True),
-                    ).order_by(ViralOpportunity.composite_score.desc())
-                )).scalars().all())
+                hot_opps = list(
+                    (
+                        await db.execute(
+                            select(ViralOpportunity)
+                            .where(
+                                ViralOpportunity.brand_id == bid,
+                                ViralOpportunity.composite_score >= VIRAL_SCORE_THRESHOLD,
+                                ViralOpportunity.status == "active",
+                                ViralOpportunity.is_active.is_(True),
+                            )
+                            .order_by(ViralOpportunity.composite_score.desc())
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
 
                 niche = brand.niche or "general"
 
@@ -257,13 +293,16 @@ async def _light_scan():
 async def _deep_analysis():
     """Threshold-triggered: score, classify, create opportunities."""
     from apps.api.services.trend_viral_service import deep_analysis
+
     async with get_async_session_factory()() as db:
         brands = list((await db.execute(select(Brand.id))).scalars().all())
     c = 0
     for bid in brands:
         try:
             async with get_async_session_factory()() as db:
-                await deep_analysis(db, bid); await db.commit(); c += 1
+                await deep_analysis(db, bid)
+                await db.commit()
+                c += 1
         except Exception:
             logger.exception("trend deep analysis failed %s", bid)
     return c

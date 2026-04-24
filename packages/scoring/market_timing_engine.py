@@ -1,6 +1,7 @@
 """Market timing engine — recession resilience, sponsor cycles, seasonal buying,
 holiday monetization, election volatility, algorithm shifts, CPM windows,
 low-competition launches (pure functions, no I/O, no SQLAlchemy)."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -24,15 +25,38 @@ _CATEGORIES: list[str] = [
 
 # Niches with inherent recession resilience
 _RECESSION_RESISTANT_NICHES: set[str] = {
-    "finance", "personal finance", "budgeting", "frugal", "health", "wellness",
-    "fitness", "education", "self improvement", "mental health", "cooking",
-    "food", "nutrition", "diy", "repair", "career", "job search",
+    "finance",
+    "personal finance",
+    "budgeting",
+    "frugal",
+    "health",
+    "wellness",
+    "fitness",
+    "education",
+    "self improvement",
+    "mental health",
+    "cooking",
+    "food",
+    "nutrition",
+    "diy",
+    "repair",
+    "career",
+    "job search",
 }
 
 # Niches that attract premium sponsor cycles (Q4, Q1)
 _SPONSOR_FRIENDLY_NICHES: set[str] = {
-    "tech", "technology", "software", "saas", "finance", "fintech",
-    "ecommerce", "business", "marketing", "beauty", "fashion",
+    "tech",
+    "technology",
+    "software",
+    "saas",
+    "finance",
+    "fintech",
+    "ecommerce",
+    "business",
+    "marketing",
+    "beauty",
+    "fashion",
 }
 
 # Holiday-month mapping (1-indexed months)
@@ -79,6 +103,7 @@ _LOW_COMPETITION_MONTHS: set[int] = {1, 2, 6, 7, 8}
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, float(value)))
 
@@ -101,6 +126,7 @@ def _macro_signal_present(macro_signals: list[dict], signal_type: str) -> bool:
 # ---------------------------------------------------------------------------
 # Main engine
 # ---------------------------------------------------------------------------
+
 
 def evaluate_market_timing(
     brand_context: dict,
@@ -142,15 +168,18 @@ def evaluate_market_timing(
         if recession_val is not None:
             base += _clamp(recession_val * 0.30)
         score = round(_clamp(base), 3)
-        results.append(_entry(
-            "recession_resistant", score,
-            "Evergreen — resilient regardless of macro cycle",
-            f"Lean into value-first messaging; audience seeks practical {niche} content during downturns",
-            round(score * 0.12, 4),
-            _confidence(score, audience_size, offer_count),
-            f"Niche '{niche}' shows recession resilience (score {score:.2f}). "
-            f"Demand for practical, money-saving, or essential {niche} content rises during contraction.",
-        ))
+        results.append(
+            _entry(
+                "recession_resistant",
+                score,
+                "Evergreen — resilient regardless of macro cycle",
+                f"Lean into value-first messaging; audience seeks practical {niche} content during downturns",
+                round(score * 0.12, 4),
+                _confidence(score, audience_size, offer_count),
+                f"Niche '{niche}' shows recession resilience (score {score:.2f}). "
+                f"Demand for practical, money-saving, or essential {niche} content rises during contraction.",
+            )
+        )
 
     # ------------------------------------------------------------------ 2. sponsor_friendly_cycle
     sponsor_niche = any(tok in _SPONSOR_FRIENDLY_NICHES for tok in niche_parts) or niche in _SPONSOR_FRIENDLY_NICHES
@@ -163,16 +192,19 @@ def evaluate_market_timing(
             base += _clamp(ad_spend * 0.20)
         score = round(_clamp(base), 3)
         window = "Q4–Q1 sponsor budget flush" if month in (10, 11, 12, 1) else "Steady sponsor cycle"
-        results.append(_entry(
-            "sponsor_friendly_cycle", score,
-            window,
-            f"Pitch sponsors now — {niche} niche aligns with active ad-spend windows",
-            round(score * 0.18, 4),
-            _confidence(score, audience_size, offer_count),
-            f"Sponsor-friendly cycle score {score:.2f}. "
-            f"{'Q4-Q1 budget flush active. ' if month in (10, 11, 12, 1) else ''}"
-            f"Ad spend trend: {ad_spend if ad_spend is not None else 'unknown'}.",
-        ))
+        results.append(
+            _entry(
+                "sponsor_friendly_cycle",
+                score,
+                window,
+                f"Pitch sponsors now — {niche} niche aligns with active ad-spend windows",
+                round(score * 0.18, 4),
+                _confidence(score, audience_size, offer_count),
+                f"Sponsor-friendly cycle score {score:.2f}. "
+                f"{'Q4-Q1 budget flush active. ' if month in (10, 11, 12, 1) else ''}"
+                f"Ad spend trend: {ad_spend if ad_spend is not None else 'unknown'}.",
+            )
+        )
 
     # ------------------------------------------------------------------ 3. seasonal_buying
     peak_months: list[int] = []
@@ -184,42 +216,51 @@ def evaluate_market_timing(
 
     if month in peak_months:
         score = round(_clamp(0.65 + 0.10 * (len(peak_months) / 12.0)), 3)
-        results.append(_entry(
-            "seasonal_buying", score,
-            f"Month {month} is a peak buying month for {niche}",
-            f"Accelerate offer launches and promotions — seasonal demand is elevated for {niche}",
-            round(score * 0.15, 4),
-            _confidence(score, audience_size, offer_count),
-            f"Month {month} hits a seasonal buying peak for '{niche}' (score {score:.2f}). "
-            f"Peak months identified: {sorted(peak_months)}.",
-        ))
+        results.append(
+            _entry(
+                "seasonal_buying",
+                score,
+                f"Month {month} is a peak buying month for {niche}",
+                f"Accelerate offer launches and promotions — seasonal demand is elevated for {niche}",
+                round(score * 0.15, 4),
+                _confidence(score, audience_size, offer_count),
+                f"Month {month} hits a seasonal buying peak for '{niche}' (score {score:.2f}). "
+                f"Peak months identified: {sorted(peak_months)}.",
+            )
+        )
     elif peak_months:
         next_peak = min((m for m in peak_months if m > month), default=min(peak_months))
         months_away = (next_peak - month) % 12
         score = round(_clamp(0.25 + 0.05 * max(0, 3 - months_away)), 3)
-        results.append(_entry(
-            "seasonal_buying", score,
-            f"Next peak in ~{months_away} month(s) (month {next_peak})",
-            f"Prepare content and offers now for the upcoming {niche} seasonal window",
-            round(score * 0.08, 4),
-            _confidence(score, audience_size, offer_count),
-            f"Not currently in a seasonal peak (score {score:.2f}). "
-            f"Next peak month {next_peak} is ~{months_away} month(s) away.",
-        ))
+        results.append(
+            _entry(
+                "seasonal_buying",
+                score,
+                f"Next peak in ~{months_away} month(s) (month {next_peak})",
+                f"Prepare content and offers now for the upcoming {niche} seasonal window",
+                round(score * 0.08, 4),
+                _confidence(score, audience_size, offer_count),
+                f"Not currently in a seasonal peak (score {score:.2f}). "
+                f"Next peak month {next_peak} is ~{months_away} month(s) away.",
+            )
+        )
 
     # ------------------------------------------------------------------ 4. holiday_monetization
     if month in _HOLIDAY_MONTHS:
         holiday = _HOLIDAY_MONTHS[month]
         score = round(_clamp(0.60 + (0.15 if month in (11, 12) else 0.0)), 3)
-        results.append(_entry(
-            "holiday_monetization", score,
-            f"{holiday} (month {month})",
-            f"Activate holiday-themed offers, bundles, and urgency CTAs tied to {holiday}",
-            round(score * 0.20, 4),
-            _confidence(score, audience_size, offer_count),
-            f"Holiday window active: {holiday} (score {score:.2f}). "
-            f"{'Peak gifting / BFCM season — maximum urgency.' if month in (11, 12) else 'Standard holiday monetization window.'}",
-        ))
+        results.append(
+            _entry(
+                "holiday_monetization",
+                score,
+                f"{holiday} (month {month})",
+                f"Activate holiday-themed offers, bundles, and urgency CTAs tied to {holiday}",
+                round(score * 0.20, 4),
+                _confidence(score, audience_size, offer_count),
+                f"Holiday window active: {holiday} (score {score:.2f}). "
+                f"{'Peak gifting / BFCM season — maximum urgency.' if month in (11, 12) else 'Standard holiday monetization window.'}",
+            )
+        )
 
     # ------------------------------------------------------------------ 5. election_volatility
     election_sig = _macro_signal_present(macro_signals, "election_cycle")
@@ -227,31 +268,37 @@ def evaluate_market_timing(
     if election_sig:
         vol = election_val if election_val is not None else 0.5
         score = round(_clamp(0.30 + vol * 0.50), 3)
-        results.append(_entry(
-            "election_volatility", score,
-            "Election cycle — ad costs spike, audience attention fragments",
-            "Avoid major paid-spend launches during peak election ad windows; shift to organic and owned channels",
-            round(score * -0.08, 4),
-            _confidence(score, audience_size, offer_count),
-            f"Election volatility detected (score {score:.2f}). "
-            f"CPM inflation and audience distraction reduce paid promotion ROI. "
-            f"Shift budget toward organic content and email/SMS.",
-        ))
+        results.append(
+            _entry(
+                "election_volatility",
+                score,
+                "Election cycle — ad costs spike, audience attention fragments",
+                "Avoid major paid-spend launches during peak election ad windows; shift to organic and owned channels",
+                round(score * -0.08, 4),
+                _confidence(score, audience_size, offer_count),
+                f"Election volatility detected (score {score:.2f}). "
+                f"CPM inflation and audience distraction reduce paid promotion ROI. "
+                f"Shift budget toward organic content and email/SMS.",
+            )
+        )
 
     # ------------------------------------------------------------------ 6. platform_algorithm_shift
     algo_sig = _macro_signal_present(macro_signals, "platform_update")
     if algo_sig:
         algo_val = _macro_signal_value(macro_signals, "platform_update") or 0.5
         score = round(_clamp(0.40 + algo_val * 0.40), 3)
-        results.append(_entry(
-            "platform_algorithm_shift", score,
-            "Active algorithm change — early adopters rewarded",
-            "Lean into the new format or feature the platform is pushing; first-mover advantage is real",
-            round(score * 0.14, 4),
-            _confidence(score, audience_size, offer_count),
-            f"Platform algorithm shift detected (score {score:.2f}). "
-            f"Brands that adapt quickly to algorithm changes capture outsized reach.",
-        ))
+        results.append(
+            _entry(
+                "platform_algorithm_shift",
+                score,
+                "Active algorithm change — early adopters rewarded",
+                "Lean into the new format or feature the platform is pushing; first-mover advantage is real",
+                round(score * 0.14, 4),
+                _confidence(score, audience_size, offer_count),
+                f"Platform algorithm shift detected (score {score:.2f}). "
+                f"Brands that adapt quickly to algorithm changes capture outsized reach.",
+            )
+        )
 
     # ------------------------------------------------------------------ 7. cpm_friendly
     cpm_val = _macro_signal_value(macro_signals, "cpm_index")
@@ -261,16 +308,19 @@ def evaluate_market_timing(
         if cpm_val is not None:
             base += _clamp((1.0 - cpm_val) * 0.30)
         score = round(_clamp(base), 3)
-        results.append(_entry(
-            "cpm_friendly", score,
-            f"Month {month} — lower CPMs available",
-            "Deploy paid promotion tests now while CPMs are below annual average",
-            round(score * 0.12, 4),
-            _confidence(score, audience_size, offer_count),
-            f"CPM-friendly window (score {score:.2f}). "
-            f"{f'Month {month} historically shows lower ad costs. ' if is_cheap_month else ''}"
-            f"CPM index: {cpm_val if cpm_val is not None else 'unknown'}.",
-        ))
+        results.append(
+            _entry(
+                "cpm_friendly",
+                score,
+                f"Month {month} — lower CPMs available",
+                "Deploy paid promotion tests now while CPMs are below annual average",
+                round(score * 0.12, 4),
+                _confidence(score, audience_size, offer_count),
+                f"CPM-friendly window (score {score:.2f}). "
+                f"{f'Month {month} historically shows lower ad costs. ' if is_cheap_month else ''}"
+                f"CPM index: {cpm_val if cpm_val is not None else 'unknown'}.",
+            )
+        )
 
     # ------------------------------------------------------------------ 8. low_competition_launch
     competitor_count = _macro_signal_value(macro_signals, "competitor_launch_count")
@@ -280,16 +330,19 @@ def evaluate_market_timing(
         if competitor_count is not None:
             base += _clamp((1.0 - competitor_count / 10.0) * 0.30)
         score = round(_clamp(base), 3)
-        results.append(_entry(
-            "low_competition_launch", score,
-            f"Month {month} — reduced competitive noise",
-            "Launch new offers or accounts during this low-competition window for maximum visibility",
-            round(score * 0.15, 4),
-            _confidence(score, audience_size, offer_count),
-            f"Low-competition launch window (score {score:.2f}). "
-            f"{f'Month {month} sees fewer competitor launches. ' if is_quiet_month else ''}"
-            f"Competitor launch count: {competitor_count if competitor_count is not None else 'unknown'}.",
-        ))
+        results.append(
+            _entry(
+                "low_competition_launch",
+                score,
+                f"Month {month} — reduced competitive noise",
+                "Launch new offers or accounts during this low-competition window for maximum visibility",
+                round(score * 0.15, 4),
+                _confidence(score, audience_size, offer_count),
+                f"Low-competition launch window (score {score:.2f}). "
+                f"{f'Month {month} sees fewer competitor launches. ' if is_quiet_month else ''}"
+                f"Competitor launch count: {competitor_count if competitor_count is not None else 'unknown'}.",
+            )
+        )
 
     return results
 
@@ -297,6 +350,7 @@ def evaluate_market_timing(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _entry(
     market_category: str,

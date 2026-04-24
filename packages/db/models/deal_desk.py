@@ -1,4 +1,5 @@
 """Deal desk: strategy recommendations and lifecycle events for deals."""
+
 import uuid
 from typing import Optional
 
@@ -12,9 +13,7 @@ from packages.db.base import Base
 class DealDeskRecommendation(Base):
     __tablename__ = "deal_desk_recommendations"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     scope_type: Mapped[str] = mapped_column(String(100), nullable=False)
     scope_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     deal_strategy: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -30,9 +29,7 @@ class DealDeskRecommendation(Base):
 class DealDeskEvent(Base):
     __tablename__ = "deal_desk_events"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     recommendation_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("deal_desk_recommendations.id"), nullable=False, index=True
     )

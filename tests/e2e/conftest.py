@@ -3,6 +3,7 @@
 Skip reasons are machine-readable via pytest markers for CI/CD parsing.
 Format: SKIP:<category>:<detail>
 """
+
 from __future__ import annotations
 
 import os
@@ -107,48 +108,66 @@ async def seed(api, db):
     uid = uuid.uuid4().hex[:6]
 
     # Register + login
-    reg = await api.post("/api/v1/auth/register", json={
-        "organization_name": f"E2E Org {uid}",
-        "email": f"e2e-{uid}@example.com",
-        "password": "e2epass123",
-        "full_name": "E2E Tester",
-    })
+    reg = await api.post(
+        "/api/v1/auth/register",
+        json={
+            "organization_name": f"E2E Org {uid}",
+            "email": f"e2e-{uid}@example.com",
+            "password": "e2epass123",
+            "full_name": "E2E Tester",
+        },
+    )
     assert reg.status_code == 201, f"Register failed: {reg.text}"
 
-    login = await api.post("/api/v1/auth/login", json={
-        "email": f"e2e-{uid}@example.com",
-        "password": "e2epass123",
-    })
+    login = await api.post(
+        "/api/v1/auth/login",
+        json={
+            "email": f"e2e-{uid}@example.com",
+            "password": "e2epass123",
+        },
+    )
     assert login.status_code == 200, f"Login failed: {login.text}"
     headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
     # Brand
-    brand_resp = await api.post("/api/v1/brands/", json={
-        "name": f"E2E Brand {uid}",
-        "slug": f"e2e-{uid}",
-        "niche": "finance",
-    }, headers=headers)
+    brand_resp = await api.post(
+        "/api/v1/brands/",
+        json={
+            "name": f"E2E Brand {uid}",
+            "slug": f"e2e-{uid}",
+            "niche": "finance",
+        },
+        headers=headers,
+    )
     assert brand_resp.status_code == 201, f"Brand failed: {brand_resp.text}"
     brand_id = brand_resp.json()["id"]
 
     # Offer
-    offer_resp = await api.post("/api/v1/offers/", json={
-        "brand_id": brand_id,
-        "name": "E2E Test Offer",
-        "monetization_method": "affiliate",
-        "payout_amount": 30.0,
-        "epc": 2.5,
-        "conversion_rate": 0.04,
-    }, headers=headers)
+    offer_resp = await api.post(
+        "/api/v1/offers/",
+        json={
+            "brand_id": brand_id,
+            "name": "E2E Test Offer",
+            "monetization_method": "affiliate",
+            "payout_amount": 30.0,
+            "epc": 2.5,
+            "conversion_rate": 0.04,
+        },
+        headers=headers,
+    )
     assert offer_resp.status_code == 201, f"Offer failed: {offer_resp.text}"
     offer_id = offer_resp.json()["id"]
 
     # Creator account
-    acct_resp = await api.post("/api/v1/accounts/", json={
-        "brand_id": brand_id,
-        "platform": "youtube",
-        "platform_username": f"@e2e_{uid}",
-    }, headers=headers)
+    acct_resp = await api.post(
+        "/api/v1/accounts/",
+        json={
+            "brand_id": brand_id,
+            "platform": "youtube",
+            "platform_username": f"@e2e_{uid}",
+        },
+        headers=headers,
+    )
     assert acct_resp.status_code == 201, f"Account failed: {acct_resp.text}"
     account_id = acct_resp.json()["id"]
 
@@ -203,9 +222,10 @@ def mock_ai():
     )
     mock_response.usage = MagicMock(prompt_tokens=100, completion_tokens=200, total_tokens=300)
 
-    with patch("openai.AsyncOpenAI", autospec=True) as mock_openai, \
-         patch("anthropic.AsyncAnthropic", autospec=True) as mock_anthropic:
-
+    with (
+        patch("openai.AsyncOpenAI", autospec=True) as mock_openai,
+        patch("anthropic.AsyncAnthropic", autospec=True) as mock_anthropic,
+    ):
         # OpenAI mock
         instance = mock_openai.return_value
         instance.chat.completions.create = AsyncMock(return_value=mock_response)
@@ -233,8 +253,7 @@ def mock_smtp():
     async def _fake_send(to: str, subject: str, body: str, **kwargs):
         sent_emails.append({"to": to, "subject": subject, "body": body, **kwargs})
 
-    with patch("smtplib.SMTP", autospec=True) as smtp_cls, \
-         patch("smtplib.SMTP_SSL", autospec=True) as smtp_ssl_cls:
+    with patch("smtplib.SMTP", autospec=True) as smtp_cls, patch("smtplib.SMTP_SSL", autospec=True) as smtp_ssl_cls:
         for cls in (smtp_cls, smtp_ssl_cls):
             cls.return_value.__enter__ = MagicMock()
             cls.return_value.__exit__ = MagicMock(return_value=False)

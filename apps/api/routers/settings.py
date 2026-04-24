@@ -1,4 +1,5 @@
 """Settings, integrations, and secrets management endpoints."""
+
 import uuid
 from typing import Optional
 
@@ -72,17 +73,14 @@ async def get_organization_settings(current_user: AdminUser, db: DBSession):
 
 
 @router.patch("/organization", response_model=OrganizationSettingsResponse)
-async def update_organization_settings(
-    body: OrganizationSettingsUpdate, current_user: AdminUser, db: DBSession
-):
+async def update_organization_settings(body: OrganizationSettingsUpdate, current_user: AdminUser, db: DBSession):
     try:
-        org = await org_service.update(
-            db, current_user.organization_id, **body.model_dump(exclude_unset=True)
-        )
+        org = await org_service.update(db, current_user.organization_id, **body.model_dump(exclude_unset=True))
     except ValueError:
         raise HTTPException(status_code=404)
     await log_action(
-        db, "organization.settings_updated",
+        db,
+        "organization.settings_updated",
         organization_id=current_user.organization_id,
         user_id=current_user.id,
         actor_type="human",
@@ -93,9 +91,7 @@ async def update_organization_settings(
 
 
 @router.put("/api-keys/{provider}", response_model=SaveKeyResponse)
-async def save_api_key(
-    provider: str, body: SaveKeyRequest, current_user: AdminUser, db: DBSession
-):
+async def save_api_key(provider: str, body: SaveKeyRequest, current_user: AdminUser, db: DBSession):
     if provider not in secrets_service.ENV_KEY_MAP:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
     if not body.api_key.strip():
@@ -104,16 +100,17 @@ async def save_api_key(
     key_value = body.api_key.strip()
 
     # Write to provider_secrets (dashboard display + backup)
-    await secrets_service.save_key(
-        db, current_user.organization_id, provider, key_value, current_user.id
-    )
+    await secrets_service.save_key(db, current_user.organization_id, provider, key_value, current_user.id)
 
     # ALSO write to integration_providers (where workers actually read from).
     # This closes the split-truth gap: dashboard saves reach the workers.
     from apps.api.services.integration_manager import set_credential
+
     ip_key = SETTINGS_TO_IP_KEY.get(provider, provider)
     result = await set_credential(
-        db, current_user.organization_id, ip_key,
+        db,
+        current_user.organization_id,
+        ip_key,
         api_key=key_value,
     )
     if result.get("error"):
@@ -121,12 +118,14 @@ async def save_api_key(
         # the provider_secrets save already succeeded. Worker-side will fall
         # back to the secrets table or skip gracefully.
         import structlog
-        structlog.get_logger().warning("settings.ip_save_skipped",
-                                       provider=provider, ip_key=ip_key,
-                                       reason=result["error"])
+
+        structlog.get_logger().warning(
+            "settings.ip_save_skipped", provider=provider, ip_key=ip_key, reason=result["error"]
+        )
 
     await log_action(
-        db, "api_key.saved",
+        db,
+        "api_key.saved",
         organization_id=current_user.organization_id,
         user_id=current_user.id,
         actor_type="human",
@@ -141,20 +140,17 @@ async def save_api_key(
 
 
 @router.delete("/api-keys/{provider}", status_code=204)
-async def delete_api_key(
-    provider: str, current_user: AdminUser, db: DBSession
-):
+async def delete_api_key(provider: str, current_user: AdminUser, db: DBSession):
     if provider not in secrets_service.ENV_KEY_MAP:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
 
-    deleted = await secrets_service.delete_key(
-        db, current_user.organization_id, provider
-    )
+    deleted = await secrets_service.delete_key(db, current_user.organization_id, provider)
     if not deleted:
         raise HTTPException(status_code=404, detail="No key stored for this provider")
 
     await log_action(
-        db, "api_key.deleted",
+        db,
+        "api_key.deleted",
         organization_id=current_user.organization_id,
         user_id=current_user.id,
         actor_type="human",
@@ -180,12 +176,18 @@ async def get_integrations(current_user: AdminUser, db: DBSession):
     db_secrets = await secrets_service.get_all_keys(db, current_user.organization_id)
 
     # Load integration_providers (worker truth)
-    ip_rows = (await db.execute(
-        select(IntegrationProvider).where(
-            IntegrationProvider.organization_id == current_user.organization_id,
-            IntegrationProvider.is_active.is_(True),
+    ip_rows = (
+        (
+            await db.execute(
+                select(IntegrationProvider).where(
+                    IntegrationProvider.organization_id == current_user.organization_id,
+                    IntegrationProvider.is_active.is_(True),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
     ip_map = {row.provider_key: row for row in ip_rows}
 
     ALL_PROVIDERS = [

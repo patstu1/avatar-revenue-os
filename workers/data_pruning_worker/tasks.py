@@ -1,4 +1,5 @@
 """Data Pruning Worker — clean up old metrics, stale records, and unbounded tables."""
+
 from __future__ import annotations
 
 import logging
@@ -24,6 +25,7 @@ async def _prune():
     async with get_async_session_factory()() as db:
         try:
             from packages.db.models.publishing import PerformanceMetric
+
             cutoff = now - timedelta(days=METRICS_RETENTION_DAYS)
             r = await db.execute(delete(PerformanceMetric).where(PerformanceMetric.measured_at < cutoff))
             results["metrics_deleted"] = r.rowcount or 0
@@ -32,6 +34,7 @@ async def _prune():
 
         try:
             from packages.db.models.autonomous_farm import FleetStatusReport
+
             cutoff = now - timedelta(days=FLEET_REPORT_RETENTION_DAYS)
             r = await db.execute(delete(FleetStatusReport).where(FleetStatusReport.created_at < cutoff))
             results["fleet_reports_deleted"] = r.rowcount or 0
@@ -40,8 +43,11 @@ async def _prune():
 
         try:
             from packages.db.models.autonomous_farm import DailyIntelligenceReport
+
             cutoff_date = (now - timedelta(days=DAILY_REPORT_RETENTION_DAYS)).strftime("%Y-%m-%d")
-            r = await db.execute(delete(DailyIntelligenceReport).where(DailyIntelligenceReport.report_date < cutoff_date))
+            r = await db.execute(
+                delete(DailyIntelligenceReport).where(DailyIntelligenceReport.report_date < cutoff_date)
+            )
             results["daily_reports_deleted"] = r.rowcount or 0
         except Exception:
             logger.exception("Failed to prune DailyIntelligenceReport")

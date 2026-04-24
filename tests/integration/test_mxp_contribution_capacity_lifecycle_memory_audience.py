@@ -1,4 +1,5 @@
 """Integration tests for MXP sub-modules: contribution, capacity, offer lifecycle, creative memory, audience state."""
+
 import pytest
 
 from tests.conftest import create_brand_with_offer, register_and_login
@@ -10,7 +11,8 @@ async def test_contribution_recompute_and_list(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/contribution-reports/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/contribution-reports/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
 
@@ -29,7 +31,8 @@ async def test_capacity_recompute_and_list(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/capacity-reports/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/capacity-reports/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
 
@@ -52,7 +55,8 @@ async def test_offer_lifecycle_recompute_and_list(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/offer-lifecycle-reports/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/offer-lifecycle-reports/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
 
@@ -71,7 +75,8 @@ async def test_creative_memory_recompute_and_list(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/creative-memory-atoms/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/creative-memory-atoms/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
 
@@ -87,7 +92,8 @@ async def test_audience_state_recompute_and_list(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/audience-states/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/audience-states/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
 

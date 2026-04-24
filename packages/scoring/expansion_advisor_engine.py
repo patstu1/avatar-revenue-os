@@ -3,32 +3,49 @@
 Consumes scale engine outputs + account health signals and produces
 a single, opinionated advisory: add now, or hold (with exact reasons).
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 CONTENT_ROLES = {
-    "add_experimental": "experimental", "add_experimental_account": "experimental",
-    "add_platform_specific": "flagship_secondary", "add_platform_specific_account": "flagship_secondary",
-    "add_niche_spinoff": "niche_specialist", "add_niche_spinoff_account": "niche_specialist",
-    "add_localized": "geo_language_specialist", "add_localized_language_account": "geo_language_specialist",
-    "add_trend_capture": "trend_hunter", "add_trend_capture_account": "trend_hunter",
-    "add_evergreen_authority": "authority_evergreen", "add_evergreen_authority_account": "authority_evergreen",
-    "add_offer_first": None, "add_new_offer_before_adding_account": None,
-    "scale_winners_harder": None, "scale_current_winners_harder": None,
-    "improve_funnel": None, "improve_funnel_before_scaling": None,
+    "add_experimental": "experimental",
+    "add_experimental_account": "experimental",
+    "add_platform_specific": "flagship_secondary",
+    "add_platform_specific_account": "flagship_secondary",
+    "add_niche_spinoff": "niche_specialist",
+    "add_niche_spinoff_account": "niche_specialist",
+    "add_localized": "geo_language_specialist",
+    "add_localized_language_account": "geo_language_specialist",
+    "add_trend_capture": "trend_hunter",
+    "add_trend_capture_account": "trend_hunter",
+    "add_evergreen_authority": "authority_evergreen",
+    "add_evergreen_authority_account": "authority_evergreen",
+    "add_offer_first": None,
+    "add_new_offer_before_adding_account": None,
+    "scale_winners_harder": None,
+    "scale_current_winners_harder": None,
+    "improve_funnel": None,
+    "improve_funnel_before_scaling": None,
     "do_not_scale_yet": None,
     "monitor": None,
 }
 
 ACCOUNT_TYPES = {
-    "add_experimental": "experimental", "add_experimental_account": "experimental",
-    "add_platform_specific": "organic", "add_platform_specific_account": "organic",
-    "add_niche_spinoff": "organic", "add_niche_spinoff_account": "organic",
-    "add_localized": "organic", "add_localized_language_account": "organic",
-    "add_trend_capture": "hybrid", "add_trend_capture_account": "hybrid",
-    "add_evergreen_authority": "organic", "add_evergreen_authority_account": "organic",
-    "add_offer_specific": "organic", "add_offer_specific_account": "organic",
+    "add_experimental": "experimental",
+    "add_experimental_account": "experimental",
+    "add_platform_specific": "organic",
+    "add_platform_specific_account": "organic",
+    "add_niche_spinoff": "organic",
+    "add_niche_spinoff_account": "organic",
+    "add_localized": "organic",
+    "add_localized_language_account": "organic",
+    "add_trend_capture": "hybrid",
+    "add_trend_capture_account": "hybrid",
+    "add_evergreen_authority": "organic",
+    "add_evergreen_authority_account": "organic",
+    "add_offer_specific": "organic",
+    "add_offer_specific_account": "organic",
 }
 
 MONETIZATION_PATHS = {
@@ -49,32 +66,50 @@ MONETIZATION_PATHS = {
 }
 
 EXPAND_REC_KEYS = {
-    "add_experimental", "add_experimental_account",
-    "add_platform_specific", "add_platform_specific_account",
-    "add_niche_spinoff", "add_niche_spinoff_account",
-    "add_localized", "add_localized_language_account",
-    "add_trend_capture", "add_trend_capture_account",
-    "add_evergreen_authority", "add_evergreen_authority_account",
-    "add_offer_specific", "add_offer_specific_account",
+    "add_experimental",
+    "add_experimental_account",
+    "add_platform_specific",
+    "add_platform_specific_account",
+    "add_niche_spinoff",
+    "add_niche_spinoff_account",
+    "add_localized",
+    "add_localized_language_account",
+    "add_trend_capture",
+    "add_trend_capture_account",
+    "add_evergreen_authority",
+    "add_evergreen_authority_account",
+    "add_offer_specific",
+    "add_offer_specific_account",
 }
 
 HOLD_REC_KEYS = {
-    "scale_winners_harder", "scale_current_winners_harder",
-    "improve_funnel", "improve_funnel_before_scaling",
+    "scale_winners_harder",
+    "scale_current_winners_harder",
+    "improve_funnel",
+    "improve_funnel_before_scaling",
     "do_not_scale_yet",
     "monitor",
-    "add_offer_first", "add_new_offer_before_adding_account",
-    "reduce_weak", "reduce_or_suppress_weak_account",
+    "add_offer_first",
+    "add_new_offer_before_adding_account",
+    "reduce_weak",
+    "reduce_or_suppress_weak_account",
 }
 
 TIME_TO_SIGNAL = {
-    "add_experimental": 21, "add_experimental_account": 21,
-    "add_platform_specific": 30, "add_platform_specific_account": 30,
-    "add_niche_spinoff": 28, "add_niche_spinoff_account": 28,
-    "add_localized": 35, "add_localized_language_account": 35,
-    "add_trend_capture": 14, "add_trend_capture_account": 14,
-    "add_evergreen_authority": 45, "add_evergreen_authority_account": 45,
-    "add_offer_specific": 25, "add_offer_specific_account": 25,
+    "add_experimental": 21,
+    "add_experimental_account": 21,
+    "add_platform_specific": 30,
+    "add_platform_specific_account": 30,
+    "add_niche_spinoff": 28,
+    "add_niche_spinoff_account": 28,
+    "add_localized": 35,
+    "add_localized_language_account": 35,
+    "add_trend_capture": 14,
+    "add_trend_capture_account": 14,
+    "add_evergreen_authority": 45,
+    "add_evergreen_authority_account": 45,
+    "add_offer_specific": 25,
+    "add_offer_specific_account": 25,
 }
 
 
@@ -124,17 +159,32 @@ def compute_expansion_advisory(
         should_add = False
         hold_reason = (hold_reason or "") + " No offers in catalog."
     if content_count < 5:
-        blockers.append({"type": "low_content", "description": "Fewer than 5 content items. Prove content capability first."})
+        blockers.append(
+            {"type": "low_content", "description": "Fewer than 5 content items. Prove content capability first."}
+        )
     if avg_account_health == "critical":
-        blockers.append({"type": "unhealthy_accounts", "description": "Existing accounts in critical health. Stabilize before expanding."})
+        blockers.append(
+            {
+                "type": "unhealthy_accounts",
+                "description": "Existing accounts in critical health. Stabilize before expanding.",
+            }
+        )
         should_add = False
         hold_reason = (hold_reason or "") + " Existing accounts unhealthy."
     if avg_fatigue > 0.7:
-        blockers.append({"type": "high_fatigue", "description": f"Average fatigue {avg_fatigue:.0%}. Audience fatigue risk too high for expansion."})
+        blockers.append(
+            {
+                "type": "high_fatigue",
+                "description": f"Average fatigue {avg_fatigue:.0%}. Audience fatigue risk too high for expansion.",
+            }
+        )
     if avg_saturation > 0.8:
         if should_add:
             pass  # saturation supports expansion
-        blockers_note = {"type": "high_saturation", "description": f"Saturation {avg_saturation:.0%} — current accounts near ceiling. Supports expansion case."}
+        blockers_note = {
+            "type": "high_saturation",
+            "description": f"Saturation {avg_saturation:.0%} — current accounts near ceiling. Supports expansion case.",
+        }
         if not should_add:
             blockers.append(blockers_note)
 

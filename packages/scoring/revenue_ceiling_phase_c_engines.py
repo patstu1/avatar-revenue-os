@@ -1,5 +1,6 @@
 """Revenue Ceiling Phase C — recurring revenue, sponsor inventory, trust conversion,
 monetization mix, paid promotion gate (pure functions, no I/O, no SQLAlchemy)."""
+
 from __future__ import annotations
 
 import math
@@ -14,22 +15,48 @@ RC_PHASE_C = "revenue_ceiling_phase_c"
 RECURRING_OFFER_TYPES = ["newsletter", "membership", "saas_tool", "coaching_retainer", "community"]
 
 NICHE_RECURRING_AFFINITY: dict[str, float] = {
-    "tech": 0.1, "technology": 0.1, "software": 0.1, "saas": 0.1,
-    "finance": 0.1, "fintech": 0.1, "investing": 0.1, "trading": 0.1,
-    "health": 0.1, "wellness": 0.1, "fitness": 0.1, "nutrition": 0.1,
+    "tech": 0.1,
+    "technology": 0.1,
+    "software": 0.1,
+    "saas": 0.1,
+    "finance": 0.1,
+    "fintech": 0.1,
+    "investing": 0.1,
+    "trading": 0.1,
+    "health": 0.1,
+    "wellness": 0.1,
+    "fitness": 0.1,
+    "nutrition": 0.1,
 }
 
 NICHE_SPONSOR_CATEGORY: dict[str, str] = {
-    "finance": "fintech", "fintech": "fintech", "investing": "fintech", "trading": "fintech",
-    "health": "health_wellness", "wellness": "health_wellness",
-    "fitness": "health_wellness", "nutrition": "health_wellness",
-    "tech": "b2b_saas", "technology": "b2b_saas", "software": "b2b_saas", "saas": "b2b_saas",
-    "ecommerce": "ecommerce", "shopping": "ecommerce", "retail": "ecommerce",
-    "education": "edtech", "learning": "edtech", "course": "edtech",
-    "gaming": "gaming", "esports": "gaming",
-    "travel": "travel_lifestyle", "lifestyle": "travel_lifestyle",
-    "beauty": "beauty_personal_care", "skincare": "beauty_personal_care", "makeup": "beauty_personal_care",
-    "food": "food_beverage", "cooking": "food_beverage",
+    "finance": "fintech",
+    "fintech": "fintech",
+    "investing": "fintech",
+    "trading": "fintech",
+    "health": "health_wellness",
+    "wellness": "health_wellness",
+    "fitness": "health_wellness",
+    "nutrition": "health_wellness",
+    "tech": "b2b_saas",
+    "technology": "b2b_saas",
+    "software": "b2b_saas",
+    "saas": "b2b_saas",
+    "ecommerce": "ecommerce",
+    "shopping": "ecommerce",
+    "retail": "ecommerce",
+    "education": "edtech",
+    "learning": "edtech",
+    "course": "edtech",
+    "gaming": "gaming",
+    "esports": "gaming",
+    "travel": "travel_lifestyle",
+    "lifestyle": "travel_lifestyle",
+    "beauty": "beauty_personal_care",
+    "skincare": "beauty_personal_care",
+    "makeup": "beauty_personal_care",
+    "food": "food_beverage",
+    "cooking": "food_beverage",
 }
 
 CONTENT_TYPE_BASE_RATES: dict[str, float] = {
@@ -47,8 +74,13 @@ CONTENT_TYPE_SPONSOR_BONUS: dict[str, float] = {
 }
 
 KNOWN_METHODS = [
-    "affiliate", "sponsorship", "digital_product", "membership",
-    "coaching", "ads", "email_list",
+    "affiliate",
+    "sponsorship",
+    "digital_product",
+    "membership",
+    "coaching",
+    "ads",
+    "email_list",
 ]
 
 _METHOD_POTENTIAL_SCORES: dict[str, float] = {
@@ -76,9 +108,11 @@ _METHOD_RATIONALES: dict[str, str] = {
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _h(s: str) -> int:
     """Deterministic hash bucket (0–999), stable across processes."""
     import hashlib
+
     return int(hashlib.md5(s.encode()).hexdigest()[:8], 16) % 1000
 
 
@@ -103,6 +137,7 @@ def _sponsor_category(niche: str) -> str:
 # ---------------------------------------------------------------------------
 # Recurring Revenue Engine
 # ---------------------------------------------------------------------------
+
 
 def score_recurring_revenue(
     brand_niche: str,
@@ -134,11 +169,7 @@ def score_recurring_revenue(
     niche_bonus = _niche_affinity(brand_niche)
 
     # --- recurring potential score ---
-    raw_potential = (
-        0.40 * audience_signal
-        + 0.40 * engagement_signal
-        + 0.20 * _clamp(engagement_signal + niche_bonus)
-    )
+    raw_potential = 0.40 * audience_signal + 0.40 * engagement_signal + 0.20 * _clamp(engagement_signal + niche_bonus)
     recurring_potential_score = round(_clamp(raw_potential + niche_bonus), 3)
 
     # --- audience fit ---
@@ -157,19 +188,13 @@ def score_recurring_revenue(
 
     # --- average payout from live offers (default $9.97) ---
     payout_amounts = [
-        float(o.get("payout_amount", 0) or 0)
-        for o in (offers or [])
-        if float(o.get("payout_amount", 0) or 0) > 0
+        float(o.get("payout_amount", 0) or 0) for o in (offers or []) if float(o.get("payout_amount", 0) or 0) > 0
     ]
     avg_payout = (sum(payout_amounts) / len(payout_amounts)) if payout_amounts else 9.97
 
     # --- expected values ---
-    expected_monthly_value = round(
-        recurring_potential_score * float(max(0, audience_size)) * 0.002 * avg_payout, 2
-    )
-    expected_annual_value = round(
-        expected_monthly_value * 12.0 * (1.0 - churn_risk_proxy * 0.5), 2
-    )
+    expected_monthly_value = round(recurring_potential_score * float(max(0, audience_size)) * 0.002 * avg_payout, 2)
+    expected_annual_value = round(expected_monthly_value * 12.0 * (1.0 - churn_risk_proxy * 0.5), 2)
 
     # --- confidence ---
     data_richness = _clamp(len(offers) / 5.0) if offers else 0.10
@@ -199,6 +224,7 @@ def score_recurring_revenue(
 # ---------------------------------------------------------------------------
 # Sponsor Inventory Engine
 # ---------------------------------------------------------------------------
+
 
 def score_sponsor_inventory_item(
     content_item_id: str,
@@ -256,9 +282,7 @@ def score_sponsor_inventory_item(
     sponsor_category = _sponsor_category(niche)
 
     # --- confidence ---
-    confidence = round(
-        _clamp(0.35 + sponsor_fit_score * 0.45 + 0.20 * _clamp(impressions / 100_000.0)), 3
-    )
+    confidence = round(_clamp(0.35 + sponsor_fit_score * 0.45 + 0.20 * _clamp(impressions / 100_000.0)), 3)
 
     explanation = (
         f"Content '{content_title[:60]}' ({content_type}) — "
@@ -292,9 +316,7 @@ def _build_deliverables(niche: str, inventory: list[dict]) -> list[str]:
         ctype = item.get("content_type", "")
         if ctype and ctype not in seen:
             seen.add(ctype)
-            deliverables.append(
-                type_labels.get(ctype, f"1x {ctype} content placement for {niche}")
-            )
+            deliverables.append(type_labels.get(ctype, f"1x {ctype} content placement for {niche}"))
     if not deliverables:
         deliverables = [
             f"3x branded content pieces in the {niche} niche",
@@ -342,12 +364,7 @@ def score_sponsor_package(
     engagement_signal = _clamp(avg_engagement_rate * 20.0)
 
     sponsor_fit_score = round(
-        _clamp(
-            0.35 * avg_fit
-            + 0.30 * audience_signal
-            + 0.20 * impressions_signal
-            + 0.15 * engagement_signal
-        ),
+        _clamp(0.35 * avg_fit + 0.30 * audience_signal + 0.20 * impressions_signal + 0.15 * engagement_signal),
         3,
     )
 
@@ -360,9 +377,7 @@ def score_sponsor_package(
     duration_weeks = 4 if n_inventory <= 3 else (8 if n_inventory <= 8 else 12)
     exclusivity = sponsor_fit_score > 0.65
     deliverables = _build_deliverables(brand_niche, available_inventory)
-    pkg_name = (
-        f"{brand_niche.title()} × {sponsor_category.replace('_', ' ').title()} Sponsor Package"
-    )
+    pkg_name = f"{brand_niche.title()} × {sponsor_category.replace('_', ' ').title()} Sponsor Package"
     recommended_package = {
         "name": pkg_name,
         "deliverables": deliverables,
@@ -371,9 +386,7 @@ def score_sponsor_package(
     }
 
     # --- confidence ---
-    confidence = round(
-        _clamp(0.40 + sponsor_fit_score * 0.35 + min(0.25, n_inventory / 20.0)), 3
-    )
+    confidence = round(_clamp(0.40 + sponsor_fit_score * 0.35 + min(0.25, n_inventory / 20.0)), 3)
 
     explanation = (
         f"Brand '{brand_niche}' — {n_inventory} inventory items, avg item fit {avg_fit:.2f}. "
@@ -397,6 +410,7 @@ def score_sponsor_package(
 # ---------------------------------------------------------------------------
 # Trust Conversion Engine
 # ---------------------------------------------------------------------------
+
 
 def score_trust_conversion(
     brand_niche: str,
@@ -459,8 +473,7 @@ def score_trust_conversion(
         ),
         "social_proof_volume": (
             3,
-            f"Reach 5+ public social proof items (reviews, shares, UGC); "
-            f"currently have {has_social_proof_count}",
+            f"Reach 5+ public social proof items (reviews, shares, UGC); currently have {has_social_proof_count}",
         ),
         "media_features": (
             4,
@@ -483,9 +496,7 @@ def score_trust_conversion(
     # --- confidence ---
     data_quality = _clamp(avg_quality_score) * 0.30 + min(0.30, content_item_count / 50.0)
     cvr_signal = _clamp(offer_conversion_rate * 20.0) * 0.20
-    confidence = round(
-        _clamp(0.35 + data_quality + cvr_signal + 0.15 * (1.0 - trust_deficit_score)), 3
-    )
+    confidence = round(_clamp(0.35 + data_quality + cvr_signal + 0.15 * (1.0 - trust_deficit_score)), 3)
 
     explanation = (
         f"Trust deficit {trust_deficit_score:.2f} for '{brand_niche}'. "
@@ -509,6 +520,7 @@ def score_trust_conversion(
 # ---------------------------------------------------------------------------
 # Monetization Mix Engine
 # ---------------------------------------------------------------------------
+
 
 def score_monetization_mix(
     brand_niche: str,
@@ -535,17 +547,11 @@ def score_monetization_mix(
 
     # --- current revenue mix ---
     current_revenue_mix: dict[str, float] = {
-        method: round(amt / total, 4)
-        for method, amt in revenue_by_method.items()
-        if amt > 0
+        method: round(amt / total, 4) for method, amt in revenue_by_method.items() if amt > 0
     }
 
     # --- HHI-style dependency risk: sum of (pct_i^2) ---
-    dependency_risk = (
-        round(sum(pct ** 2 for pct in current_revenue_mix.values()), 4)
-        if current_revenue_mix
-        else 1.0
-    )
+    dependency_risk = round(sum(pct**2 for pct in current_revenue_mix.values()), 4) if current_revenue_mix else 1.0
 
     # --- underused monetization paths ---
     active_set = set(active_offer_types or [])
@@ -555,19 +561,18 @@ def score_monetization_mix(
         if method not in active_set:
             base_potential = _METHOD_POTENTIAL_SCORES.get(method, 0.50)
             adjusted_potential = round(_clamp(base_potential + audience_boost), 3)
-            underused_monetization_paths.append({
-                "path": method,
-                "potential_score": adjusted_potential,
-                "rationale": _METHOD_RATIONALES.get(method, f"Add {method} to diversify revenue"),
-            })
+            underused_monetization_paths.append(
+                {
+                    "path": method,
+                    "potential_score": adjusted_potential,
+                    "rationale": _METHOD_RATIONALES.get(method, f"Add {method} to diversify revenue"),
+                }
+            )
     underused_monetization_paths.sort(key=lambda x: x["potential_score"], reverse=True)
 
     # --- next best mix: redistribute so no single method > 40 % ---
     all_methods = list(
-        dict.fromkeys(
-            list(active_offer_types or [])
-            + [u["path"] for u in underused_monetization_paths[:3]]
-        )
+        dict.fromkeys(list(active_offer_types or []) + [u["path"] for u in underused_monetization_paths[:3]])
     )
     n = max(1, len(all_methods))
     base_share = 1.0 / n
@@ -587,19 +592,12 @@ def score_monetization_mix(
     # --- expected uplifts ---
     diversification_factor = 1.0 - dependency_risk
     expected_margin_uplift = round(_clamp(diversification_factor * 0.18), 4)
-    expected_ltv_uplift = round(
-        _clamp(diversification_factor * 0.25 + len(underused_monetization_paths) * 0.02), 4
-    )
+    expected_ltv_uplift = round(_clamp(diversification_factor * 0.25 + len(underused_monetization_paths) * 0.02), 4)
 
     # --- confidence ---
     data_richness = _clamp(len(revenue_by_method) / 5.0) if revenue_by_method else 0.10
     confidence = round(
-        _clamp(
-            0.40
-            + data_richness * 0.30
-            + 0.20 * (1.0 - dependency_risk)
-            + 0.10 * _log_norm(audience_size)
-        ),
+        _clamp(0.40 + data_richness * 0.30 + 0.20 * (1.0 - dependency_risk) + 0.10 * _log_norm(audience_size)),
         3,
     )
 
@@ -629,6 +627,7 @@ def score_monetization_mix(
 # ---------------------------------------------------------------------------
 # Paid Promotion Gate Engine
 # ---------------------------------------------------------------------------
+
 
 def evaluate_paid_promotion_candidate(
     content_item_id: str,
@@ -680,19 +679,12 @@ def evaluate_paid_promotion_candidate(
     }
 
     # --- strict gate: ALL criteria must pass ---
-    is_eligible = bool(
-        impressions_pass
-        and engagement_pass
-        and roi_or_age_pass
-        and revenue_pass
-    )
+    is_eligible = bool(impressions_pass and engagement_pass and roi_or_age_pass and revenue_pass)
 
     # --- gate reason ---
     if is_eligible:
         qualifier = (
-            f"ROI {organic_roi:.2f}x (≥{winner_threshold_roi:.2f}x)"
-            if roi_pass
-            else f"age {content_age_days}d (≥14d)"
+            f"ROI {organic_roi:.2f}x (≥{winner_threshold_roi:.2f}x)" if roi_pass else f"age {content_age_days}d (≥14d)"
         )
         gate_reason = (
             f"Eligible — all organic signals pass: "
@@ -704,18 +696,11 @@ def evaluate_paid_promotion_candidate(
     else:
         failed: list[str] = []
         if not impressions_pass:
-            failed.append(
-                f"impressions {organic_impressions:,} < {winner_threshold_impressions:,}"
-            )
+            failed.append(f"impressions {organic_impressions:,} < {winner_threshold_impressions:,}")
         if not engagement_pass:
-            failed.append(
-                f"engagement {organic_engagement_rate:.2%} < {winner_threshold_engagement:.2%}"
-            )
+            failed.append(f"engagement {organic_engagement_rate:.2%} < {winner_threshold_engagement:.2%}")
         if not roi_or_age_pass:
-            failed.append(
-                f"ROI {organic_roi:.2f}x < {winner_threshold_roi:.2f}x "
-                f"AND age {content_age_days}d < 14d"
-            )
+            failed.append(f"ROI {organic_roi:.2f}x < {winner_threshold_roi:.2f}x AND age {content_age_days}d < 14d")
         if not revenue_pass:
             failed.append("organic_revenue = $0 (no proven monetization on this asset)")
         gate_reason = "Not eligible — failed: " + "; ".join(failed)

@@ -1,4 +1,5 @@
 """Contribution service — multi-touch attribution reports and cross-model comparison."""
+
 from __future__ import annotations
 
 import uuid
@@ -27,9 +28,7 @@ def _strip_meta(d: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def recompute_contribution_reports(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_contribution_reports(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -63,36 +62,44 @@ async def recompute_contribution_reports(
     touchpoints: list[dict[str, Any]] = []
 
     for ae in attr_rows:
-        touchpoints.append({
-            "scope_type": ae.event_type or "attribution_event",
-            "scope_id": str(ae.content_item_id) if ae.content_item_id else str(ae.offer_id) if ae.offer_id else None,
-            "value": float(ae.event_value or 0),
-            "days_before_conversion": 0.0,
-        })
+        touchpoints.append(
+            {
+                "scope_type": ae.event_type or "attribution_event",
+                "scope_id": str(ae.content_item_id)
+                if ae.content_item_id
+                else str(ae.offer_id)
+                if ae.offer_id
+                else None,
+                "value": float(ae.event_value or 0),
+                "days_before_conversion": 0.0,
+            }
+        )
 
     for pm in perf_rows:
-        touchpoints.append({
-            "scope_type": "performance_metric",
-            "scope_id": str(pm.content_item_id),
-            "value": float(pm.revenue or 0),
-            "days_before_conversion": 0.0,
-        })
+        touchpoints.append(
+            {
+                "scope_type": "performance_metric",
+                "scope_id": str(pm.content_item_id),
+                "value": float(pm.revenue or 0),
+                "days_before_conversion": 0.0,
+            }
+        )
 
     if not touchpoints:
         for scope, val in [("organic", 50.0), ("paid", 80.0), ("referral", 30.0)]:
-            touchpoints.append({
-                "scope_type": scope,
-                "scope_id": None,
-                "value": val,
-                "days_before_conversion": 3.0,
-            })
+            touchpoints.append(
+                {
+                    "scope_type": scope,
+                    "scope_id": None,
+                    "value": val,
+                    "days_before_conversion": 3.0,
+                }
+            )
 
     reports = compute_contribution_reports(touchpoints, SUPPORTED_MODELS)
     comparison = compare_attribution_models(reports)
 
-    await db.execute(
-        delete(AttributionModelRun).where(AttributionModelRun.brand_id == brand_id)
-    )
+    await db.execute(delete(AttributionModelRun).where(AttributionModelRun.brand_id == brand_id))
     await db.execute(
         delete(ContributionReport).where(
             ContributionReport.brand_id == brand_id,
@@ -185,9 +192,7 @@ def _amr_dict(x: AttributionModelRun) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_contribution_reports(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_contribution_reports(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -206,9 +211,7 @@ async def get_contribution_reports(
     return [_cr_dict(r) for r in rows]
 
 
-async def get_attribution_model_runs(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_attribution_model_runs(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

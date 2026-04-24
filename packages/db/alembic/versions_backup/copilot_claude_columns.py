@@ -3,6 +3,7 @@
 Revision ID: copilot_claude_001
 Revises: copilot_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 

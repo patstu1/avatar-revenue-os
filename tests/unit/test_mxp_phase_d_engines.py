@@ -1,4 +1,5 @@
 """Unit tests: Deal Desk and Kill Ledger engines (Phase D)."""
+
 from __future__ import annotations
 
 import uuid

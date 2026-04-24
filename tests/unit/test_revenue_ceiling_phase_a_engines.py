@@ -1,6 +1,5 @@
 """Unit tests for Revenue Ceiling Phase A scoring engines."""
 
-
 from packages.scoring.revenue_ceiling_phase_a_engines import (
     SEQUENCE_TYPES,
     build_offer_ladder_for_opportunity,

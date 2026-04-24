@@ -1,4 +1,5 @@
 """Unit tests for enterprise security engine."""
+
 from packages.scoring.enterprise_security_engine import (
     SYSTEM_ROLES,
     assess_compliance,
@@ -58,13 +59,23 @@ class TestScope:
 
 class TestSensitiveData:
     def test_private_mode_blocks_model(self):
-        policies = [{"data_class": "pii", "private_mode": True, "model_restriction": "dedicated_only", "is_active": True, "training_leak_prevention": True}]
+        policies = [
+            {
+                "data_class": "pii",
+                "private_mode": True,
+                "model_restriction": "dedicated_only",
+                "is_active": True,
+                "training_leak_prevention": True,
+            }
+        ]
         r = evaluate_sensitive_data("pii", policies, "send_to_model")
         assert r["allowed"] is False
         assert r["private_mode"] is True
 
     def test_training_blocked(self):
-        policies = [{"data_class": "confidential", "private_mode": False, "training_leak_prevention": True, "is_active": True}]
+        policies = [
+            {"data_class": "confidential", "private_mode": False, "training_leak_prevention": True, "is_active": True}
+        ]
         r = evaluate_sensitive_data("confidential", policies, "send_to_training")
         assert r["allowed"] is False
 
@@ -76,7 +87,15 @@ class TestSensitiveData:
 
 class TestModelIsolation:
     def test_dedicated_required(self):
-        policies = [{"provider_key": "claude", "isolation_mode": "dedicated", "dedicated_instance_id": "inst-123", "data_residency": "us-east", "is_active": True}]
+        policies = [
+            {
+                "provider_key": "claude",
+                "isolation_mode": "dedicated",
+                "dedicated_instance_id": "inst-123",
+                "data_residency": "us-east",
+                "is_active": True,
+            }
+        ]
         r = evaluate_model_isolation("claude", policies)
         assert r["isolation_required"] is True
         assert r["mode"] == "dedicated"
@@ -88,14 +107,31 @@ class TestModelIsolation:
 
 class TestCompliance:
     def test_gdpr_assessment(self):
-        state = {"data_policies_configured": True, "audit_trail_active": True, "erasure_capability": True, "consent_tracking": False, "data_residency_set": True, "rbac_configured": True, "scopes_assigned": True, "model_isolation_set": True}
+        state = {
+            "data_policies_configured": True,
+            "audit_trail_active": True,
+            "erasure_capability": True,
+            "consent_tracking": False,
+            "data_residency_set": True,
+            "rbac_configured": True,
+            "scopes_assigned": True,
+            "model_isolation_set": True,
+        }
         results = assess_compliance("gdpr", state)
         assert len(results) == 5
         met = [r for r in results if r["status"] == "met"]
         assert len(met) >= 3
 
     def test_soc2_assessment(self):
-        results = assess_compliance("soc2", {"rbac_configured": True, "scopes_assigned": False, "audit_trail_active": True, "data_policies_configured": False})
+        results = assess_compliance(
+            "soc2",
+            {
+                "rbac_configured": True,
+                "scopes_assigned": False,
+                "audit_trail_active": True,
+                "data_policies_configured": False,
+            },
+        )
         assert len(results) == 5
 
     def test_unknown_framework(self):

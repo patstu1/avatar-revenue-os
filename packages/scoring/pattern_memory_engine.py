@@ -2,12 +2,21 @@
 
 Pure functions. No I/O.
 """
+
 from __future__ import annotations
 
 import hashlib
 from typing import Any
 
-PATTERN_TYPES = ["hook", "creative_structure", "content_form", "offer_angle", "cta", "monetization", "audience_response"]
+PATTERN_TYPES = [
+    "hook",
+    "creative_structure",
+    "content_form",
+    "offer_angle",
+    "cta",
+    "monetization",
+    "audience_response",
+]
 
 OFFER_ANGLE_PATTERNS = {
     "budget": "Budget/affordability angle",
@@ -105,28 +114,92 @@ def extract_patterns_from_content(
 
         hook_type = ci.get("hook_type") or _infer_hook(title, tags)
         if hook_type:
-            patterns.append(_build_pattern("hook", hook_type, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id))
+            patterns.append(
+                _build_pattern(
+                    "hook", hook_type, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id
+                )
+            )
 
         structure = ci.get("creative_structure") or _infer_structure(form, tags)
         if structure:
-            patterns.append(_build_pattern("creative_structure", structure, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id))
+            patterns.append(
+                _build_pattern(
+                    "creative_structure",
+                    structure,
+                    platform,
+                    niche,
+                    form,
+                    monetization,
+                    imp,
+                    clicks,
+                    eng,
+                    rev,
+                    cvr,
+                    profit,
+                    ci_id,
+                )
+            )
 
-        patterns.append(_build_pattern("content_form", form, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id))
+        patterns.append(
+            _build_pattern(
+                "content_form", form, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id
+            )
+        )
 
         if monetization:
-            patterns.append(_build_pattern("monetization", monetization, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id))
+            patterns.append(
+                _build_pattern(
+                    "monetization",
+                    monetization,
+                    platform,
+                    niche,
+                    form,
+                    monetization,
+                    imp,
+                    clicks,
+                    eng,
+                    rev,
+                    cvr,
+                    profit,
+                    ci_id,
+                )
+            )
 
         cta = ci.get("cta_type")
         if cta:
-            patterns.append(_build_pattern("cta", cta, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id))
+            patterns.append(
+                _build_pattern(
+                    "cta", cta, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id
+                )
+            )
 
         angle = ci.get("offer_angle")
         if angle:
-            patterns.append(_build_pattern("offer_angle", angle, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id))
+            patterns.append(
+                _build_pattern(
+                    "offer_angle", angle, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id
+                )
+            )
 
         ar = _classify_audience_response(perf, ci.get("audience_response_profile") or {}, cdata.get(ci_id, {}))
         if ar:
-            patterns.append(_build_pattern("audience_response", ar, platform, niche, form, monetization, imp, clicks, eng, rev, cvr, profit, ci_id))
+            patterns.append(
+                _build_pattern(
+                    "audience_response",
+                    ar,
+                    platform,
+                    niche,
+                    form,
+                    monetization,
+                    imp,
+                    clicks,
+                    eng,
+                    rev,
+                    cvr,
+                    profit,
+                    ci_id,
+                )
+            )
 
     return patterns
 
@@ -188,7 +261,21 @@ def _infer_structure(form: str, tags: Any) -> str | None:
     return "problem_solution_cta"
 
 
-def _build_pattern(ptype: str, pname: str, platform: str, niche: str, form: str, monetization: str, imp: float, clicks: float, eng: float, rev: float, cvr: float, profit: float, ci_id: str) -> dict[str, Any]:
+def _build_pattern(
+    ptype: str,
+    pname: str,
+    platform: str,
+    niche: str,
+    form: str,
+    monetization: str,
+    imp: float,
+    clicks: float,
+    eng: float,
+    rev: float,
+    cvr: float,
+    profit: float,
+    ci_id: str,
+) -> dict[str, Any]:
     return {
         "pattern_type": ptype,
         "pattern_name": pname,
@@ -197,7 +284,15 @@ def _build_pattern(ptype: str, pname: str, platform: str, niche: str, form: str,
         "niche": niche,
         "content_form": form,
         "monetization_method": monetization,
-        "evidence": {"content_item_id": ci_id, "impressions": imp, "clicks": clicks, "engagement_rate": eng, "revenue": rev, "conversion_rate": cvr, "profit": profit},
+        "evidence": {
+            "content_item_id": ci_id,
+            "impressions": imp,
+            "clicks": clicks,
+            "engagement_rate": eng,
+            "revenue": rev,
+            "conversion_rate": cvr,
+            "profit": profit,
+        },
     }
 
 
@@ -280,15 +375,17 @@ def cluster_patterns(
     for key, members in groups.items():
         ptype, platform = key.split(":", 1)
         avg_score = sum(m.get("win_score", 0) for m in members) / max(1, len(members))
-        clusters.append({
-            "cluster_name": f"{ptype} winners on {platform}",
-            "cluster_type": ptype,
-            "platform": platform if platform != "all" else None,
-            "pattern_ids": [str(m.get("id", "")) for m in members],
-            "avg_win_score": round(avg_score, 3),
-            "pattern_count": len(members),
-            "explanation": f"{len(members)} {ptype} patterns on {platform}, avg score {avg_score:.2f}",
-        })
+        clusters.append(
+            {
+                "cluster_name": f"{ptype} winners on {platform}",
+                "cluster_type": ptype,
+                "platform": platform if platform != "all" else None,
+                "pattern_ids": [str(m.get("id", "")) for m in members],
+                "avg_win_score": round(avg_score, 3),
+                "pattern_count": len(members),
+                "explanation": f"{len(members)} {ptype} patterns on {platform}, avg score {avg_score:.2f}",
+            }
+        )
 
     return sorted(clusters, key=lambda c: -c["avg_win_score"])
 
@@ -307,17 +404,19 @@ def recommend_reuse(
             if tp == src_platform:
                 continue
             uplift = round(p.get("win_score", 0) * 0.7, 3)
-            recs.append({
-                "pattern_id": str(p.get("id", "")),
-                "pattern_name": p.get("pattern_name", ""),
-                "pattern_type": p.get("pattern_type", ""),
-                "source_platform": src_platform,
-                "target_platform": tp,
-                "target_content_form": p.get("content_form"),
-                "expected_uplift": uplift,
-                "confidence": round(p.get("confidence", 0) * 0.8, 3),
-                "explanation": f"Reuse {p.get('pattern_name', '')} ({p.get('pattern_type', '')}) from {src_platform} on {tp} — expected {uplift:.0%} uplift",
-            })
+            recs.append(
+                {
+                    "pattern_id": str(p.get("id", "")),
+                    "pattern_name": p.get("pattern_name", ""),
+                    "pattern_type": p.get("pattern_type", ""),
+                    "source_platform": src_platform,
+                    "target_platform": tp,
+                    "target_content_form": p.get("content_form"),
+                    "expected_uplift": uplift,
+                    "confidence": round(p.get("confidence", 0) * 0.8, 3),
+                    "explanation": f"Reuse {p.get('pattern_name', '')} ({p.get('pattern_type', '')}) from {src_platform} on {tp} — expected {uplift:.0%} uplift",
+                }
+            )
 
     return sorted(recs, key=lambda r: -r["expected_uplift"])[:20]
 
@@ -339,32 +438,38 @@ def suggest_experiments_from_patterns(
     untested = all_types - win_types - lose_types - set(existing_experiment_variables)
 
     for ptype in untested:
-        suggestions.append({
-            "tested_variable": ptype,
-            "hypothesis": f"No winning or losing data for {ptype} — needs deliberate testing",
-            "priority": "high",
-            "source": "pattern_gap",
-        })
+        suggestions.append(
+            {
+                "tested_variable": ptype,
+                "hypothesis": f"No winning or losing data for {ptype} — needs deliberate testing",
+                "priority": "high",
+                "source": "pattern_gap",
+            }
+        )
 
     for p in winning_patterns:
         if p.get("win_score", 0) >= 0.7 and p.get("usage_count", 0) < 5:
-            suggestions.append({
-                "tested_variable": p.get("pattern_type", ""),
-                "hypothesis": f"Strong winner '{p.get('pattern_name', '')}' with low usage — validate with controlled test",
-                "priority": "medium",
-                "source": "underexploited_winner",
-                "pattern_name": p.get("pattern_name"),
-            })
+            suggestions.append(
+                {
+                    "tested_variable": p.get("pattern_type", ""),
+                    "hypothesis": f"Strong winner '{p.get('pattern_name', '')}' with low usage — validate with controlled test",
+                    "priority": "medium",
+                    "source": "underexploited_winner",
+                    "pattern_name": p.get("pattern_name"),
+                }
+            )
 
     for p in losing_patterns:
         if p.get("fail_score", 0) > 0.8:
-            suggestions.append({
-                "tested_variable": p.get("pattern_type", ""),
-                "hypothesis": f"Strong loser '{p.get('pattern_name', '')}' — test alternative in same category",
-                "priority": "medium",
-                "source": "loser_replacement",
-                "pattern_name": p.get("pattern_name"),
-            })
+            suggestions.append(
+                {
+                    "tested_variable": p.get("pattern_type", ""),
+                    "hypothesis": f"Strong loser '{p.get('pattern_name', '')}' — test alternative in same category",
+                    "priority": "medium",
+                    "source": "loser_replacement",
+                    "pattern_name": p.get("pattern_name"),
+                }
+            )
 
     return suggestions
 
@@ -379,20 +484,24 @@ def ingest_experiment_outcome(
     result: dict[str, Any] = {"winners": [], "losers": []}
 
     w_name = winning_variant_config.get("pattern_name") or winning_variant_config.get("variant_label", "unknown")
-    result["winners"].append({
-        "pattern_type": experiment_type,
-        "pattern_name": w_name,
-        "evidence": performance_data,
-        "source": "experiment_winner",
-    })
+    result["winners"].append(
+        {
+            "pattern_type": experiment_type,
+            "pattern_name": w_name,
+            "evidence": performance_data,
+            "source": "experiment_winner",
+        }
+    )
 
     for lc in losing_variant_configs:
         l_name = lc.get("pattern_name") or lc.get("variant_label", "unknown")
-        result["losers"].append({
-            "pattern_type": experiment_type,
-            "pattern_name": l_name,
-            "source": "experiment_loser",
-        })
+        result["losers"].append(
+            {
+                "pattern_type": experiment_type,
+                "pattern_name": l_name,
+                "source": "experiment_loser",
+            }
+        )
 
     return result
 
@@ -417,15 +526,17 @@ def compute_pattern_allocation_weights(
         weighted = max(0.01, c.get("avg_win_score", 0)) * c.get("pattern_count", 1)
         share = weighted / total_score
         hero_eligible = c.get("avg_win_score", 0) >= 0.6
-        allocations.append({
-            "cluster_type": c.get("cluster_type", ""),
-            "platform": c.get("platform"),
-            "cluster_name": c.get("cluster_name", ""),
-            "allocation_pct": round(share * 100, 1),
-            "allocated_budget": round(share * total_budget, 2),
-            "hero_eligible": hero_eligible,
-            "provider_tier": "hero" if hero_eligible else "bulk",
-            "explanation": f"{c.get('cluster_name', '')}: {share*100:.1f}% ({'hero' if hero_eligible else 'bulk'} tier)",
-        })
+        allocations.append(
+            {
+                "cluster_type": c.get("cluster_type", ""),
+                "platform": c.get("platform"),
+                "cluster_name": c.get("cluster_name", ""),
+                "allocation_pct": round(share * 100, 1),
+                "allocated_budget": round(share * total_budget, 2),
+                "hero_eligible": hero_eligible,
+                "provider_tier": "hero" if hero_eligible else "bulk",
+                "explanation": f"{c.get('cluster_name', '')}: {share * 100:.1f}% ({'hero' if hero_eligible else 'bulk'} tier)",
+            }
+        )
 
     return sorted(allocations, key=lambda a: -a["allocation_pct"])

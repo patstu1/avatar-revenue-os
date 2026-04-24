@@ -6,6 +6,7 @@ Checks:
   c) Failed SystemJobs that haven't been retried
   d) Emits a health report event with green/yellow/red status per component
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -34,16 +35,45 @@ HEALTH_PING_TIMEOUT = 5.0  # seconds for provider health pings
 # Lightweight health-check endpoints per provider (cheap/free calls)
 _HEALTH_ENDPOINTS: dict[str, dict] = {
     "claude": {"url": "https://api.anthropic.com/v1/models", "method": "GET", "auth_header": "x-api-key"},
-    "gemini_flash": {"url": "https://generativelanguage.googleapis.com/v1beta/models", "method": "GET", "auth_param": "key"},
-    "openai_image": {"url": "https://api.openai.com/v1/models", "method": "GET", "auth_header": "Authorization", "auth_prefix": "Bearer "},
-    "deepseek": {"url": "https://api.deepseek.com/models", "method": "GET", "auth_header": "Authorization", "auth_prefix": "Bearer "},
+    "gemini_flash": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models",
+        "method": "GET",
+        "auth_param": "key",
+    },
+    "openai_image": {
+        "url": "https://api.openai.com/v1/models",
+        "method": "GET",
+        "auth_header": "Authorization",
+        "auth_prefix": "Bearer ",
+    },
+    "deepseek": {
+        "url": "https://api.deepseek.com/models",
+        "method": "GET",
+        "auth_header": "Authorization",
+        "auth_prefix": "Bearer ",
+    },
     # /v1/models works with any valid API key; /v1/user requires user_read scope which not all keys have
     "elevenlabs": {"url": "https://api.elevenlabs.io/v1/models", "method": "GET", "auth_header": "xi-api-key"},
     "heygen": {"url": "https://api.heygen.com/v2/user/remaining_quota", "method": "GET", "auth_header": "X-Api-Key"},
-    "runway": {"url": "https://api.dev.runwayml.com/v1/tasks", "method": "GET", "auth_header": "Authorization", "auth_prefix": "Bearer "},
-    "stripe": {"url": "https://api.stripe.com/v1/balance", "method": "GET", "auth_header": "Authorization", "auth_prefix": "Bearer "},
-    "buffer": {"url": "https://api.buffer.com", "method": "POST", "auth_header": "Authorization", "auth_prefix": "Bearer ",
-               "body": {"query": "{ account { id } }"}},
+    "runway": {
+        "url": "https://api.dev.runwayml.com/v1/tasks",
+        "method": "GET",
+        "auth_header": "Authorization",
+        "auth_prefix": "Bearer ",
+    },
+    "stripe": {
+        "url": "https://api.stripe.com/v1/balance",
+        "method": "GET",
+        "auth_header": "Authorization",
+        "auth_prefix": "Bearer ",
+    },
+    "buffer": {
+        "url": "https://api.buffer.com",
+        "method": "POST",
+        "auth_header": "Authorization",
+        "auth_prefix": "Bearer ",
+        "body": {"query": "{ account { id } }"},
+    },
 }
 
 
@@ -85,11 +115,26 @@ def _ping_provider(api_key: str, provider_key: str) -> dict:
         if resp.status_code in (200, 201):
             return {"reachable": True, "latency_ms": elapsed_ms, "status_code": resp.status_code, "error": None}
         elif resp.status_code in (401, 403):
-            return {"reachable": True, "latency_ms": elapsed_ms, "status_code": resp.status_code, "error": "auth_invalid"}
+            return {
+                "reachable": True,
+                "latency_ms": elapsed_ms,
+                "status_code": resp.status_code,
+                "error": "auth_invalid",
+            }
         elif resp.status_code == 429:
-            return {"reachable": True, "latency_ms": elapsed_ms, "status_code": resp.status_code, "error": "rate_limited"}
+            return {
+                "reachable": True,
+                "latency_ms": elapsed_ms,
+                "status_code": resp.status_code,
+                "error": "rate_limited",
+            }
         else:
-            return {"reachable": True, "latency_ms": elapsed_ms, "status_code": resp.status_code, "error": f"HTTP {resp.status_code}"}
+            return {
+                "reachable": True,
+                "latency_ms": elapsed_ms,
+                "status_code": resp.status_code,
+                "error": f"HTTP {resp.status_code}",
+            }
     except httpx.ConnectTimeout:
         return {"reachable": False, "latency_ms": None, "status_code": None, "error": "connect_timeout"}
     except httpx.ReadTimeout:
@@ -102,9 +147,9 @@ def _check_providers(session: Session) -> dict:
     """Check all enabled integration providers: credential health + live API ping."""
     from apps.api.services.integration_manager import _decrypt
 
-    providers = session.execute(
-        select(IntegrationProvider).where(IntegrationProvider.is_enabled.is_(True))
-    ).scalars().all()
+    providers = (
+        session.execute(select(IntegrationProvider).where(IntegrationProvider.is_enabled.is_(True))).scalars().all()
+    )
 
     results = {}
     unhealthy_count = 0
@@ -174,8 +219,7 @@ def _check_stuck_media_jobs(session: Session) -> dict:
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=STUCK_MEDIA_JOB_MINUTES)
 
     stuck_jobs = session.execute(
-        select(MediaJob.id, MediaJob.provider, MediaJob.job_type, MediaJob.dispatched_at)
-        .where(
+        select(MediaJob.id, MediaJob.provider, MediaJob.job_type, MediaJob.dispatched_at).where(
             and_(
                 MediaJob.status.in_(["dispatched", "processing"]),
                 MediaJob.dispatched_at < cutoff,
@@ -211,8 +255,7 @@ def _check_unretried_failures(session: Session) -> dict:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=FAILED_JOB_LOOKBACK_HOURS)
 
     failed_count = session.execute(
-        select(func.count(SystemJob.id))
-        .where(
+        select(func.count(SystemJob.id)).where(
             and_(
                 SystemJob.status == "failed",
                 SystemJob.completed_at >= cutoff,

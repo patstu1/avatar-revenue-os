@@ -1,4 +1,5 @@
 """Dynamic CTA Rotation Engine — platform-specific CTA templates with performance tracking."""
+
 from __future__ import annotations
 
 import random
@@ -11,7 +12,11 @@ CTA_LIBRARY: dict[str, list[dict[str, Any]]] = {
         {"id": "yt_comment", "text": "Drop your biggest question in the comments", "style": "engagement"},
         {"id": "yt_freebie", "text": "Grab the free guide — link in description", "style": "lead_capture"},
         {"id": "yt_urgency", "text": "This won't last — check the link before it's gone", "style": "urgency"},
-        {"id": "yt_social_proof", "text": "Over 10,000 people have already grabbed this — link below", "style": "social_proof"},
+        {
+            "id": "yt_social_proof",
+            "text": "Over 10,000 people have already grabbed this — link below",
+            "style": "social_proof",
+        },
     ],
     "tiktok": [
         {"id": "tt_bio", "text": "Link in bio", "style": "soft"},
@@ -40,7 +45,11 @@ CTA_LIBRARY: dict[str, list[dict[str, Any]]] = {
         {"id": "li_follow", "text": "Follow for more insights like this", "style": "growth"},
         {"id": "li_comment", "text": "What's your experience with this? Share below", "style": "engagement"},
         {"id": "li_repost", "text": "Repost to help your network", "style": "engagement"},
-        {"id": "li_newsletter", "text": "Subscribe to my newsletter for the deep dive — link in comments", "style": "lead_capture"},
+        {
+            "id": "li_newsletter",
+            "text": "Subscribe to my newsletter for the deep dive — link in comments",
+            "style": "lead_capture",
+        },
         {"id": "li_dm", "text": "DM me if you want to discuss this further", "style": "engagement"},
     ],
 }

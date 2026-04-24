@@ -11,6 +11,7 @@ Usage:
   # or locally:
   DATABASE_URL_SYNC=postgresql://... python scripts/seed_packages.py
 """
+
 from __future__ import annotations
 
 import os
@@ -110,7 +111,9 @@ def main():
         from packages.db.models.offers import Offer
 
         # Get or create org
-        org = session.execute(select(Organization).where(Organization.is_active.is_(True)).limit(1)).scalar_one_or_none()
+        org = session.execute(
+            select(Organization).where(Organization.is_active.is_(True)).limit(1)
+        ).scalar_one_or_none()
         if not org:
             org = Organization(name="ProofHook", slug="proofhook", is_active=True)
             session.add(org)
@@ -121,9 +124,7 @@ def main():
         brands_created = 0
 
         for brand_def in BRANDS:
-            brand = session.execute(
-                select(Brand).where(Brand.slug == brand_def["slug"])
-            ).scalar_one_or_none()
+            brand = session.execute(select(Brand).where(Brand.slug == brand_def["slug"])).scalar_one_or_none()
 
             if not brand:
                 brand = Brand(

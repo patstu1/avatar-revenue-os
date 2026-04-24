@@ -1,4 +1,5 @@
 """Winning-Pattern Memory — recompute, list, persist."""
+
 from __future__ import annotations
 
 import uuid
@@ -59,19 +60,19 @@ async def recompute_patterns(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
     niche = (brand.niche or "general") if brand else "general"
 
     old_rows = (
-        await db.execute(select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand_id))
-    ).scalars().all()
+        (await db.execute(select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand_id)))
+        .scalars()
+        .all()
+    )
     prior_map = {p.pattern_signature: float(p.win_score) for p in old_rows}
 
     await _delete_pattern_memory_rows(db, brand_id)
 
-    items = (
-        await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id))
-    ).scalars().all()
+    items = (await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id))).scalars().all()
 
     metrics_rows = (
-        await db.execute(select(PerformanceMetric).where(PerformanceMetric.brand_id == brand_id))
-    ).scalars().all()
+        (await db.execute(select(PerformanceMetric).where(PerformanceMetric.brand_id == brand_id))).scalars().all()
+    )
 
     perf_by_ci: dict[uuid.UUID, dict[str, float]] = {}
     for m in metrics_rows:
@@ -109,16 +110,18 @@ async def recompute_patterns(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
     ci_ids = [ci.id for ci in items]
     comment_data: dict[str, dict[str, float]] = {}
     if ci_ids:
-        comment_rows = (await db.execute(
-            select(
-                CommentIngestion.content_item_id,
-                func.avg(CommentIngestion.sentiment_score).label("avg_sentiment"),
-                func.avg(func.cast(CommentIngestion.is_purchase_intent, sa.Integer)).label("purchase_intent_pct"),
-                func.avg(func.cast(CommentIngestion.is_complaint, sa.Integer)).label("objection_pct"),
+        comment_rows = (
+            await db.execute(
+                select(
+                    CommentIngestion.content_item_id,
+                    func.avg(CommentIngestion.sentiment_score).label("avg_sentiment"),
+                    func.avg(func.cast(CommentIngestion.is_purchase_intent, sa.Integer)).label("purchase_intent_pct"),
+                    func.avg(func.cast(CommentIngestion.is_complaint, sa.Integer)).label("objection_pct"),
+                )
+                .where(CommentIngestion.content_item_id.in_(ci_ids))
+                .group_by(CommentIngestion.content_item_id)
             )
-            .where(CommentIngestion.content_item_id.in_(ci_ids))
-            .group_by(CommentIngestion.content_item_id)
-        )).all()
+        ).all()
         for row in comment_rows:
             comment_data[str(row.content_item_id)] = {
                 "avg_sentiment": float(row.avg_sentiment or 0),
@@ -163,9 +166,7 @@ async def recompute_patterns(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
         performance_band = str(scored["performance_band"])
         usage_count = len(members)
 
-        explanation = (
-            f"{first['pattern_type']}:{first['pattern_name']} — score {win_score:.2f}, n={usage_count}"
-        )
+        explanation = f"{first['pattern_type']}:{first['pattern_name']} — score {win_score:.2f}, n={usage_count}"
 
         ev_json: dict[str, Any] = {}
         if sig in prior_map:
@@ -247,13 +248,17 @@ async def recompute_clusters(db: AsyncSession, brand_id: uuid.UUID) -> dict[str,
     await db.execute(delete(WinningPatternCluster).where(WinningPatternCluster.brand_id == brand_id))
 
     rows = (
-        await db.execute(
-            select(WinningPatternMemory).where(
-                WinningPatternMemory.brand_id == brand_id,
-                WinningPatternMemory.is_active.is_(True),
+        (
+            await db.execute(
+                select(WinningPatternMemory).where(
+                    WinningPatternMemory.brand_id == brand_id,
+                    WinningPatternMemory.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     pattern_dicts = [
         {
@@ -287,21 +292,25 @@ async def recompute_decay(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, An
     await db.execute(delete(PatternDecayReport).where(PatternDecayReport.brand_id == brand_id))
 
     patterns = (
-        await db.execute(
-            select(WinningPatternMemory).where(
-                WinningPatternMemory.brand_id == brand_id,
-                WinningPatternMemory.is_active.is_(True),
+        (
+            await db.execute(
+                select(WinningPatternMemory).where(
+                    WinningPatternMemory.brand_id == brand_id,
+                    WinningPatternMemory.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     count = 0
     for p in patterns:
         evidence_rows = (
-            await db.execute(
-                select(WinningPatternEvidence).where(WinningPatternEvidence.pattern_id == p.id)
-            )
-        ).scalars().all()
+            (await db.execute(select(WinningPatternEvidence).where(WinningPatternEvidence.pattern_id == p.id)))
+            .scalars()
+            .all()
+        )
         evidence_list = [
             {
                 "engagement_rate": float(e.engagement_rate or 0),
@@ -311,11 +320,7 @@ async def recompute_decay(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, An
             }
             for e in evidence_rows
         ]
-        evidence_win = (
-            float(score_pattern(evidence_list)["win_score"])
-            if evidence_list
-            else float(p.win_score)
-        )
+        evidence_win = float(score_pattern(evidence_list)["win_score"]) if evidence_list else float(p.win_score)
         prev = float(p.win_score)
         decay = detect_decay(prev, evidence_win, p.usage_count or 0)
         rec = decay.get("recommendation")
@@ -340,13 +345,17 @@ async def recompute_reuse(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, An
     await db.execute(delete(PatternReuseRecommendation).where(PatternReuseRecommendation.brand_id == brand_id))
 
     rows = (
-        await db.execute(
-            select(WinningPatternMemory).where(
-                WinningPatternMemory.brand_id == brand_id,
-                WinningPatternMemory.is_active.is_(True),
+        (
+            await db.execute(
+                select(WinningPatternMemory).where(
+                    WinningPatternMemory.brand_id == brand_id,
+                    WinningPatternMemory.is_active.is_(True),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     platforms = {p.platform for p in rows if p.platform}
     target_platforms = sorted(set(DEFAULT_TARGET_PLATFORMS) | platforms)
@@ -447,27 +456,75 @@ async def list_decay(db: AsyncSession, brand_id: uuid.UUID) -> list[PatternDecay
 
 async def get_experiment_suggestions(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     """Use pattern memory to suggest experiments worth running."""
-    winners = (await db.execute(
-        select(WinningPatternMemory).where(WinningPatternMemory.brand_id == brand_id, WinningPatternMemory.is_active.is_(True))
-    )).scalars().all()
-    losers = (await db.execute(
-        select(LosingPatternMemory).where(LosingPatternMemory.brand_id == brand_id, LosingPatternMemory.is_active.is_(True))
-    )).scalars().all()
-    existing_exps = (await db.execute(
-        select(Experiment.experiment_type).where(Experiment.brand_id == brand_id).distinct()
-    )).scalars().all()
+    winners = (
+        (
+            await db.execute(
+                select(WinningPatternMemory).where(
+                    WinningPatternMemory.brand_id == brand_id, WinningPatternMemory.is_active.is_(True)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    losers = (
+        (
+            await db.execute(
+                select(LosingPatternMemory).where(
+                    LosingPatternMemory.brand_id == brand_id, LosingPatternMemory.is_active.is_(True)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    existing_exps = (
+        (await db.execute(select(Experiment.experiment_type).where(Experiment.brand_id == brand_id).distinct()))
+        .scalars()
+        .all()
+    )
 
-    win_dicts = [{"pattern_type": w.pattern_type, "pattern_name": w.pattern_name, "win_score": float(w.win_score), "usage_count": w.usage_count} for w in winners]
-    lose_dicts = [{"pattern_type": l.pattern_type, "pattern_name": l.pattern_name, "fail_score": float(l.fail_score)} for l in losers]
+    win_dicts = [
+        {
+            "pattern_type": w.pattern_type,
+            "pattern_name": w.pattern_name,
+            "win_score": float(w.win_score),
+            "usage_count": w.usage_count,
+        }
+        for w in winners
+    ]
+    lose_dicts = [
+        {"pattern_type": l.pattern_type, "pattern_name": l.pattern_name, "fail_score": float(l.fail_score)}
+        for l in losers
+    ]
     return suggest_experiments_from_patterns(win_dicts, lose_dicts, list(existing_exps))
 
 
-async def get_allocation_weights(db: AsyncSession, brand_id: uuid.UUID, total_budget: float = 1000.0) -> list[dict[str, Any]]:
+async def get_allocation_weights(
+    db: AsyncSession, brand_id: uuid.UUID, total_budget: float = 1000.0
+) -> list[dict[str, Any]]:
     """Compute budget allocation weights from pattern cluster strength."""
-    clusters = (await db.execute(
-        select(WinningPatternCluster).where(WinningPatternCluster.brand_id == brand_id, WinningPatternCluster.is_active.is_(True))
-    )).scalars().all()
-    cluster_dicts = [{"cluster_type": c.cluster_type, "platform": c.platform, "cluster_name": c.cluster_name, "avg_win_score": float(c.avg_win_score), "pattern_count": c.pattern_count} for c in clusters]
+    clusters = (
+        (
+            await db.execute(
+                select(WinningPatternCluster).where(
+                    WinningPatternCluster.brand_id == brand_id, WinningPatternCluster.is_active.is_(True)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    cluster_dicts = [
+        {
+            "cluster_type": c.cluster_type,
+            "platform": c.platform,
+            "cluster_name": c.cluster_name,
+            "avg_win_score": float(c.avg_win_score),
+            "pattern_count": c.pattern_count,
+        }
+        for c in clusters
+    ]
     return compute_pattern_allocation_weights(cluster_dicts, total_budget)
 
 
@@ -477,26 +534,44 @@ async def compute_niche_aggregate_patterns(db: AsyncSession, niche: str, limit: 
     Cross-platform intelligence: if curiosity-gap hooks win on TikTok finance accounts,
     that insight flows to YouTube finance accounts too.
     """
-    niche_brands = list((await db.execute(
-        select(Brand.id).where(Brand.niche == niche, Brand.is_active.is_(True))
-    )).scalars().all())
+    niche_brands = list(
+        (await db.execute(select(Brand.id).where(Brand.niche == niche, Brand.is_active.is_(True)))).scalars().all()
+    )
 
     if not niche_brands:
         return {"niche": niche, "winning_patterns": [], "losing_patterns": [], "brand_count": 0}
 
-    all_winners = list((await db.execute(
-        select(WinningPatternMemory).where(
-            WinningPatternMemory.brand_id.in_(niche_brands),
-            WinningPatternMemory.is_active.is_(True),
-        ).order_by(WinningPatternMemory.win_score.desc()).limit(limit * 3)
-    )).scalars().all())
+    all_winners = list(
+        (
+            await db.execute(
+                select(WinningPatternMemory)
+                .where(
+                    WinningPatternMemory.brand_id.in_(niche_brands),
+                    WinningPatternMemory.is_active.is_(True),
+                )
+                .order_by(WinningPatternMemory.win_score.desc())
+                .limit(limit * 3)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
-    all_losers = list((await db.execute(
-        select(LosingPatternMemory).where(
-            LosingPatternMemory.brand_id.in_(niche_brands),
-            LosingPatternMemory.is_active.is_(True),
-        ).order_by(LosingPatternMemory.fail_score.desc()).limit(limit)
-    )).scalars().all())
+    all_losers = list(
+        (
+            await db.execute(
+                select(LosingPatternMemory)
+                .where(
+                    LosingPatternMemory.brand_id.in_(niche_brands),
+                    LosingPatternMemory.is_active.is_(True),
+                )
+                .order_by(LosingPatternMemory.fail_score.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     pattern_scores: dict[str, list[float]] = {}
     for w in all_winners:
@@ -506,12 +581,15 @@ async def compute_niche_aggregate_patterns(db: AsyncSession, niche: str, limit: 
     aggregated = []
     for key, scores in pattern_scores.items():
         ptype, pname = key.split(":", 1)
-        aggregated.append({
-            "pattern_type": ptype, "pattern_name": pname,
-            "avg_win_score": sum(scores) / len(scores),
-            "brand_count": len(scores),
-            "cross_validated": len(scores) >= 2,
-        })
+        aggregated.append(
+            {
+                "pattern_type": ptype,
+                "pattern_name": pname,
+                "avg_win_score": sum(scores) / len(scores),
+                "brand_count": len(scores),
+                "cross_validated": len(scores) >= 2,
+            }
+        )
     aggregated.sort(key=lambda x: x["avg_win_score"] * (1.2 if x["cross_validated"] else 1.0), reverse=True)
 
     return {

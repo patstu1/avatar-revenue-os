@@ -1,4 +1,5 @@
 """DB-backed integration tests for Claude copilot integration."""
+
 import pytest
 
 

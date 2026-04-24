@@ -1,4 +1,5 @@
 """Competitor worker — scan competitors for intelligence signals."""
+
 from __future__ import annotations
 
 import logging
@@ -23,9 +24,7 @@ def scan_competitors(self) -> dict:
     reports_generated = 0
 
     with Session(engine) as db:
-        competitors = db.query(CompetitorAccount).filter(
-            CompetitorAccount.is_active.is_(True)
-        ).all()
+        competitors = db.query(CompetitorAccount).filter(CompetitorAccount.is_active.is_(True)).all()
 
         if not competitors:
             logger.info("competitor_scan.no_competitors", msg="No active competitor accounts to scan")
@@ -34,14 +33,18 @@ def scan_competitors(self) -> dict:
         for comp in competitors:
             try:
                 scanned += 1
-                recent_report = db.query(DailyIntelligenceReport).filter(
-                    DailyIntelligenceReport.competitor_account_id == comp.id,
-                    DailyIntelligenceReport.is_active.is_(True),
-                ).order_by(DailyIntelligenceReport.created_at.desc()).first()
+                recent_report = (
+                    db.query(DailyIntelligenceReport)
+                    .filter(
+                        DailyIntelligenceReport.competitor_account_id == comp.id,
+                        DailyIntelligenceReport.is_active.is_(True),
+                    )
+                    .order_by(DailyIntelligenceReport.created_at.desc())
+                    .first()
+                )
 
                 needs_refresh = (
-                    not recent_report
-                    or (datetime.now(timezone.utc) - recent_report.created_at).total_seconds() > 86400
+                    not recent_report or (datetime.now(timezone.utc) - recent_report.created_at).total_seconds() > 86400
                 )
 
                 if needs_refresh:

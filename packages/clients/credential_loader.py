@@ -22,6 +22,7 @@ Usage in a worker task::
     api_key = result["api_key"]
     provider_key = result["provider_key"]
 """
+
 from __future__ import annotations
 
 import uuid
@@ -78,14 +79,20 @@ def load_credential_for_task(
     Returns dict with: provider_key, provider_name, api_key, quality_tier, cost_per_unit
     or None if nothing is available.
     """
-    providers = session.execute(
-        select(IntegrationProvider).where(
-            IntegrationProvider.organization_id == org_id,
-            IntegrationProvider.provider_category == category,
-            IntegrationProvider.is_enabled.is_(True),
-            IntegrationProvider.health_status.in_(["configured", "healthy"]),
-        ).order_by(IntegrationProvider.priority_order)
-    ).scalars().all()
+    providers = (
+        session.execute(
+            select(IntegrationProvider)
+            .where(
+                IntegrationProvider.organization_id == org_id,
+                IntegrationProvider.provider_category == category,
+                IntegrationProvider.is_enabled.is_(True),
+                IntegrationProvider.health_status.in_(["configured", "healthy"]),
+            )
+            .order_by(IntegrationProvider.priority_order)
+        )
+        .scalars()
+        .all()
+    )
 
     if not providers:
         return None

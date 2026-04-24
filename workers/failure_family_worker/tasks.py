@@ -1,4 +1,5 @@
 """Failure-Family Suppression workers — with auto kill-ledger population."""
+
 import logging
 import uuid
 
@@ -25,24 +26,32 @@ async def _auto_populate_kill_ledger(db, brand_id: uuid.UUID) -> int:
     from packages.db.models.kill_ledger import KillLedgerEntry
 
     # Find failure families that exceed the threshold
-    families = (await db.execute(
-        select(FailureFamilyReport).where(
-            FailureFamilyReport.brand_id == brand_id,
-            FailureFamilyReport.failure_count >= KILL_THRESHOLD,
+    families = (
+        (
+            await db.execute(
+                select(FailureFamilyReport).where(
+                    FailureFamilyReport.brand_id == brand_id,
+                    FailureFamilyReport.failure_count >= KILL_THRESHOLD,
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     created = 0
     for fam in families:
         # Check if a kill entry already exists for this family
-        existing = (await db.execute(
-            select(KillLedgerEntry).where(
-                KillLedgerEntry.brand_id == brand_id,
-                KillLedgerEntry.killed_entity_type == fam.family_type,
-                KillLedgerEntry.killed_entity_key == fam.family_key,
-                KillLedgerEntry.is_active.is_(True),
+        existing = (
+            await db.execute(
+                select(KillLedgerEntry).where(
+                    KillLedgerEntry.brand_id == brand_id,
+                    KillLedgerEntry.killed_entity_type == fam.family_type,
+                    KillLedgerEntry.killed_entity_key == fam.family_key,
+                    KillLedgerEntry.is_active.is_(True),
+                )
             )
-        )).scalar_one_or_none()
+        ).scalar_one_or_none()
 
         if existing:
             continue
@@ -51,8 +60,7 @@ async def _auto_populate_kill_ledger(db, brand_id: uuid.UUID) -> int:
             brand_id=brand_id,
             killed_entity_type=fam.family_type,
             killed_entity_key=fam.family_key,
-            kill_reason=f"Auto-killed: {fam.failure_count} failures in family "
-                        f"'{fam.family_key}' ({fam.family_type})",
+            kill_reason=f"Auto-killed: {fam.failure_count} failures in family '{fam.family_key}' ({fam.family_type})",
             kill_source="failure_family_worker",
             failure_count=fam.failure_count,
             is_active=True,
@@ -61,7 +69,10 @@ async def _auto_populate_kill_ledger(db, brand_id: uuid.UUID) -> int:
         created += 1
         logger.info(
             "kill_ledger.auto_created family_type=%s family_key=%s failures=%d brand=%s",
-            fam.family_type, fam.family_key, fam.failure_count, brand_id,
+            fam.family_type,
+            fam.family_key,
+            fam.failure_count,
+            brand_id,
         )
 
     if created:

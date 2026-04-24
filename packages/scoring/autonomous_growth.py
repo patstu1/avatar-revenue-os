@@ -6,6 +6,7 @@ into a unified autonomous growth system.
 
 Pure functions. No I/O.
 """
+
 from __future__ import annotations
 
 import math
@@ -17,6 +18,7 @@ from datetime import datetime, timedelta
 # ---------------------------------------------------------------------------
 # 1. Intelligent Budget Allocator with Real-time ROI Rebalancing
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ChannelPerformance:
@@ -58,7 +60,7 @@ def _marginal_roi_at_budget(
     if max_budget <= 0:
         return 0.0
     ratio = min(budget / max_budget, 1.0)
-    return max(0.0, base_roi * (1.0 - saturation_pct * (ratio ** 0.7)))
+    return max(0.0, base_roi * (1.0 - saturation_pct * (ratio**0.7)))
 
 
 def _expected_revenue_at_budget(
@@ -101,10 +103,7 @@ def optimize_budget_allocation(
             optimization_score=0.0,
         )
 
-    viable = [
-        ch for ch in channels
-        if ch.min_viable_budget <= total_budget and ch.roi >= min_roi_threshold * 0.5
-    ]
+    viable = [ch for ch in channels if ch.min_viable_budget <= total_budget and ch.roi >= min_roi_threshold * 0.5]
     if not viable:
         viable = sorted(channels, key=lambda c: c.roi, reverse=True)[:1]
 
@@ -137,7 +136,10 @@ def optimize_budget_allocation(
             if cur >= ch.max_effective_budget:
                 continue
             mroi = _marginal_roi_at_budget(
-                ch.roi, ch.saturation_pct, cur, ch.max_effective_budget,
+                ch.roi,
+                ch.saturation_pct,
+                cur,
+                ch.max_effective_budget,
             )
             if mroi > best_mroi:
                 best_mroi = mroi
@@ -188,18 +190,20 @@ def optimize_budget_allocation(
         delta = alloc[ch.channel_id] - ch.current_budget
         if abs(delta) > 1.0:
             direction = "increase" if delta > 0 else "decrease"
-            rebalance_actions.append({
-                "channel_id": ch.channel_id,
-                "channel_name": ch.name,
-                "current": round(ch.current_budget, 2),
-                "new": round(alloc[ch.channel_id], 2),
-                "delta": round(delta, 2),
-                "direction": direction,
-                "reason": (
-                    f"Marginal ROI {direction}: channel "
-                    f"{'under' if delta > 0 else 'over'}-allocated relative to ROI"
-                ),
-            })
+            rebalance_actions.append(
+                {
+                    "channel_id": ch.channel_id,
+                    "channel_name": ch.name,
+                    "current": round(ch.current_budget, 2),
+                    "new": round(alloc[ch.channel_id], 2),
+                    "delta": round(delta, 2),
+                    "direction": direction,
+                    "reason": (
+                        f"Marginal ROI {direction}: channel "
+                        f"{'under' if delta > 0 else 'over'}-allocated relative to ROI"
+                    ),
+                }
+            )
 
     allocation_list: list[dict] = []
     total_expected_rev = 0.0
@@ -207,17 +211,22 @@ def optimize_budget_allocation(
         cid = ch.channel_id
         budget = alloc[cid]
         exp_rev = _expected_revenue_at_budget(
-            ch.roi, ch.saturation_pct, budget, ch.max_effective_budget,
+            ch.roi,
+            ch.saturation_pct,
+            budget,
+            ch.max_effective_budget,
         )
         exp_roi = exp_rev / budget if budget > 0 else 0.0
         total_expected_rev += exp_rev
-        allocation_list.append({
-            "channel_id": cid,
-            "channel_name": ch.name,
-            "allocated": round(budget, 2),
-            "expected_roi": round(exp_roi, 4),
-            "expected_revenue": round(exp_rev, 2),
-        })
+        allocation_list.append(
+            {
+                "channel_id": cid,
+                "channel_name": ch.name,
+                "allocated": round(budget, 2),
+                "expected_roi": round(exp_roi, 4),
+                "expected_revenue": round(exp_rev, 2),
+            }
+        )
 
     total_allocated = sum(a["allocated"] for a in allocation_list)
     blended_roi = total_expected_rev / total_allocated if total_allocated > 0 else 0.0
@@ -225,7 +234,10 @@ def optimize_budget_allocation(
     mrois = []
     for ch in viable:
         m = _marginal_roi_at_budget(
-            ch.roi, ch.saturation_pct, alloc[ch.channel_id], ch.max_effective_budget,
+            ch.roi,
+            ch.saturation_pct,
+            alloc[ch.channel_id],
+            ch.max_effective_budget,
         )
         mrois.append(m)
     if len(mrois) >= 2:
@@ -305,6 +317,7 @@ def compute_channel_saturation(
 # 2. Autonomous Winner Pattern Replication
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ContentPattern:
     pattern_id: str
@@ -333,12 +346,14 @@ class ReplicationPlan:
 
 
 def _pattern_key(item: dict) -> str:
-    return "|".join([
-        str(item.get("hook", "unknown")),
-        str(item.get("structure", "unknown")),
-        str(item.get("tone", "unknown")),
-        str(item.get("cta", "unknown")),
-    ])
+    return "|".join(
+        [
+            str(item.get("hook", "unknown")),
+            str(item.get("structure", "unknown")),
+            str(item.get("tone", "unknown")),
+            str(item.get("cta", "unknown")),
+        ]
+    )
 
 
 def _t_stat(sample_mean: float, pop_mean: float, sample_std: float, n: int) -> float:
@@ -438,32 +453,37 @@ def extract_winning_patterns(
         sorted_hours = sorted(hour_counts, key=hour_counts.get, reverse=True)  # type: ignore[arg-type]
         best_hours = sorted_hours[:3] if sorted_hours else []
 
-        resonance = min(1.0, (
-            0.4 * (avg_eng / max(global_eng, 1e-9))
-            + 0.3 * (avg_rpm / max(global_rpm, 1e-9))
-            + 0.2 * (avg_conv / max(global_conv, 1e-9))
-            + 0.1 * min(1.0, n / 50)
-        ))
+        resonance = min(
+            1.0,
+            (
+                0.4 * (avg_eng / max(global_eng, 1e-9))
+                + 0.3 * (avg_rpm / max(global_rpm, 1e-9))
+                + 0.2 * (avg_conv / max(global_conv, 1e-9))
+                + 0.1 * min(1.0, n / 50)
+            ),
+        )
 
         content_types = [str(i.get("content_type", "post")) for i in items]
         most_common_type = max(set(content_types), key=content_types.count)
 
         pid = f"pat_{hook[:3]}_{structure[:3]}_{tone[:3]}_{cta[:3]}"
-        patterns.append(ContentPattern(
-            pattern_id=pid,
-            content_type=most_common_type,
-            hook_style=hook,
-            structure=structure,
-            emotional_tone=tone,
-            cta_type=cta,
-            avg_engagement_rate=round(avg_eng, 6),
-            avg_rpm=round(avg_rpm, 2),
-            avg_conversion_rate=round(avg_conv, 6),
-            sample_size=n,
-            platforms_effective=platforms_effective,
-            best_time_slots=best_hours,
-            audience_resonance_score=round(resonance, 4),
-        ))
+        patterns.append(
+            ContentPattern(
+                pattern_id=pid,
+                content_type=most_common_type,
+                hook_style=hook,
+                structure=structure,
+                emotional_tone=tone,
+                cta_type=cta,
+                avg_engagement_rate=round(avg_eng, 6),
+                avg_rpm=round(avg_rpm, 2),
+                avg_conversion_rate=round(avg_conv, 6),
+                sample_size=n,
+                platforms_effective=platforms_effective,
+                best_time_slots=best_hours,
+                audience_resonance_score=round(resonance, 4),
+            )
+        )
 
     patterns.sort(key=lambda p: p.audience_resonance_score, reverse=True)
     return patterns
@@ -477,34 +497,68 @@ def compute_variation_strategy(
     strategies: list[dict] = []
 
     angle_variations = [
-        {"variation_type": "angle_shift", "description": f"Same {pattern.structure} structure but lead with a contrarian take", "expected_lift": 0.05},
-        {"variation_type": "audience_pivot", "description": f"Adapt {pattern.hook_style} hook for a beginner audience vs advanced", "expected_lift": 0.08},
-        {"variation_type": "format_remix", "description": f"Convert {pattern.content_type} into a carousel or thread format", "expected_lift": 0.06},
+        {
+            "variation_type": "angle_shift",
+            "description": f"Same {pattern.structure} structure but lead with a contrarian take",
+            "expected_lift": 0.05,
+        },
+        {
+            "variation_type": "audience_pivot",
+            "description": f"Adapt {pattern.hook_style} hook for a beginner audience vs advanced",
+            "expected_lift": 0.08,
+        },
+        {
+            "variation_type": "format_remix",
+            "description": f"Convert {pattern.content_type} into a carousel or thread format",
+            "expected_lift": 0.06,
+        },
     ]
 
     tone_variations = [
-        {"variation_type": "tone_shift", "description": f"Keep {pattern.structure} but shift tone from {pattern.emotional_tone} to educational", "expected_lift": 0.04},
-        {"variation_type": "storytelling_wrap", "description": f"Wrap the {pattern.hook_style} hook in a personal story intro", "expected_lift": 0.07},
+        {
+            "variation_type": "tone_shift",
+            "description": f"Keep {pattern.structure} but shift tone from {pattern.emotional_tone} to educational",
+            "expected_lift": 0.04,
+        },
+        {
+            "variation_type": "storytelling_wrap",
+            "description": f"Wrap the {pattern.hook_style} hook in a personal story intro",
+            "expected_lift": 0.07,
+        },
     ]
 
     cta_variations = [
-        {"variation_type": "cta_experiment", "description": f"Test soft CTA (engagement-first) vs direct {pattern.cta_type}", "expected_lift": 0.10},
-        {"variation_type": "multi_cta", "description": f"Add secondary CTA alongside primary {pattern.cta_type}", "expected_lift": 0.03},
+        {
+            "variation_type": "cta_experiment",
+            "description": f"Test soft CTA (engagement-first) vs direct {pattern.cta_type}",
+            "expected_lift": 0.10,
+        },
+        {
+            "variation_type": "multi_cta",
+            "description": f"Add secondary CTA alongside primary {pattern.cta_type}",
+            "expected_lift": 0.03,
+        },
     ]
 
     platform_variations = [
-        {"variation_type": "platform_native", "description": f"Adapt for {plat} native format and conventions", "expected_lift": 0.09}
+        {
+            "variation_type": "platform_native",
+            "description": f"Adapt for {plat} native format and conventions",
+            "expected_lift": 0.09,
+        }
         for plat in pattern.platforms_effective[:2]
     ]
 
     timing_variations = []
     if pattern.best_time_slots:
         alt_slot = (pattern.best_time_slots[0] + 12) % 24
-        timing_variations.append({
-            "variation_type": "timing_experiment",
-            "description": f"Test posting at {alt_slot}:00 vs current best slot {pattern.best_time_slots[0]}:00",
-            "expected_lift": 0.03,
-        })
+        timing_variations.append(
+            {
+                "variation_type": "timing_experiment",
+                "description": f"Test posting at {alt_slot}:00 vs current best slot {pattern.best_time_slots[0]}:00",
+                "expected_lift": 0.03,
+            }
+        )
 
     all_options = angle_variations + tone_variations + cta_variations + platform_variations + timing_variations
 
@@ -512,11 +566,13 @@ def compute_variation_strategy(
     if fatigue_factor > 0.7:
         for v in all_options:
             v["expected_lift"] *= max(0.3, 1.0 - fatigue_factor)
-        strategies.append({
-            "variation_type": "pattern_rest",
-            "description": f"Pattern showing fatigue ({existing_variations} variations). Consider 1-2 week rest before new variations.",
-            "expected_lift": 0.0,
-        })
+        strategies.append(
+            {
+                "variation_type": "pattern_rest",
+                "description": f"Pattern showing fatigue ({existing_variations} variations). Consider 1-2 week rest before new variations.",
+                "expected_lift": 0.0,
+            }
+        )
 
     all_options.sort(key=lambda x: x["expected_lift"], reverse=True)
     max_new = max(1, 5 - int(fatigue_factor * 3))
@@ -551,10 +607,7 @@ def generate_replication_plans(
         existing_count = current_content_mix.get(pattern.pattern_id, 0)
         saturation = min(1.0, existing_count / max(daily_content_capacity * 3, 1))
 
-        untapped_platforms = [
-            p for p in available_platforms
-            if p not in pattern.platforms_effective
-        ]
+        untapped_platforms = [p for p in available_platforms if p not in pattern.platforms_effective]
         platform_potential = len(untapped_platforms) / max(len(available_platforms), 1)
 
         revenue_per_unit = pattern.avg_rpm * pattern.avg_engagement_rate
@@ -569,25 +622,30 @@ def generate_replication_plans(
 
         target_platforms = untapped_platforms or pattern.platforms_effective[:2]
 
-        confidence = min(1.0, (
-            0.4 * min(1.0, pattern.sample_size / 30)
-            + 0.3 * pattern.audience_resonance_score
-            + 0.3 * (1.0 - saturation)
-        ))
+        confidence = min(
+            1.0,
+            (
+                0.4 * min(1.0, pattern.sample_size / 30)
+                + 0.3 * pattern.audience_resonance_score
+                + 0.3 * (1.0 - saturation)
+            ),
+        )
 
         variations = compute_variation_strategy(pattern, existing_count)
 
         base_daily_rev = revenue_per_unit * len(target_platforms)
         estimated_impact = base_daily_rev * 30 * confidence
 
-        plans.append(ReplicationPlan(
-            source_pattern=pattern,
-            target_platforms=target_platforms,
-            recommended_variations=variations,
-            estimated_revenue_impact=round(estimated_impact, 2),
-            confidence=round(confidence, 4),
-            priority_score=round(priority, 4),
-        ))
+        plans.append(
+            ReplicationPlan(
+                source_pattern=pattern,
+                target_platforms=target_platforms,
+                recommended_variations=variations,
+                estimated_revenue_impact=round(estimated_impact, 2),
+                confidence=round(confidence, 4),
+                priority_score=round(priority, 4),
+            )
+        )
         capacity_remaining -= 1
 
     plans.sort(key=lambda p: p.priority_score, reverse=True)
@@ -597,6 +655,7 @@ def generate_replication_plans(
 # ---------------------------------------------------------------------------
 # 3. Audience Micro-Segmentation Engine
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class UserBehavior:
@@ -683,41 +742,53 @@ def _lookup_segment_label(r: int, f: int, m: int) -> tuple[str, str]:
 def _segment_actions(name: str, r: int, f: int, m: int) -> list[str]:
     actions: list[str] = []
     if "Champion" in name:
-        actions.extend([
-            "Offer exclusive early-access content",
-            "Launch referral program incentives",
-            "Test premium upsell offers",
-        ])
+        actions.extend(
+            [
+                "Offer exclusive early-access content",
+                "Launch referral program incentives",
+                "Test premium upsell offers",
+            ]
+        )
     elif "Loyal" in name:
-        actions.extend([
-            "Cross-sell complementary offers",
-            "Increase engagement touchpoints",
-            "Request testimonials and reviews",
-        ])
+        actions.extend(
+            [
+                "Cross-sell complementary offers",
+                "Increase engagement touchpoints",
+                "Request testimonials and reviews",
+            ]
+        )
     elif "At Risk" in name or "Can't Lose" in name:
-        actions.extend([
-            "Trigger urgent win-back email sequence",
-            "Offer personalized discount or bonus",
-            "Direct outreach from creator",
-        ])
+        actions.extend(
+            [
+                "Trigger urgent win-back email sequence",
+                "Offer personalized discount or bonus",
+                "Direct outreach from creator",
+            ]
+        )
     elif "New" in name:
-        actions.extend([
-            "Send welcome sequence with best content",
-            "Low-commitment CTA (free resource, quiz)",
-            "Build trust before monetization",
-        ])
+        actions.extend(
+            [
+                "Send welcome sequence with best content",
+                "Low-commitment CTA (free resource, quiz)",
+                "Build trust before monetization",
+            ]
+        )
     elif "Hibernating" in name or "Lost" in name:
-        actions.extend([
-            "Send reactivation campaign with compelling offer",
-            "A/B test subject lines for re-engagement",
-            "Consider suppression to protect deliverability",
-        ])
+        actions.extend(
+            [
+                "Send reactivation campaign with compelling offer",
+                "A/B test subject lines for re-engagement",
+                "Consider suppression to protect deliverability",
+            ]
+        )
     else:
-        actions.extend([
-            "Increase content frequency to boost engagement",
-            "Test new offer angles for this segment",
-            "Monitor for movement to higher-value segment",
-        ])
+        actions.extend(
+            [
+                "Increase content frequency to boost engagement",
+                "Test new offer angles for this segment",
+                "Monitor for movement to higher-value segment",
+            ]
+        )
 
     if r <= 2:
         actions.append("Prioritize recency: time-sensitive offer or content drop")
@@ -806,32 +877,37 @@ def segment_audience_rfm(
         max_monetary = max(monetary_vals) if monetary_vals else 1.0
         price_sens = max(0.0, 1.0 - (avg_monetary / max(max_monetary, 1.0)))
 
-        growth_potential = min(1.0, (
-            0.3 * (r_avg / 5.0)
-            + 0.3 * (1.0 - min(1.0, avg_conv))
-            + 0.2 * (f_avg / 5.0)
-            + 0.2 * min(1.0, len(members) / max(len(behaviors) * 0.3, 1))
-        ))
+        growth_potential = min(
+            1.0,
+            (
+                0.3 * (r_avg / 5.0)
+                + 0.3 * (1.0 - min(1.0, avg_conv))
+                + 0.2 * (f_avg / 5.0)
+                + 0.2 * min(1.0, len(members) / max(len(behaviors) * 0.3, 1))
+            ),
+        )
 
         _, description = _lookup_segment_label(round(r_avg), round(f_avg), round(m_avg))
         actions = _segment_actions(seg_name, round(r_avg), round(f_avg), round(m_avg))
 
         sid = seg_name.lower().replace(" ", "_").replace("-", "_")
-        segments.append(MicroSegment(
-            segment_id=f"seg_{sid}",
-            name=seg_name,
-            description=description,
-            size=len(members),
-            avg_ltv=round(avg_ltv, 2),
-            avg_engagement_rate=round(avg_eng, 6),
-            avg_conversion_rate=round(avg_conv, 6),
-            top_content_types=top_content,
-            top_offers=top_offers,
-            optimal_contact_frequency=round(optimal_freq, 1),
-            price_sensitivity=round(price_sens, 4),
-            growth_potential=round(growth_potential, 4),
-            recommended_actions=actions,
-        ))
+        segments.append(
+            MicroSegment(
+                segment_id=f"seg_{sid}",
+                name=seg_name,
+                description=description,
+                size=len(members),
+                avg_ltv=round(avg_ltv, 2),
+                avg_engagement_rate=round(avg_eng, 6),
+                avg_conversion_rate=round(avg_conv, 6),
+                top_content_types=top_content,
+                top_offers=top_offers,
+                optimal_contact_frequency=round(optimal_freq, 1),
+                price_sensitivity=round(price_sens, 4),
+                growth_potential=round(growth_potential, 4),
+                recommended_actions=actions,
+            )
+        )
 
     segments.sort(key=lambda s: s.avg_ltv, reverse=True)
     return segments
@@ -869,27 +945,30 @@ def compute_segment_value_matrix(
             revenue_per_contact = conv_estimate * offer_price * offer_commission_pct
             total_opportunity = revenue_per_contact * seg.size
 
-            confidence = min(1.0, (
-                0.3 * (1.0 if offer_id in seg.top_offers else 0.4)
-                + 0.3 * min(1.0, seg.size / 100)
-                + 0.2 * category_match
-                + 0.2 * (1.0 - seg.price_sensitivity)
-            ))
-
-            results.append({
-                "segment_id": seg.segment_id,
-                "segment_name": seg.name,
-                "offer_id": offer_id,
-                "offer_name": offer_name,
-                "expected_revenue_per_contact": round(revenue_per_contact, 4),
-                "total_opportunity": round(total_opportunity, 2),
-                "estimated_conversion_rate": round(conv_estimate, 6),
-                "confidence": round(confidence, 4),
-                "price_fit": round(price_fit, 4),
-                "recommended_frequency": round(
-                    seg.optimal_contact_frequency * confidence, 1
+            confidence = min(
+                1.0,
+                (
+                    0.3 * (1.0 if offer_id in seg.top_offers else 0.4)
+                    + 0.3 * min(1.0, seg.size / 100)
+                    + 0.2 * category_match
+                    + 0.2 * (1.0 - seg.price_sensitivity)
                 ),
-            })
+            )
+
+            results.append(
+                {
+                    "segment_id": seg.segment_id,
+                    "segment_name": seg.name,
+                    "offer_id": offer_id,
+                    "offer_name": offer_name,
+                    "expected_revenue_per_contact": round(revenue_per_contact, 4),
+                    "total_opportunity": round(total_opportunity, 2),
+                    "estimated_conversion_rate": round(conv_estimate, 6),
+                    "confidence": round(confidence, 4),
+                    "price_fit": round(price_fit, 4),
+                    "recommended_frequency": round(seg.optimal_contact_frequency * confidence, 1),
+                }
+            )
 
     results.sort(key=lambda r: r["total_opportunity"], reverse=True)
     return results
@@ -898,6 +977,7 @@ def compute_segment_value_matrix(
 # ---------------------------------------------------------------------------
 # 4. Self-Healing Workflow Engine
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class WorkflowHealth:
@@ -923,8 +1003,15 @@ class RecoveryAction:
 
 
 _RETRYABLE_ERRORS = {
-    "timeout", "rate_limit", "connection_reset", "temporary_unavailable",
-    "429", "503", "504", "econnreset", "etimeout",
+    "timeout",
+    "rate_limit",
+    "connection_reset",
+    "temporary_unavailable",
+    "429",
+    "503",
+    "504",
+    "econnreset",
+    "etimeout",
 }
 
 
@@ -1014,9 +1101,7 @@ def diagnose_workflow_health(
                 bottleneck = slowest
 
     recovery_attempts = sum(
-        1 for e in recent
-        if str(e.get("status", "")).lower() == "retry"
-        or e.get("is_retry", False)
+        1 for e in recent if str(e.get("status", "")).lower() == "retry" or e.get("is_retry", False)
     )
 
     dep_issues = [dep for dep, health in dependency_health.items() if health < 0.5]
@@ -1067,124 +1152,137 @@ def generate_recovery_plan(
     if health.last_error and _is_retryable(health.last_error):
         backoff_base = 2.0
         attempt = health.auto_recovery_attempts + 1
-        delay = min(backoff_base ** attempt, 300.0)
-        actions.append(RecoveryAction(
-            action_type="retry",
-            target=health.bottleneck_step or health.workflow_id,
-            params={
-                "max_retries": 3,
-                "backoff_seconds": round(delay, 1),
-                "backoff_strategy": "exponential",
-                "jitter": True,
-            },
-            estimated_recovery_time_s=delay * 3,
-            confidence=0.7 if attempt <= 2 else 0.4,
-        ))
+        delay = min(backoff_base**attempt, 300.0)
+        actions.append(
+            RecoveryAction(
+                action_type="retry",
+                target=health.bottleneck_step or health.workflow_id,
+                params={
+                    "max_retries": 3,
+                    "backoff_seconds": round(delay, 1),
+                    "backoff_strategy": "exponential",
+                    "jitter": True,
+                },
+                estimated_recovery_time_s=delay * 3,
+                confidence=0.7 if attempt <= 2 else 0.4,
+            )
+        )
 
     for dep in health.dependencies:
         if health.last_error and dep.lower() in health.last_error.lower():
             fallback_target = available_fallbacks.get(dep)
-            actions.append(RecoveryAction(
-                action_type="circuit_break",
-                target=dep,
-                params={
-                    "break_duration_s": 60,
-                    "half_open_after_s": 30,
-                    "failure_threshold": 5,
-                },
-                estimated_recovery_time_s=60.0,
-                confidence=0.8,
-            ))
-            if fallback_target:
-                actions.append(RecoveryAction(
-                    action_type="fallback",
+            actions.append(
+                RecoveryAction(
+                    action_type="circuit_break",
                     target=dep,
                     params={
-                        "fallback_to": fallback_target,
-                        "degraded_mode": True,
+                        "break_duration_s": 60,
+                        "half_open_after_s": 30,
+                        "failure_threshold": 5,
                     },
-                    estimated_recovery_time_s=5.0,
-                    confidence=0.85,
-                ))
+                    estimated_recovery_time_s=60.0,
+                    confidence=0.8,
+                )
+            )
+            if fallback_target:
+                actions.append(
+                    RecoveryAction(
+                        action_type="fallback",
+                        target=dep,
+                        params={
+                            "fallback_to": fallback_target,
+                            "degraded_mode": True,
+                        },
+                        estimated_recovery_time_s=5.0,
+                        confidence=0.85,
+                    )
+                )
 
     if health.avg_latency_ms > 5000 and health.status == "degraded":
         scale_factor = min(4, max(2, int(health.avg_latency_ms / 2000)))
-        actions.append(RecoveryAction(
-            action_type="scale_up",
-            target=health.bottleneck_step or health.workflow_id,
-            params={
-                "scale_factor": scale_factor,
-                "cooldown_s": 300,
-                "max_instances": scale_factor * 2,
-            },
-            estimated_recovery_time_s=30.0,
-            confidence=0.6,
-        ))
+        actions.append(
+            RecoveryAction(
+                action_type="scale_up",
+                target=health.bottleneck_step or health.workflow_id,
+                params={
+                    "scale_factor": scale_factor,
+                    "cooldown_s": 300,
+                    "max_instances": scale_factor * 2,
+                },
+                estimated_recovery_time_s=30.0,
+                confidence=0.6,
+            )
+        )
 
     if health.status == "failing" and health.success_rate_24h < 0.5:
-        actions.append(RecoveryAction(
-            action_type="alert",
-            target=health.workflow_id,
-            params={
-                "severity": "critical",
-                "message": (
-                    f"Workflow '{health.name}' failing: "
-                    f"{health.success_rate_24h:.0%} success rate, "
-                    f"{health.error_count_24h} errors in 24h. "
-                    f"Last error: {health.last_error or 'unknown'}"
-                ),
-                "channels": ["slack", "email", "pagerduty"],
-            },
-            estimated_recovery_time_s=0.0,
-            confidence=1.0,
-        ))
+        actions.append(
+            RecoveryAction(
+                action_type="alert",
+                target=health.workflow_id,
+                params={
+                    "severity": "critical",
+                    "message": (
+                        f"Workflow '{health.name}' failing: "
+                        f"{health.success_rate_24h:.0%} success rate, "
+                        f"{health.error_count_24h} errors in 24h. "
+                        f"Last error: {health.last_error or 'unknown'}"
+                    ),
+                    "channels": ["slack", "email", "pagerduty"],
+                },
+                estimated_recovery_time_s=0.0,
+                confidence=1.0,
+            )
+        )
 
     if health.status == "failing" and health.auto_recovery_attempts >= 3:
-        actions.append(RecoveryAction(
-            action_type="circuit_break",
-            target=health.workflow_id,
-            params={
-                "break_duration_s": 300,
-                "reason": "persistent_failure_after_retries",
-                "graceful_shutdown": True,
-                "drain_queue": True,
-            },
-            estimated_recovery_time_s=300.0,
-            confidence=0.9,
-        ))
+        actions.append(
+            RecoveryAction(
+                action_type="circuit_break",
+                target=health.workflow_id,
+                params={
+                    "break_duration_s": 300,
+                    "reason": "persistent_failure_after_retries",
+                    "graceful_shutdown": True,
+                    "drain_queue": True,
+                },
+                estimated_recovery_time_s=300.0,
+                confidence=0.9,
+            )
+        )
 
     if health.bottleneck_step and health.bottleneck_step in available_fallbacks:
-        already_has_fallback = any(
-            a.action_type == "fallback" and a.target == health.bottleneck_step
-            for a in actions
-        )
+        already_has_fallback = any(a.action_type == "fallback" and a.target == health.bottleneck_step for a in actions)
         if not already_has_fallback:
-            actions.append(RecoveryAction(
-                action_type="fallback",
-                target=health.bottleneck_step,
-                params={
-                    "fallback_to": available_fallbacks[health.bottleneck_step],
-                    "degraded_mode": True,
-                },
-                estimated_recovery_time_s=5.0,
-                confidence=0.75,
-            ))
+            actions.append(
+                RecoveryAction(
+                    action_type="fallback",
+                    target=health.bottleneck_step,
+                    params={
+                        "fallback_to": available_fallbacks[health.bottleneck_step],
+                        "degraded_mode": True,
+                    },
+                    estimated_recovery_time_s=5.0,
+                    confidence=0.75,
+                )
+            )
 
     if not actions and health.status != "healthy":
-        actions.append(RecoveryAction(
-            action_type="alert",
-            target=health.workflow_id,
-            params={
-                "severity": "warning",
-                "message": (
-                    f"Workflow '{health.name}' in '{health.status}' state "
-                    f"but no automatic recovery available. Manual review needed."
-                ),
-                "channels": ["slack"],
-            },
-            estimated_recovery_time_s=0.0,
-            confidence=1.0,
-        ))
+        actions.append(
+            RecoveryAction(
+                action_type="alert",
+                target=health.workflow_id,
+                params={
+                    "severity": "warning",
+                    "message": (
+                        f"Workflow '{health.name}' in '{health.status}' state "
+                        f"but no automatic recovery available. Manual review needed."
+                    ),
+                    "channels": ["slack"],
+                },
+                estimated_recovery_time_s=0.0,
+                confidence=1.0,
+            )
+        )
 
     actions.sort(key=lambda a: a.confidence, reverse=True)
     return actions

@@ -3,6 +3,7 @@
 Selects the best content-form mix per account/platform/funnel stage.
 Avatar is one option — not the default.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -22,40 +23,59 @@ CONTENT_FORMS = [
 ]
 
 FORMAT_FAMILIES = {
-    "avatar_led_video": "video", "faceless_short_form": "video",
-    "voiceover_video": "video", "long_form_video": "video",
-    "product_demo": "video", "founder_expert": "video",
-    "ugc_style": "video", "hybrid_format": "video",
-    "text_led_post": "text", "carousel_image": "image",
+    "avatar_led_video": "video",
+    "faceless_short_form": "video",
+    "voiceover_video": "video",
+    "long_form_video": "video",
+    "product_demo": "video",
+    "founder_expert": "video",
+    "ugc_style": "video",
+    "hybrid_format": "video",
+    "text_led_post": "text",
+    "carousel_image": "image",
     "proof_testimonial": "mixed",
 }
 
 SHORT_LONG = {
-    "avatar_led_video": "short", "faceless_short_form": "short",
-    "voiceover_video": "short", "text_led_post": "short",
-    "carousel_image": "short", "ugc_style": "short",
+    "avatar_led_video": "short",
+    "faceless_short_form": "short",
+    "voiceover_video": "short",
+    "text_led_post": "short",
+    "carousel_image": "short",
+    "ugc_style": "short",
     "hybrid_format": "short",
-    "long_form_video": "long", "proof_testimonial": "long",
-    "product_demo": "long", "founder_expert": "long",
+    "long_form_video": "long",
+    "proof_testimonial": "long",
+    "product_demo": "long",
+    "founder_expert": "long",
 }
 
 AVATAR_MODES = {
     "avatar_led_video": "full_avatar",
     "voiceover_video": "voice_only",
     "hybrid_format": "avatar_overlay",
-    "faceless_short_form": "none", "text_led_post": "none",
-    "carousel_image": "none", "long_form_video": "none",
-    "proof_testimonial": "none", "product_demo": "none",
-    "founder_expert": "none", "ugc_style": "none",
+    "faceless_short_form": "none",
+    "text_led_post": "none",
+    "carousel_image": "none",
+    "long_form_video": "none",
+    "proof_testimonial": "none",
+    "product_demo": "none",
+    "founder_expert": "none",
+    "ugc_style": "none",
 }
 
 COST_BANDS = {
-    "text_led_post": "low", "carousel_image": "low",
-    "faceless_short_form": "low", "ugc_style": "low",
-    "voiceover_video": "medium", "proof_testimonial": "medium",
+    "text_led_post": "low",
+    "carousel_image": "low",
+    "faceless_short_form": "low",
+    "ugc_style": "low",
+    "voiceover_video": "medium",
+    "proof_testimonial": "medium",
     "hybrid_format": "medium",
-    "avatar_led_video": "high", "product_demo": "medium",
-    "long_form_video": "high", "founder_expert": "high",
+    "avatar_led_video": "high",
+    "product_demo": "medium",
+    "long_form_video": "high",
+    "founder_expert": "high",
 }
 
 COST_ESTIMATES = {"low": 25.0, "medium": 75.0, "high": 200.0}
@@ -73,7 +93,14 @@ PLATFORM_FIT: dict[str, list[str]] = {
     "threads": ["text_led_post", "carousel_image"],
     "snapchat": ["faceless_short_form", "ugc_style", "hybrid_format"],
     "email_newsletter": ["text_led_post", "carousel_image", "proof_testimonial", "founder_expert", "long_form_video"],
-    "blog": ["long_form_video", "proof_testimonial", "product_demo", "founder_expert", "carousel_image", "text_led_post"],
+    "blog": [
+        "long_form_video",
+        "proof_testimonial",
+        "product_demo",
+        "founder_expert",
+        "carousel_image",
+        "text_led_post",
+    ],
     "seo_authority": ["long_form_video", "proof_testimonial", "product_demo", "founder_expert", "text_led_post"],
     "telegram": ["text_led_post", "carousel_image", "voiceover_video"],
     "discord": ["text_led_post", "faceless_short_form", "ugc_style"],
@@ -163,7 +190,18 @@ def recommend_content_forms(
     """Score all content forms and return ranked list."""
     scored: list[tuple[float, str]] = []
     for form in CONTENT_FORMS:
-        sc = _score_form(form, platform, monetization, funnel_stage, saturation, fatigue, has_avatar, has_voice, account_maturity, trust_need)
+        sc = _score_form(
+            form,
+            platform,
+            monetization,
+            funnel_stage,
+            saturation,
+            fatigue,
+            has_avatar,
+            has_voice,
+            account_maturity,
+            trust_need,
+        )
         scored.append((sc, form))
 
     scored.sort(reverse=True)
@@ -173,35 +211,53 @@ def recommend_content_forms(
     for rank, (sc, form) in enumerate(scored[:5]):
         avatar_mode = AVATAR_MODES.get(form, "none")
         if avatar_mode == "full_avatar" and not has_avatar:
-            blockers.append({"content_form": form, "blocker_type": "no_avatar_provider", "severity": "high", "description": "Avatar provider not configured. Cannot produce avatar-led video.", "operator_action": "Configure Tavus or HeyGen avatar provider."})
+            blockers.append(
+                {
+                    "content_form": form,
+                    "blocker_type": "no_avatar_provider",
+                    "severity": "high",
+                    "description": "Avatar provider not configured. Cannot produce avatar-led video.",
+                    "operator_action": "Configure Tavus or HeyGen avatar provider.",
+                }
+            )
         if avatar_mode == "voice_only" and not has_voice:
-            blockers.append({"content_form": form, "blocker_type": "no_voice_provider", "severity": "medium", "description": "Voice provider not configured. Voiceover will use TTS fallback.", "operator_action": "Configure ElevenLabs voice provider."})
+            blockers.append(
+                {
+                    "content_form": form,
+                    "blocker_type": "no_voice_provider",
+                    "severity": "medium",
+                    "description": "Voice provider not configured. Voiceover will use TTS fallback.",
+                    "operator_action": "Configure ElevenLabs voice provider.",
+                }
+            )
 
         cost_band = COST_BANDS.get(form, "medium")
         upside = round(sc * 500 + 50, 2)
         cost = COST_ESTIMATES.get(cost_band, 75.0)
 
-        results.append({
-            "platform": platform,
-            "account_id": account_id,
-            "recommended_content_form": form,
-            "secondary_content_form": scored[rank + 1][1] if rank + 1 < len(scored) else None,
-            "format_family": FORMAT_FAMILIES.get(form, "mixed"),
-            "short_or_long": SHORT_LONG.get(form, "short"),
-            "avatar_mode": avatar_mode,
-            "trust_level_required": trust_need,
-            "production_cost_band": cost_band,
-            "expected_upside": upside,
-            "expected_cost": cost,
-            "confidence": round(min(0.95, 0.4 + sc), 3),
-            "urgency": round(min(100, 30 + saturation * 40 + fatigue * 30), 1),
-            "explanation": (
-                f"{form.replace('_', ' ').title()} for {platform} ({funnel_stage} stage, {monetization} path). "
-                f"Score {sc:.2f}. Avatar: {avatar_mode}. Cost: {cost_band}."
-            ),
-            "truth_label": "recommendation",
-            "blockers": [b for b in blockers if b["content_form"] == form],
-        })
+        results.append(
+            {
+                "platform": platform,
+                "account_id": account_id,
+                "recommended_content_form": form,
+                "secondary_content_form": scored[rank + 1][1] if rank + 1 < len(scored) else None,
+                "format_family": FORMAT_FAMILIES.get(form, "mixed"),
+                "short_or_long": SHORT_LONG.get(form, "short"),
+                "avatar_mode": avatar_mode,
+                "trust_level_required": trust_need,
+                "production_cost_band": cost_band,
+                "expected_upside": upside,
+                "expected_cost": cost,
+                "confidence": round(min(0.95, 0.4 + sc), 3),
+                "urgency": round(min(100, 30 + saturation * 40 + fatigue * 30), 1),
+                "explanation": (
+                    f"{form.replace('_', ' ').title()} for {platform} ({funnel_stage} stage, {monetization} path). "
+                    f"Score {sc:.2f}. Avatar: {avatar_mode}. Cost: {cost_band}."
+                ),
+                "truth_label": "recommendation",
+                "blockers": [b for b in blockers if b["content_form"] == form],
+            }
+        )
 
     return results
 
@@ -224,14 +280,16 @@ def compute_mix_reports(
             mix[form] = mix.get(form, 0) + (r["expected_upside"] / max(1, total_up))
         mix = {k: round(v, 3) for k, v in sorted(mix.items(), key=lambda x: -x[1])}
         avg_conf = sum(r["confidence"] for r in recs) / max(1, len(recs))
-        reports.append({
-            "dimension": "platform",
-            "dimension_value": plat,
-            "mix_allocation": mix,
-            "total_expected_upside": round(total_up, 2),
-            "avg_confidence": round(avg_conf, 3),
-            "explanation": f"Content form mix for {plat}: {len(recs)} forms scored.",
-        })
+        reports.append(
+            {
+                "dimension": "platform",
+                "dimension_value": plat,
+                "mix_allocation": mix,
+                "total_expected_upside": round(total_up, 2),
+                "avg_confidence": round(avg_conf, 3),
+                "explanation": f"Content form mix for {plat}: {len(recs)} forms scored.",
+            }
+        )
 
     for stage in ("awareness", "consideration", "conversion", "retention"):
         [r for r in recommendations if r.get("details_json", {}).get("funnel_stage") == stage or True]
@@ -239,14 +297,16 @@ def compute_mix_reports(
         if forms_for_stage:
             n = len(forms_for_stage)
             mix = {f: round(1.0 / n, 3) for f in forms_for_stage[:5]}
-            reports.append({
-                "dimension": "funnel_stage",
-                "dimension_value": stage,
-                "mix_allocation": mix,
-                "total_expected_upside": 0.0,
-                "avg_confidence": 0.6,
-                "explanation": f"Recommended forms for {stage} stage.",
-            })
+            reports.append(
+                {
+                    "dimension": "funnel_stage",
+                    "dimension_value": stage,
+                    "mix_allocation": mix,
+                    "total_expected_upside": 0.0,
+                    "avg_confidence": 0.6,
+                    "explanation": f"Recommended forms for {stage} stage.",
+                }
+            )
 
     return reports
 
@@ -259,11 +319,43 @@ def detect_content_form_blockers(
 ) -> list[dict[str, str]]:
     blockers: list[dict[str, str]] = []
     if not has_avatar:
-        blockers.append({"content_form": "avatar_led_video", "blocker_type": "no_avatar_provider", "severity": "high", "description": "No avatar provider configured. Avatar-led content is blocked.", "operator_action": "Set TAVUS_API_KEY or HEYGEN_API_KEY."})
+        blockers.append(
+            {
+                "content_form": "avatar_led_video",
+                "blocker_type": "no_avatar_provider",
+                "severity": "high",
+                "description": "No avatar provider configured. Avatar-led content is blocked.",
+                "operator_action": "Set TAVUS_API_KEY or HEYGEN_API_KEY.",
+            }
+        )
     if not has_voice:
-        blockers.append({"content_form": "voiceover_video", "blocker_type": "no_voice_provider", "severity": "medium", "description": "No voice provider configured. Voiceover content uses fallback TTS.", "operator_action": "Set ELEVENLABS_API_KEY."})
+        blockers.append(
+            {
+                "content_form": "voiceover_video",
+                "blocker_type": "no_voice_provider",
+                "severity": "medium",
+                "description": "No voice provider configured. Voiceover content uses fallback TTS.",
+                "operator_action": "Set ELEVENLABS_API_KEY.",
+            }
+        )
     if content_count == 0:
-        blockers.append({"content_form": "all", "blocker_type": "no_content_history", "severity": "high", "description": "No content items. Cannot optimize mix without prior performance data.", "operator_action": "Create at least 5 content items."})
+        blockers.append(
+            {
+                "content_form": "all",
+                "blocker_type": "no_content_history",
+                "severity": "high",
+                "description": "No content items. Cannot optimize mix without prior performance data.",
+                "operator_action": "Create at least 5 content items.",
+            }
+        )
     if offer_count == 0:
-        blockers.append({"content_form": "all", "blocker_type": "no_offers", "severity": "high", "description": "No offers defined. Monetization-path optimization requires offers.", "operator_action": "Create at least one offer."})
+        blockers.append(
+            {
+                "content_form": "all",
+                "blocker_type": "no_offers",
+                "severity": "high",
+                "description": "No offers defined. Monetization-path optimization requires offers.",
+                "operator_action": "Create at least one offer.",
+            }
+        )
     return blockers

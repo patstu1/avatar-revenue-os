@@ -1,4 +1,5 @@
 """MXP Contribution — multi-touch attribution reports."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status

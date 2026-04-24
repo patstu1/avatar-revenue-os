@@ -2,6 +2,7 @@
 
 Pure functions only (no I/O, no SQLAlchemy). All logic deterministic.
 """
+
 from __future__ import annotations
 
 import math
@@ -174,11 +175,7 @@ def normalize_signal(
     base_conf = present / len(required_fields) * 0.6
     confidence = round(_clamp(base_conf + data_completeness * 0.4), 4)
 
-    is_actionable = (
-        freshness_score >= 0.15
-        and monetization_relevance >= 0.2
-        and confidence >= 0.3
-    )
+    is_actionable = freshness_score >= 0.15 and monetization_relevance >= 0.2 and confidence >= 0.3
 
     normalized_title = f"[{signal_type.upper()}] {title}"
     normalized_description = description or f"Signal from {source}: {title}"
@@ -271,8 +268,7 @@ def classify_signal_type(
             + (0.4 if any(w in text for w in ("season", "holiday", "event", "annual", "black friday", "q4")) else 0.0)
         ),
         "fatigue_signal": (
-            fatigue * 0.7
-            + (0.3 if any(w in text for w in ("fatigue", "decline", "saturated", "overused")) else 0.0)
+            fatigue * 0.7 + (0.3 if any(w in text for w in ("fatigue", "decline", "saturated", "overused")) else 0.0)
         ),
         "high_intent": (
             conversion_intent * 0.6
@@ -326,11 +322,7 @@ def score_signal_batch(
     list[dict] — scored signals sorted by urgency × monetization_relevance,
     stale/irrelevant signals excluded.
     """
-    niche_keywords = [brand_niche] + [
-        kw
-        for offer in brand_offers
-        for kw in offer.get("keywords", [])
-    ]
+    niche_keywords = [brand_niche] + [kw for offer in brand_offers for kw in offer.get("keywords", [])]
     brand_context: dict[str, Any] = {
         "niche": brand_niche,
         "niche_keywords": niche_keywords,
@@ -351,9 +343,7 @@ def score_signal_batch(
         if not result["is_actionable"]:
             continue
 
-        result["composite_score"] = round(
-            result["urgency_score"] * result["monetization_relevance"], 4
-        )
+        result["composite_score"] = round(result["urgency_score"] * result["monetization_relevance"], 4)
         result["raw_signal"] = sig
         scored.append(result)
 
@@ -388,9 +378,7 @@ def build_auto_queue_items(
     monetization_path, priority_score, urgency_score, queue_status,
     suppression_flags, hold_reason, explanation.
     """
-    policy_by_platform: dict[str, dict[str, Any]] = {
-        p.get("platform", ""): p for p in platform_policies
-    }
+    policy_by_platform: dict[str, dict[str, Any]] = {p.get("platform", ""): p for p in platform_policies}
 
     queue_items: list[dict[str, Any]] = []
 
@@ -450,24 +438,26 @@ def build_auto_queue_items(
         if suppression_flags:
             explanation += f" Suppressed: {', '.join(suppression_flags)}."
 
-        queue_items.append({
-            "queue_item_type": queue_item_type,
-            "target_account_id": best_account.get("account_id"),
-            "target_account_role": best_account.get("role", "general"),
-            "platform": platform,
-            "niche": best_account.get("niche", ""),
-            "sub_niche": best_account.get("sub_niche", ""),
-            "content_family": content_family,
-            "monetization_path": monetization_path,
-            "priority_score": priority_score,
-            "urgency_score": urgency,
-            "queue_status": queue_status,
-            "suppression_flags": suppression_flags,
-            "hold_reason": hold_reason,
-            "signal_title": title,
-            "explanation": explanation,
-            SSE: True,
-        })
+        queue_items.append(
+            {
+                "queue_item_type": queue_item_type,
+                "target_account_id": best_account.get("account_id"),
+                "target_account_role": best_account.get("role", "general"),
+                "platform": platform,
+                "niche": best_account.get("niche", ""),
+                "sub_niche": best_account.get("sub_niche", ""),
+                "content_family": content_family,
+                "monetization_path": monetization_path,
+                "priority_score": priority_score,
+                "urgency_score": urgency,
+                "queue_status": queue_status,
+                "suppression_flags": suppression_flags,
+                "hold_reason": hold_reason,
+                "signal_title": title,
+                "explanation": explanation,
+                SSE: True,
+            }
+        )
 
     queue_items.sort(key=lambda q: q["priority_score"], reverse=True)
     return queue_items
@@ -476,6 +466,7 @@ def build_auto_queue_items(
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
 
 def _match_account(
     signal: dict[str, Any],

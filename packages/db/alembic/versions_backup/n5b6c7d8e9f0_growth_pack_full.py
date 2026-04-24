@@ -3,6 +3,7 @@
 Revision ID: n5b6c7d8e9f0
 Revises: m3a4b5c6d7e8
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -23,18 +24,42 @@ def upgrade() -> None:
     op.add_column("growth_commands", sa.Column("account_type", sa.String(100), nullable=True))
     op.add_column("growth_commands", sa.Column("niche", sa.String(255), nullable=True))
     op.add_column("growth_commands", sa.Column("sub_niche", sa.String(255), nullable=True))
-    op.add_column("growth_commands", sa.Column("persona_strategy_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False))
-    op.add_column("growth_commands", sa.Column("monetization_strategy_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False))
-    op.add_column("growth_commands", sa.Column("output_requirements_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False))
-    op.add_column("growth_commands", sa.Column("success_threshold_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False))
-    op.add_column("growth_commands", sa.Column("failure_threshold_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False))
+    op.add_column(
+        "growth_commands",
+        sa.Column("persona_strategy_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False),
+    )
+    op.add_column(
+        "growth_commands",
+        sa.Column("monetization_strategy_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False),
+    )
+    op.add_column(
+        "growth_commands",
+        sa.Column("output_requirements_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False),
+    )
+    op.add_column(
+        "growth_commands",
+        sa.Column("success_threshold_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False),
+    )
+    op.add_column(
+        "growth_commands",
+        sa.Column("failure_threshold_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False),
+    )
     op.add_column("growth_commands", sa.Column("expected_revenue_min", sa.Float(), server_default="0", nullable=False))
     op.add_column("growth_commands", sa.Column("expected_revenue_max", sa.Float(), server_default="0", nullable=False))
     op.add_column("growth_commands", sa.Column("risk_score", sa.Float(), server_default="0", nullable=False))
-    op.add_column("growth_commands", sa.Column("blockers_json", JSONB(), server_default=sa.text("'[]'::jsonb"), nullable=False))
-    op.add_column("growth_commands", sa.Column("explanation_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False))
-    op.add_column("growth_commands", sa.Column("consequence_if_ignored_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False))
-    op.add_column("growth_commands", sa.Column("lifecycle_status", sa.String(30), server_default="active", nullable=False))
+    op.add_column(
+        "growth_commands", sa.Column("blockers_json", JSONB(), server_default=sa.text("'[]'::jsonb"), nullable=False)
+    )
+    op.add_column(
+        "growth_commands", sa.Column("explanation_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False)
+    )
+    op.add_column(
+        "growth_commands",
+        sa.Column("consequence_if_ignored_json", JSONB(), server_default=sa.text("'{}'::jsonb"), nullable=False),
+    )
+    op.add_column(
+        "growth_commands", sa.Column("lifecycle_status", sa.String(30), server_default="active", nullable=False)
+    )
     op.create_index("ix_growth_commands_platform", "growth_commands", ["platform"])
     op.create_index("ix_growth_commands_lifecycle_status", "growth_commands", ["lifecycle_status"])
 

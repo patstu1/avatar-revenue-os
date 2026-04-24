@@ -19,6 +19,7 @@ Entry points:
   schedule_followup(db, delivery, *, when)
       → sets followup_scheduled_at + emits followup.scheduled
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -64,13 +65,16 @@ async def submit_production_output(
     await db.flush()
     try:
         from apps.api.services.stage_controller import mark_stage
+
         await mark_stage(
-            db, org_id=job.org_id,
-            entity_type="production_job", entity_id=job.id, stage="qa_pending",
+            db,
+            org_id=job.org_id,
+            entity_type="production_job",
+            entity_id=job.id,
+            stage="qa_pending",
         )
     except Exception as stage_exc:
-        logger.warning("stage_controller.mark_failed",
-                        entity="production_job", error=str(stage_exc)[:150])
+        logger.warning("stage_controller.mark_failed", entity="production_job", error=str(stage_exc)[:150])
 
     result_summary: dict = {"production_job_id": str(job.id), "output_url": output_url}
 
@@ -91,7 +95,8 @@ async def submit_production_output(
             "delivery_id": str(delivery.id),
             "status": delivery.status,
             "followup_scheduled_at": delivery.followup_scheduled_at.isoformat()
-            if delivery.followup_scheduled_at else None,
+            if delivery.followup_scheduled_at
+            else None,
         }
     else:
         result_summary["delivery"] = None
@@ -133,8 +138,7 @@ async def run_qa_review(
     if composite is None:
         numeric_scores = [v for v in scores.values() if isinstance(v, (int, float))]
         composite = (
-            sum(numeric_scores) / len(numeric_scores)
-            if numeric_scores else 0.85  # default-pass if nothing provided
+            sum(numeric_scores) / len(numeric_scores) if numeric_scores else 0.85  # default-pass if nothing provided
         )
     composite = max(0.0, min(1.0, float(composite)))
 
@@ -184,13 +188,16 @@ async def run_qa_review(
         logger.info("qa.passed", production_job_id=str(job.id), score=composite)
         try:
             from apps.api.services.stage_controller import mark_stage
+
             await mark_stage(
-                db, org_id=job.org_id,
-                entity_type="production_job", entity_id=job.id, stage="qa_passed",
+                db,
+                org_id=job.org_id,
+                entity_type="production_job",
+                entity_id=job.id,
+                stage="qa_passed",
             )
         except Exception as stage_exc:
-            logger.warning("stage_controller.mark_failed",
-                            entity="production_job", error=str(stage_exc)[:150])
+            logger.warning("stage_controller.mark_failed", entity="production_job", error=str(stage_exc)[:150])
         return review
 
     # Failure path — decide retry vs terminal
@@ -271,12 +278,8 @@ async def dispatch_delivery(
     if existing is not None:
         return existing
 
-    project = (
-        await db.execute(select(ClientProject).where(ClientProject.id == job.project_id))
-    ).scalar_one()
-    client = (
-        await db.execute(select(Client).where(Client.id == project.client_id))
-    ).scalar_one()
+    project = (await db.execute(select(ClientProject).where(ClientProject.id == job.project_id))).scalar_one()
+    client = (await db.execute(select(Client).where(Client.id == project.client_id))).scalar_one()
 
     now = datetime.now(timezone.utc)
     default_subject = f"Delivery: {job.title[:400]}"
@@ -316,14 +319,18 @@ async def dispatch_delivery(
 
     # Also mark the project completed if all its jobs are done
     remaining = (
-        await db.execute(
-            select(ProductionJob).where(
-                ProductionJob.project_id == project.id,
-                ProductionJob.is_active.is_(True),
-                ProductionJob.status.notin_(("completed", "cancelled", "failed")),
+        (
+            await db.execute(
+                select(ProductionJob).where(
+                    ProductionJob.project_id == project.id,
+                    ProductionJob.is_active.is_(True),
+                    ProductionJob.status.notin_(("completed", "cancelled", "failed")),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     if not remaining:
         project.status = "completed"
         project.completed_at = now

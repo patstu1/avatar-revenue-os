@@ -5,6 +5,7 @@ Revises: g7b2c3d4e5f6
 Create Date: 2026-03-29
 
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -20,7 +21,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column("content_items", sa.Column("offer_stack", JSONB(), nullable=True))
-    op.add_column("content_items", sa.Column("monetization_density_score", sa.Float(), nullable=False, server_default="0"))
+    op.add_column(
+        "content_items", sa.Column("monetization_density_score", sa.Float(), nullable=False, server_default="0")
+    )
     op.alter_column("content_items", "monetization_density_score", server_default=None)
 
     op.create_table(
@@ -43,13 +46,21 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_monetization_recommendations_brand_id"), "monetization_recommendations", ["brand_id"])
-    op.create_index(op.f("ix_monetization_recommendations_recommendation_type"), "monetization_recommendations", ["recommendation_type"])
-    op.create_index(op.f("ix_monetization_recommendations_content_item_id"), "monetization_recommendations", ["content_item_id"])
+    op.create_index(
+        op.f("ix_monetization_recommendations_recommendation_type"),
+        "monetization_recommendations",
+        ["recommendation_type"],
+    )
+    op.create_index(
+        op.f("ix_monetization_recommendations_content_item_id"), "monetization_recommendations", ["content_item_id"]
+    )
 
 
 def downgrade() -> None:
     op.drop_index(op.f("ix_monetization_recommendations_content_item_id"), table_name="monetization_recommendations")
-    op.drop_index(op.f("ix_monetization_recommendations_recommendation_type"), table_name="monetization_recommendations")
+    op.drop_index(
+        op.f("ix_monetization_recommendations_recommendation_type"), table_name="monetization_recommendations"
+    )
     op.drop_index(op.f("ix_monetization_recommendations_brand_id"), table_name="monetization_recommendations")
     op.drop_table("monetization_recommendations")
     op.drop_column("content_items", "monetization_density_score")

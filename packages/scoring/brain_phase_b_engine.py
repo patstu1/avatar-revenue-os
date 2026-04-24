@@ -1,24 +1,42 @@
 """Brain Architecture Phase B — decision, policy, confidence, cost/upside, arbitration engines."""
+
 from __future__ import annotations
 
 from typing import Any
 
 DECISION_CLASSES = [
-    "launch", "hold", "scale", "suppress", "monetize", "reroute",
-    "recover", "escalate", "throttle", "split_account", "merge_lane",
-    "test", "kill",
+    "launch",
+    "hold",
+    "scale",
+    "suppress",
+    "monetize",
+    "reroute",
+    "recover",
+    "escalate",
+    "throttle",
+    "split_account",
+    "merge_lane",
+    "test",
+    "kill",
 ]
 
 POLICY_MODES = ["autonomous", "guarded", "manual"]
 CONFIDENCE_BANDS = ["very_high", "high", "medium", "low", "very_low"]
 
 ARBITRATION_CATEGORIES = [
-    "new_launch", "more_output", "funnel_fix", "monetization_fix",
-    "paid_promotion", "recovery_action", "retention_action", "sponsor_action",
+    "new_launch",
+    "more_output",
+    "funnel_fix",
+    "monetization_fix",
+    "paid_promotion",
+    "recovery_action",
+    "retention_action",
+    "sponsor_action",
 ]
 
 
 # ── Master Decision Engine ────────────────────────────────────────────
+
 
 def compute_brain_decision(ctx: dict[str, Any]) -> dict[str, Any]:
     account_state = ctx.get("account_state", "warming")
@@ -107,6 +125,7 @@ def compute_brain_decision(ctx: dict[str, Any]) -> dict[str, Any]:
 
 # ── Policy Engine ─────────────────────────────────────────────────────
 
+
 def compute_policy_evaluation(ctx: dict[str, Any]) -> dict[str, Any]:
     confidence = ctx.get("confidence", 0.5)
     risk = ctx.get("risk_score", 0.3)
@@ -170,6 +189,7 @@ def compute_policy_evaluation(ctx: dict[str, Any]) -> dict[str, Any]:
 
 
 # ── Confidence Engine ─────────────────────────────────────────────────
+
 
 def compute_confidence_report(ctx: dict[str, Any]) -> dict[str, Any]:
     signal_strength = ctx.get("signal_strength", 0.5)
@@ -240,6 +260,7 @@ def compute_confidence_report(ctx: dict[str, Any]) -> dict[str, Any]:
 
 # ── Cost / Upside Estimation ─────────────────────────────────────────
 
+
 def compute_upside_cost_estimate(ctx: dict[str, Any]) -> dict[str, Any]:
     revenue_potential = ctx.get("revenue_potential", 0.0)
     conversion_rate = ctx.get("conversion_rate", 0.03)
@@ -283,6 +304,7 @@ def compute_upside_cost_estimate(ctx: dict[str, Any]) -> dict[str, Any]:
 
 # ── Priority Arbitration ─────────────────────────────────────────────
 
+
 def compute_arbitration(candidates: list[dict[str, Any]]) -> dict[str, Any]:
     if not candidates:
         return {
@@ -321,13 +343,18 @@ def compute_arbitration(candidates: list[dict[str, Any]]) -> dict[str, Any]:
     winner = scored[0]
     rejected = []
     for s in scored[1:]:
-        rejected.append({
-            "category": s.get("category"),
-            "label": s.get("label", ""),
-            "reason": f"Lower composite score ({s['_composite']:.1f} vs {winner['_composite']:.1f})",
-        })
+        rejected.append(
+            {
+                "category": s.get("category"),
+                "label": s.get("label", ""),
+                "reason": f"Lower composite score ({s['_composite']:.1f} vs {winner['_composite']:.1f})",
+            }
+        )
 
-    ranked = [{"rank": i + 1, "category": s.get("category"), "label": s.get("label", ""), "score": round(s["_composite"], 2)} for i, s in enumerate(scored)]
+    ranked = [
+        {"rank": i + 1, "category": s.get("category"), "label": s.get("label", ""), "score": round(s["_composite"], 2)}
+        for i, s in enumerate(scored)
+    ]
 
     return {
         "ranked_priorities": ranked,

@@ -1,4 +1,5 @@
 """ORM table names for autonomous execution control plane."""
+
 from __future__ import annotations
 
 

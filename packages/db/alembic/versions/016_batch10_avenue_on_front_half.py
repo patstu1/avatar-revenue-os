@@ -17,6 +17,7 @@ Tables affected:
   - email_messages                 (each inbound/outbound message)
   - email_reply_drafts             (machine-drafted replies awaiting GM)
 """
+
 import sqlalchemy as sa
 from alembic import op
 
@@ -40,9 +41,7 @@ FRONT_HALF_TABLES = [
 def _table_exists(name: str) -> bool:
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.tables WHERE table_name = :t"
-        ),
+        sa.text("SELECT 1 FROM information_schema.tables WHERE table_name = :t"),
         {"t": name},
     )
     return result.first() is not None
@@ -51,10 +50,7 @@ def _table_exists(name: str) -> bool:
 def _column_exists(table: str, column: str) -> bool:
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name = :t AND column_name = :c"
-        ),
+        sa.text("SELECT 1 FROM information_schema.columns WHERE table_name = :t AND column_name = :c"),
         {"t": table, "c": column},
     )
     return result.first() is not None
@@ -80,10 +76,9 @@ def upgrade():
             op.create_index(idx_name, tbl, [scope_col, "avenue_slug"])
 
     # Batch 10: rewrite history for /gm/write/replies/drafts/{id}/rewrite.
-    if _table_exists("email_reply_drafts") and not _column_exists(
-        "email_reply_drafts", "rewrite_history_json"
-    ):
+    if _table_exists("email_reply_drafts") and not _column_exists("email_reply_drafts", "rewrite_history_json"):
         from sqlalchemy.dialects.postgresql import JSONB
+
         op.add_column(
             "email_reply_drafts",
             sa.Column("rewrite_history_json", JSONB(), nullable=True),
@@ -98,7 +93,5 @@ def downgrade():
         if _table_exists(tbl) and _column_exists(tbl, "avenue_slug"):
             op.drop_column(tbl, "avenue_slug")
 
-    if _table_exists("email_reply_drafts") and _column_exists(
-        "email_reply_drafts", "rewrite_history_json"
-    ):
+    if _table_exists("email_reply_drafts") and _column_exists("email_reply_drafts", "rewrite_history_json"):
         op.drop_column("email_reply_drafts", "rewrite_history_json")

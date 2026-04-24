@@ -23,6 +23,7 @@ when the paying proposal's avenue_slug is ``high_ticket`` — we create
 the profile row at activation time so the operator dashboard sees the
 new client in the discovery queue immediately.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -56,18 +57,68 @@ HIGH_TICKET_INTAKE_SCHEMA: dict = {
         "kickoff without back-and-forth."
     ),
     "fields": [
-        {"field_id": "legal_entity_name", "label": "Legal entity name (for contract)", "type": "text", "required": True},
-        {"field_id": "principal_decision_makers", "label": "Principal decision-makers (name + title)", "type": "textarea", "required": True},
-        {"field_id": "current_monthly_ad_spend", "label": "Current monthly ad spend (USD)", "type": "text", "required": True},
+        {
+            "field_id": "legal_entity_name",
+            "label": "Legal entity name (for contract)",
+            "type": "text",
+            "required": True,
+        },
+        {
+            "field_id": "principal_decision_makers",
+            "label": "Principal decision-makers (name + title)",
+            "type": "textarea",
+            "required": True,
+        },
+        {
+            "field_id": "current_monthly_ad_spend",
+            "label": "Current monthly ad spend (USD)",
+            "type": "text",
+            "required": True,
+        },
         {"field_id": "current_cpa", "label": "Current cost per acquisition", "type": "text", "required": False},
-        {"field_id": "contract_term_preference", "label": "Preferred contract term (3mo / 6mo / 12mo)", "type": "text", "required": True},
-        {"field_id": "net_terms_preference", "label": "Net-terms preference (Net 15 / Net 30 / upfront)", "type": "text", "required": True},
-        {"field_id": "legal_counsel_contact", "label": "Your legal counsel (name + email, for SOW review)", "type": "textarea", "required": False},
-        {"field_id": "exclusivity_clauses", "label": "Exclusivity / non-compete clauses we should be aware of", "type": "textarea", "required": False},
-        {"field_id": "kpi_definition", "label": "Primary KPI you're paying us to move", "type": "textarea", "required": True},
-        {"field_id": "review_cadence", "label": "SOW / milestone review cadence (weekly / bi-weekly / monthly)", "type": "text", "required": True},
+        {
+            "field_id": "contract_term_preference",
+            "label": "Preferred contract term (3mo / 6mo / 12mo)",
+            "type": "text",
+            "required": True,
+        },
+        {
+            "field_id": "net_terms_preference",
+            "label": "Net-terms preference (Net 15 / Net 30 / upfront)",
+            "type": "text",
+            "required": True,
+        },
+        {
+            "field_id": "legal_counsel_contact",
+            "label": "Your legal counsel (name + email, for SOW review)",
+            "type": "textarea",
+            "required": False,
+        },
+        {
+            "field_id": "exclusivity_clauses",
+            "label": "Exclusivity / non-compete clauses we should be aware of",
+            "type": "textarea",
+            "required": False,
+        },
+        {
+            "field_id": "kpi_definition",
+            "label": "Primary KPI you're paying us to move",
+            "type": "textarea",
+            "required": True,
+        },
+        {
+            "field_id": "review_cadence",
+            "label": "SOW / milestone review cadence (weekly / bi-weekly / monthly)",
+            "type": "text",
+            "required": True,
+        },
         {"field_id": "preferred_kickoff_date", "label": "Preferred kickoff date", "type": "text", "required": True},
-        {"field_id": "escalation_contact", "label": "Escalation contact (name + email) if things go sideways", "type": "textarea", "required": True},
+        {
+            "field_id": "escalation_contact",
+            "label": "Escalation contact (name + email) if things go sideways",
+            "type": "textarea",
+            "required": True,
+        },
     ],
 }
 
@@ -78,7 +129,9 @@ HIGH_TICKET_INTAKE_SCHEMA: dict = {
 
 
 async def ensure_profile(
-    db: AsyncSession, *, client: Client,
+    db: AsyncSession,
+    *,
+    client: Client,
 ) -> ClientHighTicketProfile:
     """Return the client's high-ticket profile row, creating one in
     ``status='discovery_pending'`` if it doesn't exist. Idempotent.
@@ -88,17 +141,15 @@ async def ensure_profile(
     state-transition function in this module.
     """
     existing = (
-        await db.execute(
-            select(ClientHighTicketProfile).where(
-                ClientHighTicketProfile.client_id == client.id
-            )
-        )
+        await db.execute(select(ClientHighTicketProfile).where(ClientHighTicketProfile.client_id == client.id))
     ).scalar_one_or_none()
     if existing is not None:
         return existing
     p = ClientHighTicketProfile(
-        client_id=client.id, org_id=client.org_id,
-        status="discovery_pending", is_active=True,
+        client_id=client.id,
+        org_id=client.org_id,
+        status="discovery_pending",
+        is_active=True,
     )
     db.add(p)
     await db.flush()
@@ -129,10 +180,7 @@ async def _write_onboarding_event(
         db,
         domain="fulfillment",
         event_type=f"client.onboarding.high_ticket_{step}",
-        summary=(
-            f"High-ticket {step.replace('_', ' ')}: "
-            f"{client.display_name or client.primary_email}"
-        ),
+        summary=(f"High-ticket {step.replace('_', ' ')}: {client.display_name or client.primary_email}"),
         org_id=client.org_id,
         brand_id=client.brand_id,
         entity_type="client",
@@ -147,9 +195,12 @@ async def _write_onboarding_event(
     )
     try:
         from apps.api.services.stage_controller import mark_stage
+
         await mark_stage(
-            db, org_id=client.org_id,
-            entity_type="client", entity_id=client.id,
+            db,
+            org_id=client.org_id,
+            entity_type="client",
+            entity_id=client.id,
             stage=f"high_ticket_{step}",
         )
     except Exception as stage_exc:
@@ -194,7 +245,9 @@ async def schedule_discovery_call(
     await db.flush()
 
     evt = await _write_onboarding_event(
-        db, client=client, step="discovery_scheduled",
+        db,
+        client=client,
+        step="discovery_scheduled",
         details={
             "when_iso": when.isoformat(),
             "attendees_count": len(attendees or []),
@@ -203,7 +256,8 @@ async def schedule_discovery_call(
             "prior_status": prior_status,
             "status": profile.status,
         },
-        actor_type=actor_type, actor_id=actor_id,
+        actor_type=actor_type,
+        actor_id=actor_id,
     )
     return {
         "client_id": str(client.id),
@@ -239,7 +293,9 @@ async def record_sow_sent(
     await db.flush()
 
     evt = await _write_onboarding_event(
-        db, client=client, step="sow_sent",
+        db,
+        client=client,
+        step="sow_sent",
         details={
             "sow_url": sow_url,
             "signer_email": signer_email,
@@ -249,7 +305,8 @@ async def record_sow_sent(
             "prior_status": prior_status,
             "status": profile.status,
         },
-        actor_type=actor_type, actor_id=actor_id,
+        actor_type=actor_type,
+        actor_id=actor_id,
     )
     return {
         "client_id": str(client.id),
@@ -294,7 +351,9 @@ async def record_sow_countersigned(
     await db.flush()
 
     evt = await _write_onboarding_event(
-        db, client=client, step="sow_countersigned",
+        db,
+        client=client,
+        step="sow_countersigned",
         details={
             "signed_at_iso": now.isoformat(),
             "counterparty_name": profile.counterparty_name,
@@ -302,7 +361,8 @@ async def record_sow_countersigned(
             "prior_status": prior_status,
             "status": profile.status,
         },
-        actor_type=actor_type, actor_id=actor_id,
+        actor_type=actor_type,
+        actor_id=actor_id,
     )
     return {
         "client_id": str(client.id),
@@ -338,7 +398,8 @@ async def set_kickoff_date(
     await db.flush()
 
     evt = await _write_onboarding_event(
-        db, client=client,
+        db,
+        client=client,
         step=("kickoff_complete" if kickoff_at <= now else "kickoff_scheduled"),
         details={
             "kickoff_at_iso": kickoff_at.isoformat(),
@@ -347,7 +408,8 @@ async def set_kickoff_date(
             "prior_status": prior_status,
             "status": profile.status,
         },
-        actor_type=actor_type, actor_id=actor_id,
+        actor_type=actor_type,
+        actor_id=actor_id,
     )
     return {
         "client_id": str(client.id),

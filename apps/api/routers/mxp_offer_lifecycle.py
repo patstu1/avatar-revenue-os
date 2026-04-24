@@ -1,4 +1,5 @@
 """MXP Offer Lifecycle — health tracking, state transitions, decay detection."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status

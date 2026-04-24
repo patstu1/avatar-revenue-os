@@ -1,11 +1,28 @@
 """Trend / Viral Opportunity Engine — scan, score, classify, suppress, route. Pure functions."""
+
 from __future__ import annotations
 
 from typing import Any
 
-OPPORTUNITY_TYPES = ["pure_reach", "monetization", "authority_building", "creator_acquisition", "product_promotion", "community_engagement", "retention"]
+OPPORTUNITY_TYPES = [
+    "pure_reach",
+    "monetization",
+    "authority_building",
+    "creator_acquisition",
+    "product_promotion",
+    "community_engagement",
+    "retention",
+]
 BREAKOUT_VELOCITY = 2.0
-SCORE_DIMENSIONS = ["velocity", "novelty", "relevance", "revenue_potential", "platform_fit", "account_fit", "content_form_fit"]
+SCORE_DIMENSIONS = [
+    "velocity",
+    "novelty",
+    "relevance",
+    "revenue_potential",
+    "platform_fit",
+    "account_fit",
+    "content_form_fit",
+]
 
 
 def extract_signals(raw_data: list[dict[str, Any]], existing_topics: list[str]) -> list[dict[str, Any]]:
@@ -19,7 +36,16 @@ def extract_signals(raw_data: list[dict[str, Any]], existing_topics: list[str]) 
         strength = float(item.get("signal_strength", 0) or item.get("impressions", 0) or 0)
         velocity = float(item.get("velocity", 0) or 0)
         is_new = topic.lower() not in seen
-        signals.append({"topic": topic, "source": item.get("source", "internal"), "signal_strength": strength, "velocity": velocity, "is_new": is_new, "truth_label": item.get("truth_label", "internal_proxy")})
+        signals.append(
+            {
+                "topic": topic,
+                "source": item.get("source", "internal"),
+                "signal_strength": strength,
+                "velocity": velocity,
+                "is_new": is_new,
+                "truth_label": item.get("truth_label", "internal_proxy"),
+            }
+        )
         seen.add(topic.lower())
     return signals
 
@@ -27,9 +53,19 @@ def extract_signals(raw_data: list[dict[str, Any]], existing_topics: list[str]) 
 def compute_velocity(current: float, previous: float) -> dict[str, Any]:
     """Compute velocity and acceleration between snapshots."""
     if previous <= 0:
-        return {"current_velocity": current, "previous_velocity": 0, "acceleration": 0, "breakout": current > BREAKOUT_VELOCITY}
+        return {
+            "current_velocity": current,
+            "previous_velocity": 0,
+            "acceleration": 0,
+            "breakout": current > BREAKOUT_VELOCITY,
+        }
     accel = (current - previous) / max(abs(previous), 0.01)
-    return {"current_velocity": current, "previous_velocity": previous, "acceleration": round(accel, 3), "breakout": accel > 1.0 or current > BREAKOUT_VELOCITY}
+    return {
+        "current_velocity": current,
+        "previous_velocity": previous,
+        "acceleration": round(accel, 3),
+        "breakout": accel > 1.0 or current > BREAKOUT_VELOCITY,
+    }
 
 
 def check_duplicate(topic: str, existing: list[str], threshold: float = 0.6) -> str | None:
@@ -62,17 +98,29 @@ def score_opportunity(signal: dict[str, Any], brand_context: dict[str, Any]) -> 
     compliance = 0.1
 
     composite = round(
-        0.20 * velocity + 0.15 * novelty + 0.10 * relevance + 0.20 * revenue
-        + 0.10 * platform_fit + 0.10 * account_fit + 0.05 * form_fit
-        - 0.05 * saturation - 0.05 * compliance, 4
+        0.20 * velocity
+        + 0.15 * novelty
+        + 0.10 * relevance
+        + 0.20 * revenue
+        + 0.10 * platform_fit
+        + 0.10 * account_fit
+        + 0.05 * form_fit
+        - 0.05 * saturation
+        - 0.05 * compliance,
+        4,
     )
 
     return {
-        "velocity_score": round(velocity, 3), "novelty_score": round(novelty, 3),
-        "relevance_score": round(relevance, 3), "revenue_potential_score": round(revenue, 3),
-        "platform_fit_score": round(platform_fit, 3), "account_fit_score": round(account_fit, 3),
-        "content_form_fit_score": round(form_fit, 3), "saturation_risk": round(saturation, 3),
-        "compliance_risk": round(compliance, 3), "composite_score": max(0, composite),
+        "velocity_score": round(velocity, 3),
+        "novelty_score": round(novelty, 3),
+        "relevance_score": round(relevance, 3),
+        "revenue_potential_score": round(revenue, 3),
+        "platform_fit_score": round(platform_fit, 3),
+        "account_fit_score": round(account_fit, 3),
+        "content_form_fit_score": round(form_fit, 3),
+        "saturation_risk": round(saturation, 3),
+        "compliance_risk": round(compliance, 3),
+        "composite_score": max(0, composite),
         "confidence": round(min(0.95, 0.3 + velocity * 0.3 + novelty * 0.2), 3),
     }
 
@@ -127,7 +175,15 @@ def detect_blockers(signal: dict[str, Any], system_state: dict[str, Any]) -> lis
     """Detect blockers for a trend opportunity."""
     blockers = []
     if signal.get("truth_label") == "blocked_by_credentials":
-        blockers.append({"blocker_type": "source_blocked", "description": "Trend source requires credentials", "severity": "medium"})
+        blockers.append(
+            {"blocker_type": "source_blocked", "description": "Trend source requires credentials", "severity": "medium"}
+        )
     if not system_state.get("has_accounts"):
-        blockers.append({"blocker_type": "no_accounts", "description": "No active accounts to publish trend content", "severity": "high"})
+        blockers.append(
+            {
+                "blocker_type": "no_accounts",
+                "description": "No active accounts to publish trend content",
+                "severity": "high",
+            }
+        )
     return blockers

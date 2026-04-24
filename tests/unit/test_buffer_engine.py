@@ -150,35 +150,43 @@ class TestComputePublishJobSummary:
 
 class TestEvaluateProfileReadiness:
     def test_ready_profile(self):
-        r = evaluate_profile_readiness({
-            "credential_status": "connected",
-            "buffer_profile_id": "bp_123",
-            "is_active": True,
-            "platform": "tiktok",
-        })
+        r = evaluate_profile_readiness(
+            {
+                "credential_status": "connected",
+                "buffer_profile_id": "bp_123",
+                "is_active": True,
+                "platform": "tiktok",
+            }
+        )
         assert r["ready"] is True
         assert len(r["issues"]) == 0
 
     def test_not_connected(self):
-        r = evaluate_profile_readiness({
-            "credential_status": "not_connected",
-            "buffer_profile_id": "bp_123",
-            "is_active": True,
-        })
+        r = evaluate_profile_readiness(
+            {
+                "credential_status": "not_connected",
+                "buffer_profile_id": "bp_123",
+                "is_active": True,
+            }
+        )
         assert r["ready"] is False
 
     def test_no_buffer_profile_id(self):
-        r = evaluate_profile_readiness({
-            "credential_status": "connected",
-            "buffer_profile_id": None,
-            "is_active": True,
-        })
+        r = evaluate_profile_readiness(
+            {
+                "credential_status": "connected",
+                "buffer_profile_id": None,
+                "is_active": True,
+            }
+        )
         assert r["ready"] is False
 
     def test_inactive_profile(self):
-        r = evaluate_profile_readiness({
-            "credential_status": "connected",
-            "buffer_profile_id": "bp_123",
-            "is_active": False,
-        })
+        r = evaluate_profile_readiness(
+            {
+                "credential_status": "connected",
+                "buffer_profile_id": "bp_123",
+                "is_active": False,
+            }
+        )
         assert r["ready"] is False

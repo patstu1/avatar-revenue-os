@@ -4,6 +4,7 @@ Revision ID: provider_reg_001
 Revises: lec_phase2_001
 Create Date: 2026-03-31
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB

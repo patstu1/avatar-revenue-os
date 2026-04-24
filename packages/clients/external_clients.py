@@ -3,6 +3,7 @@
 Every function makes actual HTTP calls. No stubs. No fakes.
 When credentials are missing, the function returns an explicit blocked result.
 """
+
 from __future__ import annotations
 
 import base64
@@ -79,6 +80,7 @@ async def _classify_response(
 # ---------------------------------------------------------------------------
 # SECTION 1 — Stripe Webhook Verification
 # ---------------------------------------------------------------------------
+
 
 class StripeWebhookVerifier:
     """Verify Stripe webhook signatures per https://docs.stripe.com/webhooks/signatures"""
@@ -162,6 +164,7 @@ class StripeWebhookVerifier:
 # SECTION 2 — Shopify Webhook Verification
 # ---------------------------------------------------------------------------
 
+
 class ShopifyWebhookVerifier:
     """Verify Shopify webhook HMAC per https://shopify.dev/docs/apps/build/webhooks/subscribe/verify"""
 
@@ -217,6 +220,7 @@ class ShopifyWebhookVerifier:
 # SECTION 2b — Stripe Batch Payment Sync
 # ---------------------------------------------------------------------------
 
+
 class StripePaymentClient:
     """Real HTTP client for Stripe REST API — batch payment/order sync."""
 
@@ -229,7 +233,10 @@ class StripePaymentClient:
         return bool(self.api_key)
 
     async def fetch_recent_charges(
-        self, *, limit: int = 100, starting_after: str | None = None,
+        self,
+        *,
+        limit: int = 100,
+        starting_after: str | None = None,
     ) -> dict[str, Any]:
         """GET /v1/charges — pull recent charges."""
         if not self._is_configured():
@@ -276,7 +283,9 @@ class StripePaymentClient:
         }
 
     async def fetch_recent_payment_intents(
-        self, *, limit: int = 100,
+        self,
+        *,
+        limit: int = 100,
     ) -> dict[str, Any]:
         """GET /v1/payment_intents — pull recent payment intents."""
         if not self._is_configured():
@@ -320,6 +329,7 @@ class StripePaymentClient:
 # SECTION 2c — Shopify Batch Order Sync
 # ---------------------------------------------------------------------------
 
+
 class ShopifyOrderClient:
     """Real HTTP client for Shopify Admin REST API — batch order sync."""
 
@@ -341,7 +351,11 @@ class ShopifyOrderClient:
         return f"{domain}/admin/api/{self.api_version}"
 
     async def fetch_recent_orders(
-        self, *, limit: int = 50, status: str = "any", since_id: str | None = None,
+        self,
+        *,
+        limit: int = 50,
+        status: str = "any",
+        since_id: str | None = None,
     ) -> dict[str, Any]:
         """GET /admin/api/{version}/orders.json — pull recent orders."""
         if not self._is_configured():
@@ -388,6 +402,7 @@ class ShopifyOrderClient:
 # ---------------------------------------------------------------------------
 # SECTION 3 — Buffer API Client
 # ---------------------------------------------------------------------------
+
 
 class BufferClient:
     """HTTP client for Buffer's GraphQL API (v2, beta).
@@ -474,7 +489,8 @@ class BufferClient:
                 return _error_result("No Buffer organizations found")
             organization_id = orgs[0]["id"]
 
-        result = await self._graphql("""
+        result = await self._graphql(
+            """
             query GetChannels($orgId: OrganizationId!) {
                 channels(input: { organizationId: $orgId }) {
                     id
@@ -485,7 +501,9 @@ class BufferClient:
                     isQueuePaused
                 }
             }
-        """, {"orgId": organization_id})
+        """,
+            {"orgId": organization_id},
+        )
 
         if not result.get("success"):
             return result
@@ -494,15 +512,17 @@ class BufferClient:
         channels = result.get("data", {}).get("channels", [])
         profiles = []
         for ch in channels:
-            profiles.append({
-                "id": ch["id"],
-                "service": ch.get("service", "").lower(),
-                "service_username": ch.get("name", ""),
-                "formatted_service": (ch.get("service") or "").title(),
-                "avatar_https": ch.get("avatar", ""),
-                "display_name": ch.get("displayName", ch.get("name", "")),
-                "is_queue_paused": ch.get("isQueuePaused", False),
-            })
+            profiles.append(
+                {
+                    "id": ch["id"],
+                    "service": ch.get("service", "").lower(),
+                    "service_username": ch.get("name", ""),
+                    "formatted_service": (ch.get("service") or "").title(),
+                    "avatar_https": ch.get("avatar", ""),
+                    "display_name": ch.get("displayName", ch.get("name", "")),
+                    "is_queue_paused": ch.get("isQueuePaused", False),
+                }
+            )
 
         return {
             "success": True,
@@ -613,6 +633,7 @@ class BufferClient:
 # SECTION 4 — Ad Platform Reporting Clients
 # ---------------------------------------------------------------------------
 
+
 class MetaAdsClient:
     """Real HTTP client for Meta Marketing API reporting."""
 
@@ -668,15 +689,17 @@ class MetaAdsClient:
                 if av.get("action_type") == "offsite_conversion":
                     revenue += float(av.get("value", 0))
 
-            campaigns.append({
-                "campaign_id": row.get("campaign_id"),
-                "campaign_name": row.get("campaign_name"),
-                "spend": float(row.get("spend", 0)),
-                "impressions": int(row.get("impressions", 0)),
-                "clicks": int(row.get("clicks", 0)),
-                "conversions": conversions,
-                "revenue_attributed": revenue,
-            })
+            campaigns.append(
+                {
+                    "campaign_id": row.get("campaign_id"),
+                    "campaign_name": row.get("campaign_name"),
+                    "spend": float(row.get("spend", 0)),
+                    "impressions": int(row.get("impressions", 0)),
+                    "clicks": int(row.get("clicks", 0)),
+                    "conversions": conversions,
+                    "revenue_attributed": revenue,
+                }
+            )
 
         return {
             "success": True,
@@ -714,8 +737,7 @@ class GoogleAdsClient:
         """POST /customers/{customer_id}/googleAds:searchStream — GAQL query."""
         if not self._is_configured():
             return _blocked(
-                "GOOGLE_ADS_DEVELOPER_TOKEN, GOOGLE_ADS_CUSTOMER_ID, "
-                "or GOOGLE_ADS_OAUTH_TOKEN not configured"
+                "GOOGLE_ADS_DEVELOPER_TOKEN, GOOGLE_ADS_CUSTOMER_ID, or GOOGLE_ADS_OAUTH_TOKEN not configured"
             )
 
         cid = self.customer_id.replace("-", "")
@@ -755,15 +777,17 @@ class GoogleAdsClient:
                 camp = row.get("campaign", {})
                 met = row.get("metrics", {})
                 spend = float(met.get("costMicros", 0)) / 1_000_000
-                campaigns.append({
-                    "campaign_id": camp.get("id"),
-                    "campaign_name": camp.get("name"),
-                    "spend": spend,
-                    "impressions": int(met.get("impressions", 0)),
-                    "clicks": int(met.get("clicks", 0)),
-                    "conversions": int(float(met.get("conversions", 0))),
-                    "revenue_attributed": float(met.get("conversionsValue", 0)),
-                })
+                campaigns.append(
+                    {
+                        "campaign_id": camp.get("id"),
+                        "campaign_name": camp.get("name"),
+                        "spend": spend,
+                        "impressions": int(met.get("impressions", 0)),
+                        "clicks": int(met.get("clicks", 0)),
+                        "conversions": int(float(met.get("conversions", 0))),
+                        "revenue_attributed": float(met.get("conversionsValue", 0)),
+                    }
+                )
 
         return {
             "success": True,
@@ -799,14 +823,10 @@ class TikTokAdsClient:
     ) -> dict[str, Any]:
         """GET /report/integrated/get/ — campaign performance report."""
         if not self._is_configured():
-            return _blocked(
-                "TIKTOK_ADS_ACCESS_TOKEN or TIKTOK_ADS_ADVERTISER_ID not configured"
-            )
+            return _blocked("TIKTOK_ADS_ACCESS_TOKEN or TIKTOK_ADS_ADVERTISER_ID not configured")
 
         end_date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
-        start_date = (
-            datetime.now(tz=timezone.utc) - timedelta(days=date_range_days)
-        ).strftime("%Y-%m-%d")
+        start_date = (datetime.now(tz=timezone.utc) - timedelta(days=date_range_days)).strftime("%Y-%m-%d")
 
         url = f"{self.BASE_URL}/report/integrated/get/"
         headers = {"Access-Token": self.access_token}
@@ -815,10 +835,16 @@ class TikTokAdsClient:
             "report_type": "BASIC",
             "data_level": "AUCTION_CAMPAIGN",
             "dimensions": json.dumps(["campaign_id"]),
-            "metrics": json.dumps([
-                "campaign_name", "spend", "impressions", "clicks",
-                "conversion", "complete_payment_roas",
-            ]),
+            "metrics": json.dumps(
+                [
+                    "campaign_name",
+                    "spend",
+                    "impressions",
+                    "clicks",
+                    "conversion",
+                    "complete_payment_roas",
+                ]
+            ),
             "start_date": start_date,
             "end_date": end_date,
         }
@@ -844,16 +870,17 @@ class TikTokAdsClient:
         for row in body.get("data", {}).get("list", []):
             dims = row.get("dimensions", {})
             met = row.get("metrics", {})
-            campaigns.append({
-                "campaign_id": dims.get("campaign_id"),
-                "campaign_name": met.get("campaign_name", ""),
-                "spend": float(met.get("spend", 0)),
-                "impressions": int(met.get("impressions", 0)),
-                "clicks": int(met.get("clicks", 0)),
-                "conversions": int(met.get("conversion", 0)),
-                "revenue_attributed": float(met.get("complete_payment_roas", 0))
-                * float(met.get("spend", 0)),
-            })
+            campaigns.append(
+                {
+                    "campaign_id": dims.get("campaign_id"),
+                    "campaign_name": met.get("campaign_name", ""),
+                    "spend": float(met.get("spend", 0)),
+                    "impressions": int(met.get("impressions", 0)),
+                    "clicks": int(met.get("clicks", 0)),
+                    "conversions": int(met.get("conversion", 0)),
+                    "revenue_attributed": float(met.get("complete_payment_roas", 0)) * float(met.get("spend", 0)),
+                }
+            )
 
         return {
             "success": True,
@@ -875,6 +902,7 @@ class TikTokAdsClient:
 # SECTION 5 — Email (SMTP) Client
 # ---------------------------------------------------------------------------
 
+
 class SmtpEmailClient:
     """Real SMTP email sender using aiosmtplib."""
 
@@ -887,11 +915,7 @@ class SmtpEmailClient:
         # then fall back to SMTP_USERNAME. This matters when SMTP relay login
         # uses one identity (e.g. Brevo SMTP key) but messages must be From: a
         # verified sender like hello@proofhook.com.
-        self.from_email = (
-            os.environ.get("SMTP_FROM_EMAIL", "")
-            or os.environ.get("SMTP_FROM", "")
-            or self.username
-        )
+        self.from_email = os.environ.get("SMTP_FROM_EMAIL", "") or os.environ.get("SMTP_FROM", "") or self.username
         self.from_name = os.environ.get("SMTP_FROM_NAME", "ProofHook")
         self.reply_to = os.environ.get("SMTP_REPLY_TO", "") or self.from_email
         self.use_tls = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
@@ -932,7 +956,8 @@ class SmtpEmailClient:
         plain = body_text
         if not plain and body_html:
             import re
-            plain = re.sub(r'<[^>]+>', '', body_html).strip()
+
+            plain = re.sub(r"<[^>]+>", "", body_html).strip()
         if plain:
             msg.attach(MIMEText(plain, "plain", "utf-8"))
         if body_html:
@@ -990,6 +1015,7 @@ class SmtpEmailClient:
 # ---------------------------------------------------------------------------
 # SECTION 6 — SMS (Twilio-compatible) Client
 # ---------------------------------------------------------------------------
+
 
 class TwilioSmsClient:
     """Real SMS sender using Twilio REST API (raw httpx, no SDK)."""

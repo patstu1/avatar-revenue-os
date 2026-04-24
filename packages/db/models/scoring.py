@@ -1,4 +1,5 @@
 """Opportunity scoring, profit forecasts, offer fit, recommendations, saturation."""
+
 import uuid
 from typing import Optional
 
@@ -13,9 +14,7 @@ from packages.db.enums import ConfidenceLevel, RecommendedAction, SignalClassifi
 class OpportunityScore(Base):
     __tablename__ = "opportunity_scores"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     topic_candidate_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("topic_candidates.id"), nullable=False, index=True
     )
@@ -29,24 +28,18 @@ class OpportunityScore(Base):
     fatigue_penalty: Mapped[float] = mapped_column(Float, default=0.0)
     score_components: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     formula_version: Mapped[str] = mapped_column(String(50), default="v1")
-    confidence: Mapped[ConfidenceLevel] = mapped_column(
-        Enum(ConfidenceLevel), default=ConfidenceLevel.MEDIUM
-    )
+    confidence: Mapped[ConfidenceLevel] = mapped_column(Enum(ConfidenceLevel), default=ConfidenceLevel.MEDIUM)
     explanation: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class ProfitForecast(Base):
     __tablename__ = "profit_forecasts"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     topic_candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("topic_candidates.id"), index=True
     )
-    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("offers.id"), index=True
-    )
+    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), index=True)
     creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), index=True
     )
@@ -58,9 +51,7 @@ class ProfitForecast(Base):
     estimated_profit: Mapped[float] = mapped_column(Float, default=0.0)
     estimated_rpm: Mapped[float] = mapped_column(Float, default=0.0)
     estimated_epc: Mapped[float] = mapped_column(Float, default=0.0)
-    confidence: Mapped[ConfidenceLevel] = mapped_column(
-        Enum(ConfidenceLevel), default=ConfidenceLevel.MEDIUM
-    )
+    confidence: Mapped[ConfidenceLevel] = mapped_column(Enum(ConfidenceLevel), default=ConfidenceLevel.MEDIUM)
     assumptions: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     formula_version: Mapped[str] = mapped_column(String(50), default="v1")
     explanation: Mapped[Optional[str]] = mapped_column(Text)
@@ -69,12 +60,8 @@ class ProfitForecast(Base):
 class OfferFitScore(Base):
     __tablename__ = "offer_fit_scores"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
-    offer_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("offers.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
+    offer_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), nullable=False, index=True)
     topic_candidate_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("topic_candidates.id"), nullable=False, index=True
     )
@@ -84,24 +71,18 @@ class OfferFitScore(Base):
     friction_score: Mapped[float] = mapped_column(Float, default=0.0)
     repeatability_score: Mapped[float] = mapped_column(Float, default=0.0)
     revenue_potential: Mapped[float] = mapped_column(Float, default=0.0)
-    confidence: Mapped[ConfidenceLevel] = mapped_column(
-        Enum(ConfidenceLevel), default=ConfidenceLevel.MEDIUM
-    )
+    confidence: Mapped[ConfidenceLevel] = mapped_column(Enum(ConfidenceLevel), default=ConfidenceLevel.MEDIUM)
     explanation: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class RecommendationQueue(Base):
     __tablename__ = "recommendation_queue"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     topic_candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("topic_candidates.id"), index=True
     )
-    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("offers.id"), index=True
-    )
+    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), index=True)
     creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), index=True
     )
@@ -124,9 +105,7 @@ class RecommendationQueue(Base):
 class SaturationReport(Base):
     __tablename__ = "saturation_reports"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), index=True
     )

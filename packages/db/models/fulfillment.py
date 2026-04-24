@@ -7,6 +7,7 @@ work that actually gets produced for the client:
 
 Schema is narrow. No speculative fields. Every table is org-scoped.
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -26,28 +27,28 @@ from sqlalchemy.orm import Mapped, mapped_column
 from packages.db.base import Base
 
 PROJECT_STATUSES = [
-    "active",      # briefs being written / production running
-    "on_hold",     # paused (awaiting info / operator decision)
-    "completed",   # all deliveries sent
+    "active",  # briefs being written / production running
+    "on_hold",  # paused (awaiting info / operator decision)
+    "completed",  # all deliveries sent
     "archived",
     "cancelled",
 ]
 
 BRIEF_STATUSES = [
-    "draft",       # generated but not approved
-    "approved",    # operator approved; production can start
+    "draft",  # generated but not approved
+    "approved",  # operator approved; production can start
     "superseded",  # replaced by a newer version
 ]
 
 PRODUCTION_JOB_STATUSES = [
-    "queued",      # created, not yet picked up
-    "running",     # worker actively producing
+    "queued",  # created, not yet picked up
+    "running",  # worker actively producing
     "qa_pending",  # output available, awaiting QA
-    "qa_passed",   # QA passed; ready for delivery
-    "qa_failed",   # QA failed; may be retried
-    "completed",   # delivered
+    "qa_passed",  # QA passed; ready for delivery
+    "qa_failed",  # QA failed; may be retried
+    "completed",  # delivered
     "cancelled",
-    "failed",      # terminal failure after retry limit
+    "failed",  # terminal failure after retry limit
 ]
 
 
@@ -58,6 +59,7 @@ class ClientProject(Base):
     """A unit of work owned by a paying client. Created from an
     IntakeSubmission. One client can have many projects over time.
     """
+
     __tablename__ = "client_projects"
 
     org_id: Mapped[uuid.UUID] = mapped_column(
@@ -82,9 +84,7 @@ class ClientProject(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     package_slug: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
-    status: Mapped[str] = mapped_column(
-        String(30), default="active", nullable=False, index=True
-    )
+    status: Mapped[str] = mapped_column(String(30), default="active", nullable=False, index=True)
 
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     due_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -107,10 +107,9 @@ class ProjectBrief(Base):
     responses. Versioned so the operator can re-generate without losing
     history.
     """
+
     __tablename__ = "project_briefs"
-    __table_args__ = (
-        UniqueConstraint("project_id", "version", name="uq_project_briefs_project_version"),
-    )
+    __table_args__ = (UniqueConstraint("project_id", "version", name="uq_project_briefs_project_version"),)
 
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
@@ -120,9 +119,7 @@ class ProjectBrief(Base):
     )
 
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(30), default="draft", nullable=False, index=True
-    )
+    status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False, index=True)
 
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     summary: Mapped[str] = mapped_column(Text, default="")
@@ -154,6 +151,7 @@ class ProductionJob(Base):
     fulfillment-side status record so QA, retry and delivery can
     operate over a stable handle.
     """
+
     __tablename__ = "production_jobs"
 
     org_id: Mapped[uuid.UUID] = mapped_column(
@@ -170,9 +168,7 @@ class ProductionJob(Base):
     job_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
 
-    status: Mapped[str] = mapped_column(
-        String(30), default="queued", nullable=False, index=True
-    )
+    status: Mapped[str] = mapped_column(String(30), default="queued", nullable=False, index=True)
 
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -180,9 +176,7 @@ class ProductionJob(Base):
     # Retry / QA bookkeeping — used by Batch 3D QA loop
     attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     retry_limit: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
-    last_qa_report_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    last_qa_report_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     # Output — denormalised URL + payload hint for fast display
     output_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
@@ -190,9 +184,7 @@ class ProductionJob(Base):
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Optional linkage to the existing media_jobs pipeline
-    linked_media_job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    linked_media_job_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
@@ -203,8 +195,6 @@ class ProductionJob(Base):
     # job, it stamps worker_id + picked_up_at + flips status to
     # in_progress. Used by the stuck-job detector to escalate.
     worker_id: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
-    picked_up_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    picked_up_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

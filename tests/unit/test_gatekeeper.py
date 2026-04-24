@@ -1,4 +1,5 @@
 """Unit tests for growth pack gatekeeper (no DB)."""
+
 from packages.scoring.growth_commander import generate_growth_commands
 from packages.scoring.growth_pack.gatekeeper import (
     apply_gatekeeper_to_commands,
@@ -52,11 +53,20 @@ def test_apply_gatekeeper_defers_launch():
     }
     cmds = generate_growth_commands(
         scale_rec,
-        [{
-            "id": "c1", "candidate_type": "growth", "primary_platform": "youtube",
-            "niche": "x", "cannibalization_risk": 0.2, "audience_separation_score": 0.6,
-            "confidence": 0.8, "urgency": 60.0, "supporting_reasons": [], "launch_blockers": [],
-        }],
+        [
+            {
+                "id": "c1",
+                "candidate_type": "growth",
+                "primary_platform": "youtube",
+                "niche": "x",
+                "cannibalization_risk": 0.2,
+                "audience_separation_score": 0.6,
+                "confidence": 0.8,
+                "urgency": 60.0,
+                "supporting_reasons": [],
+                "launch_blockers": [],
+            }
+        ],
         [],
         {"launch_readiness_score": 40, "recommended_action": "fix"},
         [],
@@ -67,9 +77,15 @@ def test_apply_gatekeeper_defers_launch():
         [],
     )
     gk = compute_gatekeeper_inputs(
-        accounts=[], offer_count=2, sponsor_profile_count=2, sponsor_open_deal_count=1,
-        audience_segment_total_estimated_size=0, readiness={"launch_readiness_score": 40},
-        trust_avg=60.0, leak_count=0, scale_rec=scale_rec,
+        accounts=[],
+        offer_count=2,
+        sponsor_profile_count=2,
+        sponsor_open_deal_count=1,
+        audience_segment_total_estimated_size=0,
+        readiness={"launch_readiness_score": 40},
+        trust_avg=60.0,
+        leak_count=0,
+        scale_rec=scale_rec,
     )
     out = apply_gatekeeper_to_commands(cmds, gk, has_high_cannibalization=False, brand_niche="niche")
     assert not any(c.get("command_type") == "launch_account" for c in out)

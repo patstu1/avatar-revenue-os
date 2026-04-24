@@ -1,4 +1,5 @@
 """Kill Ledger service — underperformer kill entries (append-only) and hindsight reviews."""
+
 from __future__ import annotations
 
 import uuid
@@ -46,9 +47,7 @@ def _days_since_kill(now: datetime, killed_at: datetime | None) -> int:
 # ---------------------------------------------------------------------------
 
 
-async def recompute_kill_ledger(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_kill_ledger(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -57,51 +56,37 @@ async def recompute_kill_ledger(
     underperformers: list[dict[str, Any]] = []
 
     offers = list(
-        (
-            await db.execute(
-                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
     for o in offers:
-        underperformers.append({
-            "scope_type": "offer",
-            "scope_id": str(o.id),
-            "name": o.name,
-            "conversion_rate": float(o.conversion_rate or 0),
-            "revenue": float(o.epc or 0) * 100,
-            "aov": float(o.average_order_value or 0),
-        })
+        underperformers.append(
+            {
+                "scope_type": "offer",
+                "scope_id": str(o.id),
+                "name": o.name,
+                "conversion_rate": float(o.conversion_rate or 0),
+                "revenue": float(o.epc or 0) * 100,
+                "aov": float(o.average_order_value or 0),
+            }
+        )
 
     accounts = list(
-        (
-            await db.execute(
-                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(CreatorAccount).where(CreatorAccount.brand_id == brand_id))).scalars().all()
     )
     for acc in accounts:
-        underperformers.append({
-            "scope_type": "account",
-            "scope_id": str(acc.id),
-            "name": acc.platform_username,
-            "follower_growth_rate": float(acc.follower_growth_rate or 0),
-            "engagement_rate": float(acc.conversion_rate or 0),
-            "revenue": float(acc.total_revenue or 0),
-        })
+        underperformers.append(
+            {
+                "scope_type": "account",
+                "scope_id": str(acc.id),
+                "name": acc.platform_username,
+                "follower_growth_rate": float(acc.follower_growth_rate or 0),
+                "engagement_rate": float(acc.conversion_rate or 0),
+                "revenue": float(acc.total_revenue or 0),
+            }
+        )
 
     items = list(
-        (
-            await db.execute(
-                select(ContentItem).where(ContentItem.brand_id == brand_id).limit(200)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(ContentItem).where(ContentItem.brand_id == brand_id).limit(200))).scalars().all()
     )
     perf_agg = (
         await db.execute(
@@ -128,14 +113,16 @@ async def recompute_kill_ledger(
             elif isinstance(ci.tags, list) and ci.tags:
                 family_label = str(ci.tags[0])[:120]
 
-        underperformers.append({
-            "scope_type": "content_family",
-            "scope_id": str(ci.id),
-            "name": f"{family_label}: {ci.title or 'untitled'}"[:255],
-            "engagement_rate": eng,
-            "revenue": rev,
-            "impressions": imp,
-        })
+        underperformers.append(
+            {
+                "scope_type": "content_family",
+                "scope_id": str(ci.id),
+                "name": f"{family_label}: {ci.title or 'untitled'}"[:255],
+                "engagement_rate": eng,
+                "revenue": rev,
+                "impressions": imp,
+            }
+        )
 
     clusters = list(
         (
@@ -148,59 +135,51 @@ async def recompute_kill_ledger(
     )
     for nc in clusters:
         eng_proxy = max(0.0, 0.08 - float(nc.saturation_level or 0) * 0.01)
-        underperformers.append({
-            "scope_type": "topic_cluster",
-            "scope_id": str(nc.id),
-            "name": nc.cluster_name,
-            "engagement_rate": eng_proxy,
-            "revenue": float(nc.monetization_potential or 0) * 500.0,
-            "impressions": int(nc.estimated_audience_size or 0),
-        })
+        underperformers.append(
+            {
+                "scope_type": "topic_cluster",
+                "scope_id": str(nc.id),
+                "name": nc.cluster_name,
+                "engagement_rate": eng_proxy,
+                "revenue": float(nc.monetization_potential or 0) * 500.0,
+                "impressions": int(nc.estimated_audience_size or 0),
+            }
+        )
 
     segments = list(
-        (
-            await db.execute(
-                select(AudienceSegment).where(AudienceSegment.brand_id == brand_id)
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(AudienceSegment).where(AudienceSegment.brand_id == brand_id))).scalars().all()
     )
     for seg in segments:
-        underperformers.append({
-            "scope_type": "audience_segment",
-            "scope_id": str(seg.id),
-            "name": seg.name,
-            "conversion_rate": float(seg.conversion_rate or 0),
-            "ltv": float(seg.avg_ltv or 0),
-            "revenue": float(seg.revenue_contribution or 0),
-        })
+        underperformers.append(
+            {
+                "scope_type": "audience_segment",
+                "scope_id": str(seg.id),
+                "name": seg.name,
+                "conversion_rate": float(seg.conversion_rate or 0),
+                "ltv": float(seg.avg_ltv or 0),
+                "revenue": float(seg.revenue_contribution or 0),
+            }
+        )
 
     funnel_rows = list(
-        (
-            await db.execute(
-                select(FunnelStageMetric).where(FunnelStageMetric.brand_id == brand_id).limit(100)
-            )
-        )
+        (await db.execute(select(FunnelStageMetric).where(FunnelStageMetric.brand_id == brand_id).limit(100)))
         .scalars()
         .all()
     )
     for fm in funnel_rows:
-        underperformers.append({
-            "scope_type": "funnel",
-            "scope_id": str(fm.id),
-            "name": f"{fm.stage}:{fm.content_family}",
-            "throughput": float(fm.metric_value or 0),
-            "conversion_rate": float(fm.metric_value or 0) * 0.02,
-            "revenue": float(fm.sample_size or 0) * 10.0,
-        })
+        underperformers.append(
+            {
+                "scope_type": "funnel",
+                "scope_id": str(fm.id),
+                "name": f"{fm.stage}:{fm.content_family}",
+                "throughput": float(fm.metric_value or 0),
+                "conversion_rate": float(fm.metric_value or 0) * 0.02,
+                "revenue": float(fm.sample_size or 0) * 10.0,
+            }
+        )
 
     paid_jobs = list(
-        (
-            await db.execute(
-                select(PaidAmplificationJob).where(PaidAmplificationJob.brand_id == brand_id).limit(50)
-            )
-        )
+        (await db.execute(select(PaidAmplificationJob).where(PaidAmplificationJob.brand_id == brand_id).limit(50)))
         .scalars()
         .all()
     )
@@ -208,14 +187,16 @@ async def recompute_kill_ledger(
         res = job.results or {}
         conv = float(res.get("conversions", res.get("conversions_count", 0)))
         ctr = float(res.get("ctr", 0.004))
-        underperformers.append({
-            "scope_type": "paid_campaign",
-            "scope_id": str(job.id),
-            "name": f"paid:{job.platform}",
-            "roas": float(job.roi or 0),
-            "conversions": conv,
-            "ctr": ctr,
-        })
+        underperformers.append(
+            {
+                "scope_type": "paid_campaign",
+                "scope_id": str(job.id),
+                "name": f"paid:{job.platform}",
+                "roas": float(job.roi or 0),
+                "conversions": conv,
+                "ctr": ctr,
+            }
+        )
 
     sponsors = list(
         (
@@ -228,13 +209,15 @@ async def recompute_kill_ledger(
     )
     for sp in sponsors:
         rev_est = (float(sp.budget_range_min or 0) + float(sp.budget_range_max or 0)) / 2.0 * 0.01
-        underperformers.append({
-            "scope_type": "sponsor_strategy",
-            "scope_id": str(sp.id),
-            "name": sp.sponsor_name,
-            "revenue": rev_est,
-            "renewal_rate": 0.22,
-        })
+        underperformers.append(
+            {
+                "scope_type": "sponsor_strategy",
+                "scope_id": str(sp.id),
+                "name": sp.sponsor_name,
+                "revenue": rev_est,
+                "renewal_rate": 0.22,
+            }
+        )
 
     plat_rows = (
         await db.execute(
@@ -255,13 +238,15 @@ async def recompute_kill_ledger(
         share = rev / total_plat_rev
         plat_key = str(getattr(plat, "value", plat))
         scope_uuid = uuid.uuid5(brand_id, f"platform_mix:{plat_key}")
-        underperformers.append({
-            "scope_type": "platform_mix",
-            "scope_id": str(scope_uuid),
-            "name": f"Platform mix {plat_key}",
-            "revenue_share": share,
-            "engagement_rate": eng,
-        })
+        underperformers.append(
+            {
+                "scope_type": "platform_mix",
+                "scope_id": str(scope_uuid),
+                "name": f"Platform mix {plat_key}",
+                "revenue_share": share,
+                "engagement_rate": eng,
+            }
+        )
 
     thresholds: dict[str, Any] = {}
     kill_results = evaluate_kill_candidates(underperformers, thresholds)
@@ -313,9 +298,7 @@ async def recompute_kill_ledger(
 # ---------------------------------------------------------------------------
 
 
-async def recompute_kill_hindsight(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_kill_hindsight(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
@@ -325,9 +308,7 @@ async def recompute_kill_hindsight(
     reviewed_entry_ids = set(
         (
             await db.execute(
-                select(KillHindsightReview.kill_ledger_entry_id).where(
-                    KillHindsightReview.brand_id == brand_id
-                )
+                select(KillHindsightReview.kill_ledger_entry_id).where(KillHindsightReview.brand_id == brand_id)
             )
         )
         .scalars()
@@ -410,9 +391,7 @@ async def recompute_kill_hindsight(
     return {"hindsight_reviews": review_count}
 
 
-async def recompute_kill_ledger_full(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_kill_ledger_full(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     """Run new kill detection then hindsight refresh (used by API + worker)."""
     k = await recompute_kill_ledger(db, brand_id)
     h = await recompute_kill_hindsight(db, brand_id)
@@ -460,9 +439,7 @@ def _review_dict(x: KillHindsightReview) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_kill_ledger(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_kill_ledger(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -477,9 +454,7 @@ async def get_kill_ledger(
     return [_entry_dict(r) for r in rows]
 
 
-async def get_kill_hindsight_reviews(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_kill_hindsight_reviews(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -494,9 +469,7 @@ async def get_kill_hindsight_reviews(
     return [_review_dict(r) for r in rows]
 
 
-async def get_kill_ledger_bundle(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def get_kill_ledger_bundle(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     entries = await get_kill_ledger(db, brand_id)
     reviews = await get_kill_hindsight_reviews(db, brand_id)
     review_by_entry = {r["kill_ledger_entry_id"]: r for r in reviews}

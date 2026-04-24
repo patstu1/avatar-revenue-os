@@ -7,6 +7,7 @@ AVATAR: hero -> heygen,  standard -> heygen,  bulk -> heygen
 VOICE:  hero -> elevenlabs,  standard -> fish_audio,  bulk -> voxtral
 MUSIC:  all tiers -> suno
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -121,7 +122,9 @@ def check_budget_remaining(daily_budget: float, spent_today: float) -> dict[str,
     }
 
 
-def compute_monthly_projection(posts_per_month: int = 300, platform_mix: dict[str, float] | None = None) -> dict[str, Any]:
+def compute_monthly_projection(
+    posts_per_month: int = 300, platform_mix: dict[str, float] | None = None
+) -> dict[str, Any]:
     mix = platform_mix or {"instagram": 0.2, "tiktok": 0.2, "youtube": 0.1, "x": 0.4, "blog": 0.1}
     by_provider: dict[str, float] = {}
     total = 0.0

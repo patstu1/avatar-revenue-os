@@ -12,6 +12,7 @@ Covers:
      SLA deadline.
   6. GET /gm/control-board returns consolidated state.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -36,9 +37,7 @@ async def _auth(api_client, sample_org_data) -> tuple[dict, uuid.UUID]:
 
 
 @pytest.mark.asyncio
-async def test_proposal_sent_writes_stage_state(
-    api_client, db_session, sample_org_data
-):
+async def test_proposal_sent_writes_stage_state(api_client, db_session, sample_org_data):
     headers, org_id = await _auth(api_client, sample_org_data)
     create = await api_client.post(
         "/api/v1/proposals",
@@ -68,9 +67,7 @@ async def test_proposal_sent_writes_stage_state(
 
 
 @pytest.mark.asyncio
-async def test_request_approval_is_idempotent_and_emits_event(
-    api_client, db_session, sample_org_data
-):
+async def test_request_approval_is_idempotent_and_emits_event(api_client, db_session, sample_org_data):
     headers, org_id = await _auth(api_client, sample_org_data)
 
     from apps.api.services.stage_controller import request_approval
@@ -104,31 +101,30 @@ async def test_request_approval_is_idempotent_and_emits_event(
     assert new_2 is False
     assert a2.id == a1.id
 
-    approvals = (
-        await db_session.execute(
-            select(GMApproval).where(GMApproval.entity_id == entity_id)
-        )
-    ).scalars().all()
+    approvals = (await db_session.execute(select(GMApproval).where(GMApproval.entity_id == entity_id))).scalars().all()
     assert len(approvals) == 1
 
     evts = (
-        await db_session.execute(
-            select(SystemEvent).where(
-                SystemEvent.event_type == "gm.approval.requested",
-                SystemEvent.entity_id == a1.id,
+        (
+            await db_session.execute(
+                select(SystemEvent).where(
+                    SystemEvent.event_type == "gm.approval.requested",
+                    SystemEvent.entity_id == a1.id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(evts) == 1
 
 
 @pytest.mark.asyncio
-async def test_approve_approval_route_emits_event(
-    api_client, db_session, sample_org_data
-):
+async def test_approve_approval_route_emits_event(api_client, db_session, sample_org_data):
     headers, org_id = await _auth(api_client, sample_org_data)
 
     from apps.api.services.stage_controller import request_approval
+
     approval, _ = await request_approval(
         db_session,
         org_id=org_id,
@@ -159,9 +155,7 @@ async def test_approve_approval_route_emits_event(
 
 
 @pytest.mark.asyncio
-async def test_open_escalation_idempotent_bumps_occurrence(
-    api_client, db_session, sample_org_data
-):
+async def test_open_escalation_idempotent_bumps_occurrence(api_client, db_session, sample_org_data):
     headers, org_id = await _auth(api_client, sample_org_data)
     from apps.api.services.stage_controller import open_escalation
 
@@ -193,9 +187,7 @@ async def test_open_escalation_idempotent_bumps_occurrence(
 
 
 @pytest.mark.asyncio
-async def test_stuck_stage_watcher_opens_escalation_past_sla(
-    api_client, db_session, sample_org_data
-):
+async def test_stuck_stage_watcher_opens_escalation_past_sla(api_client, db_session, sample_org_data):
     headers, org_id = await _auth(api_client, sample_org_data)
 
     # Seed a StageState manually with a past sla_deadline
@@ -237,9 +229,7 @@ async def test_stuck_stage_watcher_opens_escalation_past_sla(
 
 
 @pytest.mark.asyncio
-async def test_control_board_consolidated_view(
-    api_client, db_session, sample_org_data
-):
+async def test_control_board_consolidated_view(api_client, db_session, sample_org_data):
     headers, org_id = await _auth(api_client, sample_org_data)
 
     from apps.api.services.stage_controller import (

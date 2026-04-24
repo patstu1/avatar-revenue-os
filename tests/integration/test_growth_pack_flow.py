@@ -1,4 +1,5 @@
 """Integration tests: Growth Pack + Growth Commander against persisted Postgres state."""
+
 from __future__ import annotations
 
 import uuid
@@ -50,13 +51,15 @@ def _seed_creator_accounts(db_session, brand_id: uuid.UUID, rows: list[tuple[str
         "instagram": Platform.INSTAGRAM,
     }
     for username, plat_key, niche in rows:
-        db_session.add(CreatorAccount(
-            brand_id=brand_id,
-            platform=plat_map[plat_key],
-            platform_username=username,
-            niche_focus=niche,
-            posting_capacity_per_day=2,
-        ))
+        db_session.add(
+            CreatorAccount(
+                brand_id=brand_id,
+                platform=plat_map[plat_key],
+                platform_username=username,
+                niche_focus=niche,
+                posting_capacity_per_day=2,
+            )
+        )
 
 
 def _scale_rec(
@@ -82,7 +85,8 @@ def _scale_rec(
         expansion_confidence=0.82,
         recommended_account_count=rec_n,
         weekly_action_plan={},
-        best_next_account=bna or {"platform_suggestion": "instagram", "niche_suggestion": "signals", "rationale": "test"},
+        best_next_account=bna
+        or {"platform_suggestion": "instagram", "niche_suggestion": "signals", "rationale": "test"},
         score_components={},
         penalties={},
         confidence=ConfidenceLevel.HIGH,
@@ -100,29 +104,33 @@ async def test_strong_platform_opportunity_exact_launch_blueprint(api_client, db
     for sn in ("Acme Sponsors", "Beta Media"):
         db_session.add(SponsorProfile(brand_id=brand_uuid, sponsor_name=sn, is_active=True))
     db_session.add(_scale_rec(brand_uuid, inc_new=900, inc_vol=100))
-    db_session.add(LaunchReadinessReport(
-        brand_id=brand_uuid,
-        launch_readiness_score=78.0,
-        recommended_action="launch",
-        is_active=True,
-    ))
-    db_session.add(LaunchCandidate(
-        brand_id=brand_uuid,
-        candidate_type="platform_expansion",
-        primary_platform="instagram",
-        niche=brand.niche or "finance",
-        sub_niche="signals",
-        expected_monthly_revenue_min=100,
-        expected_monthly_revenue_max=2400,
-        expected_launch_cost=200,
-        cannibalization_risk=0.15,
-        audience_separation_score=0.72,
-        confidence=0.91,
-        urgency=80.0,
-        supporting_reasons=["strong_platform_fit"],
-        launch_blockers=[],
-        is_active=True,
-    ))
+    db_session.add(
+        LaunchReadinessReport(
+            brand_id=brand_uuid,
+            launch_readiness_score=78.0,
+            recommended_action="launch",
+            is_active=True,
+        )
+    )
+    db_session.add(
+        LaunchCandidate(
+            brand_id=brand_uuid,
+            candidate_type="platform_expansion",
+            primary_platform="instagram",
+            niche=brand.niche or "finance",
+            sub_niche="signals",
+            expected_monthly_revenue_min=100,
+            expected_monthly_revenue_max=2400,
+            expected_launch_cost=200,
+            cannibalization_risk=0.15,
+            audience_separation_score=0.72,
+            confidence=0.91,
+            urgency=80.0,
+            supporting_reasons=["strong_platform_fit"],
+            launch_blockers=[],
+            is_active=True,
+        )
+    )
     await db_session.commit()
 
     await gps.recompute_account_blueprints(db_session, brand_uuid)
@@ -141,25 +149,29 @@ async def test_funnel_weakness_blocks_expansion_blocker_command(api_client, db_s
     brand_uuid = uuid.UUID(bid)
     brand = (await db_session.execute(select(Brand).where(Brand.id == brand_uuid))).scalar_one()
     db_session.add(_scale_rec(brand_uuid, inc_new=500, inc_vol=100))
-    db_session.add(LaunchReadinessReport(
-        brand_id=brand_uuid,
-        launch_readiness_score=38.0,
-        recommended_action="fix_funnel",
-        is_active=True,
-    ))
-    db_session.add(LaunchCandidate(
-        brand_id=brand_uuid,
-        candidate_type="growth",
-        primary_platform="youtube",
-        niche=brand.niche or "finance",
-        cannibalization_risk=0.2,
-        audience_separation_score=0.6,
-        confidence=0.7,
-        urgency=50.0,
-        supporting_reasons=["test"],
-        launch_blockers=[],
-        is_active=True,
-    ))
+    db_session.add(
+        LaunchReadinessReport(
+            brand_id=brand_uuid,
+            launch_readiness_score=38.0,
+            recommended_action="fix_funnel",
+            is_active=True,
+        )
+    )
+    db_session.add(
+        LaunchCandidate(
+            brand_id=brand_uuid,
+            candidate_type="growth",
+            primary_platform="youtube",
+            niche=brand.niche or "finance",
+            cannibalization_risk=0.2,
+            audience_separation_score=0.6,
+            confidence=0.7,
+            urgency=50.0,
+            supporting_reasons=["test"],
+            launch_blockers=[],
+            is_active=True,
+        )
+    )
     await db_session.commit()
 
     ctx = await gps._load_generation_inputs(db_session, brand_uuid)  # noqa: SLF001
@@ -177,30 +189,38 @@ async def test_cross_account_overlap_suppresses_launch(api_client, db_session, s
     """Two accounts same platform + overlapping niche → high cannibalization gate defers launch."""
     _, bid = await _register_brand_offers(api_client, sample_org_data, niche="personal finance", n_offers=2)
     brand_uuid = uuid.UUID(bid)
-    _seed_creator_accounts(db_session, brand_uuid, [
-        ("ov_a", "youtube", "personal finance investing"),
-        ("ov_b", "youtube", "personal finance investing"),
-    ])
+    _seed_creator_accounts(
+        db_session,
+        brand_uuid,
+        [
+            ("ov_a", "youtube", "personal finance investing"),
+            ("ov_b", "youtube", "personal finance investing"),
+        ],
+    )
     db_session.add(_scale_rec(brand_uuid, inc_new=600, inc_vol=150))
-    db_session.add(LaunchReadinessReport(
-        brand_id=brand_uuid,
-        launch_readiness_score=72.0,
-        recommended_action="launch",
-        is_active=True,
-    ))
-    db_session.add(LaunchCandidate(
-        brand_id=brand_uuid,
-        candidate_type="growth",
-        primary_platform="youtube",
-        niche="personal finance investing",
-        cannibalization_risk=0.25,
-        audience_separation_score=0.5,
-        confidence=0.75,
-        urgency=60.0,
-        supporting_reasons=["overlap_scenario"],
-        launch_blockers=[],
-        is_active=True,
-    ))
+    db_session.add(
+        LaunchReadinessReport(
+            brand_id=brand_uuid,
+            launch_readiness_score=72.0,
+            recommended_action="launch",
+            is_active=True,
+        )
+    )
+    db_session.add(
+        LaunchCandidate(
+            brand_id=brand_uuid,
+            candidate_type="growth",
+            primary_platform="youtube",
+            niche="personal finance investing",
+            cannibalization_risk=0.25,
+            audience_separation_score=0.5,
+            confidence=0.75,
+            urgency=60.0,
+            supporting_reasons=["overlap_scenario"],
+            launch_blockers=[],
+            is_active=True,
+        )
+    )
     await db_session.commit()
 
     ctx = await gps._load_generation_inputs(db_session, brand_uuid)  # noqa: SLF001
@@ -217,20 +237,24 @@ async def test_capital_constraint_changes_deployment_plan(api_client, db_session
     _, bid = await _register_brand_offers(api_client, sample_org_data, n_offers=2)
     brand_uuid = uuid.UUID(bid)
     db_session.add(_scale_rec(brand_uuid, inc_new=400, inc_vol=200))
-    db_session.add(LaunchReadinessReport(
-        brand_id=brand_uuid,
-        launch_readiness_score=70.0,
-        recommended_action="launch",
-        is_active=True,
-    ))
-    for _ in range(7):
-        db_session.add(RevenueLeakReport(
+    db_session.add(
+        LaunchReadinessReport(
             brand_id=brand_uuid,
-            leak_type="conversion",
-            affected_entity_type="funnel",
-            estimated_leaked_revenue=50.0,
-            is_resolved=False,
-        ))
+            launch_readiness_score=70.0,
+            recommended_action="launch",
+            is_active=True,
+        )
+    )
+    for _ in range(7):
+        db_session.add(
+            RevenueLeakReport(
+                brand_id=brand_uuid,
+                leak_type="conversion",
+                affected_entity_type="funnel",
+                estimated_leaked_revenue=50.0,
+                is_resolved=False,
+            )
+        )
     await db_session.commit()
 
     await gps.recompute_capital_deployment(db_session, brand_uuid)
@@ -238,7 +262,11 @@ async def test_capital_constraint_changes_deployment_plan(api_client, db_session
     assert constrained_rows[0]["explanation_json"].get("capital_constrained") is True
     hold_constrained = constrained_rows[0]["holdback_budget"]
 
-    leaks = (await db_session.execute(select(RevenueLeakReport).where(RevenueLeakReport.brand_id == brand_uuid))).scalars().all()
+    leaks = (
+        (await db_session.execute(select(RevenueLeakReport).where(RevenueLeakReport.brand_id == brand_uuid)))
+        .scalars()
+        .all()
+    )
     for L in leaks:
         L.is_resolved = True
     await db_session.commit()
@@ -254,18 +282,24 @@ async def test_output_governor_throttles_saturated_platform(api_client, db_sessi
     """Three accounts on one platform → portfolio output throttle JSON for that platform."""
     _, bid = await _register_brand_offers(api_client, sample_org_data, n_offers=2)
     brand_uuid = uuid.UUID(bid)
-    _seed_creator_accounts(db_session, brand_uuid, [
-        ("sat_0", "instagram", "finance"),
-        ("sat_1", "instagram", "finance"),
-        ("sat_2", "instagram", "finance"),
-    ])
+    _seed_creator_accounts(
+        db_session,
+        brand_uuid,
+        [
+            ("sat_0", "instagram", "finance"),
+            ("sat_1", "instagram", "finance"),
+            ("sat_2", "instagram", "finance"),
+        ],
+    )
     await db_session.commit()
 
     await gps.recompute_portfolio_output(db_session, brand_uuid)
     out = await gps.list_portfolio_output(db_session, brand_uuid)
     throttle = out[0]["throttle_recommendation_json"]
     assert "instagram" in throttle
-    assert "throttle" in throttle["instagram"]["action"].lower() or "throttle" in throttle["instagram"].get("reason", "")
+    assert "throttle" in throttle["instagram"]["action"].lower() or "throttle" in throttle["instagram"].get(
+        "reason", ""
+    )
 
 
 @pytest.mark.asyncio

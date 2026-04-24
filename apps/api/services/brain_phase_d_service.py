@@ -1,4 +1,5 @@
 """Brain Architecture Phase D — service layer for meta-monitoring, self-correction, readiness, escalation."""
+
 from __future__ import annotations
 
 import uuid
@@ -29,6 +30,7 @@ from packages.scoring.brain_phase_d_engine import (
 def _check_real_credentials() -> bool:
     """True when at least one AI provider AND one distributor are configured."""
     import os
+
     has_ai = any(os.environ.get(k) for k in ["ANTHROPIC_API_KEY", "GOOGLE_AI_API_KEY", "DEEPSEEK_API_KEY"])
     has_dist = any(os.environ.get(k) for k in ["BUFFER_API_KEY", "PUBLER_API_KEY", "AYRSHARE_API_KEY"])
     return has_ai and has_dist
@@ -36,11 +38,13 @@ def _check_real_credentials() -> bool:
 
 # ── List helpers ──────────────────────────────────────────────────────
 
+
 async def list_meta_monitoring(db: AsyncSession, brand_id: uuid.UUID, *, limit: int = 20) -> list[dict]:
     q = await db.execute(
         select(MetaMonitoringReport)
         .where(MetaMonitoringReport.brand_id == brand_id, MetaMonitoringReport.is_active.is_(True))
-        .order_by(MetaMonitoringReport.created_at.desc()).limit(limit)
+        .order_by(MetaMonitoringReport.created_at.desc())
+        .limit(limit)
     )
     return [_mm_out(r) for r in q.scalars().all()]
 
@@ -49,7 +53,8 @@ async def list_self_corrections(db: AsyncSession, brand_id: uuid.UUID, *, limit:
     q = await db.execute(
         select(SelfCorrectionAction)
         .where(SelfCorrectionAction.brand_id == brand_id, SelfCorrectionAction.is_active.is_(True))
-        .order_by(SelfCorrectionAction.created_at.desc()).limit(limit)
+        .order_by(SelfCorrectionAction.created_at.desc())
+        .limit(limit)
     )
     return [_sc_out(r) for r in q.scalars().all()]
 
@@ -58,7 +63,8 @@ async def list_readiness_brain(db: AsyncSession, brand_id: uuid.UUID, *, limit: 
     q = await db.execute(
         select(ReadinessBrainReport)
         .where(ReadinessBrainReport.brand_id == brand_id, ReadinessBrainReport.is_active.is_(True))
-        .order_by(ReadinessBrainReport.created_at.desc()).limit(limit)
+        .order_by(ReadinessBrainReport.created_at.desc())
+        .limit(limit)
     )
     return [_rb_out(r) for r in q.scalars().all()]
 
@@ -67,12 +73,14 @@ async def list_brain_escalations(db: AsyncSession, brand_id: uuid.UUID, *, limit
     q = await db.execute(
         select(BrainEscalation)
         .where(BrainEscalation.brand_id == brand_id, BrainEscalation.is_active.is_(True))
-        .order_by(BrainEscalation.created_at.desc()).limit(limit)
+        .order_by(BrainEscalation.created_at.desc())
+        .limit(limit)
     )
     return [_be_out(r) for r in q.scalars().all()]
 
 
 # ── Full recompute pipeline ──────────────────────────────────────────
+
 
 async def recompute_meta_monitoring(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, int]:
     _health_map = {"healthy": 1.0, "warning": 0.6, "degraded": 0.35, "critical": 0.15, "suspended": 0.05}
@@ -103,7 +111,9 @@ async def recompute_meta_monitoring(db: AsyncSession, brand_id: uuid.UUID) -> di
     low_signal = sum(1 for r in agent_runs if r.confidence < 0.3)
 
     ctx_events_q = await db.execute(
-        select(SharedContextEvent).where(SharedContextEvent.brand_id == brand_id, SharedContextEvent.is_active.is_(True))
+        select(SharedContextEvent).where(
+            SharedContextEvent.brand_id == brand_id, SharedContextEvent.is_active.is_(True)
+        )
     )
     ctx_events = ctx_events_q.scalars().all()
     escalation_events = sum(1 for e in ctx_events if e.event_type in ("launch_blocked", "system_throttle"))
@@ -136,10 +146,26 @@ async def recompute_meta_monitoring(db: AsyncSession, brand_id: uuid.UUID) -> di
     mon_result = compute_meta_monitoring(monitoring_ctx)
 
     # Deactivate old records
-    await db.execute(update(MetaMonitoringReport).where(MetaMonitoringReport.brand_id == brand_id, MetaMonitoringReport.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(SelfCorrectionAction).where(SelfCorrectionAction.brand_id == brand_id, SelfCorrectionAction.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(ReadinessBrainReport).where(ReadinessBrainReport.brand_id == brand_id, ReadinessBrainReport.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(BrainEscalation).where(BrainEscalation.brand_id == brand_id, BrainEscalation.is_active.is_(True)).values(is_active=False))
+    await db.execute(
+        update(MetaMonitoringReport)
+        .where(MetaMonitoringReport.brand_id == brand_id, MetaMonitoringReport.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(SelfCorrectionAction)
+        .where(SelfCorrectionAction.brand_id == brand_id, SelfCorrectionAction.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(ReadinessBrainReport)
+        .where(ReadinessBrainReport.brand_id == brand_id, ReadinessBrainReport.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(BrainEscalation)
+        .where(BrainEscalation.brand_id == brand_id, BrainEscalation.is_active.is_(True))
+        .values(is_active=False)
+    )
 
     mm = MetaMonitoringReport(
         brand_id=brand_id,
@@ -257,10 +283,13 @@ async def recompute_readiness_brain(db: AsyncSession, brand_id: uuid.UUID) -> di
 
 # ── Serialization helpers ─────────────────────────────────────────────
 
+
 def _mm_out(r: MetaMonitoringReport) -> dict[str, Any]:
     return {
-        "id": r.id, "brand_id": r.brand_id,
-        "health_score": r.health_score, "health_band": r.health_band,
+        "id": r.id,
+        "brand_id": r.brand_id,
+        "health_score": r.health_score,
+        "health_band": r.health_band,
         "decision_quality_score": r.decision_quality_score,
         "confidence_drift_score": r.confidence_drift_score,
         "policy_drift_score": r.policy_drift_score,
@@ -274,45 +303,65 @@ def _mm_out(r: MetaMonitoringReport) -> dict[str, Any]:
         "weak_areas_json": r.weak_areas_json,
         "recommended_corrections_json": r.recommended_corrections_json,
         "inputs_json": r.inputs_json,
-        "confidence": r.confidence, "explanation": r.explanation,
-        "is_active": r.is_active, "created_at": r.created_at, "updated_at": r.updated_at,
+        "confidence": r.confidence,
+        "explanation": r.explanation,
+        "is_active": r.is_active,
+        "created_at": r.created_at,
+        "updated_at": r.updated_at,
     }
 
 
 def _sc_out(r: SelfCorrectionAction) -> dict[str, Any]:
     return {
-        "id": r.id, "brand_id": r.brand_id,
-        "correction_type": r.correction_type, "reason": r.reason,
-        "effect_target": r.effect_target, "severity": r.severity,
-        "applied": r.applied, "payload_json": r.payload_json,
-        "confidence": r.confidence, "explanation": r.explanation,
-        "is_active": r.is_active, "created_at": r.created_at, "updated_at": r.updated_at,
+        "id": r.id,
+        "brand_id": r.brand_id,
+        "correction_type": r.correction_type,
+        "reason": r.reason,
+        "effect_target": r.effect_target,
+        "severity": r.severity,
+        "applied": r.applied,
+        "payload_json": r.payload_json,
+        "confidence": r.confidence,
+        "explanation": r.explanation,
+        "is_active": r.is_active,
+        "created_at": r.created_at,
+        "updated_at": r.updated_at,
     }
 
 
 def _rb_out(r: ReadinessBrainReport) -> dict[str, Any]:
     return {
-        "id": r.id, "brand_id": r.brand_id,
-        "readiness_score": r.readiness_score, "readiness_band": r.readiness_band,
+        "id": r.id,
+        "brand_id": r.brand_id,
+        "readiness_score": r.readiness_score,
+        "readiness_band": r.readiness_band,
         "blockers_json": r.blockers_json,
         "allowed_actions_json": r.allowed_actions_json,
         "forbidden_actions_json": r.forbidden_actions_json,
         "inputs_json": r.inputs_json,
-        "confidence": r.confidence, "explanation": r.explanation,
-        "is_active": r.is_active, "created_at": r.created_at, "updated_at": r.updated_at,
+        "confidence": r.confidence,
+        "explanation": r.explanation,
+        "is_active": r.is_active,
+        "created_at": r.created_at,
+        "updated_at": r.updated_at,
     }
 
 
 def _be_out(r: BrainEscalation) -> dict[str, Any]:
     return {
-        "id": r.id, "brand_id": r.brand_id,
-        "escalation_type": r.escalation_type, "command": r.command,
+        "id": r.id,
+        "brand_id": r.brand_id,
+        "escalation_type": r.escalation_type,
+        "command": r.command,
         "urgency": r.urgency,
         "expected_upside_unlocked": r.expected_upside_unlocked,
         "expected_cost_of_delay": r.expected_cost_of_delay,
         "affected_scope": r.affected_scope,
         "supporting_data_json": r.supporting_data_json,
-        "confidence": r.confidence, "resolved": r.resolved,
+        "confidence": r.confidence,
+        "resolved": r.resolved,
         "explanation": r.explanation,
-        "is_active": r.is_active, "created_at": r.created_at, "updated_at": r.updated_at,
+        "is_active": r.is_active,
+        "created_at": r.created_at,
+        "updated_at": r.updated_at,
     }

@@ -9,6 +9,7 @@ autonomous execution gate, and dispatches real downstream mutations:
   - Create reputation → recovery cross-links
   - Advance experiment outcome actions
 """
+
 from __future__ import annotations
 
 import uuid
@@ -27,10 +28,14 @@ def _evaluate_gate(session, brand_id: uuid.UUID, loop_step: str, confidence: flo
     from packages.db.models.autonomous_execution import AutomationExecutionPolicy
     from packages.scoring.autonomous_execution_engine import evaluate_execution_gate
 
-    policy = session.query(AutomationExecutionPolicy).filter(
-        AutomationExecutionPolicy.brand_id == brand_id,
-        AutomationExecutionPolicy.is_active.is_(True),
-    ).first()
+    policy = (
+        session.query(AutomationExecutionPolicy)
+        .filter(
+            AutomationExecutionPolicy.brand_id == brand_id,
+            AutomationExecutionPolicy.is_active.is_(True),
+        )
+        .first()
+    )
 
     if not policy:
         return {"decision": "require_approval", "reasons": ["no_active_policy"]}
@@ -52,10 +57,14 @@ def _record_run(session, brand_id, loop_step, status, confidence, input_payload,
     """Persist an execution run record for audit trail."""
     from packages.db.models.autonomous_execution import AutomationExecutionPolicy, AutomationExecutionRun
 
-    policy = session.query(AutomationExecutionPolicy).filter(
-        AutomationExecutionPolicy.brand_id == brand_id,
-        AutomationExecutionPolicy.is_active.is_(True),
-    ).first()
+    policy = (
+        session.query(AutomationExecutionPolicy)
+        .filter(
+            AutomationExecutionPolicy.brand_id == brand_id,
+            AutomationExecutionPolicy.is_active.is_(True),
+        )
+        .first()
+    )
 
     snap = {}
     if policy:
@@ -82,6 +91,7 @@ def _record_run(session, brand_id, loop_step, status, confidence, input_payload,
 # 1. Kill Ledger → Deactivate offers, accounts, content
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.execute_kill_ledger_actions")
 def execute_kill_ledger_actions(self) -> dict:
     """Read active KillLedgerEntry rows that haven't been executed and deactivate targets."""
@@ -99,19 +109,28 @@ def execute_kill_ledger_actions(self) -> dict:
     skipped = 0
 
     with Session(engine) as session:
-        entries = session.execute(
-            select(KillLedgerEntry).where(
-                KillLedgerEntry.is_active.is_(True),
-                KillLedgerEntry.killed_at.is_(None),
-            ).limit(100)
-        ).scalars().all()
+        entries = (
+            session.execute(
+                select(KillLedgerEntry)
+                .where(
+                    KillLedgerEntry.is_active.is_(True),
+                    KillLedgerEntry.killed_at.is_(None),
+                )
+                .limit(100)
+            )
+            .scalars()
+            .all()
+        )
 
         for entry in entries:
             gate = _evaluate_gate(session, entry.brand_id, "suppress_losers", entry.confidence_score or 0.6)
 
             if gate["decision"] not in ("allow",):
                 _record_run(
-                    session, entry.brand_id, "suppress_losers", "blocked",
+                    session,
+                    entry.brand_id,
+                    "suppress_losers",
+                    "blocked",
                     entry.confidence_score or 0.6,
                     {"kill_entry_id": str(entry.id), "scope_type": entry.scope_type},
                     {"gate_decision": gate["decision"], "reasons": gate.get("reasons", [])},
@@ -139,7 +158,10 @@ def execute_kill_ledger_actions(self) -> dict:
             entry.killed_at = datetime.now(timezone.utc)
 
             _record_run(
-                session, entry.brand_id, "suppress_losers", "completed",
+                session,
+                entry.brand_id,
+                "suppress_losers",
+                "completed",
                 entry.confidence_score or 0.6,
                 {"kill_entry_id": str(entry.id), "scope_type": entry.scope_type, "scope_id": str(entry.scope_id)},
                 {"deactivated": target_deactivated},
@@ -155,6 +177,7 @@ def execute_kill_ledger_actions(self) -> dict:
 # 2. Offer Lifecycle → Deactivate sunset/killed offers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.execute_offer_lifecycle_transitions")
 def execute_offer_lifecycle_transitions(self) -> dict:
     """When offers transition to sunset/killed, deactivate them in the offers table."""
@@ -169,11 +192,17 @@ def execute_offer_lifecycle_transitions(self) -> dict:
     deactivated = 0
 
     with Session(engine) as session:
-        events = session.execute(
-            select(OfferLifecycleEvent).where(
-                OfferLifecycleEvent.to_state.in_(["sunset", "killed", "deprecated"]),
-            ).limit(200)
-        ).scalars().all()
+        events = (
+            session.execute(
+                select(OfferLifecycleEvent)
+                .where(
+                    OfferLifecycleEvent.to_state.in_(["sunset", "killed", "deprecated"]),
+                )
+                .limit(200)
+            )
+            .scalars()
+            .all()
+        )
 
         processed_offers: set = set()
         for event in events:
@@ -193,7 +222,11 @@ def execute_offer_lifecycle_transitions(self) -> dict:
             deactivated += 1
 
             _record_run(
-                session, event.brand_id, "suppress_losers", "completed", 0.75,
+                session,
+                event.brand_id,
+                "suppress_losers",
+                "completed",
+                0.75,
                 {"event_id": str(event.id), "to_state": event.to_state, "offer_id": str(event.offer_id)},
                 {"deactivated": True},
             )
@@ -206,6 +239,7 @@ def execute_offer_lifecycle_transitions(self) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. Recovery Actions → Execute auto-mode actions
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.execute_recovery_actions")
 def execute_recovery_actions(self) -> dict:
@@ -220,19 +254,28 @@ def execute_recovery_actions(self) -> dict:
     executed = 0
 
     with Session(engine) as session:
-        actions = session.execute(
-            select(RecoveryAction).where(
-                RecoveryAction.executed.is_(False),
-                RecoveryAction.action_mode == "auto",
-            ).limit(50)
-        ).scalars().all()
+        actions = (
+            session.execute(
+                select(RecoveryAction)
+                .where(
+                    RecoveryAction.executed.is_(False),
+                    RecoveryAction.action_mode == "auto",
+                )
+                .limit(50)
+            )
+            .scalars()
+            .all()
+        )
 
         for action in actions:
             gate = _evaluate_gate(session, action.brand_id, "self_heal", action.confidence_score or 0.5)
 
             if gate["decision"] not in ("allow",):
                 _record_run(
-                    session, action.brand_id, "self_heal", "blocked",
+                    session,
+                    action.brand_id,
+                    "self_heal",
+                    "blocked",
                     action.confidence_score or 0.5,
                     {"action_id": str(action.id), "action_type": action.action_type},
                     {"gate_decision": gate["decision"]},
@@ -251,7 +294,10 @@ def execute_recovery_actions(self) -> dict:
                 incident.automatic_action_taken = action.action_type
 
             _record_run(
-                session, action.brand_id, "self_heal", "completed",
+                session,
+                action.brand_id,
+                "self_heal",
+                "completed",
                 action.confidence_score or 0.5,
                 {"action_id": str(action.id), "action_type": action.action_type},
                 {"executed": True},
@@ -267,6 +313,7 @@ def execute_recovery_actions(self) -> dict:
 # 4. Capacity Throttle → Apply rate limits
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.enforce_capacity_throttle")
 def enforce_capacity_throttle(self) -> dict:
     """Read capacity recommendations and log throttle enforcement decisions."""
@@ -280,11 +327,18 @@ def enforce_capacity_throttle(self) -> dict:
     throttles_applied = 0
 
     with Session(engine) as session:
-        reports = session.execute(
-            select(CapacityReport).where(
-                CapacityReport.is_active.is_(True),
-            ).order_by(CapacityReport.created_at.desc()).limit(50)
-        ).scalars().all()
+        reports = (
+            session.execute(
+                select(CapacityReport)
+                .where(
+                    CapacityReport.is_active.is_(True),
+                )
+                .order_by(CapacityReport.created_at.desc())
+                .limit(50)
+            )
+            .scalars()
+            .all()
+        )
 
         seen_brands: set = set()
         for report in reports:
@@ -299,7 +353,11 @@ def enforce_capacity_throttle(self) -> dict:
                     f"{max(1, int(throttle * 10))}/m",
                 )
                 _record_run(
-                    session, report.brand_id, "ramp_output", "completed", 0.8,
+                    session,
+                    report.brand_id,
+                    "ramp_output",
+                    "completed",
+                    0.8,
                     {"capacity_report_id": str(report.id), "recommended_throttle": throttle},
                     {"throttle_target": throttle, "applied": True},
                 )
@@ -313,6 +371,7 @@ def enforce_capacity_throttle(self) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. Reputation → Recovery cross-link
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.link_reputation_to_recovery")
 def link_reputation_to_recovery(self) -> dict:
@@ -328,21 +387,29 @@ def link_reputation_to_recovery(self) -> dict:
     incidents_created = 0
 
     with Session(engine) as session:
-        reports = session.execute(
-            select(ReputationReport).where(
-                ReputationReport.is_active.is_(True),
-                ReputationReport.reputation_risk_score >= 0.75,
-            ).limit(50)
-        ).scalars().all()
+        reports = (
+            session.execute(
+                select(ReputationReport)
+                .where(
+                    ReputationReport.is_active.is_(True),
+                    ReputationReport.reputation_risk_score >= 0.75,
+                )
+                .limit(50)
+            )
+            .scalars()
+            .all()
+        )
 
         for report in reports:
             existing = session.execute(
-                select(RecoveryIncident.id).where(
+                select(RecoveryIncident.id)
+                .where(
                     RecoveryIncident.brand_id == report.brand_id,
                     RecoveryIncident.incident_type == "reputation_risk",
                     RecoveryIncident.scope_type == report.scope_type,
                     RecoveryIncident.status == "open",
-                ).limit(1)
+                )
+                .limit(1)
             ).scalar_one_or_none()
             if existing:
                 continue
@@ -370,6 +437,7 @@ def link_reputation_to_recovery(self) -> dict:
 # 6. Experiment Outcome Actions → Advance through gate
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.advance_experiment_outcome_actions")
 def advance_experiment_outcome_actions(self) -> dict:
     """Process pending experiment outcome actions through the execution gate."""
@@ -384,11 +452,17 @@ def advance_experiment_outcome_actions(self) -> dict:
     blocked = 0
 
     with Session(engine) as session:
-        actions = session.execute(
-            select(ExperimentOutcomeAction).where(
-                ExperimentOutcomeAction.execution_status == "pending_operator",
-            ).limit(100)
-        ).scalars().all()
+        actions = (
+            session.execute(
+                select(ExperimentOutcomeAction)
+                .where(
+                    ExperimentOutcomeAction.execution_status == "pending_operator",
+                )
+                .limit(100)
+            )
+            .scalars()
+            .all()
+        )
 
         for action in actions:
             step = "scale_winners" if action.action_kind == "promote" else "suppress_losers"
@@ -397,7 +471,11 @@ def advance_experiment_outcome_actions(self) -> dict:
             if gate["decision"] == "allow":
                 action.execution_status = "auto_executed"
                 _record_run(
-                    session, action.brand_id, step, "completed", 0.65,
+                    session,
+                    action.brand_id,
+                    step,
+                    "completed",
+                    0.65,
                     {"action_id": str(action.id), "action_kind": action.action_kind},
                     {"gate": "allow", "executed": True},
                 )
@@ -415,6 +493,7 @@ def advance_experiment_outcome_actions(self) -> dict:
 # 7. Brain Decisions → Downstream Actions
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @app.task(base=TrackedTask, bind=True, name="workers.action_executor_worker.tasks.execute_brain_decisions")
 def execute_brain_decisions(self) -> dict:
     """Read brain decisions with downstream_action set and create executable artifacts."""
@@ -431,40 +510,59 @@ def execute_brain_decisions(self) -> dict:
     skipped = 0
 
     with Session(engine) as session:
-        decisions = session.execute(
-            select(BrainDecision).where(
-                BrainDecision.is_active.is_(True),
-                BrainDecision.downstream_action.isnot(None),
-                BrainDecision.downstream_action != "",
+        decisions = (
+            session.execute(
+                select(BrainDecision).where(
+                    BrainDecision.is_active.is_(True),
+                    BrainDecision.downstream_action.isnot(None),
+                    BrainDecision.downstream_action != "",
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         for d in decisions:
             processed += 1
             gate = _evaluate_gate(session, d.brand_id, "brain_decision", d.confidence)
 
             if gate["decision"] in ("auto_execute", "execute"):
-                session.add(OperatorAlert(
-                    brand_id=d.brand_id,
-                    alert_type=f"brain_decision_{d.decision_class}",
-                    title=f"Brain decision: {d.selected_action[:200]}",
-                    summary=d.objective[:500],
-                    explanation=d.explanation,
-                    recommended_action=d.downstream_action[:500] if d.downstream_action else "",
-                    confidence=d.confidence,
-                    urgency=min(100.0, d.expected_upside / 10.0) if d.expected_upside else 50.0,
-                    expected_upside=d.expected_upside,
-                    expected_cost=d.expected_cost,
-                ))
+                session.add(
+                    OperatorAlert(
+                        brand_id=d.brand_id,
+                        alert_type=f"brain_decision_{d.decision_class}",
+                        title=f"Brain decision: {d.selected_action[:200]}",
+                        summary=d.objective[:500],
+                        explanation=d.explanation,
+                        recommended_action=d.downstream_action[:500] if d.downstream_action else "",
+                        confidence=d.confidence,
+                        urgency=min(100.0, d.expected_upside / 10.0) if d.expected_upside else 50.0,
+                        expected_upside=d.expected_upside,
+                        expected_cost=d.expected_cost,
+                    )
+                )
                 d.is_active = False
                 created += 1
-                _record_run(session, d.brand_id, "brain_decision", "executed", d.confidence,
-                            {"decision_class": d.decision_class, "objective": d.objective},
-                            {"action": d.downstream_action})
+                _record_run(
+                    session,
+                    d.brand_id,
+                    "brain_decision",
+                    "executed",
+                    d.confidence,
+                    {"decision_class": d.decision_class, "objective": d.objective},
+                    {"action": d.downstream_action},
+                )
             else:
                 skipped += 1
-                _record_run(session, d.brand_id, "brain_decision", "awaiting_approval", d.confidence,
-                            {"decision_class": d.decision_class}, {"gate": gate})
+                _record_run(
+                    session,
+                    d.brand_id,
+                    "brain_decision",
+                    "awaiting_approval",
+                    d.confidence,
+                    {"decision_class": d.decision_class},
+                    {"gate": gate},
+                )
 
         session.commit()
 

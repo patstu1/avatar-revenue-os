@@ -1,4 +1,5 @@
 """MXP Reputation — risk monitoring and mitigation reports."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status

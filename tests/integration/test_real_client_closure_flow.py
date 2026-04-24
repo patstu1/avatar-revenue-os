@@ -1,4 +1,5 @@
 """DB-backed integration tests for Live Execution Phase 2 — Real Client Closure."""
+
 import base64
 import hashlib
 import hmac
@@ -30,11 +31,13 @@ async def _auth_brand(api_client, sample_org_data):
 @pytest.mark.asyncio
 async def test_stripe_webhook_valid(api_client, sample_org_data, monkeypatch):
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test")
-    payload = json.dumps({
-        "id": "evt_1",
-        "type": "checkout.session.completed",
-        "data": {"object": {"metadata": {}}},
-    }).encode()
+    payload = json.dumps(
+        {
+            "id": "evt_1",
+            "type": "checkout.session.completed",
+            "data": {"object": {"metadata": {}}},
+        }
+    ).encode()
     timestamp = str(int(time.time()))
     signed = f"{timestamp}.{payload.decode()}"
     sig = hmac.new(b"whsec_test", signed.encode(), hashlib.sha256).hexdigest()
@@ -134,11 +137,13 @@ async def test_shopify_webhook_invalid(api_client, sample_org_data, monkeypatch)
 @pytest.mark.asyncio
 async def test_stripe_webhook_idempotent(api_client, sample_org_data, monkeypatch):
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_idem")
-    payload = json.dumps({
-        "id": "evt_idem_1",
-        "type": "invoice.paid",
-        "data": {"object": {"metadata": {}}},
-    }).encode()
+    payload = json.dumps(
+        {
+            "id": "evt_idem_1",
+            "type": "invoice.paid",
+            "data": {"object": {"metadata": {}}},
+        }
+    ).encode()
     timestamp = str(int(time.time()))
     signed = f"{timestamp}.{payload.decode()}"
     sig = hmac.new(b"whsec_idem", signed.encode(), hashlib.sha256).hexdigest()

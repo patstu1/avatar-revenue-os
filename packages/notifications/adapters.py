@@ -4,6 +4,7 @@ Each adapter implements send() returning (success: bool, error: Optional[str]).
 Credentials are checked at call time — adapters are always importable.
 Missing credentials fail loudly in logs and status rows.
 """
+
 from __future__ import annotations
 
 import os
@@ -22,8 +23,16 @@ logger = structlog.get_logger()
 
 
 class NotificationPayload:
-    def __init__(self, title: str, summary: str, urgency: float, alert_type: str,
-                 brand_id: str, alert_id: str | None = None, detail_url: str | None = None):
+    def __init__(
+        self,
+        title: str,
+        summary: str,
+        urgency: float,
+        alert_type: str,
+        brand_id: str,
+        alert_id: str | None = None,
+        detail_url: str | None = None,
+    ):
         self.title = title
         self.summary = summary
         self.urgency = urgency
@@ -34,9 +43,13 @@ class NotificationPayload:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "title": self.title, "summary": self.summary, "urgency": self.urgency,
-            "alert_type": self.alert_type, "brand_id": self.brand_id,
-            "alert_id": self.alert_id, "detail_url": self.detail_url,
+            "title": self.title,
+            "summary": self.summary,
+            "urgency": self.urgency,
+            "alert_type": self.alert_type,
+            "brand_id": self.brand_id,
+            "alert_id": self.alert_id,
+            "detail_url": self.detail_url,
         }
 
 
@@ -44,8 +57,7 @@ class BaseNotificationAdapter(ABC):
     channel: str = "base"
 
     @abstractmethod
-    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, str | None]:
-        ...
+    async def send(self, payload: NotificationPayload, recipient: str) -> tuple[bool, str | None]: ...
 
 
 class _InAppStore:
@@ -60,7 +72,7 @@ class _InAppStore:
         with self._lock:
             self._notifications.append(notification)
             if len(self._notifications) > self._max_size:
-                self._notifications = self._notifications[-self._max_size:]
+                self._notifications = self._notifications[-self._max_size :]
 
     def get_for_recipient(self, recipient: str, limit: int = 50) -> list[dict[str, Any]]:
         with self._lock:
@@ -187,8 +199,11 @@ class SlackWebhookAdapter(BaseNotificationAdapter):
             logger.warning("notification.slack.not_configured", alert_type=payload.alert_type)
             return False, msg
         import httpx
+
         try:
-            urgency_emoji = "\U0001f534" if payload.urgency > 0.8 else "\U0001f7e1" if payload.urgency > 0.5 else "\U0001f7e2"
+            urgency_emoji = (
+                "\U0001f534" if payload.urgency > 0.8 else "\U0001f7e1" if payload.urgency > 0.5 else "\U0001f7e2"
+            )
             text = f"{urgency_emoji} *{payload.title}*\n{payload.summary}\nType: `{payload.alert_type}` | Brand: `{payload.brand_id}`"
             if payload.detail_url:
                 text += f"\n<{payload.detail_url}|View Details>"
@@ -217,6 +232,7 @@ class SMSAdapter(BaseNotificationAdapter):
             logger.warning("notification.sms.not_configured", recipient=recipient, alert_type=payload.alert_type)
             return False, msg
         import httpx
+
         try:
             sms_url = os.environ.get("SMS_API_URL", "https://api.twilio.com/2010-04-01")
             account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")

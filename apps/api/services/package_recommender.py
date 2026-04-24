@@ -37,6 +37,7 @@ The default fallback is NOT the starter pack. A lead with no specific signals
 defaults to growth-content-pack because that is the "middle anchor" that filters
 for seriousness and aligns with ProofHook's package-first positioning.
 """
+
 from __future__ import annotations
 
 import re
@@ -49,15 +50,35 @@ from dataclasses import dataclass, field
 # Each tuple: (signal_label, compiled_pattern). Matched against the
 # lowercased concatenation of subject + body + thread_context.
 
+
 def _PAT(p):
     return re.compile(p, re.IGNORECASE)
 
+
 # ── Strategy / audit / funnel-weakness signals ──────────────────────────────
 STRATEGY_SIGNALS: list[tuple[str, re.Pattern]] = [
-    ("strategy_ask", _PAT(r"\b(strategy|strategic|audit|diagnosis|assessment|review\s+(our|my|the)\s+(creative|funnel|content|marketing))\b")),
-    ("funnel_weakness", _PAT(r"\b(funnel|conversion(\s+rate)?|not\s+converting|drop[\s\-]?off|landing\s+page|checkout|bounce\s+rate|customer\s+journey)\b")),
-    ("creative_underperforming", _PAT(r"\b(underperform(ing)?|not\s+working|stopped\s+working|fatigue|creative\s+fatigue|getting\s+scrolled|ignored|flat\s+(results|numbers))\b")),
-    ("offer_unclear", _PAT(r"\b(our\s+offer\s+is|positioning|message\s+is\s+off|don'?t\s+know\s+(what|how)\s+to\s+say)\b")),
+    (
+        "strategy_ask",
+        _PAT(
+            r"\b(strategy|strategic|audit|diagnosis|assessment|review\s+(our|my|the)\s+(creative|funnel|content|marketing))\b"
+        ),
+    ),
+    (
+        "funnel_weakness",
+        _PAT(
+            r"\b(funnel|conversion(\s+rate)?|not\s+converting|drop[\s\-]?off|landing\s+page|checkout|bounce\s+rate|customer\s+journey)\b"
+        ),
+    ),
+    (
+        "creative_underperforming",
+        _PAT(
+            r"\b(underperform(ing)?|not\s+working|stopped\s+working|fatigue|creative\s+fatigue|getting\s+scrolled|ignored|flat\s+(results|numbers))\b"
+        ),
+    ),
+    (
+        "offer_unclear",
+        _PAT(r"\b(our\s+offer\s+is|positioning|message\s+is\s+off|don'?t\s+know\s+(what|how)\s+to\s+say)\b"),
+    ),
     ("rebuild_ask", _PAT(r"\b(rebuild|overhaul|redo|fix\s+(our|my|the)\s+(creative|funnel|content))\b")),
 ]
 
@@ -68,11 +89,24 @@ STRATEGY_SIGNALS: list[tuple[str, re.Pattern]] = [
 # "pre-launch MVP" style test-mode leads — those must route to ugc-starter-pack,
 # not launch-sprint.
 LAUNCH_SIGNALS: list[tuple[str, re.Pattern]] = [
-    ("product_launch_phrase", _PAT(r"\b(new\s+product|product\s+drop|new\s+release|soft\s+launch|hard\s+launch|go[\s\-]?live|going\s+live)\b")),
+    (
+        "product_launch_phrase",
+        _PAT(
+            r"\b(new\s+product|product\s+drop|new\s+release|soft\s+launch|hard\s+launch|go[\s\-]?live|going\s+live)\b"
+        ),
+    ),
     ("launch_word", _PAT(r"(?<!pre[\s\-])\blaunch(ing)?\b")),
-    ("seasonal_push", _PAT(r"\b(black\s+friday|bfcm|cyber\s+monday|holiday\s+(push|season|launch)|q4\s+(push|campaign)|peak\s+season|seasonal\s+(push|campaign))\b")),
+    (
+        "seasonal_push",
+        _PAT(
+            r"\b(black\s+friday|bfcm|cyber\s+monday|holiday\s+(push|season|launch)|q4\s+(push|campaign)|peak\s+season|seasonal\s+(push|campaign))\b"
+        ),
+    ),
     ("funding_moment", _PAT(r"\b(raised|fund(ed|ing)|series\s+[a-d]|pre[\s\-]?seed|announce(ment)?|milestone)\b")),
-    ("campaign_sprint", _PAT(r"\b(sprint|compressed\s+timeline|fast\s+turn|need\s+(this|it)\s+(fast|now|asap|quickly))\b")),
+    (
+        "campaign_sprint",
+        _PAT(r"\b(sprint|compressed\s+timeline|fast\s+turn|need\s+(this|it)\s+(fast|now|asap|quickly))\b"),
+    ),
 ]
 
 # ── Full retainer / creative partner signals ────────────────────────────────
@@ -82,41 +116,117 @@ LAUNCH_SIGNALS: list[tuple[str, re.Pattern]] = [
 # lead). Only literal dollar figures and seven/six-figure language now fire
 # this signal.
 FULL_RETAINER_SIGNALS: list[tuple[str, re.Pattern]] = [
-    ("embedded_partner", _PAT(r"\b(creative\s+partner|embedded\s+team|dedicated\s+team|in[\s\-]?house\s+(team|equivalent)|full[\s\-]?time\s+creative)\b")),
-    ("priority_turnaround", _PAT(r"\b(priority|urgent|always\s+on|on[\s\-]?demand|rapid\s+turnaround|need\s+priority)\b")),
-    ("multi_brand", _PAT(r"\b(multiple\s+brands|portfolio|brand\s+family|sister\s+brands|parent\s+brand|brand\s+portfolio)\b")),
-    ("high_spend_mention", _PAT(r"\b(seven[\s\-]?figure|six[\s\-]?figure\s+budget|spend(ing)?\s+(significant|heavy|big)|\$\s*\d{2,}[,.]?\d{3}\s*(\/|per)\s*(month|mo))\b")),
+    (
+        "embedded_partner",
+        _PAT(
+            r"\b(creative\s+partner|embedded\s+team|dedicated\s+team|in[\s\-]?house\s+(team|equivalent)|full[\s\-]?time\s+creative)\b"
+        ),
+    ),
+    (
+        "priority_turnaround",
+        _PAT(r"\b(priority|urgent|always\s+on|on[\s\-]?demand|rapid\s+turnaround|need\s+priority)\b"),
+    ),
+    (
+        "multi_brand",
+        _PAT(r"\b(multiple\s+brands|portfolio|brand\s+family|sister\s+brands|parent\s+brand|brand\s+portfolio)\b"),
+    ),
+    (
+        "high_spend_mention",
+        _PAT(
+            r"\b(seven[\s\-]?figure|six[\s\-]?figure\s+budget|spend(ing)?\s+(significant|heavy|big)|\$\s*\d{2,}[,.]?\d{3}\s*(\/|per)\s*(month|mo))\b"
+        ),
+    ),
 ]
 
 # ── Paid media / performance creative signals ───────────────────────────────
 PAID_MEDIA_SIGNALS: list[tuple[str, re.Pattern]] = [
-    ("paid_media_active", _PAT(r"\b(meta\s+ads|facebook\s+ads|fb\s+ads|instagram\s+ads|ig\s+ads|google\s+ads|tiktok\s+ads|youtube\s+ads|ad\s+spend|adspend|paid\s+(media|social|ads)|performance\s+marketing|performance\s+(ads|creative))\b")),
+    (
+        "paid_media_active",
+        _PAT(
+            r"\b(meta\s+ads|facebook\s+ads|fb\s+ads|instagram\s+ads|ig\s+ads|google\s+ads|tiktok\s+ads|youtube\s+ads|ad\s+spend|adspend|paid\s+(media|social|ads)|performance\s+marketing|performance\s+(ads|creative))\b"
+        ),
+    ),
     ("performance_metrics", _PAT(r"\b(cpm|cpa|roas|mer|ltv|cac|ctr|thumb[\s\-]?stop|hold\s+rate)\b")),
-    ("creative_rotation", _PAT(r"\b(creative\s+rotation|rotate\s+(creative|ads)|fresh\s+(creative|ads)|new\s+creative\s+batch|creative\s+refresh)\b")),
-    ("scaling_spend", _PAT(r"\b(scaling\s+(ads|spend|paid)|increase\s+(spend|budget)|more\s+(creative|ad)\s+(volume|variations)|testing\s+(hooks|angles))\b")),
+    (
+        "creative_rotation",
+        _PAT(
+            r"\b(creative\s+rotation|rotate\s+(creative|ads)|fresh\s+(creative|ads)|new\s+creative\s+batch|creative\s+refresh)\b"
+        ),
+    ),
+    (
+        "scaling_spend",
+        _PAT(
+            r"\b(scaling\s+(ads|spend|paid)|increase\s+(spend|budget)|more\s+(creative|ad)\s+(volume|variations)|testing\s+(hooks|angles))\b"
+        ),
+    ),
 ]
 
 # ── Recurring need / monthly content signals ────────────────────────────────
 RECURRING_SIGNALS: list[tuple[str, re.Pattern]] = [
-    ("monthly_content", _PAT(r"\b(monthly|every\s+month|per\s+month|\/month|recurring|ongoing|consistent(ly)?|content\s+engine|content\s+machine)\b")),
-    ("outgrown_freelancers", _PAT(r"\b(outgrown\s+freelancers?|too\s+many\s+freelancers?|need\s+(consistency|reliability)|unreliable\s+freelancers?)\b")),
-    ("content_calendar", _PAT(r"\b(content\s+calendar|editorial\s+calendar|content\s+plan|publishing\s+schedule|content\s+cadence)\b")),
-    ("always_posting", _PAT(r"\b(always\s+posting|daily\s+content|weekly\s+content|keep\s+up\s+with\s+(posting|content))\b")),
+    (
+        "monthly_content",
+        _PAT(
+            r"\b(monthly|every\s+month|per\s+month|\/month|recurring|ongoing|consistent(ly)?|content\s+engine|content\s+machine)\b"
+        ),
+    ),
+    (
+        "outgrown_freelancers",
+        _PAT(
+            r"\b(outgrown\s+freelancers?|too\s+many\s+freelancers?|need\s+(consistency|reliability)|unreliable\s+freelancers?)\b"
+        ),
+    ),
+    (
+        "content_calendar",
+        _PAT(r"\b(content\s+calendar|editorial\s+calendar|content\s+plan|publishing\s+schedule|content\s+cadence)\b"),
+    ),
+    (
+        "always_posting",
+        _PAT(r"\b(always\s+posting|daily\s+content|weekly\s+content|keep\s+up\s+with\s+(posting|content))\b"),
+    ),
 ]
 
 # ── Test / early-stage / low-commitment signals (starter-pack territory) ───
 TEST_SIGNALS: list[tuple[str, re.Pattern]] = [
-    ("one_off_test", _PAT(r"\b(one[\s\-]?off|just\s+(try|test)|pilot|single\s+project|first\s+project|trial|starting\s+small|dip\s+(our|my)\s+toe)\b")),
-    ("no_retainer", _PAT(r"\b(no\s+retainer|without\s+(a\s+)?retainer|don'?t\s+want\s+(a\s+)?retainer|hate\s+retainers|avoid\s+retainers)\b")),
-    ("pre_launch_mvp", _PAT(r"\b(pre[\s\-]?launch|mvp|beta|early\s+stage|just\s+(starting|launched)|new\s+brand|brand\s+new)\b")),
-    ("budget_low", _PAT(r"\b(tight\s+budget|small\s+budget|shoestring|limited\s+budget|bootstrap(ping|ed)?|startup\s+budget)\b")),
-    ("proof_of_concept", _PAT(r"\b(proof[\s\-]?of[\s\-]?concept|poc|see\s+if\s+(this|it)\s+works|test\s+the\s+waters)\b")),
+    (
+        "one_off_test",
+        _PAT(
+            r"\b(one[\s\-]?off|just\s+(try|test)|pilot|single\s+project|first\s+project|trial|starting\s+small|dip\s+(our|my)\s+toe)\b"
+        ),
+    ),
+    (
+        "no_retainer",
+        _PAT(
+            r"\b(no\s+retainer|without\s+(a\s+)?retainer|don'?t\s+want\s+(a\s+)?retainer|hate\s+retainers|avoid\s+retainers)\b"
+        ),
+    ),
+    (
+        "pre_launch_mvp",
+        _PAT(r"\b(pre[\s\-]?launch|mvp|beta|early\s+stage|just\s+(starting|launched)|new\s+brand|brand\s+new)\b"),
+    ),
+    (
+        "budget_low",
+        _PAT(r"\b(tight\s+budget|small\s+budget|shoestring|limited\s+budget|bootstrap(ping|ed)?|startup\s+budget)\b"),
+    ),
+    (
+        "proof_of_concept",
+        _PAT(r"\b(proof[\s\-]?of[\s\-]?concept|poc|see\s+if\s+(this|it)\s+works|test\s+the\s+waters)\b"),
+    ),
 ]
 
 # ── Established brand signals (nudges away from starter) ───────────────────
 ESTABLISHED_SIGNALS: list[tuple[str, re.Pattern]] = [
-    ("established_brand", _PAT(r"\b(established|growing\s+brand|scaling\s+brand|our\s+team|our\s+head\s+of|marketing\s+team|creative\s+team)\b")),
-    ("agency_transition", _PAT(r"\b(current\s+agency|former\s+agency|previous\s+agency|switching\s+agencies|leaving\s+(our|my)\s+agency)\b")),
+    (
+        "established_brand",
+        _PAT(
+            r"\b(established|growing\s+brand|scaling\s+brand|our\s+team|our\s+head\s+of|marketing\s+team|creative\s+team)\b"
+        ),
+    ),
+    (
+        "agency_transition",
+        _PAT(
+            r"\b(current\s+agency|former\s+agency|previous\s+agency|switching\s+agencies|leaving\s+(our|my)\s+agency)\b"
+        ),
+    ),
     ("professional_domain", None),  # Populated at runtime from from_email domain
 ]
 
@@ -125,18 +235,20 @@ ESTABLISHED_SIGNALS: list[tuple[str, re.Pattern]] = [
 #  Output dataclass
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class PackageRecommendation:
     """Signal-based package routing result.
 
     This is stored on DecisionTrace and surfaced in the audit trail.
     """
-    slug: str                                        # e.g. "performance-creative-pack"
-    rationale: str                                   # one-sentence why
-    signals: list[str] = field(default_factory=list) # ["paid_media_active", "creative_rotation"]
-    confidence: float = 0.0                          # 0.0–1.0
-    anchor_avoided: bool = True                      # True when slug != "ugc-starter-pack"
-    fallback_reason: str = ""                        # populated when routing hit the default
+
+    slug: str  # e.g. "performance-creative-pack"
+    rationale: str  # one-sentence why
+    signals: list[str] = field(default_factory=list)  # ["paid_media_active", "creative_rotation"]
+    confidence: float = 0.0  # 0.0–1.0
+    anchor_avoided: bool = True  # True when slug != "ugc-starter-pack"
+    fallback_reason: str = ""  # populated when routing hit the default
 
     def to_dict(self) -> dict:
         return {
@@ -153,11 +265,24 @@ class PackageRecommendation:
 #  Signal detection helpers
 # ═══════════════════════════════════════════════════════════════════════════
 
-_PERSONAL_EMAIL_DOMAINS = frozenset({
-    "gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com",
-    "aol.com", "live.com", "msn.com", "proton.me", "protonmail.com",
-    "mail.com", "gmx.com", "yandex.com", "zoho.com",
-})
+_PERSONAL_EMAIL_DOMAINS = frozenset(
+    {
+        "gmail.com",
+        "yahoo.com",
+        "outlook.com",
+        "hotmail.com",
+        "icloud.com",
+        "aol.com",
+        "live.com",
+        "msn.com",
+        "proton.me",
+        "protonmail.com",
+        "mail.com",
+        "gmx.com",
+        "yandex.com",
+        "zoho.com",
+    }
+)
 
 
 def _is_professional_domain(from_email: str) -> bool:
@@ -213,6 +338,7 @@ def _flatten(sig_dict: dict[str, list[str]]) -> list[str]:
 #  Routing logic
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def _route(
     intent: str,
     sigs: dict[str, list[str]],
@@ -226,9 +352,7 @@ def _route(
     # fire on paid-media rotation leads where the right package is Performance
     # Creative Pack, not a strategic audit. The cue for strategy routing must
     # be an explicit ask: strategy_ask or rebuild_ask.
-    explicit_strategy_ask = any(
-        s in sigs["strategy"] for s in ("strategy_ask", "rebuild_ask")
-    )
+    explicit_strategy_ask = any(s in sigs["strategy"] for s in ("strategy_ask", "rebuild_ask"))
     if explicit_strategy_ask:
         return (
             "creative-strategy-funnel-upgrade",
@@ -332,6 +456,7 @@ def _route(
 #  Public API
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def recommend_package(
     *,
     intent: str,
@@ -404,6 +529,7 @@ def recommend_package(
 # ═══════════════════════════════════════════════════════════════════════════
 #  Helper: extract signals for downstream visibility (e.g. reply templates)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 def extract_lead_signals(
     body_text: str,

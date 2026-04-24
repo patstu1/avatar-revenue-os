@@ -1,4 +1,5 @@
 """Disclosure Auto-Injection Service — inject FTC/platform disclosure at generation + publish."""
+
 from __future__ import annotations
 
 import logging
@@ -57,7 +58,9 @@ def get_disclosure_text(platform: str, disclosure_type: str, sponsor_name: str =
     return template.format(sponsor_name=sponsor_name) if sponsor_name else template
 
 
-def inject_disclosure_into_content(content_text: str, platform: str, disclosure_type: str, sponsor_name: str = "") -> dict[str, Any]:
+def inject_disclosure_into_content(
+    content_text: str, platform: str, disclosure_type: str, sponsor_name: str = ""
+) -> dict[str, Any]:
     """Inject the correct disclosure text into content based on platform rules."""
     rules = PLATFORM_DISCLOSURE_RULES.get(platform.lower(), PLATFORM_DISCLOSURE_RULES["default"])
     disclosure = get_disclosure_text(platform, disclosure_type, sponsor_name)
@@ -113,7 +116,12 @@ async def check_and_inject_disclosure(db: AsyncSession, content_item_id: uuid.UU
         ci.description = result["text"]
         await db.flush()
 
-    return {"injected": result["disclosure_injected"], "platform": platform, "disclosure_type": disclosure_type, "disclosure_text": result.get("disclosure_text", "")}
+    return {
+        "injected": result["disclosure_injected"],
+        "platform": platform,
+        "disclosure_type": disclosure_type,
+        "disclosure_text": result.get("disclosure_text", ""),
+    }
 
 
 def validate_disclosure_present(content_text: str, platform: str, disclosure_type: str) -> dict[str, Any]:

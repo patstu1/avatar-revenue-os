@@ -3,6 +3,7 @@
 Runs on schedule. Finds briefs in 'draft' or 'ready' status, generates real AI content,
 scores through quality governor, and auto-approves passing content for publishing.
 """
+
 import logging
 
 from sqlalchemy import select
@@ -25,14 +26,22 @@ async def _process_pending_briefs():
     from apps.api.services.content_generation_service import full_pipeline
 
     async with get_async_session_factory()() as db:
-        briefs = list((await db.execute(
-            select(ContentBrief)
-            .join(Brand, Brand.id == ContentBrief.brand_id)
-            .where(
-                ContentBrief.status.in_(["draft", "ready", "pending_generation"]),
-                Brand.is_active.is_(True),
-            ).order_by(ContentBrief.created_at.asc()).limit(20)
-        )).scalars().all())
+        briefs = list(
+            (
+                await db.execute(
+                    select(ContentBrief)
+                    .join(Brand, Brand.id == ContentBrief.brand_id)
+                    .where(
+                        ContentBrief.status.in_(["draft", "ready", "pending_generation"]),
+                        Brand.is_active.is_(True),
+                    )
+                    .order_by(ContentBrief.created_at.asc())
+                    .limit(20)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
     results = {"processed": 0, "approved": 0, "failed": 0, "quality_blocked": 0}
 
@@ -61,14 +70,21 @@ async def _process_pending_briefs():
 async def _cleanup_stuck_briefs():
     """Reset briefs stuck in 'generating' for over 30 minutes back to 'draft'."""
     from datetime import datetime, timedelta, timezone
+
     async with get_async_session_factory()() as db:
         cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
-        stuck = list((await db.execute(
-            select(ContentBrief).where(
-                ContentBrief.status == "generating",
-                ContentBrief.updated_at < cutoff,
+        stuck = list(
+            (
+                await db.execute(
+                    select(ContentBrief).where(
+                        ContentBrief.status == "generating",
+                        ContentBrief.updated_at < cutoff,
+                    )
+                )
             )
-        )).scalars().all())
+            .scalars()
+            .all()
+        )
         for brief in stuck:
             brief.status = "draft"
             logger.warning("Reset stuck brief %s from 'generating' back to 'draft'", brief.id)

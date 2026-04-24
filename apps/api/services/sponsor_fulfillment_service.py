@@ -8,6 +8,7 @@ record, and — when missed — a linked make-good placement.
 Self-referential FK on SponsorPlacement.make_good_of_placement_id
 preserves the audit trail from a missed placement to its remedy.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -26,8 +27,12 @@ logger = structlog.get_logger()
 
 
 VALID_PLACEMENT_TYPES = (
-    "ad_spot", "host_read", "video_integration",
-    "social_mention", "newsletter", "other",
+    "ad_spot",
+    "host_read",
+    "video_integration",
+    "social_mention",
+    "newsletter",
+    "other",
 )
 
 
@@ -43,9 +48,7 @@ async def schedule_placement(
     actor_id: str | None = None,
 ) -> SponsorPlacement:
     if placement_type not in VALID_PLACEMENT_TYPES:
-        raise ValueError(
-            f"placement_type must be one of {VALID_PLACEMENT_TYPES}"
-        )
+        raise ValueError(f"placement_type must be one of {VALID_PLACEMENT_TYPES}")
 
     p = SponsorPlacement(
         campaign_id=campaign.id,
@@ -61,15 +64,16 @@ async def schedule_placement(
     await db.flush()
 
     await emit_event(
-        db, domain="fulfillment",
+        db,
+        domain="fulfillment",
         event_type="sponsor.placement.scheduled",
-        summary=(
-            f"Placement scheduled: {placement_type} @ "
-            f"{scheduled_at.isoformat()}"
-        ),
-        org_id=campaign.org_id, brand_id=campaign.brand_id,
-        entity_type="sponsor_placement", entity_id=p.id,
-        actor_type=actor_type, actor_id=actor_id,
+        summary=(f"Placement scheduled: {placement_type} @ {scheduled_at.isoformat()}"),
+        org_id=campaign.org_id,
+        brand_id=campaign.brand_id,
+        entity_type="sponsor_placement",
+        entity_id=p.id,
+        actor_type=actor_type,
+        actor_id=actor_id,
         details={
             "placement_id": str(p.id),
             "campaign_id": str(campaign.id),
@@ -107,13 +111,16 @@ async def record_placement_delivered(
     await db.flush()
 
     await emit_event(
-        db, domain="fulfillment",
+        db,
+        domain="fulfillment",
         event_type="sponsor.placement.delivered",
         summary=f"Placement delivered: {placement.placement_type}",
         org_id=placement.org_id,
-        entity_type="sponsor_placement", entity_id=placement.id,
+        entity_type="sponsor_placement",
+        entity_id=placement.id,
         new_state="delivered",
-        actor_type=actor_type, actor_id=actor_id,
+        actor_type=actor_type,
+        actor_id=actor_id,
         details={
             "placement_id": str(placement.id),
             "campaign_id": str(placement.campaign_id),
@@ -163,13 +170,8 @@ async def record_placement_missed(
     if make_good:
         mg_type = make_good_placement_type or placement.placement_type
         if mg_type not in VALID_PLACEMENT_TYPES:
-            raise ValueError(
-                f"make_good_placement_type must be one of {VALID_PLACEMENT_TYPES}"
-            )
-        mg_scheduled = (
-            make_good_scheduled_at
-            or (datetime.now(timezone.utc))
-        )
+            raise ValueError(f"make_good_placement_type must be one of {VALID_PLACEMENT_TYPES}")
+        mg_scheduled = make_good_scheduled_at or (datetime.now(timezone.utc))
         mg = SponsorPlacement(
             campaign_id=placement.campaign_id,
             org_id=placement.org_id,
@@ -186,32 +188,28 @@ async def record_placement_missed(
         make_good_id = mg.id
 
     await emit_event(
-        db, domain="fulfillment",
+        db,
+        domain="fulfillment",
         event_type="sponsor.placement.missed",
-        summary=(
-            f"Placement missed: {placement.placement_type} "
-            f"({reason}); make_good={'yes' if make_good else 'no'}"
-        ),
+        summary=(f"Placement missed: {placement.placement_type} ({reason}); make_good={'yes' if make_good else 'no'}"),
         org_id=placement.org_id,
-        entity_type="sponsor_placement", entity_id=placement.id,
+        entity_type="sponsor_placement",
+        entity_id=placement.id,
         new_state="missed",
-        actor_type=actor_type, actor_id=actor_id,
+        actor_type=actor_type,
+        actor_id=actor_id,
         severity="warning",
         details={
             "placement_id": str(placement.id),
             "campaign_id": str(placement.campaign_id),
             "reason": reason,
-            "make_good_placement_id": (
-                str(make_good_id) if make_good_id else None
-            ),
+            "make_good_placement_id": (str(make_good_id) if make_good_id else None),
         },
     )
     return {
         "triggered": True,
         "placement_id": str(placement.id),
         "status": "missed",
-        "make_good_placement_id": (
-            str(make_good_id) if make_good_id else None
-        ),
+        "make_good_placement_id": (str(make_good_id) if make_good_id else None),
         "reason": reason,
     }

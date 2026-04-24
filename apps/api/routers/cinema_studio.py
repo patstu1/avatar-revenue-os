@@ -1,4 +1,5 @@
 """Cinema Studio endpoints — projects, scenes, characters, styles, generations."""
+
 import uuid
 from typing import Optional
 
@@ -41,6 +42,7 @@ def _raise_for_svc_error(e: ValueError) -> None:
 # Projects
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{brand_id}/studio/projects", response_model=list[StudioProjectResponse])
 async def list_projects(
     brand_id: uuid.UUID,
@@ -55,21 +57,32 @@ async def list_projects(
 
 @router.post("/{brand_id}/studio/projects", response_model=StudioProjectResponse, status_code=201)
 async def create_project(
-    brand_id: uuid.UUID, body: StudioProjectCreate, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    body: StudioProjectCreate,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     project = await svc.create_project(db, brand_id, **body.model_dump())
     await log_action(
-        db, "studio_project.created", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="studio_project", entity_id=project.id,
+        db,
+        "studio_project.created",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="studio_project",
+        entity_id=project.id,
     )
     return project
 
 
 @router.get("/{brand_id}/studio/projects/{project_id}", response_model=StudioProjectResponse)
 async def get_project(
-    brand_id: uuid.UUID, project_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    project_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -80,8 +93,11 @@ async def get_project(
 
 @router.put("/{brand_id}/studio/projects/{project_id}", response_model=StudioProjectResponse)
 async def update_project(
-    brand_id: uuid.UUID, project_id: uuid.UUID, body: StudioProjectUpdate,
-    current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    project_id: uuid.UUID,
+    body: StudioProjectUpdate,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -89,16 +105,24 @@ async def update_project(
     except ValueError as e:
         _raise_for_svc_error(e)
     await log_action(
-        db, "studio_project.updated", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="studio_project", entity_id=project.id,
+        db,
+        "studio_project.updated",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="studio_project",
+        entity_id=project.id,
     )
     return project
 
 
 @router.delete("/{brand_id}/studio/projects/{project_id}", status_code=204)
 async def delete_project(
-    brand_id: uuid.UUID, project_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    project_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -106,15 +130,21 @@ async def delete_project(
     except ValueError as e:
         _raise_for_svc_error(e)
     await log_action(
-        db, "studio_project.deleted", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="studio_project", entity_id=project_id,
+        db,
+        "studio_project.deleted",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="studio_project",
+        entity_id=project_id,
     )
 
 
 # ---------------------------------------------------------------------------
 # Scenes
 # ---------------------------------------------------------------------------
+
 
 @router.get("/{brand_id}/studio/scenes", response_model=list[StudioSceneResponse])
 async def list_scenes(
@@ -130,21 +160,32 @@ async def list_scenes(
 
 @router.post("/{brand_id}/studio/scenes", response_model=StudioSceneResponse, status_code=201)
 async def create_scene(
-    brand_id: uuid.UUID, body: StudioSceneCreate, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    body: StudioSceneCreate,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     scene = await svc.create_scene(db, brand_id, **body.model_dump())
     await log_action(
-        db, "studio_scene.created", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="studio_scene", entity_id=scene.id,
+        db,
+        "studio_scene.created",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="studio_scene",
+        entity_id=scene.id,
     )
     return scene
 
 
 @router.get("/{brand_id}/studio/scenes/{scene_id}", response_model=StudioSceneResponse)
 async def get_scene(
-    brand_id: uuid.UUID, scene_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    scene_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -155,8 +196,11 @@ async def get_scene(
 
 @router.put("/{brand_id}/studio/scenes/{scene_id}", response_model=StudioSceneResponse)
 async def update_scene(
-    brand_id: uuid.UUID, scene_id: uuid.UUID, body: StudioSceneUpdate,
-    current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    scene_id: uuid.UUID,
+    body: StudioSceneUpdate,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -164,16 +208,24 @@ async def update_scene(
     except ValueError as e:
         _raise_for_svc_error(e)
     await log_action(
-        db, "studio_scene.updated", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="studio_scene", entity_id=scene.id,
+        db,
+        "studio_scene.updated",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="studio_scene",
+        entity_id=scene.id,
     )
     return scene
 
 
 @router.delete("/{brand_id}/studio/scenes/{scene_id}", status_code=204)
 async def delete_scene(
-    brand_id: uuid.UUID, scene_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    scene_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -181,9 +233,14 @@ async def delete_scene(
     except ValueError as e:
         _raise_for_svc_error(e)
     await log_action(
-        db, "studio_scene.deleted", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="studio_scene", entity_id=scene_id,
+        db,
+        "studio_scene.deleted",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="studio_scene",
+        entity_id=scene_id,
     )
 
 
@@ -193,14 +250,22 @@ async def delete_scene(
     status_code=201,
 )
 async def generate_from_scene(
-    brand_id: uuid.UUID, scene_id: uuid.UUID, body: GenerationTrigger,
-    current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    scene_id: uuid.UUID,
+    body: GenerationTrigger,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
         gen = await svc.trigger_generation(
-            db, brand_id, scene_id,
-            model=body.model, seed=body.seed, steps=body.steps, guidance=body.guidance,
+            db,
+            brand_id,
+            scene_id,
+            model=body.model,
+            seed=body.seed,
+            steps=body.steps,
+            guidance=body.guidance,
         )
     except svc.NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -209,9 +274,14 @@ async def generate_from_scene(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     await log_action(
-        db, "studio_generation.triggered", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="studio_generation", entity_id=gen.id,
+        db,
+        "studio_generation.triggered",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="studio_generation",
+        entity_id=gen.id,
     )
     return gen
 
@@ -220,9 +290,12 @@ async def generate_from_scene(
 # Characters
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{brand_id}/studio/characters", response_model=list[CharacterBibleResponse])
 async def list_characters(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     page: int = Query(1, ge=1),
 ):
     await require_brand_access(brand_id, current_user, db)
@@ -231,21 +304,32 @@ async def list_characters(
 
 @router.post("/{brand_id}/studio/characters", response_model=CharacterBibleResponse, status_code=201)
 async def create_character(
-    brand_id: uuid.UUID, body: CharacterBibleCreate, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    body: CharacterBibleCreate,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     char = await svc.create_character(db, brand_id, **body.model_dump())
     await log_action(
-        db, "studio_character.created", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="character_bible", entity_id=char.id,
+        db,
+        "studio_character.created",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="character_bible",
+        entity_id=char.id,
     )
     return char
 
 
 @router.get("/{brand_id}/studio/characters/{character_id}", response_model=CharacterBibleResponse)
 async def get_character(
-    brand_id: uuid.UUID, character_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    character_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -256,8 +340,11 @@ async def get_character(
 
 @router.put("/{brand_id}/studio/characters/{character_id}", response_model=CharacterBibleResponse)
 async def update_character(
-    brand_id: uuid.UUID, character_id: uuid.UUID, body: CharacterBibleUpdate,
-    current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    character_id: uuid.UUID,
+    body: CharacterBibleUpdate,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -265,16 +352,24 @@ async def update_character(
     except ValueError as e:
         _raise_for_svc_error(e)
     await log_action(
-        db, "studio_character.updated", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="character_bible", entity_id=char.id,
+        db,
+        "studio_character.updated",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="character_bible",
+        entity_id=char.id,
     )
     return char
 
 
 @router.delete("/{brand_id}/studio/characters/{character_id}", status_code=204)
 async def delete_character(
-    brand_id: uuid.UUID, character_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    character_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -282,9 +377,14 @@ async def delete_character(
     except ValueError as e:
         _raise_for_svc_error(e)
     await log_action(
-        db, "studio_character.deleted", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="character_bible", entity_id=character_id,
+        db,
+        "studio_character.deleted",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="character_bible",
+        entity_id=character_id,
     )
 
 
@@ -292,9 +392,12 @@ async def delete_character(
 # Style Presets
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{brand_id}/studio/styles", response_model=list[StylePresetResponse])
 async def list_styles(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     category: Optional[str] = None,
 ):
     await require_brand_access(brand_id, current_user, db)
@@ -303,22 +406,33 @@ async def list_styles(
 
 @router.post("/{brand_id}/studio/styles", response_model=StylePresetResponse, status_code=201)
 async def create_style(
-    brand_id: uuid.UUID, body: StylePresetCreate, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    body: StylePresetCreate,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     style = await svc.create_style(db, brand_id, **body.model_dump())
     await log_action(
-        db, "studio_style.created", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="style_preset", entity_id=style.id,
+        db,
+        "studio_style.created",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="style_preset",
+        entity_id=style.id,
     )
     return style
 
 
 @router.put("/{brand_id}/studio/styles/{style_id}", response_model=StylePresetResponse)
 async def update_style(
-    brand_id: uuid.UUID, style_id: uuid.UUID, body: StylePresetUpdate,
-    current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    style_id: uuid.UUID,
+    body: StylePresetUpdate,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -326,16 +440,24 @@ async def update_style(
     except ValueError as e:
         _raise_for_svc_error(e)
     await log_action(
-        db, "studio_style.updated", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="style_preset", entity_id=style.id,
+        db,
+        "studio_style.updated",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="style_preset",
+        entity_id=style.id,
     )
     return style
 
 
 @router.delete("/{brand_id}/studio/styles/{style_id}", status_code=204)
 async def delete_style(
-    brand_id: uuid.UUID, style_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    style_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -343,15 +465,21 @@ async def delete_style(
     except ValueError as e:
         _raise_for_svc_error(e)
     await log_action(
-        db, "studio_style.deleted", organization_id=current_user.organization_id,
-        brand_id=brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="style_preset", entity_id=style_id,
+        db,
+        "studio_style.deleted",
+        organization_id=current_user.organization_id,
+        brand_id=brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="style_preset",
+        entity_id=style_id,
     )
 
 
 # ---------------------------------------------------------------------------
 # Generations
 # ---------------------------------------------------------------------------
+
 
 @router.get("/{brand_id}/studio/generations", response_model=list[StudioGenerationResponse])
 async def list_generations(
@@ -368,7 +496,10 @@ async def list_generations(
 
 @router.get("/{brand_id}/studio/generations/{generation_id}", response_model=StudioGenerationResponse)
 async def get_generation(
-    brand_id: uuid.UUID, generation_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    generation_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     try:
@@ -381,9 +512,12 @@ async def get_generation(
 # Dashboard
 # ---------------------------------------------------------------------------
 
+
 @router.get("/{brand_id}/studio/dashboard-stats", response_model=StudioDashboardStats)
 async def studio_dashboard(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
 ):
     await require_brand_access(brand_id, current_user, db)
     return await svc.dashboard_stats(db, brand_id)

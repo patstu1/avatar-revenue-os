@@ -20,6 +20,7 @@ State Machine:
                                 ↓
                               failed
 """
+
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -42,11 +43,10 @@ logger = structlog.get_logger()
 
 # ── State Transition Helpers ────────────────────────────────────────────────
 
+
 async def _get_org_id(db: AsyncSession, brand_id: uuid.UUID) -> Optional[uuid.UUID]:
     """Resolve org_id from brand_id for event emission."""
-    brand = (await db.execute(
-        select(Brand.organization_id).where(Brand.id == brand_id)
-    )).scalar_one_or_none()
+    brand = (await db.execute(select(Brand.organization_id).where(Brand.id == brand_id))).scalar_one_or_none()
     return brand
 
 
@@ -95,6 +95,7 @@ async def _transition_content(
 
 # ── Pipeline Operations with Event Integration ────────────────────────────
 
+
 async def generate_script_with_events(
     db: AsyncSession,
     brief_id: uuid.UUID,
@@ -120,15 +121,22 @@ async def generate_script_with_events(
 
     # --- Kill Ledger Check ---
     kill_check = await intel.check_kill_ledger(
-        db, brief.brand_id, entity_type="content_brief",
+        db,
+        brief.brand_id,
+        entity_type="content_brief",
     )
     if kill_check["blocked"]:
         await emit_event(
-            db, domain="intelligence", event_type="intelligence.kill_blocked",
+            db,
+            domain="intelligence",
+            event_type="intelligence.kill_blocked",
             summary=f"Generation blocked by kill ledger: {brief.title[:60]}",
-            org_id=org_id, brand_id=brief.brand_id,
-            entity_type="content_brief", entity_id=brief.id,
-            severity="warning", requires_action=True,
+            org_id=org_id,
+            brand_id=brief.brand_id,
+            entity_type="content_brief",
+            entity_id=brief.id,
+            severity="warning",
+            requires_action=True,
             correlation_id=correlation_id,
             details={"kill_entries": kill_check["kill_entries"]},
         )
@@ -136,17 +144,23 @@ async def generate_script_with_events(
 
     # --- Get Intelligence Context (logged for observability) ---
     intel_context = await intel.get_generation_intelligence(
-        db, brief.brand_id,
+        db,
+        brief.brand_id,
         platform=brief.target_platform,
     )
 
     # Emit: generation starting (with intelligence signal count)
     await emit_event(
-        db, domain="content", event_type="content.generating",
+        db,
+        domain="content",
+        event_type="content.generating",
         summary=f"Generating script for brief: {brief.title[:80]}",
-        org_id=org_id, brand_id=brief.brand_id,
-        entity_type="content_brief", entity_id=brief.id,
-        previous_state=brief.status, new_state="generating",
+        org_id=org_id,
+        brand_id=brief.brand_id,
+        entity_type="content_brief",
+        entity_id=brief.id,
+        previous_state=brief.status,
+        new_state="generating",
         actor_type="human" if actor_id else "system",
         actor_id=actor_id,
         correlation_id=correlation_id,
@@ -158,11 +172,16 @@ async def generate_script_with_events(
 
         # Emit: generation complete
         await emit_event(
-            db, domain="content", event_type="content.generated",
+            db,
+            domain="content",
+            event_type="content.generated",
             summary=f"Script generated: {script.title[:80]} ({script.word_count} words, {script.generation_model})",
-            org_id=org_id, brand_id=brief.brand_id,
-            entity_type="script", entity_id=script.id,
-            previous_state="generating", new_state="generated",
+            org_id=org_id,
+            brand_id=brief.brand_id,
+            entity_type="script",
+            entity_id=script.id,
+            previous_state="generating",
+            new_state="generated",
             correlation_id=correlation_id,
             details={
                 "word_count": script.word_count,
@@ -176,18 +195,24 @@ async def generate_script_with_events(
     except Exception as e:
         # Emit: generation failed
         await emit_event(
-            db, domain="content", event_type="content.generation_failed",
+            db,
+            domain="content",
+            event_type="content.generation_failed",
             summary=f"Script generation failed for: {brief.title[:80]} — {str(e)[:200]}",
-            org_id=org_id, brand_id=brief.brand_id,
-            entity_type="content_brief", entity_id=brief.id,
-            severity="error", requires_action=True,
+            org_id=org_id,
+            brand_id=brief.brand_id,
+            entity_type="content_brief",
+            entity_id=brief.id,
+            severity="error",
+            requires_action=True,
             correlation_id=correlation_id,
             details={"error": str(e)[:500]},
         )
 
         # Create operator action for the failure
         await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="retry_generation",
             title=f"Script generation failed: {brief.title[:60]}",
             description=f"Generation failed with error: {str(e)[:300]}. Review the brief and retry.",
@@ -224,11 +249,16 @@ async def run_qa_with_events(
 
     # Emit: QA starting
     await emit_event(
-        db, domain="content", event_type="content.qa_started",
+        db,
+        domain="content",
+        event_type="content.qa_started",
         summary=f"QA review started: {item.title[:80]}",
-        org_id=org_id, brand_id=item.brand_id,
-        entity_type="content_item", entity_id=item.id,
-        previous_state=item.status, new_state="qa_review",
+        org_id=org_id,
+        brand_id=item.brand_id,
+        entity_type="content_item",
+        entity_id=item.id,
+        previous_state=item.status,
+        new_state="qa_review",
         actor_type="human" if actor_id else "system",
         actor_id=actor_id,
         correlation_id=correlation_id,
@@ -252,8 +282,11 @@ async def run_qa_with_events(
     if quality_blocked:
         # Block the content
         await _transition_content(
-            db, item, "quality_blocked",
-            org_id=org_id, correlation_id=correlation_id,
+            db,
+            item,
+            "quality_blocked",
+            org_id=org_id,
+            correlation_id=correlation_id,
             severity="warning",
             summary=f"Content blocked by quality gate: {item.title[:60]} — {'; '.join(blocking_reasons)}",
             details={
@@ -267,11 +300,12 @@ async def run_qa_with_events(
 
         # Create operator action for review
         await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="review_blocked_content",
             title=f"Content blocked: {item.title[:60]}",
             description=f"Quality gate blocked this content. Reasons: {'; '.join(blocking_reasons)}. "
-                       f"Review and either fix issues or override the block.",
+            f"Review and either fix issues or override the block.",
             category="blocker",
             priority="high",
             brand_id=item.brand_id,
@@ -286,7 +320,8 @@ async def run_qa_with_events(
     else:
         # QA passed — evaluate publish policy to determine tier
         policy_result = await evaluate_publish_policy(
-            db, item,
+            db,
+            item,
             qa_score=qa_report.composite_score,
             confidence=qa_report.qa_status.value if qa_report.qa_status else None,
         )
@@ -295,8 +330,11 @@ async def run_qa_with_events(
         if tier == "block":
             # Policy says block — treat like quality_blocked
             await _transition_content(
-                db, item, "quality_blocked",
-                org_id=org_id, correlation_id=correlation_id,
+                db,
+                item,
+                "quality_blocked",
+                org_id=org_id,
+                correlation_id=correlation_id,
                 severity="warning",
                 summary=f"Content blocked by publish policy: {item.title[:60]} — {policy_result.explanation}",
                 details={
@@ -308,11 +346,12 @@ async def run_qa_with_events(
                 requires_action=True,
             )
             await emit_action(
-                db, org_id=org_id,
+                db,
+                org_id=org_id,
                 action_type="review_blocked_content",
                 title=f"Policy blocked: {item.title[:60]}",
                 description=f"Publish policy rule '{policy_result.rule_name}' blocked this content. "
-                           f"{policy_result.explanation}",
+                f"{policy_result.explanation}",
                 category="blocker",
                 priority="high",
                 brand_id=item.brand_id,
@@ -330,8 +369,11 @@ async def run_qa_with_events(
         elif tier in ("auto_publish", "sample_review"):
             # Auto-approve — no human in the loop
             await _transition_content(
-                db, item, "approved",
-                org_id=org_id, correlation_id=correlation_id,
+                db,
+                item,
+                "approved",
+                org_id=org_id,
+                correlation_id=correlation_id,
                 summary=f"Auto-approved ({tier}): {item.title[:60]} (QA: {qa_report.composite_score:.2f}, rule: {policy_result.rule_name})",
                 details={
                     "qa_score": qa_report.composite_score,
@@ -360,11 +402,12 @@ async def run_qa_with_events(
             # If sample review AND this item was flagged, create async review action
             if tier == "sample_review" and policy_result.sample_flagged:
                 await emit_action(
-                    db, org_id=org_id,
+                    db,
+                    org_id=org_id,
                     action_type="review_published_content",
                     title=f"Sample review: {item.title[:60]}",
                     description=f"This content was auto-published but flagged for sample review "
-                               f"by rule '{policy_result.rule_name}'. Review post-publish.",
+                    f"by rule '{policy_result.rule_name}'. Review post-publish.",
                     category="approval",
                     priority="low",
                     brand_id=item.brand_id,
@@ -382,8 +425,11 @@ async def run_qa_with_events(
         else:
             # manual_approval (or any unrecognized tier) — hold for human
             await _transition_content(
-                db, item, "qa_complete",
-                org_id=org_id, correlation_id=correlation_id,
+                db,
+                item,
+                "qa_complete",
+                org_id=org_id,
+                correlation_id=correlation_id,
                 summary=f"QA passed, awaiting manual approval: {item.title[:60]} (score: {qa_report.composite_score:.2f})",
                 details={
                     "qa_score": qa_report.composite_score,
@@ -393,11 +439,12 @@ async def run_qa_with_events(
                 },
             )
             await emit_action(
-                db, org_id=org_id,
+                db,
+                org_id=org_id,
                 action_type="approve_content",
                 title=f"Review & approve: {item.title[:60]}",
                 description=f"Content passed QA (score: {qa_report.composite_score:.2f}) but "
-                           f"publish policy rule '{policy_result.rule_name}' requires manual approval.",
+                f"publish policy rule '{policy_result.rule_name}' requires manual approval.",
                 category="approval",
                 priority="medium",
                 brand_id=item.brand_id,
@@ -437,12 +484,18 @@ async def approve_with_events(
     approval = await pipeline.approve_content(db, content_id, user_id, notes)
 
     await emit_event(
-        db, domain="content", event_type="content.approved",
+        db,
+        domain="content",
+        event_type="content.approved",
         summary=f"Content approved: {item.title[:80]}",
-        org_id=org_id, brand_id=item.brand_id,
-        entity_type="content_item", entity_id=item.id,
-        previous_state="qa_complete", new_state="approved",
-        actor_type="human", actor_id=str(user_id),
+        org_id=org_id,
+        brand_id=item.brand_id,
+        entity_type="content_item",
+        entity_id=item.id,
+        previous_state="qa_complete",
+        new_state="approved",
+        actor_type="human",
+        actor_id=str(user_id),
         details={"notes": notes, "approval_id": str(approval.id)},
     )
 
@@ -450,16 +503,17 @@ async def approve_with_events(
     script = None
     if item.script_id:
         from packages.db.models.content import Script as ScriptModel
-        script = (await db.execute(
-            select(ScriptModel).where(ScriptModel.id == item.script_id)
-        )).scalar_one_or_none()
+
+        script = (await db.execute(select(ScriptModel).where(ScriptModel.id == item.script_id))).scalar_one_or_none()
 
     await gov.record_generation_outcome(
-        db, item.brand_id, item.id,
+        db,
+        item.brand_id,
+        item.id,
         generation_params={
             "model": script.generation_model if script else "unknown",
             "platform": item.platform,
-            "content_type": item.content_type.value if hasattr(item.content_type, 'value') else str(item.content_type),
+            "content_type": item.content_type.value if hasattr(item.content_type, "value") else str(item.content_type),
         },
         approval_status="approved",
     )
@@ -480,13 +534,19 @@ async def reject_with_events(
     approval = await pipeline.reject_content(db, content_id, user_id, notes)
 
     await emit_event(
-        db, domain="content", event_type="content.rejected",
+        db,
+        domain="content",
+        event_type="content.rejected",
         summary=f"Content rejected: {item.title[:80]}",
-        org_id=org_id, brand_id=item.brand_id,
-        entity_type="content_item", entity_id=item.id,
-        previous_state="qa_complete", new_state="rejected",
+        org_id=org_id,
+        brand_id=item.brand_id,
+        entity_type="content_item",
+        entity_id=item.id,
+        previous_state="qa_complete",
+        new_state="rejected",
         severity="warning",
-        actor_type="human", actor_id=str(user_id),
+        actor_type="human",
+        actor_id=str(user_id),
         details={"notes": notes, "approval_id": str(approval.id)},
     )
 
@@ -513,11 +573,16 @@ async def publish_with_events(
     job = await pipeline.publish_now(db, content_id, creator_account_id, platform)
 
     await emit_event(
-        db, domain="publishing", event_type="content.publishing",
+        db,
+        domain="publishing",
+        event_type="content.publishing",
         summary=f"Publishing started: {item.title[:60]} → {platform}",
-        org_id=org_id, brand_id=item.brand_id,
-        entity_type="content_item", entity_id=item.id,
-        previous_state="approved", new_state="publishing",
+        org_id=org_id,
+        brand_id=item.brand_id,
+        entity_type="content_item",
+        entity_id=item.id,
+        previous_state="approved",
+        new_state="publishing",
         actor_type="human" if actor_id else "system",
         actor_id=actor_id,
         details={
@@ -545,17 +610,22 @@ async def finalize_media_with_events(
     org_id = await _get_org_id(db, item.brand_id)
 
     await emit_event(
-        db, domain="content", event_type="content.media_complete",
+        db,
+        domain="content",
+        event_type="content.media_complete",
         summary=f"Media finalized: {item.title[:80]}",
-        org_id=org_id, brand_id=item.brand_id,
-        entity_type="content_item", entity_id=item.id,
+        org_id=org_id,
+        brand_id=item.brand_id,
+        entity_type="content_item",
+        entity_id=item.id,
         new_state="media_complete",
         details={"media_job_id": str(job_id)},
     )
 
     # Auto-create QA action
     await emit_action(
-        db, org_id=org_id,
+        db,
+        org_id=org_id,
         action_type="run_qa",
         title=f"Run QA: {item.title[:60]}",
         description="Media generation complete. Run QA scoring to check quality before approval.",

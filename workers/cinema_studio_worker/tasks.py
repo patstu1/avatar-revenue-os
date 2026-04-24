@@ -3,6 +3,7 @@
 Flow: process_studio_generation → ContentItem(media_complete) → QA → auto_approve →
       auto_publish (existing beat) → analytics ingest → revenue ceiling phases.
 """
+
 import re
 import uuid
 from datetime import datetime, timezone
@@ -19,18 +20,111 @@ logger = structlog.get_logger()
 def _extract_prompt_keywords(prompt: str, max_keywords: int = 12) -> list[str]:
     """Extract meaningful keywords from a scene prompt for tag enrichment."""
     stop_words = {
-        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did", "will", "would", "could",
-        "should", "may", "might", "shall", "can", "need", "dare", "ought",
-        "used", "to", "of", "in", "for", "on", "with", "at", "by", "from",
-        "as", "into", "through", "during", "before", "after", "above", "below",
-        "between", "out", "off", "over", "under", "again", "further", "then",
-        "once", "here", "there", "when", "where", "why", "how", "all", "each",
-        "every", "both", "few", "more", "most", "other", "some", "such", "no",
-        "not", "only", "own", "same", "so", "than", "too", "very", "just",
-        "and", "but", "or", "if", "while", "that", "this", "these", "those",
-        "it", "its", "they", "them", "their", "we", "our", "you", "your",
-        "he", "she", "him", "her", "his", "my", "me",
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "shall",
+        "can",
+        "need",
+        "dare",
+        "ought",
+        "used",
+        "to",
+        "of",
+        "in",
+        "for",
+        "on",
+        "with",
+        "at",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "out",
+        "off",
+        "over",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "here",
+        "there",
+        "when",
+        "where",
+        "why",
+        "how",
+        "all",
+        "each",
+        "every",
+        "both",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "no",
+        "not",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "just",
+        "and",
+        "but",
+        "or",
+        "if",
+        "while",
+        "that",
+        "this",
+        "these",
+        "those",
+        "it",
+        "its",
+        "they",
+        "them",
+        "their",
+        "we",
+        "our",
+        "you",
+        "your",
+        "he",
+        "she",
+        "him",
+        "her",
+        "his",
+        "my",
+        "me",
     }
     words = re.findall(r"[a-zA-Z]{3,}", prompt.lower())
     seen = set()
@@ -103,10 +197,13 @@ def process_studio_generation(self, generation_id: str, brand_id: str) -> dict:
 
         # ── Resolve creator account for this brand ────────────────────
         account = session.execute(
-            select(CreatorAccount).where(
+            select(CreatorAccount)
+            .where(
                 CreatorAccount.brand_id == uuid.UUID(brand_id),
                 CreatorAccount.is_active.is_(True),
-            ).order_by(CreatorAccount.created_at).limit(1)
+            )
+            .order_by(CreatorAccount.created_at)
+            .limit(1)
         ).scalar_one_or_none()
 
         # ── Build enriched tags from scene metadata ───────────────────
@@ -186,19 +283,21 @@ def process_studio_generation(self, generation_id: str, brand_id: str) -> dict:
         scene.status = "completed"
         scene.thumbnail_url = gen.thumbnail_url
 
-        session.add(StudioActivity(
-            brand_id=uuid.UUID(brand_id),
-            activity_type="generation_completed",
-            entity_id=gen.id,
-            entity_name=scene.title,
-            activity_metadata={
-                "provider": provider,
-                "media_job_id": str(media_job.id),
-                "content_item_id": str(item.id),
-                "creator_account_id": str(account.id) if account else None,
-                "tags_count": len(tags),
-            },
-        ))
+        session.add(
+            StudioActivity(
+                brand_id=uuid.UUID(brand_id),
+                activity_type="generation_completed",
+                entity_id=gen.id,
+                entity_name=scene.title,
+                activity_metadata={
+                    "provider": provider,
+                    "media_job_id": str(media_job.id),
+                    "content_item_id": str(item.id),
+                    "creator_account_id": str(account.id) if account else None,
+                    "tags_count": len(tags),
+                },
+            )
+        )
 
         session.commit()
         session.refresh(gen)
@@ -206,6 +305,7 @@ def process_studio_generation(self, generation_id: str, brand_id: str) -> dict:
         # ── Dispatch QA pipeline ──────────────────────────────────────
         try:
             from workers.qa_worker.tasks import run_qa_check, run_similarity_check
+
             run_qa_check.delay(str(item.id))
             run_similarity_check.delay(str(item.id))
             logger.info(
@@ -325,18 +425,28 @@ def auto_approve_studio_content(self) -> dict:
     parked_count = 0
 
     with Session(engine) as session:
-        qa_complete_items = session.execute(
-            select(ContentItem).where(
-                ContentItem.status == "qa_complete",
-                ContentItem.title.like("Studio:%"),
-            ).order_by(ContentItem.created_at).limit(50)
-        ).scalars().all()
+        qa_complete_items = (
+            session.execute(
+                select(ContentItem)
+                .where(
+                    ContentItem.status == "qa_complete",
+                    ContentItem.title.like("Studio:%"),
+                )
+                .order_by(ContentItem.created_at)
+                .limit(50)
+            )
+            .scalars()
+            .all()
+        )
 
         for item in qa_complete_items:
             qa_report = session.execute(
-                select(QAReport).where(
+                select(QAReport)
+                .where(
                     QAReport.content_item_id == item.id,
-                ).order_by(QAReport.created_at.desc()).limit(1)
+                )
+                .order_by(QAReport.created_at.desc())
+                .limit(1)
             ).scalar_one_or_none()
 
             if not qa_report:
@@ -354,10 +464,13 @@ def auto_approve_studio_content(self) -> dict:
                 continue
 
             qg_report = session.execute(
-                select(QualityGovernorReport).where(
+                select(QualityGovernorReport)
+                .where(
                     QualityGovernorReport.content_item_id == item.id,
                     QualityGovernorReport.is_active.is_(True),
-                ).order_by(QualityGovernorReport.created_at.desc()).limit(1)
+                )
+                .order_by(QualityGovernorReport.created_at.desc())
+                .limit(1)
             ).scalar_one_or_none()
 
             if qg_report and not qg_report.publish_allowed:
@@ -418,7 +531,7 @@ def auto_approve_studio_content(self) -> dict:
         "approved": approved_count,
         "skipped": skipped_count,
         "parked_pending_media": parked_count,
-        "checked": len(qa_complete_items) if 'qa_complete_items' in dir() else 0,
+        "checked": len(qa_complete_items) if "qa_complete_items" in dir() else 0,
     }
 
 
@@ -440,12 +553,16 @@ def sync_studio_generations(self) -> dict:
     synced = 0
 
     with Session(engine) as session:
-        pending_gens = session.execute(
-            select(StudioGeneration).where(
-                StudioGeneration.status.in_(["pending", "processing"]),
-                StudioGeneration.media_job_id.isnot(None),
+        pending_gens = (
+            session.execute(
+                select(StudioGeneration).where(
+                    StudioGeneration.status.in_(["pending", "processing"]),
+                    StudioGeneration.media_job_id.isnot(None),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         for gen in pending_gens:
             job = session.get(MediaJob, gen.media_job_id)

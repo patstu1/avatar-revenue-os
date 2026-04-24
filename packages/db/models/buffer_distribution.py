@@ -1,4 +1,5 @@
 """Buffer Distribution Layer — 5 tables for Buffer-as-primary social distribution."""
+
 import uuid
 from typing import Optional
 
@@ -12,10 +13,13 @@ from packages.db.enums import Platform
 
 class BufferProfile(Base):
     """Maps a creator account to a Buffer-connected profile/channel."""
+
     __tablename__ = "buffer_profiles"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=True, index=True)
+    creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("creator_accounts.id"), nullable=True, index=True
+    )
     platform: Mapped[Platform] = mapped_column(Enum(Platform), nullable=False, index=True)
     buffer_profile_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -28,12 +32,19 @@ class BufferProfile(Base):
 
 class BufferPublishJob(Base):
     """A single publish handoff to Buffer for a content item / distribution plan entry."""
+
     __tablename__ = "buffer_publish_jobs"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    buffer_profile_id_fk: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("buffer_profiles.id"), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
-    distribution_plan_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("distribution_plans.id"), nullable=True, index=True)
+    buffer_profile_id_fk: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("buffer_profiles.id"), nullable=False, index=True
+    )
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
+    distribution_plan_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("distribution_plans.id"), nullable=True, index=True
+    )
     platform: Mapped[Platform] = mapped_column(Enum(Platform), nullable=False, index=True)
     publish_mode: Mapped[str] = mapped_column(String(30), default="queue", index=True)
     status: Mapped[str] = mapped_column(String(30), default="pending", index=True)
@@ -50,9 +61,12 @@ class BufferPublishJob(Base):
 
 class BufferPublishAttempt(Base):
     """Tracks each API call attempt to Buffer for a publish job."""
+
     __tablename__ = "buffer_publish_attempts"
 
-    job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("buffer_publish_jobs.id"), nullable=False, index=True)
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("buffer_publish_jobs.id"), nullable=False, index=True
+    )
     attempt_number: Mapped[int] = mapped_column(Integer, default=1)
     request_payload_json: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     response_status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -64,6 +78,7 @@ class BufferPublishAttempt(Base):
 
 class BufferStatusSync(Base):
     """Periodic sync of Buffer post statuses back into our system."""
+
     __tablename__ = "buffer_status_syncs"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
@@ -78,10 +93,13 @@ class BufferStatusSync(Base):
 
 class BufferBlocker(Base):
     """Tracks blockers preventing Buffer distribution for a brand/profile."""
+
     __tablename__ = "buffer_blockers"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    buffer_profile_id_fk: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("buffer_profiles.id"), nullable=True, index=True)
+    buffer_profile_id_fk: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("buffer_profiles.id"), nullable=True, index=True
+    )
     blocker_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     severity: Mapped[str] = mapped_column(String(30), default="high", index=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)

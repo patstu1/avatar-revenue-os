@@ -1,4 +1,5 @@
 """Celery tasks for Autonomous Execution Phase D — agents, revenue pressure, blockers, escalations."""
+
 from __future__ import annotations
 
 import structlog
@@ -14,9 +15,7 @@ logger = structlog.get_logger()
 
 async def _active_brand_ids() -> list:
     async with get_async_session_factory()() as session:
-        rows = (await session.execute(
-            select(Brand.id).where(Brand.is_active.is_(True))
-        )).scalars().all()
+        rows = (await session.execute(select(Brand.id).where(Brand.is_active.is_(True)))).scalars().all()
         return list(rows)
 
 

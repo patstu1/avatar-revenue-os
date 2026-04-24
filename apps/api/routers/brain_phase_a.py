@@ -1,4 +1,5 @@
 """Brain Architecture Phase A — memory, account/opportunity/execution/audience state APIs."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -28,9 +29,12 @@ async def _require_brand(brand_id: uuid.UUID, current_user: CurrentUser, db: DBS
 
 # ── Brain Memory ──────────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/brain-memory", response_model=BrainMemoryBundleOut)
 async def list_brain_memory(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -42,7 +46,9 @@ async def list_brain_memory(
 
 @router.post("/{brand_id}/brain-memory/recompute", response_model=RecomputeSummaryOut)
 async def recompute_brain_memory(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -59,9 +65,12 @@ async def recompute_brain_memory(
 
 # ── Account State ─────────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/account-states", response_model=list[AccountStateSnapshotOut])
 async def list_account_states(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -73,7 +82,9 @@ async def list_account_states(
 
 @router.post("/{brand_id}/account-states/recompute", response_model=RecomputeSummaryOut)
 async def recompute_account_states(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -90,9 +101,12 @@ async def recompute_account_states(
 
 # ── Opportunity State ─────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/opportunity-states", response_model=list[OpportunityStateSnapshotOut])
 async def list_opportunity_states(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -104,7 +118,9 @@ async def list_opportunity_states(
 
 @router.post("/{brand_id}/opportunity-states/recompute", response_model=RecomputeSummaryOut)
 async def recompute_opportunity_states(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -121,9 +137,12 @@ async def recompute_opportunity_states(
 
 # ── Execution State ───────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/execution-states", response_model=list[ExecutionStateSnapshotOut])
 async def list_execution_states(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -135,7 +154,9 @@ async def list_execution_states(
 
 @router.post("/{brand_id}/execution-states/recompute", response_model=RecomputeSummaryOut)
 async def recompute_execution_states(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -152,9 +173,12 @@ async def recompute_execution_states(
 
 # ── Audience State V2 ────────────────────────────────────────────────
 
+
 @router.get("/{brand_id}/audience-states-v2", response_model=list[AudienceStateSnapshotV2Out])
 async def list_audience_states_v2(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DBSession,
     limit: int = Query(100, ge=1, le=500),
 ):
     await _require_brand(brand_id, current_user, db)
@@ -166,7 +190,9 @@ async def list_audience_states_v2(
 
 @router.post("/{brand_id}/audience-states-v2/recompute", response_model=RecomputeSummaryOut)
 async def recompute_audience_states_v2(
-    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession,
+    brand_id: uuid.UUID,
+    current_user: OperatorUser,
+    db: DBSession,
     _rl=Depends(recompute_rate_limit),
 ):
     await _require_brand(brand_id, current_user, db)

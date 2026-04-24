@@ -1,4 +1,5 @@
 """Failure-Family Suppression — detect and suppress recurring bad patterns."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -28,8 +29,12 @@ class FailureFamilyReport(Base):
 class FailureFamilyMember(Base):
     __tablename__ = "ff_members"
 
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ff_reports.id"), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ff_reports.id"), nullable=False, index=True
+    )
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True
+    )
     pattern_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     fail_score: Mapped[float] = mapped_column(Float, default=0.0)
     detail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -40,7 +45,9 @@ class SuppressionRule(Base):
     __tablename__ = "ff_suppression_rules"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ff_reports.id"), nullable=False, index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ff_reports.id"), nullable=False, index=True
+    )
     family_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     family_key: Mapped[str] = mapped_column(String(255), nullable=False)
     suppression_mode: Mapped[str] = mapped_column(String(20), default="temporary")
@@ -54,7 +61,9 @@ class SuppressionEvent(Base):
     __tablename__ = "ff_suppression_events"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    rule_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ff_suppression_rules.id"), nullable=False, index=True)
+    rule_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ff_suppression_rules.id"), nullable=False, index=True
+    )
     blocked_target: Mapped[str] = mapped_column(String(255), nullable=False)
     blocked_context: Mapped[str] = mapped_column(String(60), nullable=False)
     explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

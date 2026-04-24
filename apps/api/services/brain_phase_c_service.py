@@ -1,4 +1,5 @@
 """Brain Architecture Phase C — service layer for agent mesh, workflows, context bus, memory binding."""
+
 from __future__ import annotations
 
 import time
@@ -28,6 +29,7 @@ from packages.scoring.brain_phase_c_engine import (
 
 # ── List helpers ──────────────────────────────────────────────────────
 
+
 async def list_agent_registry(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
     q = await db.execute(
         select(AgentRegistryEntry)
@@ -41,7 +43,8 @@ async def list_agent_runs_v2(db: AsyncSession, brand_id: uuid.UUID, *, limit: in
     q = await db.execute(
         select(AgentRunV2)
         .where(AgentRunV2.brand_id == brand_id, AgentRunV2.is_active.is_(True))
-        .order_by(AgentRunV2.created_at.desc()).limit(limit)
+        .order_by(AgentRunV2.created_at.desc())
+        .limit(limit)
     )
     return [_run_out(r) for r in q.scalars().all()]
 
@@ -50,7 +53,8 @@ async def list_workflow_coordination(db: AsyncSession, brand_id: uuid.UUID, *, l
     q = await db.execute(
         select(WorkflowCoordinationRun)
         .where(WorkflowCoordinationRun.brand_id == brand_id, WorkflowCoordinationRun.is_active.is_(True))
-        .order_by(WorkflowCoordinationRun.created_at.desc()).limit(limit)
+        .order_by(WorkflowCoordinationRun.created_at.desc())
+        .limit(limit)
     )
     return [_workflow_out(r) for r in q.scalars().all()]
 
@@ -59,23 +63,49 @@ async def list_shared_context_events(db: AsyncSession, brand_id: uuid.UUID, *, l
     q = await db.execute(
         select(SharedContextEvent)
         .where(SharedContextEvent.brand_id == brand_id, SharedContextEvent.is_active.is_(True))
-        .order_by(SharedContextEvent.created_at.desc()).limit(limit)
+        .order_by(SharedContextEvent.created_at.desc())
+        .limit(limit)
     )
     return [_ctx_event_out(r) for r in q.scalars().all()]
 
 
 # ── Recompute: full orchestration cycle ───────────────────────────────
 
+
 async def recompute_agent_mesh(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, int]:
     _health_map = {"healthy": 1.0, "warning": 0.6, "degraded": 0.35, "critical": 0.15, "suspended": 0.05}
 
     # Deactivate old records
-    await db.execute(update(AgentRegistryEntry).where(AgentRegistryEntry.brand_id == brand_id, AgentRegistryEntry.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(AgentRunV2).where(AgentRunV2.brand_id == brand_id, AgentRunV2.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(AgentMessageV2).where(AgentMessageV2.brand_id == brand_id, AgentMessageV2.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(WorkflowCoordinationRun).where(WorkflowCoordinationRun.brand_id == brand_id, WorkflowCoordinationRun.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(CoordinationDecision).where(CoordinationDecision.brand_id == brand_id, CoordinationDecision.is_active.is_(True)).values(is_active=False))
-    await db.execute(update(SharedContextEvent).where(SharedContextEvent.brand_id == brand_id, SharedContextEvent.is_active.is_(True)).values(is_active=False))
+    await db.execute(
+        update(AgentRegistryEntry)
+        .where(AgentRegistryEntry.brand_id == brand_id, AgentRegistryEntry.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(AgentRunV2)
+        .where(AgentRunV2.brand_id == brand_id, AgentRunV2.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(AgentMessageV2)
+        .where(AgentMessageV2.brand_id == brand_id, AgentMessageV2.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(WorkflowCoordinationRun)
+        .where(WorkflowCoordinationRun.brand_id == brand_id, WorkflowCoordinationRun.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(CoordinationDecision)
+        .where(CoordinationDecision.brand_id == brand_id, CoordinationDecision.is_active.is_(True))
+        .values(is_active=False)
+    )
+    await db.execute(
+        update(SharedContextEvent)
+        .where(SharedContextEvent.brand_id == brand_id, SharedContextEvent.is_active.is_(True))
+        .values(is_active=False)
+    )
 
     # 1. Populate agent registry
     registry_defs = build_agent_registry()
@@ -104,25 +134,30 @@ async def recompute_agent_mesh(db: AsyncSession, brand_id: uuid.UUID) -> dict[st
     memory_q = await db.execute(
         select(BrainMemoryEntry)
         .where(BrainMemoryEntry.brand_id == brand_id, BrainMemoryEntry.is_active.is_(True))
-        .order_by(BrainMemoryEntry.created_at.desc()).limit(30)
+        .order_by(BrainMemoryEntry.created_at.desc())
+        .limit(30)
     )
     memories = memory_q.scalars().all()
-    mem_dicts = [{"id": m.id, "entry_type": m.entry_type, "summary": m.summary, "confidence": m.confidence} for m in memories]
+    mem_dicts = [
+        {"id": m.id, "entry_type": m.entry_type, "summary": m.summary, "confidence": m.confidence} for m in memories
+    ]
 
     # Build context from accounts
     ctx: dict[str, Any] = {"account_count": len(accts)}
     if accts:
         a = accts[0]
         health_val = a.account_health.value if a.account_health else "healthy"
-        ctx.update({
-            "account_state": "warming" if health_val in ("healthy", "warning") else "at_risk",
-            "platform": a.platform.value if a.platform else "tiktok",
-            "saturation_score": float(a.saturation_score or 0),
-            "fatigue_score": float(a.fatigue_score or 0),
-            "has_blocker": False,
-            "opportunity_state": "monitor",
-            "organic_winner": float(getattr(a, "profit_per_post", 0) or 0) > 5,
-        })
+        ctx.update(
+            {
+                "account_state": "warming" if health_val in ("healthy", "warning") else "at_risk",
+                "platform": a.platform.value if a.platform else "tiktok",
+                "saturation_score": float(a.saturation_score or 0),
+                "fatigue_score": float(a.fatigue_score or 0),
+                "has_blocker": False,
+                "opportunity_state": "monitor",
+                "organic_winner": float(getattr(a, "profit_per_post", 0) or 0) > 5,
+            }
+        )
 
     # 3. Run each agent
     runs_created = 0
@@ -153,14 +188,22 @@ async def recompute_agent_mesh(db: AsyncSession, brand_id: uuid.UUID) -> dict[st
         runs_created += 1
 
         msg_in = AgentMessageV2(
-            brand_id=brand_id, run_id=run_obj.id, agent_slug=slug,
-            direction="input", message_type="context",
-            payload_json=ctx, explanation=f"Input context for {slug}",
+            brand_id=brand_id,
+            run_id=run_obj.id,
+            agent_slug=slug,
+            direction="input",
+            message_type="context",
+            payload_json=ctx,
+            explanation=f"Input context for {slug}",
         )
         msg_out = AgentMessageV2(
-            brand_id=brand_id, run_id=run_obj.id, agent_slug=slug,
-            direction="output", message_type="result",
-            payload_json=result["outputs"], explanation=result["explanation"],
+            brand_id=brand_id,
+            run_id=run_obj.id,
+            agent_slug=slug,
+            direction="output",
+            message_type="result",
+            payload_json=result["outputs"],
+            explanation=result["explanation"],
         )
         db.add(msg_in)
         db.add(msg_out)
@@ -233,49 +276,75 @@ async def recompute_agent_mesh(db: AsyncSession, brand_id: uuid.UUID) -> dict[st
 
 # ── Serialization helpers ─────────────────────────────────────────────
 
+
 def _registry_out(r: AgentRegistryEntry) -> dict[str, Any]:
     return {
-        "id": r.id, "brand_id": r.brand_id,
-        "agent_slug": r.agent_slug, "agent_label": r.agent_label,
+        "id": r.id,
+        "brand_id": r.brand_id,
+        "agent_slug": r.agent_slug,
+        "agent_label": r.agent_label,
         "description": r.description,
-        "input_schema_json": r.input_schema_json, "output_schema_json": r.output_schema_json,
+        "input_schema_json": r.input_schema_json,
+        "output_schema_json": r.output_schema_json,
         "memory_scopes_json": r.memory_scopes_json,
         "upstream_agents_json": r.upstream_agents_json,
         "downstream_agents_json": r.downstream_agents_json,
-        "is_active": r.is_active, "created_at": r.created_at, "updated_at": r.updated_at,
+        "is_active": r.is_active,
+        "created_at": r.created_at,
+        "updated_at": r.updated_at,
     }
 
 
 def _run_out(r: AgentRunV2) -> dict[str, Any]:
     return {
-        "id": r.id, "brand_id": r.brand_id,
-        "agent_slug": r.agent_slug, "run_status": r.run_status, "trigger": r.trigger,
-        "inputs_json": r.inputs_json, "outputs_json": r.outputs_json,
+        "id": r.id,
+        "brand_id": r.brand_id,
+        "agent_slug": r.agent_slug,
+        "run_status": r.run_status,
+        "trigger": r.trigger,
+        "inputs_json": r.inputs_json,
+        "outputs_json": r.outputs_json,
         "memory_refs_json": r.memory_refs_json,
-        "confidence": r.confidence, "duration_ms": r.duration_ms,
-        "error_detail": r.error_detail, "explanation": r.explanation,
-        "is_active": r.is_active, "created_at": r.created_at, "updated_at": r.updated_at,
+        "confidence": r.confidence,
+        "duration_ms": r.duration_ms,
+        "error_detail": r.error_detail,
+        "explanation": r.explanation,
+        "is_active": r.is_active,
+        "created_at": r.created_at,
+        "updated_at": r.updated_at,
     }
 
 
 def _workflow_out(w: WorkflowCoordinationRun) -> dict[str, Any]:
     return {
-        "id": w.id, "brand_id": w.brand_id,
-        "workflow_type": w.workflow_type, "sequence_json": w.sequence_json,
-        "status": w.status, "handoff_events_json": w.handoff_events_json,
+        "id": w.id,
+        "brand_id": w.brand_id,
+        "workflow_type": w.workflow_type,
+        "sequence_json": w.sequence_json,
+        "status": w.status,
+        "handoff_events_json": w.handoff_events_json,
         "failure_points_json": w.failure_points_json,
-        "inputs_json": w.inputs_json, "outputs_json": w.outputs_json,
+        "inputs_json": w.inputs_json,
+        "outputs_json": w.outputs_json,
         "explanation": w.explanation,
-        "is_active": w.is_active, "created_at": w.created_at, "updated_at": w.updated_at,
+        "is_active": w.is_active,
+        "created_at": w.created_at,
+        "updated_at": w.updated_at,
     }
 
 
 def _ctx_event_out(e: SharedContextEvent) -> dict[str, Any]:
     return {
-        "id": e.id, "brand_id": e.brand_id,
-        "event_type": e.event_type, "source_module": e.source_module,
+        "id": e.id,
+        "brand_id": e.brand_id,
+        "event_type": e.event_type,
+        "source_module": e.source_module,
         "target_modules_json": e.target_modules_json,
-        "payload_json": e.payload_json, "priority": e.priority,
-        "consumed": e.consumed, "explanation": e.explanation,
-        "is_active": e.is_active, "created_at": e.created_at, "updated_at": e.updated_at,
+        "payload_json": e.payload_json,
+        "priority": e.priority,
+        "consumed": e.consumed,
+        "explanation": e.explanation,
+        "is_active": e.is_active,
+        "created_at": e.created_at,
+        "updated_at": e.updated_at,
     }

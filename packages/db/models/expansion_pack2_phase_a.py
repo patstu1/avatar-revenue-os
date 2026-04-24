@@ -1,4 +1,5 @@
 """Expansion Pack 2 Phase A: lead qualification, closer actions, owned offer recommendations."""
+
 import uuid
 from typing import Optional
 
@@ -12,9 +13,7 @@ from packages.db.base import Base
 class LeadOpportunity(Base):
     __tablename__ = "lead_opportunities"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     lead_source: Mapped[str] = mapped_column(String(80), default="")
     message_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     urgency_score: Mapped[float] = mapped_column(Float, default=0.0)
@@ -39,9 +38,7 @@ class LeadOpportunity(Base):
 class CloserAction(Base):
     __tablename__ = "closer_actions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     lead_opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("lead_opportunities.id"), nullable=True, index=True
     )
@@ -61,9 +58,7 @@ class LeadQualificationReport(Base):
 
     __table_args__ = (UniqueConstraint("brand_id", name="uq_lead_qual_brand"),)
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     total_leads_scored: Mapped[int] = mapped_column(Integer, default=0)
     hot_leads: Mapped[int] = mapped_column(Integer, default=0)
     warm_leads: Mapped[int] = mapped_column(Integer, default=0)
@@ -81,13 +76,9 @@ class LeadQualificationReport(Base):
 class OwnedOfferRecommendation(Base):
     __tablename__ = "owned_offer_recommendations"
 
-    __table_args__ = (
-        UniqueConstraint("brand_id", "opportunity_key", name="uq_owned_offer_brand_key"),
-    )
+    __table_args__ = (UniqueConstraint("brand_id", "opportunity_key", name="uq_owned_offer_brand_key"),)
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     opportunity_key: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     signal_type: Mapped[str] = mapped_column(String(80), nullable=False)
     detected_signal: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

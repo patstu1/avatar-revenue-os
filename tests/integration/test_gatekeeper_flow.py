@@ -1,17 +1,30 @@
 """DB-backed integration tests for AI Gatekeeper APIs."""
+
 import pytest
 
 GK = "/api/v1/brands/{bid}/gatekeeper"
 
 GET_ENDPOINTS = [
-    "completion", "truth", "execution-closure", "tests",
-    "dependencies", "contradictions", "operator-commands",
-    "expansion-permissions", "alerts", "audit-ledger",
+    "completion",
+    "truth",
+    "execution-closure",
+    "tests",
+    "dependencies",
+    "contradictions",
+    "operator-commands",
+    "expansion-permissions",
+    "alerts",
+    "audit-ledger",
 ]
 
 RECOMPUTE_ENDPOINTS = [
-    "completion", "truth", "execution-closure", "tests",
-    "dependencies", "contradictions", "operator-commands",
+    "completion",
+    "truth",
+    "execution-closure",
+    "tests",
+    "dependencies",
+    "contradictions",
+    "operator-commands",
     "expansion-permissions",
 ]
 

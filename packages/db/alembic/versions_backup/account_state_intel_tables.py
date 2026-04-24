@@ -3,6 +3,7 @@
 Revision ID: asi_001
 Revises: cap_alloc_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -17,7 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table("asi_account_state_reports",
+    op.create_table(
+        "asi_account_state_reports",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -41,7 +43,8 @@ def upgrade() -> None:
     op.create_index("ix_asr_brand", "asi_account_state_reports", ["brand_id"])
     op.create_index("ix_asr_account", "asi_account_state_reports", ["account_id"])
 
-    op.create_table("asi_account_state_transitions",
+    op.create_table(
+        "asi_account_state_transitions",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -57,7 +60,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table("asi_account_state_actions",
+    op.create_table(
+        "asi_account_state_actions",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),

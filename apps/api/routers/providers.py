@@ -1,4 +1,5 @@
 """Avatar and voice provider profile endpoints."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
@@ -28,7 +29,9 @@ SUPPORTED_VOICE_PROVIDERS = {"elevenlabs", "openai_realtime", "heygen", "fallbac
 @router.post("/avatar", response_model=AvatarProviderProfileResponse, status_code=status.HTTP_201_CREATED)
 async def create_avatar_provider(body: AvatarProviderProfileCreate, current_user: OperatorUser, db: DBSession):
     if body.provider not in SUPPORTED_AVATAR_PROVIDERS:
-        raise HTTPException(status_code=400, detail=f"Unsupported avatar provider. Supported: {SUPPORTED_AVATAR_PROVIDERS}")
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported avatar provider. Supported: {SUPPORTED_AVATAR_PROVIDERS}"
+        )
 
     avatar = await avatar_service.get(db, body.avatar_id)
     if not avatar:
@@ -36,9 +39,12 @@ async def create_avatar_provider(body: AvatarProviderProfileCreate, current_user
 
     profile = await avatar_provider_service.create(db, **body.model_dump())
     await log_action(
-        db, "avatar_provider.created",
-        user_id=current_user.id, actor_type="human",
-        entity_type="avatar_provider_profile", entity_id=profile.id,
+        db,
+        "avatar_provider.created",
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="avatar_provider_profile",
+        entity_id=profile.id,
         details={"provider": body.provider, "avatar_id": str(body.avatar_id)},
     )
     return profile
@@ -59,9 +65,12 @@ async def update_avatar_provider(
     except ValueError:
         raise HTTPException(status_code=404, detail="Provider profile not found")
     await log_action(
-        db, "avatar_provider.updated",
-        user_id=current_user.id, actor_type="human",
-        entity_type="avatar_provider_profile", entity_id=profile_id,
+        db,
+        "avatar_provider.updated",
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="avatar_provider_profile",
+        entity_id=profile_id,
     )
     return updated
 
@@ -71,16 +80,21 @@ async def delete_avatar_provider(profile_id: uuid.UUID, current_user: OperatorUs
     if not await avatar_provider_service.delete(db, profile_id):
         raise HTTPException(status_code=404)
     await log_action(
-        db, "avatar_provider.deleted",
-        user_id=current_user.id, actor_type="human",
-        entity_type="avatar_provider_profile", entity_id=profile_id,
+        db,
+        "avatar_provider.deleted",
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="avatar_provider_profile",
+        entity_id=profile_id,
     )
 
 
 @router.post("/voice", response_model=VoiceProviderProfileResponse, status_code=status.HTTP_201_CREATED)
 async def create_voice_provider(body: VoiceProviderProfileCreate, current_user: OperatorUser, db: DBSession):
     if body.provider not in SUPPORTED_VOICE_PROVIDERS:
-        raise HTTPException(status_code=400, detail=f"Unsupported voice provider. Supported: {SUPPORTED_VOICE_PROVIDERS}")
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported voice provider. Supported: {SUPPORTED_VOICE_PROVIDERS}"
+        )
 
     avatar = await avatar_service.get(db, body.avatar_id)
     if not avatar:
@@ -88,9 +102,12 @@ async def create_voice_provider(body: VoiceProviderProfileCreate, current_user: 
 
     profile = await voice_provider_service.create(db, **body.model_dump())
     await log_action(
-        db, "voice_provider.created",
-        user_id=current_user.id, actor_type="human",
-        entity_type="voice_provider_profile", entity_id=profile.id,
+        db,
+        "voice_provider.created",
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="voice_provider_profile",
+        entity_id=profile.id,
         details={"provider": body.provider, "avatar_id": str(body.avatar_id)},
     )
     return profile
@@ -111,9 +128,12 @@ async def update_voice_provider(
     except ValueError:
         raise HTTPException(status_code=404, detail="Provider profile not found")
     await log_action(
-        db, "voice_provider.updated",
-        user_id=current_user.id, actor_type="human",
-        entity_type="voice_provider_profile", entity_id=profile_id,
+        db,
+        "voice_provider.updated",
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="voice_provider_profile",
+        entity_id=profile_id,
     )
     return updated
 
@@ -123,7 +143,10 @@ async def delete_voice_provider(profile_id: uuid.UUID, current_user: OperatorUse
     if not await voice_provider_service.delete(db, profile_id):
         raise HTTPException(status_code=404)
     await log_action(
-        db, "voice_provider.deleted",
-        user_id=current_user.id, actor_type="human",
-        entity_type="voice_provider_profile", entity_id=profile_id,
+        db,
+        "voice_provider.deleted",
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="voice_provider_profile",
+        entity_id=profile_id,
     )

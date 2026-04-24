@@ -1,4 +1,5 @@
 """Brain Architecture Pack — Phase D tables: meta-monitoring, self-correction, readiness, escalation."""
+
 import uuid
 from typing import Optional
 

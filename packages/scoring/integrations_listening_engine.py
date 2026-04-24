@@ -1,12 +1,37 @@
 """Integrations + Listening Engine — cluster, extract, route, recommend. Pure functions."""
+
 from __future__ import annotations
 
 from collections import defaultdict
 from typing import Any
 
-SIGNAL_TYPES = ["brand_mention", "competitor_mention", "objection_cluster", "demand_signal", "trend_signal", "sales_signal", "support_pain"]
-CONNECTOR_TYPES = ["crm", "erp", "internal_db", "social_listening", "analytics", "support_desk", "email_marketing", "custom_api"]
-RESPONSE_TARGETS = ["content_generation", "objection_mining", "offer_lab", "campaign_constructor", "executive_dashboard", "copilot"]
+SIGNAL_TYPES = [
+    "brand_mention",
+    "competitor_mention",
+    "objection_cluster",
+    "demand_signal",
+    "trend_signal",
+    "sales_signal",
+    "support_pain",
+]
+CONNECTOR_TYPES = [
+    "crm",
+    "erp",
+    "internal_db",
+    "social_listening",
+    "analytics",
+    "support_desk",
+    "email_marketing",
+    "custom_api",
+]
+RESPONSE_TARGETS = [
+    "content_generation",
+    "objection_mining",
+    "offer_lab",
+    "campaign_constructor",
+    "executive_dashboard",
+    "copilot",
+]
 
 
 def evaluate_connector_sync(connector: dict[str, Any], last_sync: dict[str, Any] = None) -> dict[str, Any]:
@@ -20,7 +45,11 @@ def evaluate_connector_sync(connector: dict[str, Any], last_sync: dict[str, Any]
     if not has_creds:
         return {"healthy": False, "reason": "No credentials configured", "blocker": "no_credentials"}
     if last_sync and last_sync.get("sync_status") == "failed":
-        return {"healthy": False, "reason": f"Last sync failed: {last_sync.get('detail', '')}", "blocker": "sync_failed"}
+        return {
+            "healthy": False,
+            "reason": f"Last sync failed: {last_sync.get('detail', '')}",
+            "blocker": "sync_failed",
+        }
     return {"healthy": True, "reason": "Connector ready"}
 
 
@@ -37,15 +66,17 @@ def cluster_listening_signals(signals: list[dict[str, Any]]) -> list[dict[str, A
         reps = [m.get("raw_text", "")[:100] for m in members[:5]]
 
         action = _recommend_action(stype, avg_sent, len(members))
-        clusters.append({
-            "cluster_type": stype,
-            "cluster_label": f"{stype} ({len(members)} signals)",
-            "signal_count": len(members),
-            "avg_sentiment": round(avg_sent, 3),
-            "avg_relevance": round(avg_rel, 3),
-            "representative_texts": reps,
-            "recommended_action": action,
-        })
+        clusters.append(
+            {
+                "cluster_type": stype,
+                "cluster_label": f"{stype} ({len(members)} signals)",
+                "signal_count": len(members),
+                "avg_sentiment": round(avg_sent, 3),
+                "avg_relevance": round(avg_rel, 3),
+                "representative_texts": reps,
+                "recommended_action": action,
+            }
+        )
     return sorted(clusters, key=lambda c: -c["signal_count"])
 
 
@@ -55,7 +86,10 @@ def extract_competitor_signals(signals: list[dict[str, Any]]) -> list[dict[str, 
     for s in signals:
         sentiment = float(s.get("sentiment", 0) or 0)
         opp_score = max(0, 1.0 - sentiment) if sentiment < 0 else 0.3
-        if any(kw in s.get("raw_text", "").lower() for kw in ("switching", "leaving", "disappointed", "looking for alternative")):
+        if any(
+            kw in s.get("raw_text", "").lower()
+            for kw in ("switching", "leaving", "disappointed", "looking for alternative")
+        ):
             opp_score = min(1.0, opp_score + 0.4)
         scored.append({**s, "opportunity_score": round(opp_score, 3)})
     return sorted(scored, key=lambda x: -x["opportunity_score"])
@@ -66,14 +100,36 @@ def route_business_signal(signal: dict[str, Any]) -> list[dict[str, Any]]:
     stype = signal.get("signal_type", "")
     routes = []
     routing_map = {
-        "demand_signal": [("content_generation", "Create content addressing demand"), ("campaign_constructor", "Build campaign around demand")],
-        "sales_signal": [("offer_lab", "Evaluate offer fit for sales signal"), ("content_generation", "Create sales-enablement content")],
-        "support_pain": [("objection_mining", "Feed support pain into objection clusters"), ("content_generation", "Create FAQ/support content")],
-        "trend_signal": [("content_generation", "Create trend-responsive content"), ("campaign_constructor", "Build trend campaign")],
-        "brand_mention": [("copilot", "Surface brand mention for operator"), ("content_generation", "Consider response content")],
+        "demand_signal": [
+            ("content_generation", "Create content addressing demand"),
+            ("campaign_constructor", "Build campaign around demand"),
+        ],
+        "sales_signal": [
+            ("offer_lab", "Evaluate offer fit for sales signal"),
+            ("content_generation", "Create sales-enablement content"),
+        ],
+        "support_pain": [
+            ("objection_mining", "Feed support pain into objection clusters"),
+            ("content_generation", "Create FAQ/support content"),
+        ],
+        "trend_signal": [
+            ("content_generation", "Create trend-responsive content"),
+            ("campaign_constructor", "Build trend campaign"),
+        ],
+        "brand_mention": [
+            ("copilot", "Surface brand mention for operator"),
+            ("content_generation", "Consider response content"),
+        ],
     }
     for target, action in routing_map.get(stype, [("copilot", "Review signal")]):
-        routes.append({"target_system": target, "response_action": action, "response_type": f"route_{stype}", "priority": signal.get("priority", "medium")})
+        routes.append(
+            {
+                "target_system": target,
+                "response_action": action,
+                "response_type": f"route_{stype}",
+                "priority": signal.get("priority", "medium"),
+            }
+        )
     return routes
 
 
@@ -81,7 +137,9 @@ def generate_response_recommendations(clusters: list[dict[str, Any]]) -> list[di
     """Generate response recommendations from clusters."""
     recs = []
     for c in clusters:
-        routes = route_business_signal({"signal_type": c["cluster_type"], "priority": "high" if c["signal_count"] > 5 else "medium"})
+        routes = route_business_signal(
+            {"signal_type": c["cluster_type"], "priority": "high" if c["signal_count"] > 5 else "medium"}
+        )
         for r in routes:
             recs.append({**r, "cluster_id": c.get("id"), "cluster_type": c["cluster_type"]})
     return sorted(recs, key=lambda r: {"critical": 0, "high": 1, "medium": 2}.get(r.get("priority", "medium"), 3))

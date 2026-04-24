@@ -1,4 +1,5 @@
 """QA worker tasks — quality checks, similarity scoring, compliance."""
+
 import uuid
 
 from workers.base_task import TrackedTask
@@ -31,7 +32,9 @@ def run_qa_check(self, content_item_id: str) -> dict:
             compliance_score=0.85,
             brand_alignment_score=0.75,
             technical_quality_score=0.7,
-            audio_quality_score=0.7 if content.content_type in (ContentType.SHORT_VIDEO, ContentType.LONG_VIDEO) else 0.5,
+            audio_quality_score=0.7
+            if content.content_type in (ContentType.SHORT_VIDEO, ContentType.LONG_VIDEO)
+            else 0.5,
             visual_quality_score=0.7,
             has_required_disclosures=True,
             has_sponsor_metadata=not has_offer or True,
@@ -85,12 +88,18 @@ def run_similarity_check(self, content_item_id: str) -> dict:
         if not content:
             raise ValueError(f"ContentItem {content_item_id} not found")
 
-        existing = session.execute(
-            select(ContentItem).where(
-                ContentItem.brand_id == content.brand_id,
-                ContentItem.id != content.id,
-            ).limit(50)
-        ).scalars().all()
+        existing = (
+            session.execute(
+                select(ContentItem)
+                .where(
+                    ContentItem.brand_id == content.brand_id,
+                    ContentItem.id != content.id,
+                )
+                .limit(50)
+            )
+            .scalars()
+            .all()
+        )
 
         existing_data = [
             {"id": str(e.id), "title": e.title, "keywords": e.tags if isinstance(e.tags, list) else []}

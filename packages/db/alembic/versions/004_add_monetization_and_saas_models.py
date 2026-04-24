@@ -4,6 +4,7 @@ Revision ID: 004_monetization
 Revises: b6587e9c03b5
 Create Date: 2026-04-03
 """
+
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
@@ -24,7 +25,9 @@ def upgrade() -> None:
     safe_create_table(
         "credit_ledgers",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("total_credits", sa.Integer, server_default="0", nullable=False),
         sa.Column("used_credits", sa.Integer, server_default="0", nullable=False),
         sa.Column("remaining_credits", sa.Integer, server_default="0", nullable=False),
@@ -43,7 +46,9 @@ def upgrade() -> None:
     safe_create_table(
         "credit_transactions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
         sa.Column("transaction_type", sa.String(40), nullable=False),
         sa.Column("amount", sa.Integer, nullable=False),
@@ -67,7 +72,9 @@ def upgrade() -> None:
     safe_create_table(
         "usage_meter_snapshots",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("meter_type", sa.String(60), nullable=False),
         sa.Column("period_start", sa.String(10), nullable=False),
         sa.Column("period_end", sa.String(10), nullable=False),
@@ -87,7 +94,9 @@ def upgrade() -> None:
     safe_create_table(
         "plan_subscriptions",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("plan_tier", sa.String(40), nullable=False),
         sa.Column("plan_name", sa.String(120), nullable=False),
         sa.Column("monthly_price", sa.Float, server_default="0.0", nullable=False),
@@ -113,7 +122,9 @@ def upgrade() -> None:
     safe_create_table(
         "pack_purchases",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("pack_type", sa.String(40), nullable=False),
         sa.Column("pack_id", sa.String(120), nullable=False),
@@ -138,7 +149,9 @@ def upgrade() -> None:
     safe_create_table(
         "multiplication_events",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
         sa.Column("event_type", sa.String(60), nullable=False),
         sa.Column("trigger_context", sa.Text, nullable=True),
@@ -159,7 +172,9 @@ def upgrade() -> None:
     safe_create_table(
         "monetization_telemetry",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True),
         sa.Column("event_name", sa.String(120), nullable=False),
         sa.Column("event_value", sa.Float, server_default="0.0", nullable=False),

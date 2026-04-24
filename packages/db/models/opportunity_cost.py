@@ -1,4 +1,5 @@
 """Opportunity-Cost Ranking — rank actions by what is lost by waiting."""
+
 import uuid
 from typing import Optional
 
@@ -25,7 +26,9 @@ class RankedAction(Base):
     __tablename__ = "oc_ranked_actions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("oc_reports.id"), nullable=False, index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("oc_reports.id"), nullable=False, index=True
+    )
     action_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     action_key: Mapped[str] = mapped_column(String(255), nullable=False)
     target_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)

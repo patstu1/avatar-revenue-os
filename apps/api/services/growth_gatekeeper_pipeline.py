@@ -1,4 +1,5 @@
 """Shared gatekeeper: DB-backed signals + deferred expansion commands."""
+
 from __future__ import annotations
 
 import uuid
@@ -24,23 +25,36 @@ async def apply_gatekeeper_pipeline(
     leak_count: int,
     brand_niche: str | None,
 ) -> list[dict]:
-    offer_count = (await db.execute(
-        select(func.count()).select_from(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-    )).scalar() or 0
-    sponsor_profile_count = (await db.execute(
-        select(func.count()).select_from(SponsorProfile).where(SponsorProfile.brand_id == brand_id, SponsorProfile.is_active.is_(True))
-    )).scalar() or 0
-    sponsor_open_deal_count = (await db.execute(
-        select(func.count()).select_from(SponsorOpportunity).where(
-            SponsorOpportunity.brand_id == brand_id,
-            SponsorOpportunity.status.notin_(["closed_lost", "lost", "declined"]),
+    offer_count = (
+        await db.execute(
+            select(func.count()).select_from(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
         )
-    )).scalar() or 0
-    seg_sum = (await db.execute(
-        select(func.coalesce(func.sum(AudienceSegment.estimated_size), 0)).where(
-            AudienceSegment.brand_id == brand_id, AudienceSegment.is_active.is_(True),
+    ).scalar() or 0
+    sponsor_profile_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(SponsorProfile)
+            .where(SponsorProfile.brand_id == brand_id, SponsorProfile.is_active.is_(True))
         )
-    )).scalar() or 0
+    ).scalar() or 0
+    sponsor_open_deal_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(SponsorOpportunity)
+            .where(
+                SponsorOpportunity.brand_id == brand_id,
+                SponsorOpportunity.status.notin_(["closed_lost", "lost", "declined"]),
+            )
+        )
+    ).scalar() or 0
+    seg_sum = (
+        await db.execute(
+            select(func.coalesce(func.sum(AudienceSegment.estimated_size), 0)).where(
+                AudienceSegment.brand_id == brand_id,
+                AudienceSegment.is_active.is_(True),
+            )
+        )
+    ).scalar() or 0
 
     gatekeeper = compute_gatekeeper_inputs(
         accounts=acc_dicts,
@@ -74,23 +88,36 @@ async def load_gatekeeper_dict_only(
     leak_count: int,
 ) -> dict[str, Any]:
     """For pack recompute paths that need gatekeeper scores without re-running full command engine."""
-    offer_count = (await db.execute(
-        select(func.count()).select_from(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-    )).scalar() or 0
-    sponsor_profile_count = (await db.execute(
-        select(func.count()).select_from(SponsorProfile).where(SponsorProfile.brand_id == brand_id, SponsorProfile.is_active.is_(True))
-    )).scalar() or 0
-    sponsor_open_deal_count = (await db.execute(
-        select(func.count()).select_from(SponsorOpportunity).where(
-            SponsorOpportunity.brand_id == brand_id,
-            SponsorOpportunity.status.notin_(["closed_lost", "lost", "declined"]),
+    offer_count = (
+        await db.execute(
+            select(func.count()).select_from(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
         )
-    )).scalar() or 0
-    seg_sum = (await db.execute(
-        select(func.coalesce(func.sum(AudienceSegment.estimated_size), 0)).where(
-            AudienceSegment.brand_id == brand_id, AudienceSegment.is_active.is_(True),
+    ).scalar() or 0
+    sponsor_profile_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(SponsorProfile)
+            .where(SponsorProfile.brand_id == brand_id, SponsorProfile.is_active.is_(True))
         )
-    )).scalar() or 0
+    ).scalar() or 0
+    sponsor_open_deal_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(SponsorOpportunity)
+            .where(
+                SponsorOpportunity.brand_id == brand_id,
+                SponsorOpportunity.status.notin_(["closed_lost", "lost", "declined"]),
+            )
+        )
+    ).scalar() or 0
+    seg_sum = (
+        await db.execute(
+            select(func.coalesce(func.sum(AudienceSegment.estimated_size), 0)).where(
+                AudienceSegment.brand_id == brand_id,
+                AudienceSegment.is_active.is_(True),
+            )
+        )
+    ).scalar() or 0
     return compute_gatekeeper_inputs(
         accounts=acc_dicts,
         offer_count=int(offer_count),

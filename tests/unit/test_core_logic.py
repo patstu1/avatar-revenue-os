@@ -1,9 +1,9 @@
 """Unit tests — core business logic, no database or network required."""
+
 from __future__ import annotations
 
 import uuid
 from decimal import Decimal
-
 
 # ---------------------------------------------------------------------------
 # Stage controller constants
@@ -40,6 +40,7 @@ def test_stage_list_has_no_duplicates():
 # UUID / ID generation
 # ---------------------------------------------------------------------------
 
+
 def test_uuid4_is_unique():
     ids = {uuid.uuid4() for _ in range(1000)}
     assert len(ids) == 1000
@@ -53,6 +54,7 @@ def test_uuid_string_roundtrip():
 # ---------------------------------------------------------------------------
 # Revenue math helpers
 # ---------------------------------------------------------------------------
+
 
 def cents_to_dollars(cents: int) -> Decimal:
     return Decimal(cents) / Decimal(100)
@@ -84,6 +86,7 @@ def test_apply_margin_full():
 # Proposal line item total
 # ---------------------------------------------------------------------------
 
+
 def compute_total(line_items: list[dict]) -> int:
     """Sum unit_price_cents * quantity for each line item."""
     return sum(item["unit_price_cents"] * item["quantity"] for item in line_items)
@@ -110,6 +113,7 @@ def test_compute_total_empty():
 # GM autonomy threshold logic
 # ---------------------------------------------------------------------------
 
+
 def can_auto_approve(amount_cents: int, auto_limit_cents: int) -> bool:
     return amount_cents <= auto_limit_cents
 
@@ -129,6 +133,7 @@ def test_auto_approve_over_limit():
 # ---------------------------------------------------------------------------
 # Email reply-to fallback logic
 # ---------------------------------------------------------------------------
+
 
 def resolve_reply_to(reply_to: str | None, fallback: str) -> str:
     return reply_to if reply_to else fallback

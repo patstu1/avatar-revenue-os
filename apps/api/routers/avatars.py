@@ -1,4 +1,5 @@
 """Avatar identity management endpoints with RBAC."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -26,18 +27,20 @@ async def create_avatar(body: AvatarCreate, current_user: OperatorUser, db: DBSe
     await _verify_brand_access(body.brand_id, current_user, db)
     avatar = await avatar_service.create(db, **body.model_dump())
     await log_action(
-        db, "avatar.created",
+        db,
+        "avatar.created",
         organization_id=current_user.organization_id,
-        brand_id=body.brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="avatar", entity_id=avatar.id,
+        brand_id=body.brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="avatar",
+        entity_id=avatar.id,
     )
     return avatar
 
 
 @router.get("/", response_model=list[AvatarResponse])
-async def list_avatars(
-    brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession, page: int = Query(1, ge=1)
-):
+async def list_avatars(brand_id: uuid.UUID, current_user: CurrentUser, db: DBSession, page: int = Query(1, ge=1)):
     await _verify_brand_access(brand_id, current_user, db)
     result = await avatar_service.list(db, filters={"brand_id": brand_id}, page=page)
     return result["items"]
@@ -60,10 +63,14 @@ async def update_avatar(avatar_id: uuid.UUID, body: AvatarCreate, current_user: 
     await _verify_brand_access(avatar.brand_id, current_user, db)
     updated = await avatar_service.update(db, avatar_id, **body.model_dump(exclude_unset=True))
     await log_action(
-        db, "avatar.updated",
+        db,
+        "avatar.updated",
         organization_id=current_user.organization_id,
-        brand_id=avatar.brand_id, user_id=current_user.id, actor_type="human",
-        entity_type="avatar", entity_id=avatar_id,
+        brand_id=avatar.brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="avatar",
+        entity_id=avatar_id,
     )
     return updated
 
@@ -73,8 +80,11 @@ async def delete_avatar(avatar_id: uuid.UUID, current_user: OperatorUser, db: DB
     if not await avatar_service.delete(db, avatar_id):
         raise HTTPException(status_code=404)
     await log_action(
-        db, "avatar.deleted",
+        db,
+        "avatar.deleted",
         organization_id=current_user.organization_id,
-        user_id=current_user.id, actor_type="human",
-        entity_type="avatar", entity_id=avatar_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="avatar",
+        entity_id=avatar_id,
     )

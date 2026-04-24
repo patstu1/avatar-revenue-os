@@ -3,6 +3,7 @@
 Publer supports: YouTube, TikTok, Instagram, X, LinkedIn, Reddit, Pinterest, Facebook, Google Business.
 API docs: https://publer.io/docs/api
 """
+
 from __future__ import annotations
 
 import logging
@@ -46,7 +47,13 @@ class PublerClient:
                 resp = await client.get(f"{self.BASE_URL}/accounts", headers=self._headers())
             if resp.status_code != 200:
                 return _fail(f"Publer profiles HTTP {resp.status_code}", resp.status_code)
-            return {"success": True, "blocked": False, "data": resp.json(), "status_code": resp.status_code, "error": None}
+            return {
+                "success": True,
+                "blocked": False,
+                "data": resp.json(),
+                "status_code": resp.status_code,
+                "error": None,
+            }
         except httpx.HTTPError as e:
             logger.error("publer.network_error", error=str(e))
             return _fail(f"Publer network error: {e}")
@@ -82,7 +89,13 @@ class PublerClient:
                 resp = await client.post(f"{self.BASE_URL}/posts", json=payload, headers=self._headers())
             if resp.status_code not in (200, 201):
                 return _fail(f"Publer create_post HTTP {resp.status_code}: {resp.text[:200]}", resp.status_code)
-            return {"success": True, "blocked": False, "data": resp.json(), "status_code": resp.status_code, "error": None}
+            return {
+                "success": True,
+                "blocked": False,
+                "data": resp.json(),
+                "status_code": resp.status_code,
+                "error": None,
+            }
         except httpx.HTTPError as e:
             logger.error("publer.create_post_error", error=str(e))
             return _fail(f"Publer network error: {e}")
@@ -96,7 +109,13 @@ class PublerClient:
                 resp = await client.get(f"{self.BASE_URL}/posts/{post_id}", headers=self._headers())
             if resp.status_code != 200:
                 return _fail(f"Publer get_post HTTP {resp.status_code}", resp.status_code)
-            return {"success": True, "blocked": False, "data": resp.json(), "status_code": resp.status_code, "error": None}
+            return {
+                "success": True,
+                "blocked": False,
+                "data": resp.json(),
+                "status_code": resp.status_code,
+                "error": None,
+            }
         except httpx.HTTPError as e:
             logger.error("publer.get_post_error", error=str(e))
             return _fail(f"Publer network error: {e}")
@@ -108,6 +127,12 @@ class PublerClient:
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
                 resp = await client.delete(f"{self.BASE_URL}/posts/{post_id}", headers=self._headers())
-            return {"success": resp.status_code in (200, 204), "blocked": False, "data": None, "status_code": resp.status_code, "error": None}
+            return {
+                "success": resp.status_code in (200, 204),
+                "blocked": False,
+                "data": None,
+                "status_code": resp.status_code,
+                "error": None,
+            }
         except httpx.HTTPError as e:
             return _fail(f"Publer network error: {e}")

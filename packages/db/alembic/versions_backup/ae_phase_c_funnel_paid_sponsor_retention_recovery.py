@@ -4,6 +4,7 @@ Revision ID: ae03phase_c_001
 Revises: ae02phase_b_001
 Create Date: 2026-03-30
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
@@ -46,8 +47,20 @@ def upgrade() -> None:
         sa.Column("confidence", sa.Float, server_default="0"),
         sa.Column("explanation", sa.Text, nullable=True),
         sa.Column("winner_score", sa.Float, server_default="0"),
-        sa.Column("content_item_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("content_items.id"), nullable=True, index=True),
-        sa.Column("autonomous_run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("autonomous_runs.id"), nullable=True, index=True),
+        sa.Column(
+            "content_item_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("content_items.id"),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
+            "autonomous_run_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("autonomous_runs.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("run_status", sa.String(50), server_default="proposed"),
         sa.Column("is_active", sa.Boolean, server_default="true"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
@@ -58,7 +71,13 @@ def upgrade() -> None:
         "paid_operator_decisions",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("paid_operator_run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("paid_operator_runs.id"), nullable=False, index=True),
+        sa.Column(
+            "paid_operator_run_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("paid_operator_runs.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("decision_type", sa.String(80), nullable=False),
         sa.Column("budget_band", sa.String(80), nullable=False),
         sa.Column("expected_cac", sa.Float, server_default="0"),
@@ -111,7 +130,13 @@ def upgrade() -> None:
         sa.Column("escalation_requirement", sa.String(80), nullable=False),
         sa.Column("severity", sa.String(50), server_default="medium"),
         sa.Column("explanation", sa.Text, nullable=True),
-        sa.Column("related_autonomous_run_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("autonomous_runs.id"), nullable=True, index=True),
+        sa.Column(
+            "related_autonomous_run_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("autonomous_runs.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("status", sa.String(50), server_default="open"),
         sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_active", sa.Boolean, server_default="true"),
@@ -123,7 +148,13 @@ def upgrade() -> None:
         "self_healing_actions",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("brand_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=False, index=True),
-        sa.Column("recovery_escalation_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("recovery_escalations.id"), nullable=True, index=True),
+        sa.Column(
+            "recovery_escalation_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("recovery_escalations.id"),
+            nullable=True,
+            index=True,
+        ),
         sa.Column("incident_type", sa.String(120), nullable=False),
         sa.Column("action_taken", sa.String(200), nullable=False),
         sa.Column("action_mode", sa.String(50), server_default="guarded"),

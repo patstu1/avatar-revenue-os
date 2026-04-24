@@ -1,4 +1,5 @@
 """Audience State Engine — infer segment states and recommend state-driven actions."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -6,8 +7,16 @@ from typing import Any
 AUDIENCE_STATE = "audience_state_engine"
 
 STATES = [
-    "unaware", "curious", "evaluating", "objection_heavy", "ready_to_buy",
-    "bought_once", "repeat_buyer", "high_ltv", "churn_risk", "advocate",
+    "unaware",
+    "curious",
+    "evaluating",
+    "objection_heavy",
+    "ready_to_buy",
+    "bought_once",
+    "repeat_buyer",
+    "high_ltv",
+    "churn_risk",
+    "advocate",
     "sponsor_friendly",
 ]
 
@@ -159,8 +168,7 @@ def infer_audience_states(
 
         action_map = _STATE_ACTIONS.get(state_name, _STATE_ACTIONS["curious"])
         best_next_action = (
-            f"{action_map['content_type']} via {action_map['channel']}, "
-            f"offer: {action_map['offer_approach']}"
+            f"{action_map['content_type']} via {action_map['channel']}, offer: {action_map['offer_approach']}"
         )
 
         confidence = round(
@@ -168,24 +176,26 @@ def infer_audience_states(
             3,
         )
 
-        results.append({
-            "segment_id": seg_id,
-            "segment_name": seg_name,
-            "state_name": state_name,
-            "state_score": state_score,
-            "transition_probabilities": transitions,
-            "best_next_action": best_next_action,
-            "confidence": confidence,
-            "explanation": (
-                f"Segment '{seg_name}' classified as {state_name} "
-                f"(score {state_score:.3f}). "
-                f"Key signals: engagement {eng.get('engagement_rate', 0):.4f}, "
-                f"purchases {eng.get('purchase_count', 0)}, "
-                f"LTV {eng.get('ltv', 0):.2f}, "
-                f"recency {eng.get('recency_days', 'N/A')}d."
-            ),
-            AUDIENCE_STATE: True,
-        })
+        results.append(
+            {
+                "segment_id": seg_id,
+                "segment_name": seg_name,
+                "state_name": state_name,
+                "state_score": state_score,
+                "transition_probabilities": transitions,
+                "best_next_action": best_next_action,
+                "confidence": confidence,
+                "explanation": (
+                    f"Segment '{seg_name}' classified as {state_name} "
+                    f"(score {state_score:.3f}). "
+                    f"Key signals: engagement {eng.get('engagement_rate', 0):.4f}, "
+                    f"purchases {eng.get('purchase_count', 0)}, "
+                    f"LTV {eng.get('ltv', 0):.2f}, "
+                    f"recency {eng.get('recency_days', 'N/A')}d."
+                ),
+                AUDIENCE_STATE: True,
+            }
+        )
 
     return results
 

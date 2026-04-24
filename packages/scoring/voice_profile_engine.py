@@ -2,6 +2,7 @@
 
 Each account gets a persistent, differentiated voice so no two accounts sound alike.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -9,9 +10,15 @@ import random
 from typing import Any
 
 WRITING_STYLES = [
-    "conversational_direct", "storyteller_narrative", "data_driven_analytical",
-    "provocative_contrarian", "empathetic_supportive", "high_energy_motivational",
-    "dry_witty_humor", "academic_authoritative", "street_smart_practical",
+    "conversational_direct",
+    "storyteller_narrative",
+    "data_driven_analytical",
+    "provocative_contrarian",
+    "empathetic_supportive",
+    "high_energy_motivational",
+    "dry_witty_humor",
+    "academic_authoritative",
+    "street_smart_practical",
     "minimalist_punchy",
 ]
 
@@ -20,26 +27,55 @@ VOCABULARY_LEVELS = ["casual", "accessible", "professional", "technical", "elite
 EMOJI_USAGE = ["none", "minimal", "moderate", "heavy"]
 
 HOOK_STYLES = [
-    "bold_claim", "shocking_stat", "question_hook", "story_open",
-    "pain_point", "curiosity_gap", "contrarian_take", "personal_confession",
+    "bold_claim",
+    "shocking_stat",
+    "question_hook",
+    "story_open",
+    "pain_point",
+    "curiosity_gap",
+    "contrarian_take",
+    "personal_confession",
 ]
 
 SIGNATURE_PHRASES_POOL = [
-    "Here's the thing", "Let me break this down", "Nobody talks about this",
-    "The truth is", "Real talk", "Pay attention to this", "Most people get this wrong",
-    "I tested this myself", "The data shows", "Stop scrolling — this matters",
-    "Think about this", "Hot take", "Unpopular opinion", "Game changer",
-    "Listen carefully", "Quick reality check", "This changed everything for me",
-    "Don't sleep on this", "Mark my words", "You need to hear this",
+    "Here's the thing",
+    "Let me break this down",
+    "Nobody talks about this",
+    "The truth is",
+    "Real talk",
+    "Pay attention to this",
+    "Most people get this wrong",
+    "I tested this myself",
+    "The data shows",
+    "Stop scrolling — this matters",
+    "Think about this",
+    "Hot take",
+    "Unpopular opinion",
+    "Game changer",
+    "Listen carefully",
+    "Quick reality check",
+    "This changed everything for me",
+    "Don't sleep on this",
+    "Mark my words",
+    "You need to hear this",
 ]
 
 CTA_STYLES = [
-    "soft_suggest", "direct_command", "curiosity_driven", "urgency_based",
-    "social_proof", "benefit_focused", "question_close",
+    "soft_suggest",
+    "direct_command",
+    "curiosity_driven",
+    "urgency_based",
+    "social_proof",
+    "benefit_focused",
+    "question_close",
 ]
 
 PARAGRAPH_STYLES = [
-    "one_liner_punchy", "short_paragraphs", "long_flowing", "bullet_heavy", "mixed",
+    "one_liner_punchy",
+    "short_paragraphs",
+    "long_flowing",
+    "bullet_heavy",
+    "mixed",
 ]
 
 

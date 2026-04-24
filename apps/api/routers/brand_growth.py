@@ -2,6 +2,7 @@
 
 GET endpoints are read-only. POST /growth-intel/recompute triggers the write path.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -36,7 +37,9 @@ async def _require_brand(brand_id: uuid.UUID, user, db: DBSession) -> Brand:
 
 
 @router.post("/{brand_id}/growth-intel/recompute")
-async def recompute_growth_intel(brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)):
+async def recompute_growth_intel(
+    brand_id: uuid.UUID, current_user: OperatorUser, db: DBSession, _rl=Depends(recompute_rate_limit)
+):
     await _require_brand(brand_id, current_user, db)
     result = await gs.recompute_growth_intel(db, brand_id, user_id=current_user.id)
     await log_action(

@@ -4,6 +4,7 @@ Revision ID: 006_gm_alerts
 Revises: b6587e9c03b5
 Create Date: 2026-04-06
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -28,7 +29,13 @@ def upgrade() -> None:
         op.create_table(
             "gm_sessions",
             sa.Column("id", UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), primary_key=True),
-            sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True),
+            sa.Column(
+                "organization_id",
+                UUID(as_uuid=True),
+                sa.ForeignKey("organizations.id", ondelete="CASCADE"),
+                nullable=False,
+                index=True,
+            ),
             sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False, index=True),
             sa.Column("title", sa.String(255), default="GM Strategy Session"),
             sa.Column("status", sa.String(30), default="active"),
@@ -45,7 +52,13 @@ def upgrade() -> None:
         op.create_table(
             "gm_messages",
             sa.Column("id", UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), primary_key=True),
-            sa.Column("session_id", UUID(as_uuid=True), sa.ForeignKey("gm_sessions.id", ondelete="CASCADE"), nullable=False, index=True),
+            sa.Column(
+                "session_id",
+                UUID(as_uuid=True),
+                sa.ForeignKey("gm_sessions.id", ondelete="CASCADE"),
+                nullable=False,
+                index=True,
+            ),
             sa.Column("role", sa.String(20), nullable=False),
             sa.Column("content", sa.Text, nullable=False),
             sa.Column("message_type", sa.String(30), default="conversation"),
@@ -61,8 +74,20 @@ def upgrade() -> None:
         op.create_table(
             "gm_blueprints",
             sa.Column("id", UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), primary_key=True),
-            sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True),
-            sa.Column("session_id", UUID(as_uuid=True), sa.ForeignKey("gm_sessions.id", ondelete="CASCADE"), nullable=False, index=True),
+            sa.Column(
+                "organization_id",
+                UUID(as_uuid=True),
+                sa.ForeignKey("organizations.id", ondelete="CASCADE"),
+                nullable=False,
+                index=True,
+            ),
+            sa.Column(
+                "session_id",
+                UUID(as_uuid=True),
+                sa.ForeignKey("gm_sessions.id", ondelete="CASCADE"),
+                nullable=False,
+                index=True,
+            ),
             sa.Column("version", sa.Integer, default=1),
             sa.Column("status", sa.String(30), default="proposed"),
             sa.Column("account_blueprint", JSONB, nullable=True),
@@ -85,8 +110,20 @@ def upgrade() -> None:
         op.create_table(
             "gm_conversations",
             sa.Column("id", UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), primary_key=True),
-            sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True),
-            sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True),
+            sa.Column(
+                "organization_id",
+                UUID(as_uuid=True),
+                sa.ForeignKey("organizations.id", ondelete="CASCADE"),
+                nullable=False,
+                index=True,
+            ),
+            sa.Column(
+                "brand_id",
+                UUID(as_uuid=True),
+                sa.ForeignKey("brands.id", ondelete="CASCADE"),
+                nullable=False,
+                index=True,
+            ),
             sa.Column("messages", JSONB, nullable=True),
             sa.Column("actions_log", JSONB, nullable=True),
             sa.Column("is_active", sa.Boolean, default=True),
@@ -98,7 +135,14 @@ def upgrade() -> None:
         op.create_table(
             "operator_notification_preferences",
             sa.Column("id", UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), primary_key=True),
-            sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False, unique=True, index=True),
+            sa.Column(
+                "organization_id",
+                UUID(as_uuid=True),
+                sa.ForeignKey("organizations.id"),
+                nullable=False,
+                unique=True,
+                index=True,
+            ),
             sa.Column("critical_channels", JSONB, nullable=True),
             sa.Column("warning_channels", JSONB, nullable=True),
             sa.Column("info_channels", JSONB, nullable=True),
@@ -116,9 +160,13 @@ def upgrade() -> None:
         op.create_table(
             "alert_delivery_log",
             sa.Column("id", UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), primary_key=True),
-            sa.Column("organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=True, index=True),
+            sa.Column(
+                "organization_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=True, index=True
+            ),
             sa.Column("brand_id", UUID(as_uuid=True), sa.ForeignKey("brands.id"), nullable=True, index=True),
-            sa.Column("source_event_id", UUID(as_uuid=True), sa.ForeignKey("system_events.id"), nullable=True, index=True),
+            sa.Column(
+                "source_event_id", UUID(as_uuid=True), sa.ForeignKey("system_events.id"), nullable=True, index=True
+            ),
             sa.Column("severity", sa.String(20), nullable=False, index=True),
             sa.Column("title", sa.String(500), nullable=False),
             sa.Column("message", sa.Text, nullable=True),
@@ -134,5 +182,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for t in ("alert_delivery_log", "operator_notification_preferences", "gm_conversations", "gm_blueprints", "gm_messages", "gm_sessions"):
+    for t in (
+        "alert_delivery_log",
+        "operator_notification_preferences",
+        "gm_conversations",
+        "gm_blueprints",
+        "gm_messages",
+        "gm_sessions",
+    ):
         op.drop_table(t)

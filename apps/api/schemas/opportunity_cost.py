@@ -1,4 +1,5 @@
 """Pydantic schemas for Opportunity-Cost Ranking."""
+
 from __future__ import annotations
 
 import uuid

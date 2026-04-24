@@ -3,6 +3,7 @@
 Pure functions only (no I/O, no SQLAlchemy). All logic deterministic.
 Uses PLATFORM_SPECS from packages/scoring/growth_pack/platform_os.py as source of truth.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -513,10 +514,7 @@ def compute_output_ramp_event(
                 "event_type": "increase",
                 "from_output": current_output,
                 "to_output": current_output + increment,
-                "reason": (
-                    f"State '{state}', health {account_health:.2f} — "
-                    f"increasing by {increment}/wk."
-                ),
+                "reason": (f"State '{state}', health {account_health:.2f} — increasing by {increment}/wk."),
                 "confidence": round(_clamp(0.55 + account_health * 0.3), 4),
                 AWE: True,
             }
@@ -548,24 +546,26 @@ def seed_platform_warmup_policies() -> list[dict[str, Any]]:
         warmup = spec.get("warmup_cadence", {})
         max_safe = spec.get("max_safe_output_per_day", 3)
 
-        policies.append({
-            "platform": platform,
-            "posting_cadence_min": cadence.get("min", 3),
-            "posting_cadence_max": cadence.get("max", 14),
-            "warmup_cadence": warmup,
-            "max_safe_output_per_day": max_safe,
-            "ramp_behavior": spec.get("ramp_behavior", "moderate"),
-            "scale_ready_conditions": spec.get("scale_ready_conditions", []),
-            "spam_fatigue_signals": spec.get("spam_fatigue_signals", []),
-            "account_health_signals": spec.get("account_health_signals", []),
-            "saturation_indicators": spec.get("saturation_indicators", []),
-            "expansion_conditions": spec.get("expansion_conditions", []),
-            "time_to_signal_days_min": spec.get("time_to_signal_days_range", {}).get("min", 7),
-            "time_to_signal_days_max": spec.get("time_to_signal_days_range", {}).get("max", 30),
-            "recommended_roles": spec.get("recommended_roles", []),
-            "monetization_styles": spec.get("monetization_styles", []),
-            AWE: True,
-        })
+        policies.append(
+            {
+                "platform": platform,
+                "posting_cadence_min": cadence.get("min", 3),
+                "posting_cadence_max": cadence.get("max", 14),
+                "warmup_cadence": warmup,
+                "max_safe_output_per_day": max_safe,
+                "ramp_behavior": spec.get("ramp_behavior", "moderate"),
+                "scale_ready_conditions": spec.get("scale_ready_conditions", []),
+                "spam_fatigue_signals": spec.get("spam_fatigue_signals", []),
+                "account_health_signals": spec.get("account_health_signals", []),
+                "saturation_indicators": spec.get("saturation_indicators", []),
+                "expansion_conditions": spec.get("expansion_conditions", []),
+                "time_to_signal_days_min": spec.get("time_to_signal_days_range", {}).get("min", 7),
+                "time_to_signal_days_max": spec.get("time_to_signal_days_range", {}).get("max", 30),
+                "recommended_roles": spec.get("recommended_roles", []),
+                "monetization_styles": spec.get("monetization_styles", []),
+                AWE: True,
+            }
+        )
 
     return policies
 
@@ -573,6 +573,7 @@ def seed_platform_warmup_policies() -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
 
 def _avg_weekly_posts(history: list[dict[str, Any]], lookback: int = 4) -> float:
     """Average posts/week from most recent N weeks of history."""

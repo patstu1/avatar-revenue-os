@@ -1,4 +1,5 @@
 """Unit tests for operator permission engine."""
+
 from packages.scoring.operator_permission_engine import (
     ACTION_CLASSES,
     AUTONOMY_MODES,
@@ -14,8 +15,10 @@ from packages.scoring.operator_permission_engine import (
 class TestTypes:
     def test_15_action_classes(self):
         assert len(ACTION_CLASSES) == 15
+
     def test_4_modes(self):
         assert len(AUTONOMY_MODES) == 4
+
     def test_all_have_defaults(self):
         for ac in ACTION_CLASSES:
             assert ac in DEFAULT_POLICIES
@@ -63,17 +66,35 @@ class TestAutonomy:
 
 class TestOverride:
     def test_super_admin_can_override(self):
-        matrix = [{"action_class": "governance_override", "autonomy_mode": "manual_only", "override_allowed": True, "override_role": "super_admin", "is_active": True}]
+        matrix = [
+            {
+                "action_class": "governance_override",
+                "autonomy_mode": "manual_only",
+                "override_allowed": True,
+                "override_role": "super_admin",
+                "is_active": True,
+            }
+        ]
         r = evaluate_override_eligibility("governance_override", "super_admin", matrix, [])
         assert r["can_override"] is True
 
     def test_viewer_cannot_override(self):
-        matrix = [{"action_class": "content_publish", "autonomy_mode": "guarded_approval", "override_allowed": True, "override_role": "org_admin", "is_active": True}]
+        matrix = [
+            {
+                "action_class": "content_publish",
+                "autonomy_mode": "guarded_approval",
+                "override_allowed": True,
+                "override_role": "org_admin",
+                "is_active": True,
+            }
+        ]
         r = evaluate_override_eligibility("content_publish", "viewer", matrix, [])
         assert r["can_override"] is False
 
     def test_override_disabled(self):
-        matrix = [{"action_class": "test", "autonomy_mode": "manual_only", "override_allowed": False, "is_active": True}]
+        matrix = [
+            {"action_class": "test", "autonomy_mode": "manual_only", "override_allowed": False, "is_active": True}
+        ]
         r = evaluate_override_eligibility("test", "super_admin", matrix, [])
         assert r["can_override"] is False
 

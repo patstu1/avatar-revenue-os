@@ -3,6 +3,7 @@
 Each adapter implements request/response models, retry logic, error persistence,
 and fallback routing. Actual API calls require live credentials.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -68,23 +69,20 @@ def _result_to_response(provider: str, result: dict, request: MediaRequest | Non
     """Map a standard ai_clients result dict to a MediaResponse."""
     if result.get("blocked"):
         return MediaResponse(
-            provider=provider, status=ProviderStatus.FAILED,
+            provider=provider,
+            status=ProviderStatus.FAILED,
             error_message=result.get("error", "API key not configured"),
             error_details={"reason": "missing_credentials"},
         )
     if not result.get("success"):
         return MediaResponse(
-            provider=provider, status=ProviderStatus.FAILED,
+            provider=provider,
+            status=ProviderStatus.FAILED,
             error_message=result.get("error", "Unknown error"),
             error_details={"status_code": result.get("status_code", 0)},
         )
     data = result.get("data", {})
-    output_url = (
-        data.get("video_url")
-        or data.get("audio_url")
-        or data.get("image_url")
-        or data.get("output_url")
-    )
+    output_url = data.get("video_url") or data.get("audio_url") or data.get("image_url") or data.get("output_url")
     job_id = data.get("video_id") or data.get("job_id") or data.get("task_id")
     return MediaResponse(
         provider=provider,
@@ -109,20 +107,25 @@ class TavusAdapter(MediaProviderAdapter):
 
     def capabilities(self) -> dict:
         return {
-            "async_video": True, "lip_sync": True, "custom_background": True,
-            "max_duration_sec": 300, "output_formats": ["mp4", "webm"],
+            "async_video": True,
+            "lip_sync": True,
+            "custom_background": True,
+            "max_duration_sec": 300,
+            "output_formats": ["mp4", "webm"],
         }
 
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         if not self.api_key:
             return MediaResponse(
-                provider="tavus", status=ProviderStatus.FAILED,
+                provider="tavus",
+                status=ProviderStatus.FAILED,
                 error_message="Tavus API key not configured",
                 error_details={"reason": "missing_credentials"},
             )
         # TODO: No TavusClient implementation exists yet in ai_clients.py — wire when added
         return MediaResponse(
-            provider="tavus", status=ProviderStatus.PENDING,
+            provider="tavus",
+            status=ProviderStatus.PENDING,
             provider_job_id=f"tavus_{uuid.uuid4().hex[:12]}",
             error_message="Tavus client not yet implemented — pending real integration",
             metadata={"request_script_length": len(request.script_text)},
@@ -131,7 +134,8 @@ class TavusAdapter(MediaProviderAdapter):
     async def check_status(self, provider_job_id: str) -> MediaResponse:
         # TODO: Wire to TavusClient when available
         return MediaResponse(
-            provider="tavus", status=ProviderStatus.PENDING,
+            provider="tavus",
+            status=ProviderStatus.PENDING,
             provider_job_id=provider_job_id,
             error_message="Status check requires TavusClient implementation",
         )
@@ -150,7 +154,8 @@ class ElevenLabsAdapter(MediaProviderAdapter):
 
     def capabilities(self) -> dict:
         return {
-            "voice_cloning": True, "streaming": True,
+            "voice_cloning": True,
+            "streaming": True,
             "languages": ["en", "es", "fr", "de", "pt", "it", "ja", "ko", "zh"],
             "output_formats": ["mp3", "wav", "ogg"],
         }
@@ -158,11 +163,13 @@ class ElevenLabsAdapter(MediaProviderAdapter):
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         if not self.api_key:
             return MediaResponse(
-                provider="elevenlabs", status=ProviderStatus.FAILED,
+                provider="elevenlabs",
+                status=ProviderStatus.FAILED,
                 error_message="ElevenLabs API key not configured",
                 error_details={"reason": "missing_credentials"},
             )
         from packages.clients.ai_clients import ElevenLabsClient
+
         client = ElevenLabsClient(api_key=self.api_key)
         voice_id = request.config.get("voice_id", "21m00Tcm4TlvDq8ikWAM")
         result = await client.generate(text=request.script_text, voice_id=voice_id)
@@ -170,7 +177,8 @@ class ElevenLabsAdapter(MediaProviderAdapter):
 
     async def check_status(self, provider_job_id: str) -> MediaResponse:
         return MediaResponse(
-            provider="elevenlabs", status=ProviderStatus.SUCCESS,
+            provider="elevenlabs",
+            status=ProviderStatus.SUCCESS,
             provider_job_id=provider_job_id,
             metadata={"note": "ElevenLabs TTS is synchronous — no polling needed"},
         )
@@ -189,19 +197,22 @@ class OpenAIRealtimeAdapter(MediaProviderAdapter):
 
     def capabilities(self) -> dict:
         return {
-            "realtime_conversation": True, "function_calling": True,
+            "realtime_conversation": True,
+            "function_calling": True,
             "voice_modes": ["alloy", "echo", "fable", "onyx", "nova", "shimmer"],
         }
 
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         if not self.api_key:
             return MediaResponse(
-                provider="openai_realtime", status=ProviderStatus.FAILED,
+                provider="openai_realtime",
+                status=ProviderStatus.FAILED,
                 error_message="OpenAI API key not configured",
             )
         # TODO: No OpenAIRealtimeClient exists yet — wire when WebSocket client is added
         return MediaResponse(
-            provider="openai_realtime", status=ProviderStatus.PENDING,
+            provider="openai_realtime",
+            status=ProviderStatus.PENDING,
             provider_job_id=f"oai_{uuid.uuid4().hex[:12]}",
             error_message="OpenAI Realtime client not yet implemented — requires WebSocket integration",
         )
@@ -226,10 +237,12 @@ class HeyGenLiveAvatarAdapter(MediaProviderAdapter):
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         if not self.api_key:
             return MediaResponse(
-                provider="heygen", status=ProviderStatus.FAILED,
+                provider="heygen",
+                status=ProviderStatus.FAILED,
                 error_message="HeyGen API key not configured",
             )
         from packages.clients.ai_clients import HeyGenClient
+
         client = HeyGenClient(api_key=self.api_key)
         avatar_id = request.avatar_provider_id or request.config.get("avatar_id", "default")
         voice_id = request.voice_provider_id or request.config.get("voice_id", "")
@@ -242,8 +255,11 @@ class HeyGenLiveAvatarAdapter(MediaProviderAdapter):
 
     async def check_status(self, provider_job_id: str) -> MediaResponse:
         if not self.api_key:
-            return MediaResponse(provider="heygen", status=ProviderStatus.FAILED, error_message="HeyGen API key not configured")
+            return MediaResponse(
+                provider="heygen", status=ProviderStatus.FAILED, error_message="HeyGen API key not configured"
+            )
         from packages.clients.ai_clients import HeyGenClient
+
         client = HeyGenClient(api_key=self.api_key)
         result = await client.poll_video(provider_job_id, max_wait=60)
         return _result_to_response("heygen", result)
@@ -260,7 +276,8 @@ class FallbackAdapter(MediaProviderAdapter):
 
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         return MediaResponse(
-            provider="fallback", status=ProviderStatus.SUCCESS,
+            provider="fallback",
+            status=ProviderStatus.SUCCESS,
             provider_job_id=f"fb_{uuid.uuid4().hex[:12]}",
             output_url="pending://fallback/template",
             cost=0.0,
@@ -273,17 +290,23 @@ class FallbackAdapter(MediaProviderAdapter):
 
 class RunwayAdapter(MediaProviderAdapter):
     """Runway Gen-4 Turbo: Hero cinematic video generation."""
+
     def __init__(self, api_key: str = ""):
         self.api_key = api_key
+
     def provider_name(self) -> str:
         return "runway"
+
     def capabilities(self) -> dict:
         return {"cinematic_video": True, "hero_video": True, "studio_video": True, "max_duration_sec": 15}
 
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         if not self.api_key:
-            return MediaResponse(provider="runway", status=ProviderStatus.FAILED, error_message="Runway API key not configured")
+            return MediaResponse(
+                provider="runway", status=ProviderStatus.FAILED, error_message="Runway API key not configured"
+            )
         from packages.clients.ai_clients import RunwayClient
+
         client = RunwayClient(api_key=self.api_key)
         duration = min(request.duration_hint_seconds, 15)
         image_url = request.config.get("image_url")
@@ -291,23 +314,33 @@ class RunwayAdapter(MediaProviderAdapter):
         return _result_to_response("runway", result, request)
 
     async def check_status(self, provider_job_id: str) -> MediaResponse:
-        return MediaResponse(provider="runway", status=ProviderStatus.PENDING, provider_job_id=provider_job_id,
-                             metadata={"note": "Runway polls internally during generate()"})
+        return MediaResponse(
+            provider="runway",
+            status=ProviderStatus.PENDING,
+            provider_job_id=provider_job_id,
+            metadata={"note": "Runway polls internally during generate()"},
+        )
 
 
 class KlingAdapter(MediaProviderAdapter):
     """Kling AI: Bulk social video generation via fal.ai."""
+
     def __init__(self, api_key: str = ""):
         self.api_key = api_key
+
     def provider_name(self) -> str:
         return "kling"
+
     def capabilities(self) -> dict:
         return {"social_video": True, "b_roll": True, "studio_video": True, "max_duration_sec": 30}
 
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         if not self.api_key:
-            return MediaResponse(provider="kling", status=ProviderStatus.FAILED, error_message="FAL API key not configured")
+            return MediaResponse(
+                provider="kling", status=ProviderStatus.FAILED, error_message="FAL API key not configured"
+            )
         from packages.clients.ai_clients import KlingClient
+
         client = KlingClient(api_key=self.api_key)
         duration = min(request.duration_hint_seconds, 30)
         aspect = request.config.get("aspect_ratio", "9:16")
@@ -320,86 +353,122 @@ class KlingAdapter(MediaProviderAdapter):
 
 class DIDAdapter(MediaProviderAdapter):
     """D-ID: Budget avatar video generation."""
+
     def __init__(self, api_key: str = ""):
         self.api_key = api_key
+
     def provider_name(self) -> str:
         return "did"
+
     def capabilities(self) -> dict:
         return {"avatar_video": True, "lip_sync": True, "budget_avatar": True, "studio_video": True}
 
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         if not self.api_key:
-            return MediaResponse(provider="did", status=ProviderStatus.FAILED, error_message="D-ID API key not configured")
+            return MediaResponse(
+                provider="did", status=ProviderStatus.FAILED, error_message="D-ID API key not configured"
+            )
         from packages.clients.ai_clients import DIDClient
+
         client = DIDClient(api_key=self.api_key)
         source_url = request.config.get("source_url", "https://d-id-public-bucket.s3.us-west-2.amazonaws.com/alice.jpg")
         result = await client.generate(script=request.script_text, source_url=source_url)
         return _result_to_response("did", result, request)
 
     async def check_status(self, provider_job_id: str) -> MediaResponse:
-        return MediaResponse(provider="did", status=ProviderStatus.PENDING, provider_job_id=provider_job_id,
-                             metadata={"note": "D-ID polls internally during generate()"})
+        return MediaResponse(
+            provider="did",
+            status=ProviderStatus.PENDING,
+            provider_job_id=provider_job_id,
+            metadata={"note": "D-ID polls internally during generate()"},
+        )
 
 
 class FishAudioAdapter(MediaProviderAdapter):
     """Fish Audio: Standard-tier TTS, #1 on TTS-Arena."""
+
     def __init__(self, api_key: str = ""):
         self.api_key = api_key
+
     def provider_name(self) -> str:
         return "fish_audio"
+
     def capabilities(self) -> dict:
         return {"voice_synthesis": True, "bulk_voiceover": True, "output_formats": ["mp3", "wav"]}
 
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         if not self.api_key:
-            return MediaResponse(provider="fish_audio", status=ProviderStatus.FAILED, error_message="Fish Audio API key not configured")
+            return MediaResponse(
+                provider="fish_audio", status=ProviderStatus.FAILED, error_message="Fish Audio API key not configured"
+            )
         from packages.clients.ai_clients import FishAudioClient
+
         client = FishAudioClient(api_key=self.api_key)
         voice_id = request.voice_provider_id or request.config.get("voice_id", "default")
         result = await client.generate(text=request.script_text, voice_id=voice_id)
         return _result_to_response("fish_audio", result, request)
 
     async def check_status(self, provider_job_id: str) -> MediaResponse:
-        return MediaResponse(provider="fish_audio", status=ProviderStatus.SUCCESS, provider_job_id=provider_job_id,
-                             metadata={"note": "Fish Audio TTS is synchronous"})
+        return MediaResponse(
+            provider="fish_audio",
+            status=ProviderStatus.SUCCESS,
+            provider_job_id=provider_job_id,
+            metadata={"note": "Fish Audio TTS is synchronous"},
+        )
 
 
 class VoxtralAdapter(MediaProviderAdapter):
     """Voxtral TTS (Mistral): Ultra-budget voice synthesis."""
+
     def __init__(self, api_key: str = ""):
         self.api_key = api_key
+
     def provider_name(self) -> str:
         return "voxtral"
+
     def capabilities(self) -> dict:
         return {"voice_synthesis": True, "voice_cloning": True, "ultra_budget": True}
 
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         if not self.api_key:
-            return MediaResponse(provider="voxtral", status=ProviderStatus.FAILED, error_message="Mistral API key not configured")
+            return MediaResponse(
+                provider="voxtral", status=ProviderStatus.FAILED, error_message="Mistral API key not configured"
+            )
         from packages.clients.ai_clients import VoxtralClient
+
         client = VoxtralClient(api_key=self.api_key)
         voice_id = request.voice_provider_id or request.config.get("voice_id")
         result = await client.generate(text=request.script_text, voice_id=voice_id)
         return _result_to_response("voxtral", result, request)
 
     async def check_status(self, provider_job_id: str) -> MediaResponse:
-        return MediaResponse(provider="voxtral", status=ProviderStatus.SUCCESS, provider_job_id=provider_job_id,
-                             metadata={"note": "Voxtral TTS is synchronous"})
+        return MediaResponse(
+            provider="voxtral",
+            status=ProviderStatus.SUCCESS,
+            provider_job_id=provider_job_id,
+            metadata={"note": "Voxtral TTS is synchronous"},
+        )
 
 
 class SunoAdapter(MediaProviderAdapter):
     """Suno: AI music generation."""
+
     def __init__(self, api_key: str = ""):
         self.api_key = api_key
+
     def provider_name(self) -> str:
         return "suno"
+
     def capabilities(self) -> dict:
         return {"music_generation": True, "background_tracks": True}
 
     async def submit_job(self, request: MediaRequest) -> MediaResponse:
         if not self.api_key:
-            return MediaResponse(provider="suno", status=ProviderStatus.FAILED, error_message="Suno API key not configured")
+            return MediaResponse(
+                provider="suno", status=ProviderStatus.FAILED, error_message="Suno API key not configured"
+            )
         from packages.clients.ai_clients import SunoClient
+
         client = SunoClient(api_key=self.api_key)
         duration = request.duration_hint_seconds or 30
         genre = request.config.get("genre", "electronic")

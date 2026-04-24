@@ -1,4 +1,5 @@
 """Integration tests for Autonomous Execution Phase D API persistence (DB-backed)."""
+
 import pytest
 
 from tests.conftest import create_brand_with_offer, register_and_login

@@ -1,6 +1,7 @@
 """Reputation engine — platform risk, spam drift, trust decline, disclosure gaps,
 claim accumulation, synthetic patterns, engagement quality, sponsor risk
 (pure functions, no I/O, no SQLAlchemy)."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -27,49 +28,108 @@ _RISK_WEIGHTS: dict[str, float] = {
 # ---------------------------------------------------------------------------
 
 _PLATFORM_WARNING_KW: list[str] = [
-    "strike", "warning", "policy", "violation", "restricted", "flagged",
-    "demonetized", "suspended", "shadowban", "appeal",
+    "strike",
+    "warning",
+    "policy",
+    "violation",
+    "restricted",
+    "flagged",
+    "demonetized",
+    "suspended",
+    "shadowban",
+    "appeal",
 ]
 
 _SPAM_DRIFT_KW: list[str] = [
-    "giveaway", "subscribe", "follow for follow", "spam", "bot", "fake",
-    "engagement pod", "loop", "comment swap", "mass follow",
+    "giveaway",
+    "subscribe",
+    "follow for follow",
+    "spam",
+    "bot",
+    "fake",
+    "engagement pod",
+    "loop",
+    "comment swap",
+    "mass follow",
 ]
 
 _TRUST_DECLINE_KW: list[str] = [
-    "unsubscribe", "unfollow", "disappointed", "scam", "misleading",
-    "clickbait", "waste", "refund", "lied", "not worth",
+    "unsubscribe",
+    "unfollow",
+    "disappointed",
+    "scam",
+    "misleading",
+    "clickbait",
+    "waste",
+    "refund",
+    "lied",
+    "not worth",
 ]
 
 _DISCLOSURE_KW: list[str] = [
-    "ad", "sponsored", "paid", "affiliate", "partner", "collab",
-    "#ad", "#sponsored", "disclosure",
+    "ad",
+    "sponsored",
+    "paid",
+    "affiliate",
+    "partner",
+    "collab",
+    "#ad",
+    "#sponsored",
+    "disclosure",
 ]
 
 _CLAIM_RISK_KW: list[str] = [
-    "guarantee", "proven", "scientifically", "cure", "results guaranteed",
-    "100%", "risk free", "no risk", "miracle", "secret",
+    "guarantee",
+    "proven",
+    "scientifically",
+    "cure",
+    "results guaranteed",
+    "100%",
+    "risk free",
+    "no risk",
+    "miracle",
+    "secret",
 ]
 
 _SYNTHETIC_KW: list[str] = [
-    "ai generated", "deepfake", "synthetic", "fake voice", "cloned",
-    "auto generated", "bot content", "mass produced",
+    "ai generated",
+    "deepfake",
+    "synthetic",
+    "fake voice",
+    "cloned",
+    "auto generated",
+    "bot content",
+    "mass produced",
 ]
 
 _ENG_QUALITY_KW: list[str] = [
-    "nice", "great", "cool", "fire", "emoji only", "first",
-    "generic", "copy paste", "irrelevant",
+    "nice",
+    "great",
+    "cool",
+    "fire",
+    "emoji only",
+    "first",
+    "generic",
+    "copy paste",
+    "irrelevant",
 ]
 
 _SPONSOR_RISK_KW: list[str] = [
-    "controversy", "recall", "lawsuit", "unethical", "fraud",
-    "complaint", "reputation damage", "brand safety",
+    "controversy",
+    "recall",
+    "lawsuit",
+    "unethical",
+    "fraud",
+    "complaint",
+    "reputation damage",
+    "brand safety",
 ]
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, float(value)))
@@ -93,6 +153,7 @@ def _signal_score(signals: list[dict], key: str, threshold: float) -> float:
 # ---------------------------------------------------------------------------
 # Main engine
 # ---------------------------------------------------------------------------
+
 
 def assess_reputation(
     brand_data: dict,
@@ -125,8 +186,7 @@ def assess_reputation(
         account_texts.extend(sig.get("comment_texts", []))
 
     content_texts: list[str] = [
-        " ".join(filter(None, [s.get("title", ""), s.get("description", "")]))
-        for s in content_signals
+        " ".join(filter(None, [s.get("title", ""), s.get("description", "")])) for s in content_signals
     ]
     claim_texts: list[str] = []
     for s in content_signals:
@@ -157,9 +217,7 @@ def assess_reputation(
     bot_pct_avg = 0.0
     if account_signals:
         bot_pct_avg = sum(float(a.get("bot_follower_pct", 0)) for a in account_signals) / len(account_signals)
-    risk_scores["spam_pattern_drift"] = round(
-        _clamp(spam_kw * 0.50 + _clamp(bot_pct_avg) * 0.50), 3
-    )
+    risk_scores["spam_pattern_drift"] = round(_clamp(spam_kw * 0.50 + _clamp(bot_pct_avg) * 0.50), 3)
 
     # 3. audience_trust_decline
     trust_kw = _kw_score(all_texts, _TRUST_DECLINE_KW)
@@ -186,9 +244,7 @@ def assess_reputation(
     # 5. claim_risk_accumulation
     claim_kw = _kw_score(claim_texts + content_texts, _CLAIM_RISK_KW)
     claim_density = _clamp(len(claim_texts) / max(1, len(content_signals)) / 3.0)
-    risk_scores["claim_risk_accumulation"] = round(
-        _clamp(claim_kw * 0.60 + claim_density * 0.40), 3
-    )
+    risk_scores["claim_risk_accumulation"] = round(_clamp(claim_kw * 0.60 + claim_density * 0.40), 3)
 
     # 6. synthetic_pattern_risk
     synth_kw = _kw_score(all_texts, _SYNTHETIC_KW)
@@ -206,15 +262,13 @@ def assess_reputation(
     # 8. sponsor_risk_drift
     sponsor_kw = _kw_score(all_texts, _SPONSOR_RISK_KW)
     sponsor_names = brand_data.get("sponsor_names", [])
-    sponsor_diversity_penalty = _clamp(1.0 - len(set(sponsor_names)) / max(1, len(sponsor_names))) if sponsor_names else 0.0
-    risk_scores["sponsor_risk_drift"] = round(
-        _clamp(sponsor_kw * 0.60 + sponsor_diversity_penalty * 0.40), 3
+    sponsor_diversity_penalty = (
+        _clamp(1.0 - len(set(sponsor_names)) / max(1, len(sponsor_names))) if sponsor_names else 0.0
     )
+    risk_scores["sponsor_risk_drift"] = round(_clamp(sponsor_kw * 0.60 + sponsor_diversity_penalty * 0.40), 3)
 
     # ------------------------------------------------------------------ aggregate
-    reputation_risk_score = round(
-        sum(risk_scores[k] * _RISK_WEIGHTS[k] for k in _RISK_WEIGHTS), 3
-    )
+    reputation_risk_score = round(sum(risk_scores[k] * _RISK_WEIGHTS[k] for k in _RISK_WEIGHTS), 3)
 
     # ------------------------------------------------------------------ primary risks (top 3)
     sorted_risks = sorted(risk_scores.items(), key=lambda kv: kv[1], reverse=True)
@@ -233,12 +287,8 @@ def assess_reputation(
     )
 
     # ------------------------------------------------------------------ confidence
-    data_richness = _clamp(
-        (len(account_signals) + len(content_signals)) / 20.0
-    )
-    confidence = round(
-        _clamp(0.35 + data_richness * 0.35 + (1.0 - reputation_risk_score) * 0.15 + 0.15), 3
-    )
+    data_richness = _clamp((len(account_signals) + len(content_signals)) / 20.0)
+    confidence = round(_clamp(0.35 + data_richness * 0.35 + (1.0 - reputation_risk_score) * 0.15 + 0.15), 3)
 
     # ------------------------------------------------------------------ explanation
     top_str = ", ".join(f"{r['risk_type']} {r['score']:.2f}" for r in primary_risks[:3])
@@ -308,11 +358,13 @@ def _build_mitigation(risk_scores: dict[str, float]) -> list[dict[str, Any]]:
         if score < 0.20:
             continue
         for action_text in _MITIGATION_MAP.get(risk_type, []):
-            actions.append({
-                "risk_type": risk_type,
-                "action": action_text,
-                "urgency": "high" if score >= 0.60 else ("medium" if score >= 0.35 else "low"),
-            })
+            actions.append(
+                {
+                    "risk_type": risk_type,
+                    "action": action_text,
+                    "urgency": "high" if score >= 0.60 else ("medium" if score >= 0.35 else "low"),
+                }
+            )
     return actions
 
 

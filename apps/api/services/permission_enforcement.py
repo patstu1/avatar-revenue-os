@@ -1,4 +1,5 @@
 """Framework-level permission enforcement — wraps autonomous actions."""
+
 from __future__ import annotations
 
 import logging
@@ -30,6 +31,7 @@ ACTION_MAP = {
 
 class PermissionDenied(Exception):
     """Raised when an action is blocked by the permission matrix."""
+
     def __init__(self, action: str, mode: str, reason: str):
         self.action = action
         self.mode = mode

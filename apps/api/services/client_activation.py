@@ -10,6 +10,7 @@ Fires the canonical events:
   - ``intake.completed``     (intake submission persisted with
                               is_complete=True)
 """
+
 from __future__ import annotations
 
 import secrets
@@ -37,7 +38,12 @@ DEFAULT_INTAKE_SCHEMA = {
         {"field_id": "primary_contact", "label": "Primary point of contact", "type": "text", "required": True},
         {"field_id": "target_audience", "label": "Who are you selling to?", "type": "textarea", "required": True},
         {"field_id": "brand_voice", "label": "Describe your brand voice", "type": "textarea", "required": False},
-        {"field_id": "assets_url", "label": "Link to brand assets (logo, colors, fonts)", "type": "text", "required": False},
+        {
+            "field_id": "assets_url",
+            "label": "Link to brand assets (logo, colors, fonts)",
+            "type": "text",
+            "required": False,
+        },
         {"field_id": "goals", "label": "What are you trying to achieve?", "type": "textarea", "required": True},
         {"field_id": "start_date_pref", "label": "Preferred start date", "type": "text", "required": False},
     ],
@@ -78,9 +84,7 @@ async def activate_client_from_payment(
     display_name = (payment.customer_name or "").strip()
     proposal = None
     if payment.proposal_id is not None:
-        proposal = (
-            await db.execute(select(Proposal).where(Proposal.id == payment.proposal_id))
-        ).scalar_one_or_none()
+        proposal = (await db.execute(select(Proposal).where(Proposal.id == payment.proposal_id))).scalar_one_or_none()
         if proposal is not None:
             display_name = display_name or (proposal.recipient_name or "")
 
@@ -111,6 +115,7 @@ async def activate_client_from_payment(
     # source proposal's package_slug so the retention scanner can key
     # renewal detection on is_recurring alone.
     from apps.api.services.retention_service import recurring_period_for_package
+
     src_pkg = proposal.package_slug if proposal else None
     period_days = recurring_period_for_package(src_pkg)
 
@@ -164,13 +169,16 @@ async def activate_client_from_payment(
     )
     try:
         from apps.api.services.stage_controller import mark_stage
+
         await mark_stage(
-            db, org_id=client.org_id,
-            entity_type="client", entity_id=client.id, stage="active",
+            db,
+            org_id=client.org_id,
+            entity_type="client",
+            entity_id=client.id,
+            stage="active",
         )
     except Exception as stage_exc:
-        logger.warning("stage_controller.mark_failed",
-                        entity="client", error=str(stage_exc)[:150])
+        logger.warning("stage_controller.mark_failed", entity="client", error=str(stage_exc)[:150])
 
     intake = await start_onboarding(
         db,
@@ -227,36 +235,32 @@ async def start_onboarding(
             HIGH_TICKET_INTAKE_SCHEMA,
             ensure_profile,
         )
+
         schema_to_use = HIGH_TICKET_INTAKE_SCHEMA
         instructions_to_use = (
             instructions
             or HIGH_TICKET_INTAKE_SCHEMA.get("instructions")
             or "Please complete the following to scope your contract."
         )
-        title_to_use = title or (
-            f"High-ticket scoping — {client.display_name or client.primary_email}"
-        )
+        title_to_use = title or (f"High-ticket scoping — {client.display_name or client.primary_email}")
         await ensure_profile(db, client=client)
     elif schema is None and client.avenue_slug == "sponsor_deals":
         from apps.api.services.sponsor_onboarding_service import (
             SPONSOR_INTAKE_SCHEMA,
             ensure_campaign,
         )
+
         schema_to_use = SPONSOR_INTAKE_SCHEMA
         instructions_to_use = (
             instructions
             or SPONSOR_INTAKE_SCHEMA.get("instructions")
             or "Please complete the following to scope your sponsor campaign."
         )
-        title_to_use = title or (
-            f"Sponsor campaign scoping — {client.display_name or client.primary_email}"
-        )
+        title_to_use = title or (f"Sponsor campaign scoping — {client.display_name or client.primary_email}")
         await ensure_campaign(db, client=client)
     else:
         schema_to_use = schema or DEFAULT_INTAKE_SCHEMA
-        instructions_to_use = (
-            instructions or "Please complete the following to kick off production."
-        )
+        instructions_to_use = instructions or "Please complete the following to kick off production."
         title_to_use = title or f"Intake for {client.display_name}"
 
     intake = IntakeRequest(
@@ -351,13 +355,16 @@ async def start_onboarding(
     )
     try:
         from apps.api.services.stage_controller import mark_stage
+
         await mark_stage(
-            db, org_id=intake.org_id,
-            entity_type="intake_request", entity_id=intake.id, stage="sent",
+            db,
+            org_id=intake.org_id,
+            entity_type="intake_request",
+            entity_id=intake.id,
+            stage="sent",
         )
     except Exception as stage_exc:
-        logger.warning("stage_controller.mark_failed",
-                        entity="intake_request", error=str(stage_exc)[:150])
+        logger.warning("stage_controller.mark_failed", entity="intake_request", error=str(stage_exc)[:150])
 
     # Batch 9: actually email the buyer the intake link. Before this,
     # start_onboarding created the IntakeRequest row but sent nothing
@@ -371,27 +378,30 @@ async def start_onboarding(
             error=str(email_exc)[:200],
         )
 
-
     # Phase 3: analytics_events emission.
     try:
         _b_id = getattr(client, "brand_id", None)
         if _b_id is not None:
             from packages.clients.analytics_emitter import emit_analytics_event
+
             await emit_analytics_event(
-                db, brand_id=_b_id,
+                db,
+                brand_id=_b_id,
                 source="client_activation",
                 event_type="onboarding.started",
-                metric_value=1.0, truth_level="verified",
-                raw_json={"client_id": str(client.id),
-                          "client_email": getattr(client, "primary_email", None),
-                          "intake_request_id": str(intake.id) if intake else None},
+                metric_value=1.0,
+                truth_level="verified",
+                raw_json={
+                    "client_id": str(client.id),
+                    "client_email": getattr(client, "primary_email", None),
+                    "intake_request_id": str(intake.id) if intake else None,
+                },
             )
             await db.flush()
     except Exception as _aexc:
         import structlog as _sl
-        _sl.get_logger().warning("analytics_emit_failed",
-                                  source="client_activation",
-                                  error=str(_aexc)[:200])
+
+        _sl.get_logger().warning("analytics_emit_failed", source="client_activation", error=str(_aexc)[:200])
     return intake
 
 
@@ -427,9 +437,7 @@ async def send_intake_invite(
             display_name=client.display_name or client.primary_email,
             intake_title=intake_request.title,
             intake_token=intake_request.token,
-            package_slug=(
-                intake_request.schema_json or {}
-            ).get("package_slug"),
+            package_slug=(intake_request.schema_json or {}).get("package_slug"),
             avenue_slug=client.avenue_slug,
         )
         result = await smtp.send_email(
@@ -547,15 +555,8 @@ async def submit_intake(
     """Persist an IntakeSubmission, compute completeness, emit intake.completed
     when all required schema fields are present."""
     schema = intake_request.schema_json or DEFAULT_INTAKE_SCHEMA
-    required = [
-        f["field_id"]
-        for f in schema.get("fields", [])
-        if f.get("required") and f.get("field_id")
-    ]
-    missing = [
-        fid for fid in required
-        if not str(responses.get(fid, "")).strip()
-    ]
+    required = [f["field_id"] for f in schema.get("fields", []) if f.get("required") and f.get("field_id")]
+    missing = [fid for fid in required if not str(responses.get(fid, "")).strip()]
     is_complete = not missing
 
     now = datetime.now(timezone.utc)
@@ -630,9 +631,8 @@ async def submit_intake(
             from apps.api.services.fulfillment_service import (
                 cascade_intake_to_production,
             )
-            cascade_result = await cascade_intake_to_production(
-                db, intake_submission=submission
-            )
+
+            cascade_result = await cascade_intake_to_production(db, intake_submission=submission)
             logger.info(
                 "intake.cascade_ok",
                 intake_submission_id=str(submission.id),
@@ -659,14 +659,10 @@ async def submit_intake(
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-async def _recover_email_from_proposal(
-    db: AsyncSession, proposal_id: uuid.UUID | None
-) -> str:
+async def _recover_email_from_proposal(db: AsyncSession, proposal_id: uuid.UUID | None) -> str:
     if proposal_id is None:
         return ""
-    proposal = (
-        await db.execute(select(Proposal).where(Proposal.id == proposal_id))
-    ).scalar_one_or_none()
+    proposal = (await db.execute(select(Proposal).where(Proposal.id == proposal_id))).scalar_one_or_none()
     if proposal is None:
         return ""
     return (proposal.recipient_email or "").strip().lower()

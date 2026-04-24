@@ -9,6 +9,7 @@ Runs the full closed loop:
    - content form recommendations
    - gatekeeper
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -29,6 +30,7 @@ async def _cascade_for_brand(brand_id):
 
     try:
         from apps.api.services.offer_learning_service import run_offer_learning
+
         async with get_async_session_factory()() as db:
             r = await run_offer_learning(db, brand_id)
             await db.commit()
@@ -39,6 +41,7 @@ async def _cascade_for_brand(brand_id):
 
     try:
         from apps.api.services.scale_service import recompute_scale_recommendations
+
         async with get_async_session_factory()() as db:
             r = await recompute_scale_recommendations(db, brand_id)
             await db.commit()
@@ -49,6 +52,7 @@ async def _cascade_for_brand(brand_id):
 
     try:
         from apps.api.services.expansion_advisor_service import recompute_advisory
+
         async with get_async_session_factory()() as db:
             r = await recompute_advisory(db, brand_id)
             await db.commit()
@@ -59,6 +63,7 @@ async def _cascade_for_brand(brand_id):
 
     try:
         from apps.api.services.content_form_service import recompute_recommendations
+
         async with get_async_session_factory()() as db:
             r = await recompute_recommendations(db, brand_id)
             await db.commit()

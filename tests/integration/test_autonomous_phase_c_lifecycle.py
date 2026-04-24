@@ -3,6 +3,7 @@
 Tests the closed loop: recompute → propose → approve → execute → complete,
 plus paid performance ingestion, batch execute, and operator notifications.
 """
+
 import pytest
 
 from tests.conftest import create_brand_with_offer, register_and_login
@@ -16,7 +17,8 @@ async def test_funnel_lifecycle_propose_approve_execute(api_client, sample_org_d
 
     # Recompute creates proposals
     post = await api_client.post(
-        f"/api/v1/brands/{bid}/funnel-execution/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/funnel-execution/recompute",
+        headers=headers,
     )
     assert post.status_code == 200
 
@@ -55,7 +57,8 @@ async def test_sponsor_lifecycle_full_loop(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     await api_client.post(
-        f"/api/v1/brands/{bid}/sponsor-autonomy/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/sponsor-autonomy/recompute",
+        headers=headers,
     )
     get = await api_client.get(f"/api/v1/brands/{bid}/sponsor-autonomy", headers=headers)
     rows = get.json()
@@ -89,7 +92,8 @@ async def test_retention_lifecycle_with_rejection(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     await api_client.post(
-        f"/api/v1/brands/{bid}/retention-autonomy/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/retention-autonomy/recompute",
+        headers=headers,
     )
     get = await api_client.get(f"/api/v1/brands/{bid}/retention-autonomy", headers=headers)
     rows = get.json()
@@ -111,7 +115,8 @@ async def test_self_healing_lifecycle_execute(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     await api_client.post(
-        f"/api/v1/brands/{bid}/recovery-autonomy/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/recovery-autonomy/recompute",
+        headers=headers,
     )
     get = await api_client.get(f"/api/v1/brands/{bid}/recovery-autonomy", headers=headers)
     data = get.json()
@@ -141,7 +146,8 @@ async def test_paid_performance_ingestion_replaces_synthetic(api_client, sample_
 
     # Recompute creates runs with synthetic data
     await api_client.post(
-        f"/api/v1/brands/{bid}/paid-operator/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/paid-operator/recompute",
+        headers=headers,
     )
     get = await api_client.get(f"/api/v1/brands/{bid}/paid-operator", headers=headers)
     data = get.json()
@@ -179,7 +185,8 @@ async def test_batch_execute_approved(api_client, sample_org_data):
 
     # Create sponsor actions
     await api_client.post(
-        f"/api/v1/brands/{bid}/sponsor-autonomy/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/sponsor-autonomy/recompute",
+        headers=headers,
     )
     get = await api_client.get(f"/api/v1/brands/{bid}/sponsor-autonomy", headers=headers)
     rows = get.json()
@@ -194,7 +201,8 @@ async def test_batch_execute_approved(api_client, sample_org_data):
 
     # Batch execute
     batch = await api_client.post(
-        f"/api/v1/brands/{bid}/phase-c/execute-approved", headers=headers,
+        f"/api/v1/brands/{bid}/phase-c/execute-approved",
+        headers=headers,
     )
     assert batch.status_code == 200
     assert batch.json()["actions_executed"] >= 2
@@ -206,7 +214,8 @@ async def test_invalid_transition_rejected(api_client, sample_org_data):
     bid, _, _ = await create_brand_with_offer(api_client, headers)
 
     await api_client.post(
-        f"/api/v1/brands/{bid}/retention-autonomy/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/retention-autonomy/recompute",
+        headers=headers,
     )
     get = await api_client.get(f"/api/v1/brands/{bid}/retention-autonomy", headers=headers)
     record_id = get.json()[0]["id"]
@@ -228,7 +237,8 @@ async def test_operator_notification_endpoint(api_client, sample_org_data):
 
     # Create actions and move one to operator_review
     await api_client.post(
-        f"/api/v1/brands/{bid}/sponsor-autonomy/recompute", headers=headers,
+        f"/api/v1/brands/{bid}/sponsor-autonomy/recompute",
+        headers=headers,
     )
     get = await api_client.get(f"/api/v1/brands/{bid}/sponsor-autonomy", headers=headers)
     record_id = get.json()[0]["id"]
@@ -241,7 +251,8 @@ async def test_operator_notification_endpoint(api_client, sample_org_data):
 
     # Notify operator
     notify = await api_client.post(
-        f"/api/v1/brands/{bid}/phase-c/notify-operator", headers=headers,
+        f"/api/v1/brands/{bid}/phase-c/notify-operator",
+        headers=headers,
     )
     assert notify.status_code == 200
     data = notify.json()

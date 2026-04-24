@@ -203,6 +203,7 @@ class ExperimentStatus(str, enum.Enum):
 # Cinema Studio enums
 # ---------------------------------------------------------------------------
 
+
 class CameraShot(str, enum.Enum):
     EXTREME_CLOSE_UP = "extreme_close_up"
     CLOSE_UP = "close_up"
@@ -285,6 +286,7 @@ class StudioGenerationStatus(str, enum.Enum):
 
 class ContentLifecycle(str, enum.Enum):
     """Unified content item lifecycle — from idea to tracked performance."""
+
     DRAFT = "draft"
     BRIEF_READY = "brief_ready"
     GENERATING = "generating"
@@ -302,6 +304,7 @@ class ContentLifecycle(str, enum.Enum):
 
 class AccountLifecycle(str, enum.Enum):
     """Creator account lifecycle — from creation to maturity."""
+
     ONBOARDING = "onboarding"
     ACTIVE = "active"
     WARMING = "warming"
@@ -316,6 +319,7 @@ class AccountLifecycle(str, enum.Enum):
 
 class OfferLifecycleStatus(str, enum.Enum):
     """Offer lifecycle — from draft through performance-based transitions."""
+
     DRAFT = "draft"
     TESTING = "testing"
     ACTIVE = "active"
@@ -327,6 +331,7 @@ class OfferLifecycleStatus(str, enum.Enum):
 
 class BrandLifecycle(str, enum.Enum):
     """Brand lifecycle — from setup to full operation."""
+
     SETUP = "setup"
     ONBOARDING = "onboarding"
     ACTIVE = "active"
@@ -338,6 +343,7 @@ class BrandLifecycle(str, enum.Enum):
 
 class EventDomain(str, enum.Enum):
     """Top-level system event domains mapping to OS layers."""
+
     CONTENT = "content"
     PUBLISHING = "publishing"
     MONETIZATION = "monetization"
@@ -352,6 +358,7 @@ class EventDomain(str, enum.Enum):
 
 class EventSeverity(str, enum.Enum):
     """Event severity for control layer prioritization."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -360,6 +367,7 @@ class EventSeverity(str, enum.Enum):
 
 class ActionPriority(str, enum.Enum):
     """Operator action priority."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -368,6 +376,7 @@ class ActionPriority(str, enum.Enum):
 
 class ActionCategory(str, enum.Enum):
     """Categories of operator actions for the control layer."""
+
     BLOCKER = "blocker"
     APPROVAL = "approval"
     OPPORTUNITY = "opportunity"
@@ -379,6 +388,7 @@ class ActionCategory(str, enum.Enum):
 
 class ActionStatus(str, enum.Enum):
     """Status of an operator action."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -388,6 +398,7 @@ class ActionStatus(str, enum.Enum):
 
 class PublishPolicyTier(str, enum.Enum):
     """Outcome tiers for the publish policy engine."""
+
     AUTO_PUBLISH = "auto_publish"
     SAMPLE_REVIEW = "sample_review"
     MANUAL_APPROVAL = "manual_approval"

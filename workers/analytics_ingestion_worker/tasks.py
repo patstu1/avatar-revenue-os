@@ -7,6 +7,7 @@ Credentials loaded from encrypted DB via credential_loader, with .env fallback.
 When API credentials are not configured, tasks log a warning and return
 without error. The system degrades gracefully.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -34,9 +35,12 @@ def _load_analytics_credentials(session, org_id: uuid.UUID) -> dict:
         return {}
     try:
         from packages.clients.credential_loader import load_credential, load_credential_full
+
         return {
             "youtube_api_key": load_credential(session, org_id, "youtube_analytics"),
-            "youtube_oauth_token": (load_credential_full(session, org_id, "youtube_analytics") or {}).get("oauth_token"),
+            "youtube_oauth_token": (load_credential_full(session, org_id, "youtube_analytics") or {}).get(
+                "oauth_token"
+            ),
             "tiktok_access_token": load_credential(session, org_id, "tiktok_analytics"),
             "instagram_access_token": load_credential(session, org_id, "instagram_analytics"),
             "serpapi_key": load_credential(session, org_id, "serpapi"),
@@ -54,7 +58,9 @@ def _compute_engagement_rate(views: int, likes: int, comments: int, shares: int)
 
 
 async def _resolve_content_item_id(
-    db, account_id: uuid.UUID, platform_post_id: str | None,
+    db,
+    account_id: uuid.UUID,
+    platform_post_id: str | None,
 ) -> uuid.UUID | None:
     """Map a platform's post/video ID back to our ContentItem via PublishJob.
 
@@ -68,12 +74,17 @@ async def _resolve_content_item_id(
     from sqlalchemy import select
 
     from packages.db.models.publishing import PublishJob
-    row = (await db.execute(
-        select(PublishJob.content_item_id).where(
-            PublishJob.creator_account_id == account_id,
-            PublishJob.platform_post_id == str(platform_post_id),
-        ).limit(1)
-    )).scalar_one_or_none()
+
+    row = (
+        await db.execute(
+            select(PublishJob.content_item_id)
+            .where(
+                PublishJob.creator_account_id == account_id,
+                PublishJob.platform_post_id == str(platform_post_id),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
     return row
 
 
@@ -103,17 +114,13 @@ async def _do_ingest_platform_analytics():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        accounts = (await db.execute(
-            select(CreatorAccount).where(CreatorAccount.is_active.is_(True))
-        )).scalars().all()
+        accounts = (await db.execute(select(CreatorAccount).where(CreatorAccount.is_active.is_(True)))).scalars().all()
 
         # Pre-load credentials per org
         brand_org_map: dict[uuid.UUID, uuid.UUID] = {}
         brand_ids = {a.brand_id for a in accounts}
         for bid in brand_ids:
-            brand = (await db.execute(
-                select(Brand).where(Brand.id == bid)
-            )).scalar_one_or_none()
+            brand = (await db.execute(select(Brand).where(Brand.id == bid))).scalar_one_or_none()
             if brand and brand.organization_id:
                 brand_org_map[bid] = brand.organization_id
 
@@ -172,27 +179,29 @@ async def _do_ingest_platform_analytics():
                             else:
                                 unlinked += 1
                                 if len(sample_unresolved) < 10 and yt_video_id:
-                                    sample_unresolved.append({"platform": "youtube",
-                                                              "post_id": yt_video_id,
-                                                              "account_id": str(acct.id)})
+                                    sample_unresolved.append(
+                                        {"platform": "youtube", "post_id": yt_video_id, "account_id": str(acct.id)}
+                                    )
 
-                            db.add(PerformanceMetric(
-                                content_item_id=content_item_id,
-                                creator_account_id=acct.id,
-                                brand_id=acct.brand_id,
-                                platform=platform,
-                                impressions=views,
-                                views=views,
-                                likes=likes,
-                                comments=comments,
-                                shares=shares,
-                                watch_time_seconds=int(watch_minutes * 60),
-                                followers_gained=subs,
-                                revenue=revenue,
-                                rpm=round((revenue / views * 1000), 2) if views > 0 else 0.0,
-                                engagement_rate=_compute_engagement_rate(views, likes, comments, shares),
-                                raw_data=m,
-                            ))
+                            db.add(
+                                PerformanceMetric(
+                                    content_item_id=content_item_id,
+                                    creator_account_id=acct.id,
+                                    brand_id=acct.brand_id,
+                                    platform=platform,
+                                    impressions=views,
+                                    views=views,
+                                    likes=likes,
+                                    comments=comments,
+                                    shares=shares,
+                                    watch_time_seconds=int(watch_minutes * 60),
+                                    followers_gained=subs,
+                                    revenue=revenue,
+                                    rpm=round((revenue / views * 1000), 2) if views > 0 else 0.0,
+                                    engagement_rate=_compute_engagement_rate(views, likes, comments, shares),
+                                    raw_data=m,
+                                )
+                            )
                             ingested += 1
                         await db.commit()
 
@@ -220,23 +229,25 @@ async def _do_ingest_platform_analytics():
                             else:
                                 unlinked += 1
                                 if len(sample_unresolved) < 10 and tt_video_id:
-                                    sample_unresolved.append({"platform": "tiktok",
-                                                              "post_id": tt_video_id,
-                                                              "account_id": str(acct.id)})
+                                    sample_unresolved.append(
+                                        {"platform": "tiktok", "post_id": tt_video_id, "account_id": str(acct.id)}
+                                    )
 
-                            db.add(PerformanceMetric(
-                                content_item_id=content_item_id,
-                                creator_account_id=acct.id,
-                                brand_id=acct.brand_id,
-                                platform=platform,
-                                impressions=views,
-                                views=views,
-                                likes=likes,
-                                comments=comments,
-                                shares=shares,
-                                engagement_rate=_compute_engagement_rate(views, likes, comments, shares),
-                                raw_data=m,
-                            ))
+                            db.add(
+                                PerformanceMetric(
+                                    content_item_id=content_item_id,
+                                    creator_account_id=acct.id,
+                                    brand_id=acct.brand_id,
+                                    platform=platform,
+                                    impressions=views,
+                                    views=views,
+                                    likes=likes,
+                                    comments=comments,
+                                    shares=shares,
+                                    engagement_rate=_compute_engagement_rate(views, likes, comments, shares),
+                                    raw_data=m,
+                                )
+                            )
                             ingested += 1
                         await db.commit()
 
@@ -262,23 +273,23 @@ async def _do_ingest_platform_analytics():
                             else:
                                 unlinked += 1
                                 if len(sample_unresolved) < 10 and ig_media_id:
-                                    sample_unresolved.append({"platform": "instagram",
-                                                              "post_id": ig_media_id,
-                                                              "account_id": str(acct.id)})
+                                    sample_unresolved.append(
+                                        {"platform": "instagram", "post_id": ig_media_id, "account_id": str(acct.id)}
+                                    )
 
-                            db.add(PerformanceMetric(
-                                content_item_id=content_item_id,
-                                creator_account_id=acct.id,
-                                brand_id=acct.brand_id,
-                                platform=platform,
-                                impressions=likes + comments,
-                                likes=likes,
-                                comments=comments,
-                                engagement_rate=_compute_engagement_rate(
-                                    likes + comments, likes, comments, 0
-                                ),
-                                raw_data=m,
-                            ))
+                            db.add(
+                                PerformanceMetric(
+                                    content_item_id=content_item_id,
+                                    creator_account_id=acct.id,
+                                    brand_id=acct.brand_id,
+                                    platform=platform,
+                                    impressions=likes + comments,
+                                    likes=likes,
+                                    comments=comments,
+                                    engagement_rate=_compute_engagement_rate(likes + comments, likes, comments, 0),
+                                    raw_data=m,
+                                )
+                            )
                             ingested += 1
                         await db.commit()
 
@@ -288,7 +299,9 @@ async def _do_ingest_platform_analytics():
         except Exception as e:
             logger.warning(
                 "analytics_ingestion.account_failed",
-                account_id=str(acct.id), platform=platform, error=str(e),
+                account_id=str(acct.id),
+                platform=platform,
+                error=str(e),
             )
             errors += 1
 
@@ -335,9 +348,7 @@ async def _do_ingest_trend_signals():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        brand = (await db.execute(
-            select(Brand).where(Brand.is_active.is_(True)).limit(1)
-        )).scalar_one_or_none()
+        brand = (await db.execute(select(Brand).where(Brand.is_active.is_(True)).limit(1))).scalar_one_or_none()
         org_id = brand.organization_id if brand else None
 
     if org_id:
@@ -350,7 +361,8 @@ async def _do_ingest_trend_signals():
 
     if not client.is_configured():
         return {
-            "configured": False, "ingested": 0,
+            "configured": False,
+            "ingested": 0,
             "message": "SerpAPI key not configured - add in Settings > Integrations",
         }
 
@@ -401,6 +413,7 @@ async def _do_ingest_trend_signals():
 # Per-item metrics ingest (event-driven, triggered by publish success)
 # ---------------------------------------------------------------------------
 
+
 @shared_task(
     name="workers.analytics_ingestion_worker.tasks.ingest_metrics_for_content_item",
     base=TrackedTask,
@@ -440,17 +453,20 @@ async def _do_ingest_single_item(content_item_id_str: str, account_id_str: str):
     factory = get_async_session_factory()
 
     async with factory() as db:
-        acct = (await db.execute(
-            select(CreatorAccount).where(CreatorAccount.id == account_id)
-        )).scalar_one_or_none()
+        acct = (await db.execute(select(CreatorAccount).where(CreatorAccount.id == account_id))).scalar_one_or_none()
         if not acct:
             return {"skipped": True, "reason": "account_not_found"}
 
-        job = (await db.execute(
-            select(PublishJob).where(
-                PublishJob.content_item_id == content_item_id,
-            ).order_by(PublishJob.created_at.desc()).limit(1)
-        )).scalar_one_or_none()
+        job = (
+            await db.execute(
+                select(PublishJob)
+                .where(
+                    PublishJob.content_item_id == content_item_id,
+                )
+                .order_by(PublishJob.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         platform_post_id = job.platform_post_id if job else None
 
         if not platform_post_id:
@@ -518,31 +534,35 @@ async def _do_ingest_single_item(content_item_id_str: str, account_id_str: str):
                     break
 
     except Exception as e:
-        logger.warning("single_item_ingest.fetch_failed",
-                       content_item_id=content_item_id_str, platform=platform, error=str(e))
+        logger.warning(
+            "single_item_ingest.fetch_failed", content_item_id=content_item_id_str, platform=platform, error=str(e)
+        )
         return {"ingested": False, "error": str(e)[:200]}
 
     if not got_data:
         return {"ingested": False, "reason": "no_data_yet"}
 
     async with factory() as db:
-        db.add(PerformanceMetric(
-            content_item_id=content_item_id,
-            creator_account_id=account_id,
-            brand_id=acct.brand_id,
-            platform=platform,
-            impressions=views,
-            views=views,
-            likes=likes,
-            comments=comments,
-            shares=shares,
-            revenue=revenue,
-            engagement_rate=_compute_engagement_rate(views, likes, comments, shares),
-        ))
+        db.add(
+            PerformanceMetric(
+                content_item_id=content_item_id,
+                creator_account_id=account_id,
+                brand_id=acct.brand_id,
+                platform=platform,
+                impressions=views,
+                views=views,
+                likes=likes,
+                comments=comments,
+                shares=shares,
+                revenue=revenue,
+                engagement_rate=_compute_engagement_rate(views, likes, comments, shares),
+            )
+        )
         await db.commit()
 
     # Chain: trigger per-item attribution
     from workers.causal_attribution_worker.tasks import attribute_revenue_for_content_item
+
     attribute_revenue_for_content_item.apply_async(
         args=[content_item_id_str],
         countdown=60,

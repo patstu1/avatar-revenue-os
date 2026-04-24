@@ -15,6 +15,7 @@ Every operationally-daily field is a first-class column. Only
 free-form content (brief_json, metrics_json,
 exclusivity_clauses_json, notes) is JSONB.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -37,63 +38,83 @@ from packages.db.base import Base
 
 class SponsorCampaign(Base):
     __tablename__ = "sponsor_campaigns"
-    __table_args__ = (
-        UniqueConstraint("client_id", name="uq_sponsor_campaigns_client"),
-    )
+    __table_args__ = (UniqueConstraint("client_id", name="uq_sponsor_campaigns_client"),)
 
     client_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("clients.id"),
-        nullable=False, unique=True,
+        UUID(as_uuid=True),
+        ForeignKey("clients.id"),
+        nullable=False,
+        unique=True,
     )
     org_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
     )
     brand_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True,
+        UUID(as_uuid=True),
+        ForeignKey("brands.id"),
+        nullable=True,
     )
     sponsor_opportunity_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True,
+        UUID(as_uuid=True),
+        nullable=True,
     )
     avenue_slug: Mapped[str] = mapped_column(
-        String(60), default="sponsor_deals", nullable=False,
+        String(60),
+        default="sponsor_deals",
+        nullable=False,
     )
 
     # status: pre_contract / contract_signed / brief_received /
     #         campaign_live / campaign_complete / cancelled
     status: Mapped[str] = mapped_column(
-        String(30), default="pre_contract", nullable=False, index=True,
+        String(30),
+        default="pre_contract",
+        nullable=False,
+        index=True,
     )
 
     contract_url: Mapped[str | None] = mapped_column(
-        String(2048), nullable=True,
+        String(2048),
+        nullable=True,
     )
     contract_signed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     counterparty_name: Mapped[str | None] = mapped_column(
-        String(255), nullable=True,
+        String(255),
+        nullable=True,
     )
 
     brief_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     brief_received_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     campaign_start_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True,
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
     )
     campaign_end_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     exclusivity_clauses_json: Mapped[dict | None] = mapped_column(
-        JSONB, nullable=True,
+        JSONB,
+        nullable=True,
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False,
+        Boolean,
+        default=True,
+        nullable=False,
     )
 
 
@@ -101,11 +122,15 @@ class SponsorPlacement(Base):
     __tablename__ = "sponsor_placements"
 
     campaign_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sponsor_campaigns.id"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("sponsor_campaigns.id"),
+        nullable=False,
+        index=True,
     )
     org_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False,
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
     )
 
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -116,28 +141,38 @@ class SponsorPlacement(Base):
 
     # status: scheduled / delivered / missed / make_good / cancelled
     status: Mapped[str] = mapped_column(
-        String(30), default="scheduled", nullable=False, index=True,
+        String(30),
+        default="scheduled",
+        nullable=False,
+        index=True,
     )
 
     scheduled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, index=True,
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
     )
     delivered_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     # Self-referential FK — when a placement is missed, a new Placement
     # row can be created with make_good_of_placement_id pointing at the
     # missed one, preserving the link for reports + dispute tracking.
     make_good_of_placement_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True, index=True,
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True,
     )
 
     metrics_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False,
+        Boolean,
+        default=True,
+        nullable=False,
     )
 
 
@@ -145,42 +180,57 @@ class SponsorReport(Base):
     __tablename__ = "sponsor_reports"
 
     campaign_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sponsor_campaigns.id"),
-        nullable=False, index=True,
+        UUID(as_uuid=True),
+        ForeignKey("sponsor_campaigns.id"),
+        nullable=False,
+        index=True,
     )
     org_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False,
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id"),
+        nullable=False,
     )
 
     # report_type: weekly / monthly / final / ad_hoc
     report_type: Mapped[str] = mapped_column(
-        String(30), default="monthly", nullable=False,
+        String(30),
+        default="monthly",
+        nullable=False,
     )
     period_start: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
     period_end: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
 
     # status: draft / sent
     status: Mapped[str] = mapped_column(
-        String(30), default="draft", nullable=False,
+        String(30),
+        default="draft",
+        nullable=False,
     )
 
     compiled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     sent_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     recipient_email: Mapped[str | None] = mapped_column(
-        String(255), nullable=True,
+        String(255),
+        nullable=True,
     )
 
     metrics_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False,
+        Boolean,
+        default=True,
+        nullable=False,
     )

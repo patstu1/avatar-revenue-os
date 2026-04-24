@@ -1,4 +1,5 @@
 """Monetization Machine Worker — Scheduled tasks for the revenue machine."""
+
 import asyncio
 from datetime import datetime, timedelta, timezone
 
@@ -29,34 +30,44 @@ async def _do_replenish_credits():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        subs = (await db.execute(
-            select(PlanSubscription).where(
-                PlanSubscription.is_active.is_(True),
-                PlanSubscription.status == "active",
-                PlanSubscription.plan_tier != "free",
+        subs = (
+            (
+                await db.execute(
+                    select(PlanSubscription).where(
+                        PlanSubscription.is_active.is_(True),
+                        PlanSubscription.status == "active",
+                        PlanSubscription.plan_tier != "free",
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
 
         replenished = 0
         for sub in subs:
-            ledger = (await db.execute(
-                select(CreditLedger).where(
-                    CreditLedger.organization_id == sub.organization_id,
-                    CreditLedger.is_active.is_(True),
+            ledger = (
+                await db.execute(
+                    select(CreditLedger).where(
+                        CreditLedger.organization_id == sub.organization_id,
+                        CreditLedger.is_active.is_(True),
+                    )
                 )
-            )).scalar_one_or_none()
+            ).scalar_one_or_none()
 
             if ledger and sub.included_credits > 0:
                 ledger.total_credits += sub.included_credits
                 ledger.remaining_credits += sub.included_credits
 
-                db.add(CreditTransaction(
-                    organization_id=sub.organization_id,
-                    transaction_type="earn",
-                    amount=sub.included_credits,
-                    balance_after=ledger.remaining_credits,
-                    description=f"Monthly replenishment: {sub.plan_name}",
-                ))
+                db.add(
+                    CreditTransaction(
+                        organization_id=sub.organization_id,
+                        transaction_type="earn",
+                        amount=sub.included_credits,
+                        balance_after=ledger.remaining_credits,
+                        description=f"Monthly replenishment: {sub.plan_name}",
+                    )
+                )
                 replenished += 1
 
         await db.commit()
@@ -79,9 +90,7 @@ async def _do_check_credit_exhaustion():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        ledgers = (await db.execute(
-            select(CreditLedger).where(CreditLedger.is_active.is_(True))
-        )).scalars().all()
+        ledgers = (await db.execute(select(CreditLedger).where(CreditLedger.is_active.is_(True)))).scalars().all()
 
         alerts_created = 0
         for ledger in ledgers:
@@ -91,18 +100,20 @@ async def _do_check_credit_exhaustion():
             utilization = (ledger.used_credits / ledger.total_credits) if ledger.total_credits else 0
             if utilization >= 0.80 or ledger.remaining_credits <= (ledger.replenishment_rate * 2):
                 severity = "critical" if utilization >= 0.95 else "warning"
-                db.add(MonetizationTelemetryEvent(
-                    organization_id=ledger.organization_id,
-                    user_id=None,
-                    event_name=f"credit_exhaustion_{severity}",
-                    event_value=utilization,
-                    event_properties={
-                        "remaining": ledger.remaining_credits,
-                        "total": ledger.total_credits,
-                        "utilization_pct": round(utilization * 100, 1),
-                        "severity": severity,
-                    },
-                ))
+                db.add(
+                    MonetizationTelemetryEvent(
+                        organization_id=ledger.organization_id,
+                        user_id=None,
+                        event_name=f"credit_exhaustion_{severity}",
+                        event_value=utilization,
+                        event_properties={
+                            "remaining": ledger.remaining_credits,
+                            "total": ledger.total_credits,
+                            "utilization_pct": round(utilization * 100, 1),
+                            "severity": severity,
+                        },
+                    )
+                )
                 alerts_created += 1
 
         await db.commit()
@@ -131,45 +142,57 @@ async def _do_compute_ascension_profiles():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        subs = (await db.execute(
-            select(PlanSubscription).where(
-                PlanSubscription.is_active.is_(True),
-                PlanSubscription.status == "active",
+        subs = (
+            (
+                await db.execute(
+                    select(PlanSubscription).where(
+                        PlanSubscription.is_active.is_(True),
+                        PlanSubscription.status == "active",
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
 
         profiles_computed = 0
         for sub in subs:
-            ledger = (await db.execute(
-                select(CreditLedger).where(
-                    CreditLedger.organization_id == sub.organization_id,
-                    CreditLedger.is_active.is_(True),
+            ledger = (
+                await db.execute(
+                    select(CreditLedger).where(
+                        CreditLedger.organization_id == sub.organization_id,
+                        CreditLedger.is_active.is_(True),
+                    )
                 )
-            )).scalar_one_or_none()
+            ).scalar_one_or_none()
 
-            recent_txn_count = (await db.execute(
-                select(sa_func.count(CreditTransaction.id)).where(
-                    CreditTransaction.organization_id == sub.organization_id,
-                    CreditTransaction.transacted_at >= datetime.now(timezone.utc) - timedelta(days=30),
+            recent_txn_count = (
+                await db.execute(
+                    select(sa_func.count(CreditTransaction.id)).where(
+                        CreditTransaction.organization_id == sub.organization_id,
+                        CreditTransaction.transacted_at >= datetime.now(timezone.utc) - timedelta(days=30),
+                    )
                 )
-            )).scalar() or 0
+            ).scalar() or 0
 
             utilization = (ledger.used_credits / ledger.total_credits) if ledger and ledger.total_credits else 0
             ascension_score = min(1.0, (utilization * 0.4) + (min(recent_txn_count, 100) / 100 * 0.3) + 0.3)
 
             if ascension_score >= 0.7:
-                db.add(MonetizationTelemetryEvent(
-                    organization_id=sub.organization_id,
-                    user_id=None,
-                    event_name="ascension_profile_computed",
-                    event_value=ascension_score,
-                    event_properties={
-                        "current_tier": sub.plan_tier,
-                        "utilization": round(utilization, 3),
-                        "txn_velocity": recent_txn_count,
-                        "ready_for_upgrade": ascension_score >= 0.85,
-                    },
-                ))
+                db.add(
+                    MonetizationTelemetryEvent(
+                        organization_id=sub.organization_id,
+                        user_id=None,
+                        event_name="ascension_profile_computed",
+                        event_value=ascension_score,
+                        event_properties={
+                            "current_tier": sub.plan_tier,
+                            "utilization": round(utilization, 3),
+                            "txn_velocity": recent_txn_count,
+                            "ready_for_upgrade": ascension_score >= 0.85,
+                        },
+                    )
+                )
                 profiles_computed += 1
 
         await db.commit()
@@ -199,56 +222,70 @@ async def _do_compute_monetization_health():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        subs = (await db.execute(
-            select(PlanSubscription).where(
-                PlanSubscription.is_active.is_(True),
-                PlanSubscription.status == "active",
+        subs = (
+            (
+                await db.execute(
+                    select(PlanSubscription).where(
+                        PlanSubscription.is_active.is_(True),
+                        PlanSubscription.status == "active",
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
 
         computed = 0
         for sub in subs:
             org_id = sub.organization_id
-            ledger = (await db.execute(
-                select(CreditLedger).where(
-                    CreditLedger.organization_id == org_id,
-                    CreditLedger.is_active.is_(True),
+            ledger = (
+                await db.execute(
+                    select(CreditLedger).where(
+                        CreditLedger.organization_id == org_id,
+                        CreditLedger.is_active.is_(True),
+                    )
                 )
-            )).scalar_one_or_none()
+            ).scalar_one_or_none()
 
             thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
 
-            revenue_from_multiplications = (await db.execute(
-                select(sa_func.coalesce(sa_func.sum(MultiplicationEvent.revenue), 0)).where(
-                    MultiplicationEvent.organization_id == org_id,
-                    MultiplicationEvent.converted.is_(True),
-                    MultiplicationEvent.converted_at >= thirty_days_ago,
+            revenue_from_multiplications = (
+                await db.execute(
+                    select(sa_func.coalesce(sa_func.sum(MultiplicationEvent.revenue), 0)).where(
+                        MultiplicationEvent.organization_id == org_id,
+                        MultiplicationEvent.converted.is_(True),
+                        MultiplicationEvent.converted_at >= thirty_days_ago,
+                    )
                 )
-            )).scalar() or 0.0
+            ).scalar() or 0.0
 
-            spend_txns = (await db.execute(
-                select(sa_func.coalesce(sa_func.sum(CreditTransaction.amount), 0)).where(
-                    CreditTransaction.organization_id == org_id,
-                    CreditTransaction.transaction_type == "spend",
-                    CreditTransaction.transacted_at >= thirty_days_ago,
+            spend_txns = (
+                await db.execute(
+                    select(sa_func.coalesce(sa_func.sum(CreditTransaction.amount), 0)).where(
+                        CreditTransaction.organization_id == org_id,
+                        CreditTransaction.transaction_type == "spend",
+                        CreditTransaction.transacted_at >= thirty_days_ago,
+                    )
                 )
-            )).scalar() or 0
+            ).scalar() or 0
 
             credit_util = (ledger.used_credits / ledger.total_credits) if ledger and ledger.total_credits else 0
             health_score = min(1.0, credit_util * 0.3 + min(revenue_from_multiplications / 10000, 1.0) * 0.4 + 0.3)
 
-            db.add(MonetizationTelemetryEvent(
-                organization_id=org_id,
-                user_id=None,
-                event_name="monetization_health_snapshot",
-                event_value=health_score,
-                event_properties={
-                    "credit_utilization": round(credit_util, 3),
-                    "multiplication_revenue_30d": float(revenue_from_multiplications),
-                    "credit_spend_30d": int(spend_txns),
-                    "plan_tier": sub.plan_tier,
-                },
-            ))
+            db.add(
+                MonetizationTelemetryEvent(
+                    organization_id=org_id,
+                    user_id=None,
+                    event_name="monetization_health_snapshot",
+                    event_value=health_score,
+                    event_properties={
+                        "credit_utilization": round(credit_util, 3),
+                        "multiplication_revenue_30d": float(revenue_from_multiplications),
+                        "credit_spend_30d": int(spend_txns),
+                        "plan_tier": sub.plan_tier,
+                    },
+                )
+            )
             computed += 1
 
         await db.commit()
@@ -276,32 +313,42 @@ async def _do_scan_multiplication_opportunities():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        subs = (await db.execute(
-            select(PlanSubscription).where(
-                PlanSubscription.is_active.is_(True),
-                PlanSubscription.status == "active",
+        subs = (
+            (
+                await db.execute(
+                    select(PlanSubscription).where(
+                        PlanSubscription.is_active.is_(True),
+                        PlanSubscription.status == "active",
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
 
         opportunities_found = 0
         for sub in subs:
             org_id = sub.organization_id
-            ledger = (await db.execute(
-                select(CreditLedger).where(
-                    CreditLedger.organization_id == org_id,
-                    CreditLedger.is_active.is_(True),
+            ledger = (
+                await db.execute(
+                    select(CreditLedger).where(
+                        CreditLedger.organization_id == org_id,
+                        CreditLedger.is_active.is_(True),
+                    )
                 )
-            )).scalar_one_or_none()
+            ).scalar_one_or_none()
 
             if not ledger:
                 continue
 
-            recent_mult_count = (await db.execute(
-                select(sa_func.count(MultiplicationEvent.id)).where(
-                    MultiplicationEvent.organization_id == org_id,
-                    MultiplicationEvent.offered_at >= datetime.now(timezone.utc) - timedelta(days=7),
+            recent_mult_count = (
+                await db.execute(
+                    select(sa_func.count(MultiplicationEvent.id)).where(
+                        MultiplicationEvent.organization_id == org_id,
+                        MultiplicationEvent.offered_at >= datetime.now(timezone.utc) - timedelta(days=7),
+                    )
                 )
-            )).scalar() or 0
+            ).scalar() or 0
 
             utilization = (ledger.used_credits / ledger.total_credits) if ledger.total_credits else 0
 
@@ -314,14 +361,16 @@ async def _do_scan_multiplication_opportunities():
                 triggers.append("no_recent_offers")
 
             if triggers:
-                db.add(MultiplicationEvent(
-                    organization_id=org_id,
-                    user_id=None,
-                    event_type="system_scan",
-                    trigger_context=", ".join(triggers),
-                    offered=False,
-                    converted=False,
-                ))
+                db.add(
+                    MultiplicationEvent(
+                        organization_id=org_id,
+                        user_id=None,
+                        event_type="system_scan",
+                        trigger_context=", ".join(triggers),
+                        offered=False,
+                        converted=False,
+                    )
+                )
                 opportunities_found += 1
 
         await db.commit()
@@ -348,91 +397,120 @@ async def _do_snapshot_saas_metrics():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        brand_ids = (await db.execute(
-            select(Subscription.brand_id).where(Subscription.is_active.is_(True)).distinct()
-        )).scalars().all()
+        brand_ids = (
+            (await db.execute(select(Subscription.brand_id).where(Subscription.is_active.is_(True)).distinct()))
+            .scalars()
+            .all()
+        )
 
         snapshots_created = 0
         for brand_id in brand_ids:
-            active_subs = (await db.execute(
-                select(Subscription).where(
-                    Subscription.brand_id == brand_id,
-                    Subscription.status == "active",
-                    Subscription.is_active.is_(True),
+            active_subs = (
+                (
+                    await db.execute(
+                        select(Subscription).where(
+                            Subscription.brand_id == brand_id,
+                            Subscription.status == "active",
+                            Subscription.is_active.is_(True),
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
 
             mrr = sum(s.mrr for s in active_subs)
 
-            new_events = (await db.execute(
-                select(sa_func.coalesce(sa_func.sum(SubscriptionEvent.mrr_delta), 0)).where(
-                    SubscriptionEvent.brand_id == brand_id,
-                    SubscriptionEvent.event_type == "new",
-                    SubscriptionEvent.event_at >= thirty_days_ago,
+            new_events = (
+                await db.execute(
+                    select(sa_func.coalesce(sa_func.sum(SubscriptionEvent.mrr_delta), 0)).where(
+                        SubscriptionEvent.brand_id == brand_id,
+                        SubscriptionEvent.event_type == "new",
+                        SubscriptionEvent.event_at >= thirty_days_ago,
+                    )
                 )
-            )).scalar() or 0.0
+            ).scalar() or 0.0
 
-            churned_events = (await db.execute(
-                select(sa_func.coalesce(sa_func.sum(SubscriptionEvent.mrr_delta), 0)).where(
-                    SubscriptionEvent.brand_id == brand_id,
-                    SubscriptionEvent.event_type == "churn",
-                    SubscriptionEvent.event_at >= thirty_days_ago,
+            churned_events = (
+                await db.execute(
+                    select(sa_func.coalesce(sa_func.sum(SubscriptionEvent.mrr_delta), 0)).where(
+                        SubscriptionEvent.brand_id == brand_id,
+                        SubscriptionEvent.event_type == "churn",
+                        SubscriptionEvent.event_at >= thirty_days_ago,
+                    )
                 )
-            )).scalar() or 0.0
+            ).scalar() or 0.0
 
-            expansion_events = (await db.execute(
-                select(sa_func.coalesce(sa_func.sum(SubscriptionEvent.mrr_delta), 0)).where(
-                    SubscriptionEvent.brand_id == brand_id,
-                    SubscriptionEvent.event_type == "expansion",
-                    SubscriptionEvent.event_at >= thirty_days_ago,
+            expansion_events = (
+                await db.execute(
+                    select(sa_func.coalesce(sa_func.sum(SubscriptionEvent.mrr_delta), 0)).where(
+                        SubscriptionEvent.brand_id == brand_id,
+                        SubscriptionEvent.event_type == "expansion",
+                        SubscriptionEvent.event_at >= thirty_days_ago,
+                    )
                 )
-            )).scalar() or 0.0
+            ).scalar() or 0.0
 
-            contraction_events = (await db.execute(
-                select(sa_func.coalesce(sa_func.sum(SubscriptionEvent.mrr_delta), 0)).where(
-                    SubscriptionEvent.brand_id == brand_id,
-                    SubscriptionEvent.event_type == "contraction",
-                    SubscriptionEvent.event_at >= thirty_days_ago,
+            contraction_events = (
+                await db.execute(
+                    select(sa_func.coalesce(sa_func.sum(SubscriptionEvent.mrr_delta), 0)).where(
+                        SubscriptionEvent.brand_id == brand_id,
+                        SubscriptionEvent.event_type == "contraction",
+                        SubscriptionEvent.event_at >= thirty_days_ago,
+                    )
                 )
-            )).scalar() or 0.0
+            ).scalar() or 0.0
 
-            churned_count = (await db.execute(
-                select(sa_func.count(Subscription.id)).where(
-                    Subscription.brand_id == brand_id,
-                    Subscription.status == "cancelled",
-                    Subscription.cancelled_at >= thirty_days_ago,
+            churned_count = (
+                await db.execute(
+                    select(sa_func.count(Subscription.id)).where(
+                        Subscription.brand_id == brand_id,
+                        Subscription.status == "cancelled",
+                        Subscription.cancelled_at >= thirty_days_ago,
+                    )
                 )
-            )).scalar() or 0
+            ).scalar() or 0
 
-            new_count = (await db.execute(
-                select(sa_func.count(SubscriptionEvent.id)).where(
-                    SubscriptionEvent.brand_id == brand_id,
-                    SubscriptionEvent.event_type == "new",
-                    SubscriptionEvent.event_at >= thirty_days_ago,
+            new_count = (
+                await db.execute(
+                    select(sa_func.count(SubscriptionEvent.id)).where(
+                        SubscriptionEvent.brand_id == brand_id,
+                        SubscriptionEvent.event_type == "new",
+                        SubscriptionEvent.event_at >= thirty_days_ago,
+                    )
                 )
-            )).scalar() or 0
+            ).scalar() or 0
 
             prev_mrr = mrr - float(new_events) + abs(float(churned_events))
             gross_churn = abs(float(churned_events)) / prev_mrr if prev_mrr > 0 else 0.0
-            net_retention = (prev_mrr + float(expansion_events) + float(contraction_events) - abs(float(churned_events))) / prev_mrr if prev_mrr > 0 else 1.0
+            net_retention = (
+                (prev_mrr + float(expansion_events) + float(contraction_events) - abs(float(churned_events))) / prev_mrr
+                if prev_mrr > 0
+                else 1.0
+            )
 
-            db.add(SaaSMetricSnapshot(
-                brand_id=brand_id,
-                period="daily",
-                snapshot_date=today,
-                mrr=mrr,
-                arr=mrr * 12,
-                new_mrr=float(new_events),
-                churned_mrr=abs(float(churned_events)),
-                expansion_mrr=float(expansion_events),
-                contraction_mrr=abs(float(contraction_events)),
-                net_new_mrr=float(new_events) + float(expansion_events) + float(contraction_events) - abs(float(churned_events)),
-                active_subscriptions=len(active_subs),
-                churned_subscriptions=churned_count,
-                new_subscriptions=new_count,
-                gross_churn_rate=round(gross_churn, 4),
-                net_revenue_retention=round(net_retention, 4),
-            ))
+            db.add(
+                SaaSMetricSnapshot(
+                    brand_id=brand_id,
+                    period="daily",
+                    snapshot_date=today,
+                    mrr=mrr,
+                    arr=mrr * 12,
+                    new_mrr=float(new_events),
+                    churned_mrr=abs(float(churned_events)),
+                    expansion_mrr=float(expansion_events),
+                    contraction_mrr=abs(float(contraction_events)),
+                    net_new_mrr=float(new_events)
+                    + float(expansion_events)
+                    + float(contraction_events)
+                    - abs(float(churned_events)),
+                    active_subscriptions=len(active_subs),
+                    churned_subscriptions=churned_count,
+                    new_subscriptions=new_count,
+                    gross_churn_rate=round(gross_churn, 4),
+                    net_revenue_retention=round(net_retention, 4),
+                )
+            )
             snapshots_created += 1
 
         await db.commit()
@@ -456,30 +534,40 @@ async def _do_run_churn_prediction():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        subs = (await db.execute(
-            select(Subscription).where(
-                Subscription.status == "active",
-                Subscription.is_active.is_(True),
+        subs = (
+            (
+                await db.execute(
+                    select(Subscription).where(
+                        Subscription.status == "active",
+                        Subscription.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
 
         high_risk = 0
         for sub in subs:
             days_active = (datetime.now(timezone.utc) - sub.started_at).days if sub.started_at else 0
 
-            event_count = (await db.execute(
-                select(sa_func.count(SubscriptionEvent.id)).where(
-                    SubscriptionEvent.subscription_id == sub.id,
-                    SubscriptionEvent.event_at >= datetime.now(timezone.utc) - timedelta(days=30),
+            event_count = (
+                await db.execute(
+                    select(sa_func.count(SubscriptionEvent.id)).where(
+                        SubscriptionEvent.subscription_id == sub.id,
+                        SubscriptionEvent.event_at >= datetime.now(timezone.utc) - timedelta(days=30),
+                    )
                 )
-            )).scalar() or 0
+            ).scalar() or 0
 
-            had_downgrade = (await db.execute(
-                select(sa_func.count(SubscriptionEvent.id)).where(
-                    SubscriptionEvent.subscription_id == sub.id,
-                    SubscriptionEvent.event_type == "contraction",
+            had_downgrade = (
+                await db.execute(
+                    select(sa_func.count(SubscriptionEvent.id)).where(
+                        SubscriptionEvent.subscription_id == sub.id,
+                        SubscriptionEvent.event_type == "contraction",
+                    )
                 )
-            )).scalar() or 0
+            ).scalar() or 0
 
             risk_score = 0.0
             if days_active < 30:
@@ -517,12 +605,18 @@ async def _do_scan_expansion_opportunities():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        subs = (await db.execute(
-            select(Subscription).where(
-                Subscription.status == "active",
-                Subscription.is_active.is_(True),
+        subs = (
+            (
+                await db.execute(
+                    select(Subscription).where(
+                        Subscription.status == "active",
+                        Subscription.is_active.is_(True),
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
 
         opportunities = 0
         for sub in subs:
@@ -530,12 +624,14 @@ async def _do_scan_expansion_opportunities():
             if days_active < 14:
                 continue
 
-            expansion_count = (await db.execute(
-                select(sa_func.count(SubscriptionEvent.id)).where(
-                    SubscriptionEvent.subscription_id == sub.id,
-                    SubscriptionEvent.event_type == "expansion",
+            expansion_count = (
+                await db.execute(
+                    select(sa_func.count(SubscriptionEvent.id)).where(
+                        SubscriptionEvent.subscription_id == sub.id,
+                        SubscriptionEvent.event_type == "expansion",
+                    )
                 )
-            )).scalar() or 0
+            ).scalar() or 0
 
             is_low_tier = sub.plan_tier in ("free", "starter", "basic", "standard")
             is_long_tenured = days_active > 90
@@ -571,39 +667,51 @@ async def _do_recompute_avenue_rankings():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        brand_ids_from_subs = (await db.execute(
-            select(Subscription.brand_id).where(Subscription.is_active.is_(True)).distinct()
-        )).scalars().all()
+        brand_ids_from_subs = (
+            (await db.execute(select(Subscription.brand_id).where(Subscription.is_active.is_(True)).distinct()))
+            .scalars()
+            .all()
+        )
 
-        brand_ids_from_deals = (await db.execute(
-            select(HighTicketDeal.brand_id).where(HighTicketDeal.is_active.is_(True)).distinct()
-        )).scalars().all()
+        brand_ids_from_deals = (
+            (await db.execute(select(HighTicketDeal.brand_id).where(HighTicketDeal.is_active.is_(True)).distinct()))
+            .scalars()
+            .all()
+        )
 
         all_brand_ids = set(brand_ids_from_subs) | set(brand_ids_from_deals)
         rankings_computed = 0
 
         for brand_id in all_brand_ids:
-            sub_mrr = (await db.execute(
-                select(sa_func.coalesce(sa_func.sum(Subscription.mrr), 0)).where(
-                    Subscription.brand_id == brand_id,
-                    Subscription.status == "active",
+            sub_mrr = (
+                await db.execute(
+                    select(sa_func.coalesce(sa_func.sum(Subscription.mrr), 0)).where(
+                        Subscription.brand_id == brand_id,
+                        Subscription.status == "active",
+                    )
                 )
-            )).scalar() or 0.0
+            ).scalar() or 0.0
 
-            deal_pipeline = (await db.execute(
-                select(sa_func.coalesce(sa_func.sum(HighTicketDeal.deal_value * HighTicketDeal.probability), 0)).where(
-                    HighTicketDeal.brand_id == brand_id,
-                    HighTicketDeal.is_active.is_(True),
-                    HighTicketDeal.stage != "closed_lost",
+            deal_pipeline = (
+                await db.execute(
+                    select(
+                        sa_func.coalesce(sa_func.sum(HighTicketDeal.deal_value * HighTicketDeal.probability), 0)
+                    ).where(
+                        HighTicketDeal.brand_id == brand_id,
+                        HighTicketDeal.is_active.is_(True),
+                        HighTicketDeal.stage != "closed_lost",
+                    )
                 )
-            )).scalar() or 0.0
+            ).scalar() or 0.0
 
-            launch_revenue = (await db.execute(
-                select(sa_func.coalesce(sa_func.sum(ProductLaunch.total_revenue), 0)).where(
-                    ProductLaunch.brand_id == brand_id,
-                    ProductLaunch.is_active.is_(True),
+            launch_revenue = (
+                await db.execute(
+                    select(sa_func.coalesce(sa_func.sum(ProductLaunch.total_revenue), 0)).where(
+                        ProductLaunch.brand_id == brand_id,
+                        ProductLaunch.is_active.is_(True),
+                    )
                 )
-            )).scalar() or 0.0
+            ).scalar() or 0.0
 
             avenues = []
             if sub_mrr > 0:
@@ -613,13 +721,20 @@ async def _do_recompute_avenue_rankings():
             if launch_revenue > 0:
                 avenues.append({"avenue": "product_launches", "total_revenue": float(launch_revenue)})
 
-            avenues.sort(key=lambda a: a.get("arr", 0) + a.get("weighted_pipeline", 0) + a.get("total_revenue", 0), reverse=True)
+            avenues.sort(
+                key=lambda a: a.get("arr", 0) + a.get("weighted_pipeline", 0) + a.get("total_revenue", 0), reverse=True
+            )
 
-            latest_snapshot = (await db.execute(
-                select(SaaSMetricSnapshot).where(
-                    SaaSMetricSnapshot.brand_id == brand_id,
-                ).order_by(SaaSMetricSnapshot.created_at.desc()).limit(1)
-            )).scalar_one_or_none()
+            latest_snapshot = (
+                await db.execute(
+                    select(SaaSMetricSnapshot)
+                    .where(
+                        SaaSMetricSnapshot.brand_id == brand_id,
+                    )
+                    .order_by(SaaSMetricSnapshot.created_at.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
 
             if latest_snapshot:
                 latest_snapshot.details_json = {
@@ -657,11 +772,13 @@ async def _do_run_quality_feedback_loop():
         for brand_id in brands:
             try:
                 from apps.api.services.quality_feedback_loop import run_quality_feedback
+
                 result = await run_quality_feedback(db, brand_id)
                 total_winners += result.get("winners_updated", 0)
                 total_losers += result.get("losers_created", 0)
             except Exception as e:
                 import structlog
+
                 structlog.get_logger().warning("quality_feedback.brand_failed", brand_id=str(brand_id), error=str(e))
 
         await db.commit()
@@ -715,20 +832,16 @@ async def _do_run_revenue_cycle():
         total_executed = 0
 
         async with factory() as db:
-            orgs = (await db.execute(
-                select(Organization.id).where(Organization.is_active.is_(True))
-            )).scalars().all()
+            orgs = (await db.execute(select(Organization.id).where(Organization.is_active.is_(True)))).scalars().all()
 
         for org_id in orgs:
             async with factory() as db:
-                brands = (await db.execute(
-                    select(Brand.id).where(Brand.organization_id == org_id)
-                )).scalars().all()
+                brands = (await db.execute(select(Brand.id).where(Brand.organization_id == org_id))).scalars().all()
 
             # Process brands in parallel chunks of 10
             CHUNK_SIZE = 10
             for i in range(0, len(brands), CHUNK_SIZE):
-                chunk = brands[i:i + CHUNK_SIZE]
+                chunk = brands[i : i + CHUNK_SIZE]
                 chunk_results = await asyncio.gather(
                     *[_process_brand(factory, org_id, brand_id) for brand_id in chunk],
                     return_exceptions=True,
@@ -738,17 +851,20 @@ async def _do_run_revenue_cycle():
                         total_actions += result.get("actions", 0)
                     elif isinstance(result, Exception):
                         import structlog
+
                         structlog.get_logger().warning("revenue_cycle.brand_failed", error=str(result))
 
             # ── Phase 2: Dispatch autonomous actions for this org ──
             try:
                 async with factory() as db:
                     from apps.api.services.action_dispatcher import dispatch_autonomous_actions
+
                     dispatch_result = await dispatch_autonomous_actions(db, org_id)
                     total_executed += len(dispatch_result.get("executed", []))
                     await db.commit()
             except Exception as e:
                 import structlog
+
                 structlog.get_logger().warning("revenue_cycle.dispatch_failed", org_id=str(org_id), error=str(e))
 
     finally:
@@ -772,6 +888,7 @@ async def _process_brand(factory, org_id, brand_id):
     async with factory() as db:
         try:
             from apps.api.services.revenue_maximizer import auto_surface_revenue_actions
+
             actions = await auto_surface_revenue_actions(db, org_id, brand_id)
             await db.commit()
             return {"actions": len(actions), "brand_id": str(brand_id)}
@@ -832,21 +949,28 @@ async def _do_auto_attach_offers():
     brands_processed = 0
 
     async with factory() as db:
-        brands = (await db.execute(
-            select(Brand).where(Brand.is_active.is_(True))
-        )).scalars().all()
+        brands = (await db.execute(select(Brand).where(Brand.is_active.is_(True)))).scalars().all()
 
     for brand in brands:
         try:
             async with factory() as db:
                 # Fetch unmonetized content that is eligible for publishing
-                unmonetized = (await db.execute(
-                    select(ContentItem).where(
-                        ContentItem.brand_id == brand.id,
-                        ContentItem.offer_id.is_(None),
-                        ContentItem.status.in_(["qa_complete", "approved"]),
-                    ).order_by(ContentItem.created_at).limit(50)
-                )).scalars().all()
+                unmonetized = (
+                    (
+                        await db.execute(
+                            select(ContentItem)
+                            .where(
+                                ContentItem.brand_id == brand.id,
+                                ContentItem.offer_id.is_(None),
+                                ContentItem.status.in_(["qa_complete", "approved"]),
+                            )
+                            .order_by(ContentItem.created_at)
+                            .limit(50)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
 
                 if not unmonetized:
                     continue
@@ -860,7 +984,8 @@ async def _do_auto_attach_offers():
                     # publishing until the operator creates offers.
                     total_no_offers += len(unmonetized)
                     await emit_action(
-                        db, org_id=brand.organization_id,
+                        db,
+                        org_id=brand.organization_id,
                         action_type="brand_no_active_offers",
                         title=f"Blocker: brand '{brand.name}' has no active offers — {len(unmonetized)} items blocked",
                         description=(
@@ -881,14 +1006,14 @@ async def _do_auto_attach_offers():
                 for item in unmonetized:
                     try:
                         await assign_offer_to_content(
-                            db, item.id, best_offer.id,
+                            db,
+                            item.id,
+                            best_offer.id,
                             org_id=brand.organization_id,
                         )
                         total_attached += 1
                     except Exception:
-                        log.exception("auto_attach.item_failed",
-                                      content_id=str(item.id),
-                                      brand_id=str(brand.id))
+                        log.exception("auto_attach.item_failed", content_id=str(item.id), brand_id=str(brand.id))
 
                 await db.commit()
         except Exception:
@@ -918,22 +1043,34 @@ async def _do_score_pipeline_deals():
 
     factory = get_async_session_factory()
     async with factory() as db:
-        deals = (await db.execute(
-            select(HighTicketDeal).where(
-                HighTicketDeal.is_active.is_(True),
-                HighTicketDeal.stage.notin_(["closed_won", "closed_lost"]),
+        deals = (
+            (
+                await db.execute(
+                    select(HighTicketDeal).where(
+                        HighTicketDeal.is_active.is_(True),
+                        HighTicketDeal.stage.notin_(["closed_won", "closed_lost"]),
+                    )
+                )
             )
-        )).scalars().all()
+            .scalars()
+            .all()
+        )
 
         scored = 0
         for deal in deals:
             stage_scores = {
-                "awareness": 0.1, "interest": 0.2, "consideration": 0.4,
-                "intent": 0.6, "evaluation": 0.75, "negotiation": 0.85,
+                "awareness": 0.1,
+                "interest": 0.2,
+                "consideration": 0.4,
+                "intent": 0.6,
+                "evaluation": 0.75,
+                "negotiation": 0.85,
             }
             stage_score = stage_scores.get(deal.stage, 0.1)
 
-            days_since_activity = (datetime.now(timezone.utc) - deal.last_activity_at).days if deal.last_activity_at else 999
+            days_since_activity = (
+                (datetime.now(timezone.utc) - deal.last_activity_at).days if deal.last_activity_at else 999
+            )
             recency_score = max(0, 1.0 - (days_since_activity / 60))
 
             interaction_score = min(1.0, deal.interactions / 20) if deal.interactions else 0

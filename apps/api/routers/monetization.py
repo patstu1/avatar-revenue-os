@@ -1,4 +1,5 @@
 """Monetization Machine API — Credits, plans, packs, telemetry, and upgrade triggers."""
+
 from typing import Optional
 
 from fastapi import APIRouter, Query
@@ -14,6 +15,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Request schemas
 # ---------------------------------------------------------------------------
+
 
 class SpendCreditsRequest(BaseModel):
     amount: int = Field(0, ge=0, description="Credits to spend (0 = auto from meter cost)")
@@ -50,6 +52,7 @@ class TelemetryRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Credit endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/credits/balance")
 async def get_credit_balance(
@@ -98,6 +101,7 @@ async def purchase_credits(
 # Usage & plan endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.get("/usage")
 async def get_usage(
     current_user: CurrentUser,
@@ -132,6 +136,7 @@ async def get_packs():
 # Ascension & multiplication
 # ---------------------------------------------------------------------------
 
+
 @router.get("/ascension")
 async def get_ascension(
     current_user: CurrentUser,
@@ -148,14 +153,13 @@ async def get_multiplication_opportunities(
     current_action: Optional[str] = Query(None, description="Current action context for targeting"),
 ):
     """Real-time upsell opportunities."""
-    return await ms.get_multiplication_opportunities(
-        db, current_user.organization_id, current_user.id, current_action
-    )
+    return await ms.get_multiplication_opportunities(db, current_user.organization_id, current_user.id, current_action)
 
 
 # ---------------------------------------------------------------------------
 # Health & telemetry
 # ---------------------------------------------------------------------------
+
 
 @router.get("/health")
 async def get_health(
@@ -187,6 +191,7 @@ async def record_telemetry(
 # ---------------------------------------------------------------------------
 # Stripe Billing
 # ---------------------------------------------------------------------------
+
 
 @router.post("/subscribe")
 async def subscribe(

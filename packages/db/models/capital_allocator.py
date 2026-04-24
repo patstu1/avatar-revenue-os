@@ -1,4 +1,5 @@
 """Portfolio Capital Allocator — active resource allocation system."""
+
 import uuid
 from typing import Optional
 
@@ -28,7 +29,9 @@ class AllocationTarget(Base):
     __tablename__ = "ca_allocation_targets"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ca_allocation_reports.id"), nullable=False, index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ca_allocation_reports.id"), nullable=False, index=True
+    )
     target_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     target_key: Mapped[str] = mapped_column(String(255), nullable=False)
     target_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
@@ -46,8 +49,12 @@ class CAAllocationDecision(Base):
     __tablename__ = "ca_allocation_decisions"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ca_allocation_reports.id"), nullable=False, index=True)
-    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ca_allocation_targets.id"), nullable=False, index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ca_allocation_reports.id"), nullable=False, index=True
+    )
+    target_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ca_allocation_targets.id"), nullable=False, index=True
+    )
     allocated_budget: Mapped[float] = mapped_column(Float, default=0.0)
     allocated_volume: Mapped[int] = mapped_column(Integer, default=0)
     provider_tier: Mapped[str] = mapped_column(String(20), default="bulk")
@@ -73,7 +80,9 @@ class CAAllocationRebalance(Base):
     __tablename__ = "ca_allocation_rebalances"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    report_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ca_allocation_reports.id"), nullable=False, index=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ca_allocation_reports.id"), nullable=False, index=True
+    )
     rebalance_reason: Mapped[str] = mapped_column(String(120), nullable=False)
     changes_json: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     targets_starved: Mapped[int] = mapped_column(Integer, default=0)

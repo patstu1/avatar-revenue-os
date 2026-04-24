@@ -15,6 +15,7 @@ Reply classifications:
 - out_of_office: neutral, reschedule follow-up
 - unclassifiable: manual review needed
 """
+
 from __future__ import annotations
 
 import os
@@ -82,8 +83,12 @@ def classify_reply(subject: str, body: str) -> dict:
 
 
 async def ingest_reply(
-    db: AsyncSession, org_id: uuid.UUID,
-    *, sender_email: str, subject: str, body: str,
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    *,
+    sender_email: str,
+    subject: str,
+    body: str,
     brand_id: uuid.UUID | None = None,
     in_reply_to: str | None = None,
 ) -> dict:
@@ -102,33 +107,47 @@ async def ingest_reply(
 
     if sender_email:
         # Match by sender email → sponsor profile
-        sponsor = (await db.execute(
-            select(SponsorProfile).where(
-                SponsorProfile.contact_email == sender_email,
-            ).limit(1)
-        )).scalar_one_or_none()
+        sponsor = (
+            await db.execute(
+                select(SponsorProfile)
+                .where(
+                    SponsorProfile.contact_email == sender_email,
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
 
         if sponsor:
             matched_sponsor = sponsor
             brand_id = brand_id or sponsor.brand_id
 
             # Find active deal for this sponsor
-            deal = (await db.execute(
-                select(SponsorOpportunity).where(
-                    SponsorOpportunity.sponsor_id == sponsor.id,
-                ).order_by(desc(SponsorOpportunity.created_at)).limit(1)
-            )).scalar_one_or_none()
+            deal = (
+                await db.execute(
+                    select(SponsorOpportunity)
+                    .where(
+                        SponsorOpportunity.sponsor_id == sponsor.id,
+                    )
+                    .order_by(desc(SponsorOpportunity.created_at))
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
             if deal:
                 matched_deal = deal
 
     # Try to match to a service deal by customer email
     matched_service_deal = None
     if sender_email and not matched_sponsor:
-        htd = (await db.execute(
-            select(HighTicketDeal).where(
-                HighTicketDeal.customer_email == sender_email,
-            ).order_by(desc(HighTicketDeal.created_at)).limit(1)
-        )).scalar_one_or_none()
+        htd = (
+            await db.execute(
+                select(HighTicketDeal)
+                .where(
+                    HighTicketDeal.customer_email == sender_email,
+                )
+                .order_by(desc(HighTicketDeal.created_at))
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         if htd:
             matched_service_deal = htd
             brand_id = brand_id or htd.brand_id
@@ -152,7 +171,9 @@ async def ingest_reply(
         if matched_service_deal.stage in ("awareness", "interest", "consideration"):
             old = matched_service_deal.stage
             matched_service_deal.stage = "proposal" if old == "consideration" else "consideration"
-            stage_changes.append(f"Service deal '{matched_service_deal.customer_name}': {old} → {matched_service_deal.stage}")
+            stage_changes.append(
+                f"Service deal '{matched_service_deal.customer_name}': {old} → {matched_service_deal.stage}"
+            )
 
     elif reply_type == "not_interested":
         if matched_deal:
@@ -172,29 +193,42 @@ async def ingest_reply(
     proposal_created_id = None
     if reply_type in ("interested", "meeting_request") and sender_email:
         from sqlalchemy import text as _text
-        target_row = (await db.execute(_text(
-            "SELECT id, brand_id, target_company_name, contact_info "
-            "FROM sponsor_targets WHERE is_active=true "
-            "AND lower(contact_info->>'email') = lower(:e) LIMIT 1"
-        ), {"e": sender_email})).first()
+
+        target_row = (
+            await db.execute(
+                _text(
+                    "SELECT id, brand_id, target_company_name, contact_info "
+                    "FROM sponsor_targets WHERE is_active=true "
+                    "AND lower(contact_info->>'email') = lower(:e) LIMIT 1"
+                ),
+                {"e": sender_email},
+            )
+        ).first()
         if target_row:
             target_id, target_brand_id, target_company, target_ci = target_row
             from packages.db.models.proposals import Proposal
-            existing = (await db.execute(
-                select(Proposal).where(
-                    Proposal.is_active.is_(True),
-                    Proposal.extra_json["sponsor_target_id"].astext == str(target_id),
-                ).limit(1)
-            )).scalar_one_or_none()
+
+            existing = (
+                await db.execute(
+                    select(Proposal)
+                    .where(
+                        Proposal.is_active.is_(True),
+                        Proposal.extra_json["sponsor_target_id"].astext == str(target_id),
+                    )
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
             if existing is None:
                 from apps.api.services.proposals_service import (
                     LineItemInput,
                     create_proposal,
                 )
+
                 company = target_company or "your business"
                 name = (target_ci or {}).get("name", "") or ""
                 prop = await create_proposal(
-                    db, org_id=org_id,
+                    db,
+                    org_id=org_id,
                     brand_id=brand_id or target_brand_id,
                     recipient_email=sender_email,
                     recipient_name=name[:255],
@@ -206,13 +240,15 @@ async def ingest_reply(
                     ),
                     avenue_slug="b2b_services",
                     package_slug="signal_entry",
-                    line_items=[LineItemInput(
-                        description="Signal Entry \u2014 landing page + ad hook + proof layer",
-                        unit_amount_cents=150000,
-                        quantity=1,
-                        currency="usd",
-                        position=0,
-                    )],
+                    line_items=[
+                        LineItemInput(
+                            description="Signal Entry \u2014 landing page + ad hook + proof layer",
+                            unit_amount_cents=150000,
+                            quantity=1,
+                            currency="usd",
+                            position=0,
+                        )
+                    ],
                     created_by_actor_type="system",
                     created_by_actor_id="reply_ingestion.warm_auto",
                     extra_json={
@@ -228,48 +264,72 @@ async def ingest_reply(
 
     if reply_type == "interested":
         action_created = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="send_proposal" if matched_service_deal else "advance_sponsor_deal",
             title=f"Reply: interested — {sender_email[:40]}",
             description=f"Positive reply from {sender_email}. {subject[:100]}",
-            category="monetization", priority="high",
-            brand_id=brand_id, source_module="reply_ingestion",
-            action_payload={"reply_type": reply_type, "sender": sender_email,
-                            "confidence": confidence, "body_preview": body[:200]},
+            category="monetization",
+            priority="high",
+            brand_id=brand_id,
+            source_module="reply_ingestion",
+            action_payload={
+                "reply_type": reply_type,
+                "sender": sender_email,
+                "confidence": confidence,
+                "body_preview": body[:200],
+            },
         )
 
     elif reply_type == "meeting_request":
         action_created = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="schedule_meeting",
             title=f"Meeting request — {sender_email[:40]}",
             description=f"Reply requests a meeting. {subject[:100]}",
-            category="monetization", priority="high",
-            brand_id=brand_id, source_module="reply_ingestion",
-            action_payload={"reply_type": reply_type, "sender": sender_email,
-                            "confidence": confidence, "body_preview": body[:200]},
+            category="monetization",
+            priority="high",
+            brand_id=brand_id,
+            source_module="reply_ingestion",
+            action_payload={
+                "reply_type": reply_type,
+                "sender": sender_email,
+                "confidence": confidence,
+                "body_preview": body[:200],
+            },
         )
 
     elif reply_type == "question":
         action_created = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="respond_to_question",
             title=f"Question from {sender_email[:40]}",
             description=f"Reply contains a question. {subject[:100]}",
-            category="monetization", priority="medium",
-            brand_id=brand_id, source_module="reply_ingestion",
-            action_payload={"reply_type": reply_type, "sender": sender_email,
-                            "confidence": confidence, "body_preview": body[:200]},
+            category="monetization",
+            priority="medium",
+            brand_id=brand_id,
+            source_module="reply_ingestion",
+            action_payload={
+                "reply_type": reply_type,
+                "sender": sender_email,
+                "confidence": confidence,
+                "body_preview": body[:200],
+            },
         )
 
     elif reply_type == "out_of_office":
         action_created = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="reschedule_follow_up",
             title=f"OOO: {sender_email[:40]} — reschedule",
             description="Auto-reply detected. Reschedule follow-up.",
-            category="monetization", priority="low",
-            brand_id=brand_id, source_module="reply_ingestion",
+            category="monetization",
+            priority="low",
+            brand_id=brand_id,
+            source_module="reply_ingestion",
         )
 
     elif reply_type == "not_interested":
@@ -278,25 +338,34 @@ async def ingest_reply(
 
     else:
         action_created = await emit_action(
-            db, org_id=org_id,
+            db,
+            org_id=org_id,
             action_type="review_reply",
             title=f"Unclassified reply — {sender_email[:40]}",
             description=f"Could not auto-classify. Manual review needed. {subject[:100]}",
-            category="monetization", priority="medium",
-            brand_id=brand_id, source_module="reply_ingestion",
-            action_payload={"reply_type": reply_type, "sender": sender_email,
-                            "body_preview": body[:300]},
+            category="monetization",
+            priority="medium",
+            brand_id=brand_id,
+            source_module="reply_ingestion",
+            action_payload={"reply_type": reply_type, "sender": sender_email, "body_preview": body[:300]},
         )
 
     # Emit event
     await emit_event(
-        db, domain="monetization", event_type=f"reply.{reply_type}",
+        db,
+        domain="monetization",
+        event_type=f"reply.{reply_type}",
         summary=f"Reply from {sender_email[:30]}: {reply_type} (confidence {confidence:.0%})",
-        org_id=org_id, brand_id=brand_id,
-        details={"sender": sender_email, "reply_type": reply_type,
-                 "confidence": confidence, "stage_changes": stage_changes,
-                 "matched_sponsor": matched_sponsor.sponsor_name if matched_sponsor else None,
-                 "matched_deal": matched_deal.title if matched_deal else None},
+        org_id=org_id,
+        brand_id=brand_id,
+        details={
+            "sender": sender_email,
+            "reply_type": reply_type,
+            "confidence": confidence,
+            "stage_changes": stage_changes,
+            "matched_sponsor": matched_sponsor.sponsor_name if matched_sponsor else None,
+            "matched_deal": matched_deal.title if matched_deal else None,
+        },
     )
 
     await db.flush()
@@ -304,29 +373,40 @@ async def ingest_reply(
     # Phase 3: emit analytics event for reply received.
     try:
         from packages.clients.analytics_emitter import emit_analytics_event
+
         _brand_id = brand_id
         if _brand_id is None and sender_email:
             from sqlalchemy import text as _atxt
-            _brow = (await db.execute(_atxt(
-                "SELECT brand_id FROM sponsor_targets WHERE is_active=true "
-                "AND lower(contact_info->>'email') = lower(:e) LIMIT 1"
-            ), {"e": sender_email})).first()
-            if _brow: _brand_id = _brow[0]
+
+            _brow = (
+                await db.execute(
+                    _atxt(
+                        "SELECT brand_id FROM sponsor_targets WHERE is_active=true "
+                        "AND lower(contact_info->>'email') = lower(:e) LIMIT 1"
+                    ),
+                    {"e": sender_email},
+                )
+            ).first()
+            if _brow:
+                _brand_id = _brow[0]
         if _brand_id is not None:
             await emit_analytics_event(
-                db, brand_id=_brand_id,
+                db,
+                brand_id=_brand_id,
                 source="reply_ingestion",
                 event_type=f"reply.{reply_type}",
                 metric_value=1.0,
                 truth_level="verified",
                 raw_json={
-                    "sender": sender_email, "confidence": confidence,
+                    "sender": sender_email,
+                    "confidence": confidence,
                     "proposal_created_id": proposal_created_id,
                 },
             )
             await db.flush()
     except Exception as _aexc:
         import structlog as _sl
+
         _sl.get_logger().warning("analytics_emit_failed", error=str(_aexc)[:200])
 
     return {
@@ -352,8 +432,11 @@ async def poll_imap_inbox(db: AsyncSession, org_id: uuid.UUID) -> dict:
     password = os.getenv("IMAP_PASSWORD", "")
 
     if not host or not user or not password:
-        return {"configured": False, "error": "IMAP_HOST/IMAP_USER/IMAP_PASSWORD not set",
-                "message": "Configure IMAP credentials to enable automatic reply ingestion"}
+        return {
+            "configured": False,
+            "error": "IMAP_HOST/IMAP_USER/IMAP_PASSWORD not set",
+            "message": "Configure IMAP credentials to enable automatic reply ingestion",
+        }
 
     try:
         mail = imaplib.IMAP4_SSL(host)

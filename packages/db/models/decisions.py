@@ -1,4 +1,5 @@
 """Canonical decision objects — persisted records of every automated decision."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -16,13 +17,9 @@ class _DecisionBase(Base):
 
     __abstract__ = True
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     decision_type: Mapped[DecisionType] = mapped_column(Enum(DecisionType), nullable=False, index=True)
-    decision_mode: Mapped[DecisionMode] = mapped_column(
-        Enum(DecisionMode), default=DecisionMode.GUARDED_AUTO
-    )
+    decision_mode: Mapped[DecisionMode] = mapped_column(Enum(DecisionMode), default=DecisionMode.GUARDED_AUTO)
     actor_type: Mapped[ActorType] = mapped_column(Enum(ActorType), default=ActorType.SYSTEM)
     actor_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
 
@@ -33,9 +30,7 @@ class _DecisionBase(Base):
     thresholds_applied: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
 
     composite_score: Mapped[float] = mapped_column(Float, default=0.0)
-    confidence: Mapped[ConfidenceLevel] = mapped_column(
-        Enum(ConfidenceLevel), default=ConfidenceLevel.MEDIUM
-    )
+    confidence: Mapped[ConfidenceLevel] = mapped_column(Enum(ConfidenceLevel), default=ConfidenceLevel.MEDIUM)
     recommended_action: Mapped[RecommendedAction] = mapped_column(
         Enum(RecommendedAction), default=RecommendedAction.MONITOR
     )
@@ -44,9 +39,7 @@ class _DecisionBase(Base):
     downstream_job_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
     downstream_action_taken: Mapped[Optional[str]] = mapped_column(String(255))
 
-    decided_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), index=True
-    )
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
 class OpportunityDecision(_DecisionBase):
@@ -66,9 +59,7 @@ class MonetizationDecision(_DecisionBase):
     content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_items.id"), index=True
     )
-    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("offers.id"), index=True
-    )
+    offer_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("offers.id"), index=True)
     direct_revenue_estimate: Mapped[float] = mapped_column(Float, default=0.0)
     conversion_rate_estimate: Mapped[float] = mapped_column(Float, default=0.0)
     friction_score: Mapped[float] = mapped_column(Float, default=0.0)
@@ -86,9 +77,7 @@ class PublishDecision(_DecisionBase):
     creator_account_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("creator_accounts.id"), index=True
     )
-    publish_job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("publish_jobs.id")
-    )
+    publish_job_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("publish_jobs.id"))
 
 
 class SuppressionDecision(_DecisionBase):

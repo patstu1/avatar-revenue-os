@@ -1,4 +1,5 @@
 """Brain Architecture Phase A — deterministic state engines and memory consolidation."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -8,18 +9,37 @@ ACCOUNT_STATES = ["newborn", "warming", "stable", "scaling", "max_output", "satu
 OPPORTUNITY_STATES = ["monitor", "test", "scale", "suppress", "evergreen_backlog", "blocked"]
 EXECUTION_STATES = ["queued", "autonomous", "guarded", "manual", "blocked", "failed", "recovering", "completed"]
 AUDIENCE_STATES_V2 = [
-    "unaware", "curious", "evaluating", "objection_heavy", "ready_to_buy",
-    "bought_once", "repeat_buyer", "high_ltv", "churn_risk", "advocate", "sponsor_friendly",
+    "unaware",
+    "curious",
+    "evaluating",
+    "objection_heavy",
+    "ready_to_buy",
+    "bought_once",
+    "repeat_buyer",
+    "high_ltv",
+    "churn_risk",
+    "advocate",
+    "sponsor_friendly",
 ]
 
 MEMORY_ENTRY_TYPES = [
-    "winner", "loser", "saturated_pattern", "best_niche", "best_monetization_route",
-    "best_account_type", "best_cta", "best_pacing", "common_blocker", "common_fix",
-    "confidence_adjustment", "platform_learning",
+    "winner",
+    "loser",
+    "saturated_pattern",
+    "best_niche",
+    "best_monetization_route",
+    "best_account_type",
+    "best_cta",
+    "best_pacing",
+    "common_blocker",
+    "common_fix",
+    "confidence_adjustment",
+    "platform_learning",
 ]
 
 
 # ── Account State Engine ──────────────────────────────────────────────
+
 
 def compute_account_state(ctx: dict[str, Any]) -> dict[str, Any]:
     ctx.get("follower_count", 0)
@@ -88,6 +108,7 @@ def _next_account_state(state: str, score: float, fatigue: float, saturation: fl
 
 # ── Opportunity State Engine ──────────────────────────────────────────
 
+
 def compute_opportunity_state(ctx: dict[str, Any]) -> dict[str, Any]:
     score = ctx.get("opportunity_score", 0.0)
     tests_run = ctx.get("tests_run", 0)
@@ -133,6 +154,7 @@ def compute_opportunity_state(ctx: dict[str, Any]) -> dict[str, Any]:
 
 
 # ── Execution State Engine ────────────────────────────────────────────
+
 
 def compute_execution_state(ctx: dict[str, Any]) -> dict[str, Any]:
     mode = ctx.get("execution_mode", "manual")
@@ -187,6 +209,7 @@ def compute_execution_state(ctx: dict[str, Any]) -> dict[str, Any]:
 
 
 # ── Audience / Customer State Engine (V2) ─────────────────────────────
+
 
 def compute_audience_state_v2(ctx: dict[str, Any]) -> dict[str, Any]:
     purchase_count = ctx.get("purchase_count", 0)
@@ -270,6 +293,7 @@ def _audience_transitions(state: str, churn_risk: float) -> dict[str, float]:
 
 # ── Brain Memory Consolidation ────────────────────────────────────────
 
+
 def consolidate_brain_memory(ctx: dict[str, Any]) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     accounts = ctx.get("accounts", [])
@@ -283,95 +307,107 @@ def consolidate_brain_memory(ctx: dict[str, Any]) -> list[dict[str, Any]]:
         eng = a.get("avg_engagement", 0)
         plat = a.get("platform", "unknown")
         if ppp > 12 and eng > 0.03:
-            entries.append({
-                "entry_type": "winner",
-                "scope_type": "account",
-                "scope_id": a.get("id"),
-                "platform": plat,
-                "niche": a.get("niche", ""),
-                "summary": f"High-performing account: ${ppp:.2f}/post, {eng:.1%} engagement on {plat}",
-                "confidence": min(1.0, 0.5 + eng * 5),
-                "reuse_recommendation": f"Replicate {plat} strategy in new account launches",
-                "suppression_caution": None,
-                "detail_json": {"profit_per_post": ppp, "avg_engagement": eng},
-                "explanation": f"Account exceeds profit and engagement thresholds on {plat}",
-            })
+            entries.append(
+                {
+                    "entry_type": "winner",
+                    "scope_type": "account",
+                    "scope_id": a.get("id"),
+                    "platform": plat,
+                    "niche": a.get("niche", ""),
+                    "summary": f"High-performing account: ${ppp:.2f}/post, {eng:.1%} engagement on {plat}",
+                    "confidence": min(1.0, 0.5 + eng * 5),
+                    "reuse_recommendation": f"Replicate {plat} strategy in new account launches",
+                    "suppression_caution": None,
+                    "detail_json": {"profit_per_post": ppp, "avg_engagement": eng},
+                    "explanation": f"Account exceeds profit and engagement thresholds on {plat}",
+                }
+            )
         elif ppp < 2 and eng < 0.01 and a.get("age_days", 0) > 60:
-            entries.append({
-                "entry_type": "loser",
-                "scope_type": "account",
-                "scope_id": a.get("id"),
-                "platform": plat,
-                "niche": a.get("niche", ""),
-                "summary": f"Underperforming account: ${ppp:.2f}/post, {eng:.1%} eng on {plat}",
-                "confidence": 0.65,
-                "reuse_recommendation": None,
-                "suppression_caution": "Consider kill-ledger review",
-                "detail_json": {"profit_per_post": ppp, "avg_engagement": eng},
-                "explanation": f"Below threshold after 60+ days on {plat}",
-            })
+            entries.append(
+                {
+                    "entry_type": "loser",
+                    "scope_type": "account",
+                    "scope_id": a.get("id"),
+                    "platform": plat,
+                    "niche": a.get("niche", ""),
+                    "summary": f"Underperforming account: ${ppp:.2f}/post, {eng:.1%} eng on {plat}",
+                    "confidence": 0.65,
+                    "reuse_recommendation": None,
+                    "suppression_caution": "Consider kill-ledger review",
+                    "detail_json": {"profit_per_post": ppp, "avg_engagement": eng},
+                    "explanation": f"Below threshold after 60+ days on {plat}",
+                }
+            )
 
     for o in offers:
         cvr = o.get("conversion_rate", 0)
         epc = o.get("epc", 0)
         if epc > 2.0 and cvr > 0.03:
-            entries.append({
-                "entry_type": "best_monetization_route",
-                "scope_type": "offer",
-                "scope_id": o.get("id"),
-                "platform": None,
-                "niche": o.get("niche", ""),
-                "summary": f"Strong offer: EPC ${epc:.2f}, CVR {cvr:.1%}",
-                "confidence": min(1.0, 0.5 + cvr * 10),
-                "reuse_recommendation": "Use as primary offer in scaling accounts",
-                "suppression_caution": None,
-                "detail_json": {"epc": epc, "conversion_rate": cvr},
-                "explanation": "Offer exceeds EPC and CVR thresholds",
-            })
+            entries.append(
+                {
+                    "entry_type": "best_monetization_route",
+                    "scope_type": "offer",
+                    "scope_id": o.get("id"),
+                    "platform": None,
+                    "niche": o.get("niche", ""),
+                    "summary": f"Strong offer: EPC ${epc:.2f}, CVR {cvr:.1%}",
+                    "confidence": min(1.0, 0.5 + cvr * 10),
+                    "reuse_recommendation": "Use as primary offer in scaling accounts",
+                    "suppression_caution": None,
+                    "detail_json": {"epc": epc, "conversion_rate": cvr},
+                    "explanation": "Offer exceeds EPC and CVR thresholds",
+                }
+            )
 
     for s in suppression_history:
-        entries.append({
-            "entry_type": "saturated_pattern",
-            "scope_type": s.get("scope_type", "content"),
-            "scope_id": s.get("scope_id"),
-            "platform": s.get("platform"),
-            "niche": s.get("niche", ""),
-            "summary": f"Suppressed: {s.get('reason', 'unknown reason')}",
-            "confidence": s.get("confidence", 0.6),
-            "reuse_recommendation": None,
-            "suppression_caution": "Avoid replicating this pattern",
-            "detail_json": s.get("detail", {}),
-            "explanation": s.get("reason", ""),
-        })
+        entries.append(
+            {
+                "entry_type": "saturated_pattern",
+                "scope_type": s.get("scope_type", "content"),
+                "scope_id": s.get("scope_id"),
+                "platform": s.get("platform"),
+                "niche": s.get("niche", ""),
+                "summary": f"Suppressed: {s.get('reason', 'unknown reason')}",
+                "confidence": s.get("confidence", 0.6),
+                "reuse_recommendation": None,
+                "suppression_caution": "Avoid replicating this pattern",
+                "detail_json": s.get("detail", {}),
+                "explanation": s.get("reason", ""),
+            }
+        )
 
     for inc in recovery_incidents:
-        entries.append({
-            "entry_type": "common_blocker",
-            "scope_type": inc.get("scope_type", "system"),
-            "scope_id": inc.get("scope_id"),
-            "platform": inc.get("platform"),
-            "niche": None,
-            "summary": f"Blocker: {inc.get('incident_type', 'unknown')}",
-            "confidence": inc.get("confidence", 0.55),
-            "reuse_recommendation": inc.get("fix", None),
-            "suppression_caution": None,
-            "detail_json": inc.get("detail", {}),
-            "explanation": inc.get("explanation", ""),
-        })
+        entries.append(
+            {
+                "entry_type": "common_blocker",
+                "scope_type": inc.get("scope_type", "system"),
+                "scope_id": inc.get("scope_id"),
+                "platform": inc.get("platform"),
+                "niche": None,
+                "summary": f"Blocker: {inc.get('incident_type', 'unknown')}",
+                "confidence": inc.get("confidence", 0.55),
+                "reuse_recommendation": inc.get("fix", None),
+                "suppression_caution": None,
+                "detail_json": inc.get("detail", {}),
+                "explanation": inc.get("explanation", ""),
+            }
+        )
 
     if not entries:
-        entries.append({
-            "entry_type": "confidence_adjustment",
-            "scope_type": "brand",
-            "scope_id": None,
-            "platform": None,
-            "niche": None,
-            "summary": "No strong signals for memory consolidation yet",
-            "confidence": 0.30,
-            "reuse_recommendation": "Accumulate more data before acting on memory",
-            "suppression_caution": None,
-            "detail_json": {"accounts_analyzed": len(accounts), "offers_analyzed": len(offers)},
-            "explanation": "Insufficient signal for strong memory entries",
-        })
+        entries.append(
+            {
+                "entry_type": "confidence_adjustment",
+                "scope_type": "brand",
+                "scope_id": None,
+                "platform": None,
+                "niche": None,
+                "summary": "No strong signals for memory consolidation yet",
+                "confidence": 0.30,
+                "reuse_recommendation": "Accumulate more data before acting on memory",
+                "suppression_caution": None,
+                "detail_json": {"accounts_analyzed": len(accounts), "offers_analyzed": len(offers)},
+                "explanation": "Insufficient signal for strong memory entries",
+            }
+        )
 
     return entries

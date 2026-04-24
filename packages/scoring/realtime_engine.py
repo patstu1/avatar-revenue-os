@@ -3,6 +3,7 @@
 Handles real-time decision making, optimal posting schedules,
 circuit breaker patterns, and live performance monitoring.
 """
+
 from __future__ import annotations
 
 import math
@@ -18,6 +19,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 # 1. Circuit Breaker for External Services
 # ---------------------------------------------------------------------------
+
 
 class CircuitState(str, Enum):
     CLOSED = "closed"
@@ -59,16 +61,9 @@ class CircuitBreaker:
         with self._lock:
             self._maybe_transition()
             if self._state == CircuitState.OPEN:
-                raise RuntimeError(
-                    f"CircuitBreaker '{self.name}' is OPEN — calls rejected"
-                )
-            if (
-                self._state == CircuitState.HALF_OPEN
-                and self._half_open_call_count >= self.config.half_open_max_calls
-            ):
-                raise RuntimeError(
-                    f"CircuitBreaker '{self.name}' HALF_OPEN limit reached"
-                )
+                raise RuntimeError(f"CircuitBreaker '{self.name}' is OPEN — calls rejected")
+            if self._state == CircuitState.HALF_OPEN and self._half_open_call_count >= self.config.half_open_max_calls:
+                raise RuntimeError(f"CircuitBreaker '{self.name}' HALF_OPEN limit reached")
             if self._state == CircuitState.HALF_OPEN:
                 self._half_open_call_count += 1
             self._total_calls += 1
@@ -118,20 +113,14 @@ class CircuitBreaker:
         with self._lock:
             lats = list(self._latencies)
         avg_lat = statistics.mean(lats) if lats else 0.0
-        p95 = (
-            sorted(lats)[int(len(lats) * 0.95)] if len(lats) >= 2 else avg_lat
-        )
+        p95 = sorted(lats)[int(len(lats) * 0.95)] if len(lats) >= 2 else avg_lat
         return {
             "name": self.name,
             "state": self.state.value,
             "total_calls": self._total_calls,
             "total_successes": self._total_successes,
             "total_failures": self._total_failures,
-            "failure_rate": (
-                round(self._total_failures / self._total_calls, 4)
-                if self._total_calls
-                else 0.0
-            ),
+            "failure_rate": (round(self._total_failures / self._total_calls, 4) if self._total_calls else 0.0),
             "avg_latency_ms": round(avg_lat, 2),
             "p95_latency_ms": round(p95, 2),
             "state_changes": len(self._state_changes),
@@ -154,9 +143,7 @@ class CircuitBreaker:
     def _transition(self, new_state: CircuitState) -> None:
         old = self._state
         self._state = new_state
-        self._state_changes.append(
-            {"from": old.value, "to": new_state.value, "at": time.time()}
-        )
+        self._state_changes.append({"from": old.value, "to": new_state.value, "at": time.time()})
         if new_state == CircuitState.OPEN:
             self._opened_at = time.monotonic()
         elif new_state == CircuitState.HALF_OPEN:
@@ -175,9 +162,7 @@ class CircuitBreakerRegistry:
     _lock = threading.Lock()
 
     @classmethod
-    def get_or_create(
-        cls, service_name: str, config: CircuitBreakerConfig | None = None
-    ) -> CircuitBreaker:
+    def get_or_create(cls, service_name: str, config: CircuitBreakerConfig | None = None) -> CircuitBreaker:
         with cls._lock:
             if service_name not in cls._breakers:
                 cls._breakers[service_name] = CircuitBreaker(service_name, config)
@@ -190,9 +175,7 @@ class CircuitBreakerRegistry:
         services = {}
         for name, cb in breakers.items():
             services[name] = cb.metrics
-        open_count = sum(
-            1 for m in services.values() if m["state"] == CircuitState.OPEN.value
-        )
+        open_count = sum(1 for m in services.values() if m["state"] == CircuitState.OPEN.value)
         return {
             "total_services": len(services),
             "open_circuits": open_count,
@@ -209,6 +192,7 @@ class CircuitBreakerRegistry:
 # ---------------------------------------------------------------------------
 # 2. ML-Optimized Posting Scheduler
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class PlatformTimeSlot:
@@ -230,29 +214,134 @@ class ScheduleRecommendation:
 # 24-hour engagement multipliers per platform (weekday average).
 # Index = hour (0-23). Values represent relative engagement vs daily mean (1.0).
 _YOUTUBE_HOURLY = [
-    0.30, 0.20, 0.15, 0.12, 0.15, 0.25, 0.45, 0.65,
-    0.85, 1.10, 1.20, 1.25, 1.30, 1.20, 1.15, 1.25,
-    1.35, 1.50, 1.55, 1.45, 1.30, 1.10, 0.80, 0.50,
+    0.30,
+    0.20,
+    0.15,
+    0.12,
+    0.15,
+    0.25,
+    0.45,
+    0.65,
+    0.85,
+    1.10,
+    1.20,
+    1.25,
+    1.30,
+    1.20,
+    1.15,
+    1.25,
+    1.35,
+    1.50,
+    1.55,
+    1.45,
+    1.30,
+    1.10,
+    0.80,
+    0.50,
 ]
 _TIKTOK_HOURLY = [
-    0.25, 0.18, 0.12, 0.10, 0.12, 0.20, 0.55, 0.80,
-    0.95, 1.05, 1.10, 1.20, 1.25, 1.15, 1.05, 1.10,
-    1.20, 1.35, 1.45, 1.55, 1.50, 1.35, 1.00, 0.55,
+    0.25,
+    0.18,
+    0.12,
+    0.10,
+    0.12,
+    0.20,
+    0.55,
+    0.80,
+    0.95,
+    1.05,
+    1.10,
+    1.20,
+    1.25,
+    1.15,
+    1.05,
+    1.10,
+    1.20,
+    1.35,
+    1.45,
+    1.55,
+    1.50,
+    1.35,
+    1.00,
+    0.55,
 ]
 _INSTAGRAM_HOURLY = [
-    0.30, 0.22, 0.15, 0.12, 0.15, 0.25, 0.50, 0.75,
-    1.00, 1.15, 1.20, 1.30, 1.25, 1.15, 1.05, 1.10,
-    1.20, 1.35, 1.40, 1.30, 1.15, 0.95, 0.70, 0.45,
+    0.30,
+    0.22,
+    0.15,
+    0.12,
+    0.15,
+    0.25,
+    0.50,
+    0.75,
+    1.00,
+    1.15,
+    1.20,
+    1.30,
+    1.25,
+    1.15,
+    1.05,
+    1.10,
+    1.20,
+    1.35,
+    1.40,
+    1.30,
+    1.15,
+    0.95,
+    0.70,
+    0.45,
 ]
 _X_HOURLY = [
-    0.35, 0.25, 0.18, 0.15, 0.18, 0.30, 0.55, 0.80,
-    1.10, 1.25, 1.30, 1.25, 1.35, 1.25, 1.10, 1.05,
-    1.15, 1.25, 1.20, 1.10, 0.95, 0.80, 0.60, 0.40,
+    0.35,
+    0.25,
+    0.18,
+    0.15,
+    0.18,
+    0.30,
+    0.55,
+    0.80,
+    1.10,
+    1.25,
+    1.30,
+    1.25,
+    1.35,
+    1.25,
+    1.10,
+    1.05,
+    1.15,
+    1.25,
+    1.20,
+    1.10,
+    0.95,
+    0.80,
+    0.60,
+    0.40,
 ]
 _LINKEDIN_HOURLY = [
-    0.15, 0.10, 0.08, 0.07, 0.10, 0.20, 0.50, 0.90,
-    1.40, 1.55, 1.50, 1.35, 1.40, 1.30, 1.15, 1.05,
-    1.10, 1.15, 0.90, 0.65, 0.45, 0.30, 0.20, 0.15,
+    0.15,
+    0.10,
+    0.08,
+    0.07,
+    0.10,
+    0.20,
+    0.50,
+    0.90,
+    1.40,
+    1.55,
+    1.50,
+    1.35,
+    1.40,
+    1.30,
+    1.15,
+    1.05,
+    1.10,
+    1.15,
+    0.90,
+    0.65,
+    0.45,
+    0.30,
+    0.20,
+    0.15,
 ]
 
 _WEEKEND_DAMPING = {
@@ -289,9 +378,7 @@ def _get_tz_offset(timezone: str) -> int:
     return _TIMEZONE_UTC_OFFSETS.get(timezone, 0)
 
 
-def _engagement_for_slot(
-    platform: str, hour: int, day_of_week: int
-) -> float:
+def _engagement_for_slot(platform: str, hour: int, day_of_week: int) -> float:
     curve = PLATFORM_ENGAGEMENT_CURVES.get(platform.lower(), _INSTAGRAM_HOURLY)
     base = curve[hour % 24]
     if day_of_week >= 5:
@@ -318,6 +405,7 @@ def _bayesian_update(
 def _thompson_sample(mean: float, var: float) -> float:
     """Draw from a Gaussian posterior (Box-Muller since we only use stdlib)."""
     import random
+
     std = max(math.sqrt(var), 1e-6)
     u1 = random.random() or 1e-12
     u2 = random.random()
@@ -392,7 +480,7 @@ def compute_optimal_schedule(
     for h in range(24):
         pm, pv = hour_posteriors[h]
         sample = _thompson_sample(pm, pv)
-        sample *= (1.0 - 0.4 * comp_density[h])
+        sample *= 1.0 - 0.4 * comp_density[h]
         hour_scores.append((h, sample))
 
     hour_scores.sort(key=lambda x: x[1], reverse=True)
@@ -427,31 +515,31 @@ def compute_optimal_schedule(
         pm, pv = hour_posteriors[h]
         confidence = max(0.0, min(1.0, 1.0 - math.sqrt(pv)))
         boost = ((pm / best_prior) - 1.0) * 100 if best_prior else 0.0
-        recommended.append({
-            "datetime": rec_time.isoformat() + "Z",
-            "local_hour": h,
-            "platform": platform,
-            "confidence": round(confidence, 3),
-            "expected_engagement_boost": round(max(boost, 0.0), 1),
-            "competition_density": round(comp_density[h], 2),
-        })
+        recommended.append(
+            {
+                "datetime": rec_time.isoformat() + "Z",
+                "local_hour": h,
+                "platform": platform,
+                "confidence": round(confidence, 3),
+                "expected_engagement_boost": round(max(boost, 0.0), 1),
+                "competition_density": round(comp_density[h], 2),
+            }
+        )
 
     # Identify avoid times (bottom 25% of scores)
     avoid_cutoff = len(hour_scores) * 3 // 4
     avoid: list[dict[str, Any]] = []
     for h, sc in hour_scores[avoid_cutoff:]:
-        avoid.append({
-            "hour": h,
-            "platform": platform,
-            "reason": "low_engagement" if comp_density[h] < 0.3 else "high_competition",
-            "score": round(sc, 3),
-        })
+        avoid.append(
+            {
+                "hour": h,
+                "platform": platform,
+                "reason": "low_engagement" if comp_density[h] < 0.3 else "high_competition",
+                "score": round(sc, 3),
+            }
+        )
 
-    avg_boost = (
-        statistics.mean(r["expected_engagement_boost"] for r in recommended)
-        if recommended
-        else 0.0
-    )
+    avg_boost = statistics.mean(r["expected_engagement_boost"] for r in recommended) if recommended else 0.0
 
     obs_count = sum(len(v) for v in hour_observations.values())
     data_note = (
@@ -517,6 +605,7 @@ def optimize_cross_platform_schedule(
 # ---------------------------------------------------------------------------
 # 3. Live Performance Monitor
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class LiveMetricWindow:
@@ -675,24 +764,28 @@ class LivePerformanceMonitor:
                     fired.append(alert)
             upper = cfg.get("upper")
             if upper is not None and st["max"] > upper:
-                fired.append({
-                    "metric": name,
-                    "type": "threshold_upper",
-                    "value": st["max"],
-                    "threshold": upper,
-                    "severity": "warning",
-                    "timestamp": time.time(),
-                })
+                fired.append(
+                    {
+                        "metric": name,
+                        "type": "threshold_upper",
+                        "value": st["max"],
+                        "threshold": upper,
+                        "severity": "warning",
+                        "timestamp": time.time(),
+                    }
+                )
             lower = cfg.get("lower")
             if lower is not None and st["min"] < lower:
-                fired.append({
-                    "metric": name,
-                    "type": "threshold_lower",
-                    "value": st["min"],
-                    "threshold": lower,
-                    "severity": "warning",
-                    "timestamp": time.time(),
-                })
+                fired.append(
+                    {
+                        "metric": name,
+                        "type": "threshold_lower",
+                        "value": st["min"],
+                        "threshold": lower,
+                        "severity": "warning",
+                        "timestamp": time.time(),
+                    }
+                )
         return fired
 
     def _check_metric_alert(self, metric_name: str, value: float) -> dict[str, Any] | None:
@@ -745,6 +838,7 @@ class LivePerformanceMonitor:
 # ---------------------------------------------------------------------------
 # 4. Revenue Velocity Tracker
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class RevenueVelocity:

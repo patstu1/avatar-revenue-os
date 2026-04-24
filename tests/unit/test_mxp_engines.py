@@ -1,4 +1,5 @@
 """Unit tests for all 11 MXP scoring engines."""
+
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
@@ -58,9 +59,7 @@ class TestPrioritizeExperimentCandidates:
         }
         exp_older = {**base, "age_days": 10}
         exp_newer = {**base, "age_days": 2}
-        results = prioritize_experiment_candidates(
-            [exp_older, exp_newer], {"brand_id": "b1"}
-        )
+        results = prioritize_experiment_candidates([exp_older, exp_newer], {"brand_id": "b1"})
         assert len(results) == 1
 
     def test_auto_promote_flag_for_high_priority(self):
@@ -73,9 +72,7 @@ class TestPrioritizeExperimentCandidates:
                 "age_days": 0,
             },
         ]
-        results = prioritize_experiment_candidates(
-            experiments, {"brand_id": "b1", "risk_tolerance": 0.9}
-        )
+        results = prioritize_experiment_candidates(experiments, {"brand_id": "b1", "risk_tolerance": 0.9})
         assert results[0]["promotion_rule"]["auto_promote"] is True
 
 
@@ -163,9 +160,7 @@ class TestCompareAttributionModels:
             {"scope_type": "social", "scope_id": "s1", "value": 100, "days_before_conversion": 7},
             {"scope_type": "email", "scope_id": "e1", "value": 50, "days_before_conversion": 0},
         ]
-        reports = compute_contribution_reports(
-            touchpoints, ["last_touch", "time_decay"]
-        )
+        reports = compute_contribution_reports(touchpoints, ["last_touch", "time_decay"])
         comparison = compare_attribution_models(reports)
         assert "divergences" in comparison
         assert "confidence" in comparison
@@ -279,8 +274,15 @@ class TestAssessOfferLifecycle:
         assert len(results) == 1
         r = results[0]
         assert r["lifecycle_state"] in (
-            "onboarding", "probation", "active", "scaling", "plateauing",
-            "decaying", "seasonal_pause", "retired", "relaunch_candidate",
+            "onboarding",
+            "probation",
+            "active",
+            "scaling",
+            "plateauing",
+            "decaying",
+            "seasonal_pause",
+            "retired",
+            "relaunch_candidate",
         )
         assert 0.0 <= r["health_score"] <= 1.0
         assert 0.0 <= r["confidence"] <= 1.0
@@ -378,10 +380,18 @@ class TestIndexCreativeAtoms:
 class TestQueryAtoms:
     def test_filters_by_niche(self):
         atoms = [
-            {"niche": "fitness", "platform": "youtube", "atom_type": "hook",
-             "performance_summary": {"avg_engagement": 0.1, "avg_conversion": 0.05}},
-            {"niche": "tech", "platform": "youtube", "atom_type": "cta",
-             "performance_summary": {"avg_engagement": 0.08, "avg_conversion": 0.03}},
+            {
+                "niche": "fitness",
+                "platform": "youtube",
+                "atom_type": "hook",
+                "performance_summary": {"avg_engagement": 0.1, "avg_conversion": 0.05},
+            },
+            {
+                "niche": "tech",
+                "platform": "youtube",
+                "atom_type": "cta",
+                "performance_summary": {"avg_engagement": 0.08, "avg_conversion": 0.03},
+            },
         ]
         results = query_atoms(atoms, {"niche": "fitness"})
         assert len(results) == 1
@@ -471,9 +481,14 @@ class TestRecommendDealStrategy:
         }
         result = recommend_deal_strategy(deal_ctx, brand_metrics)
         assert result["deal_strategy"] in (
-            "custom_quote", "package_standard", "bundle_discount",
-            "hold_price", "strategic_discount", "push_upsell",
-            "nurture_sequence", "require_human_approval",
+            "custom_quote",
+            "package_standard",
+            "bundle_discount",
+            "hold_price",
+            "strategic_discount",
+            "push_upsell",
+            "nurture_sequence",
+            "require_human_approval",
         )
         assert result["pricing_stance"] in ("premium", "competitive", "penetration", "hold")
         assert "explanation" in result
@@ -518,16 +533,38 @@ class TestInferAudienceStates:
             {"segment_id": "s2", "name": "Cold List", "estimated_size": 2000},
         ]
         engagement = {
-            "s1": {"engagement_rate": 0.07, "purchase_count": 3, "ltv": 250.0, "recency_days": 10, "frequency": 2.0, "feedback_sentiment": 0.6},
-            "s2": {"engagement_rate": 0.005, "purchase_count": 0, "ltv": 0.0, "recency_days": 200, "frequency": 0.0, "feedback_sentiment": 0.5},
+            "s1": {
+                "engagement_rate": 0.07,
+                "purchase_count": 3,
+                "ltv": 250.0,
+                "recency_days": 10,
+                "frequency": 2.0,
+                "feedback_sentiment": 0.6,
+            },
+            "s2": {
+                "engagement_rate": 0.005,
+                "purchase_count": 0,
+                "ltv": 0.0,
+                "recency_days": 200,
+                "frequency": 0.0,
+                "feedback_sentiment": 0.5,
+            },
         }
         results = infer_audience_states(segments, engagement)
         assert len(results) == 2
         for r in results:
             assert r["state_name"] in (
-                "unaware", "curious", "evaluating", "objection_heavy",
-                "ready_to_buy", "bought_once", "repeat_buyer", "high_ltv",
-                "churn_risk", "advocate", "sponsor_friendly",
+                "unaware",
+                "curious",
+                "evaluating",
+                "objection_heavy",
+                "ready_to_buy",
+                "bought_once",
+                "repeat_buyer",
+                "high_ltv",
+                "churn_risk",
+                "advocate",
+                "sponsor_friendly",
             )
             assert 0.0 <= r["confidence"] <= 1.0
             assert "explanation" in r
@@ -539,7 +576,14 @@ class TestInferAudienceStates:
     def test_churn_risk_detection(self):
         segments = [{"segment_id": "s1", "name": "Lapsed"}]
         engagement = {
-            "s1": {"engagement_rate": 0.01, "purchase_count": 2, "ltv": 100.0, "recency_days": 120, "frequency": 0.1, "feedback_sentiment": 0.4},
+            "s1": {
+                "engagement_rate": 0.01,
+                "purchase_count": 2,
+                "ltv": 100.0,
+                "recency_days": 120,
+                "frequency": 0.1,
+                "feedback_sentiment": 0.4,
+            },
         }
         results = infer_audience_states(segments, engagement)
         assert results[0]["state_name"] == "churn_risk"

@@ -1,4 +1,5 @@
 """Buffer Distribution Layer — engine logic for job creation, status mapping, blocker detection."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -8,9 +9,14 @@ JOB_STATUSES = ["pending", "submitted", "queued", "scheduled", "published", "fai
 CREDENTIAL_STATUSES = ["connected", "not_connected", "expired", "revoked"]
 SYNC_STATUSES = ["synced", "stale", "error", "never"]
 BLOCKER_TYPES = [
-    "missing_buffer_credentials", "expired_buffer_token", "profile_not_linked",
-    "platform_not_supported", "content_not_ready", "rate_limited",
-    "account_suspended", "missing_buffer_api_key",
+    "missing_buffer_credentials",
+    "expired_buffer_token",
+    "profile_not_linked",
+    "platform_not_supported",
+    "content_not_ready",
+    "rate_limited",
+    "account_suspended",
+    "missing_buffer_api_key",
 ]
 
 
@@ -182,39 +188,47 @@ def detect_buffer_blockers(
     has_api_key = brand_context.get("has_buffer_api_key", False)
 
     if not has_api_key:
-        blockers.append({
-            "blocker_type": "missing_buffer_api_key",
-            "severity": "critical",
-            "description": "Buffer API key is not configured. No content can be distributed.",
-            "operator_action_needed": "Add BUFFER_API_KEY to environment configuration.",
-        })
+        blockers.append(
+            {
+                "blocker_type": "missing_buffer_api_key",
+                "severity": "critical",
+                "description": "Buffer API key is not configured. No content can be distributed.",
+                "operator_action_needed": "Add BUFFER_API_KEY to environment configuration.",
+            }
+        )
 
     if not profiles:
-        blockers.append({
-            "blocker_type": "profile_not_linked",
-            "severity": "critical",
-            "description": "No Buffer profiles linked for this brand. Content has no distribution target.",
-            "operator_action_needed": "Create and link at least one Buffer profile to a creator account.",
-        })
+        blockers.append(
+            {
+                "blocker_type": "profile_not_linked",
+                "severity": "critical",
+                "description": "No Buffer profiles linked for this brand. Content has no distribution target.",
+                "operator_action_needed": "Create and link at least one Buffer profile to a creator account.",
+            }
+        )
 
     for p in profiles:
         cred_status = p.get("credential_status", "not_connected")
         if cred_status == "not_connected":
-            blockers.append({
-                "blocker_type": "missing_buffer_credentials",
-                "severity": "high",
-                "description": f"Buffer profile '{p.get('display_name', 'unknown')}' ({p.get('platform', '?')}) is not connected.",
-                "operator_action_needed": f"Connect Buffer profile for {p.get('display_name', 'unknown')} via Buffer dashboard.",
-                "buffer_profile_id_fk": p.get("id"),
-            })
+            blockers.append(
+                {
+                    "blocker_type": "missing_buffer_credentials",
+                    "severity": "high",
+                    "description": f"Buffer profile '{p.get('display_name', 'unknown')}' ({p.get('platform', '?')}) is not connected.",
+                    "operator_action_needed": f"Connect Buffer profile for {p.get('display_name', 'unknown')} via Buffer dashboard.",
+                    "buffer_profile_id_fk": p.get("id"),
+                }
+            )
         elif cred_status in ("expired", "revoked"):
-            blockers.append({
-                "blocker_type": "expired_buffer_token",
-                "severity": "high",
-                "description": f"Buffer credentials for '{p.get('display_name', 'unknown')}' are {cred_status}.",
-                "operator_action_needed": f"Re-authenticate Buffer profile for {p.get('display_name', 'unknown')}.",
-                "buffer_profile_id_fk": p.get("id"),
-            })
+            blockers.append(
+                {
+                    "blocker_type": "expired_buffer_token",
+                    "severity": "high",
+                    "description": f"Buffer credentials for '{p.get('display_name', 'unknown')}' are {cred_status}.",
+                    "operator_action_needed": f"Re-authenticate Buffer profile for {p.get('display_name', 'unknown')}.",
+                    "buffer_profile_id_fk": p.get("id"),
+                }
+            )
 
     return blockers
 

@@ -1,4 +1,5 @@
 """DB-backed integration tests for Creator Revenue Avenues Phase B."""
+
 from __future__ import annotations
 
 import uuid
@@ -24,10 +25,18 @@ async def seed_brand(db: AsyncSession):
     brand_id = uuid.uuid4()
     db.add(Organization(id=org_id, name=f"TestOrg-{org_id.hex[:8]}", slug=f"testorg-{org_id.hex[:8]}"))
     await db.flush()
-    db.add(Brand(id=brand_id, organization_id=org_id, name="CRPhaseBTestBrand", slug=f"crb-{brand_id.hex[:8]}", niche="tech"))
+    db.add(
+        Brand(
+            id=brand_id, organization_id=org_id, name="CRPhaseBTestBrand", slug=f"crb-{brand_id.hex[:8]}", niche="tech"
+        )
+    )
     await db.flush()
     for i in range(25):
-        db.add(ContentItem(brand_id=brand_id, title=f"TestContent-{i}", content_type=ContentType.SHORT_VIDEO, status="approved"))
+        db.add(
+            ContentItem(
+                brand_id=brand_id, title=f"TestContent-{i}", content_type=ContentType.SHORT_VIDEO, status="approved"
+            )
+        )
     await db.flush()
     return brand_id
 
@@ -35,6 +44,7 @@ async def seed_brand(db: AsyncSession):
 @pytest.mark.asyncio
 async def test_licensing_recompute(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_licensing, recompute_licensing
+
     result = await recompute_licensing(db, seed_brand)
     assert result["created"] >= 1
     items = await list_licensing(db, seed_brand)
@@ -46,6 +56,7 @@ async def test_licensing_recompute(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_licensing_idempotent(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_licensing, recompute_licensing
+
     await recompute_licensing(db, seed_brand)
     first = await list_licensing(db, seed_brand)
     await recompute_licensing(db, seed_brand)
@@ -59,6 +70,7 @@ async def test_licensing_idempotent(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_syndication_recompute(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_syndication, recompute_syndication
+
     result = await recompute_syndication(db, seed_brand)
     assert result["created"] >= 1
     items = await list_syndication(db, seed_brand)
@@ -70,6 +82,7 @@ async def test_syndication_recompute(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_syndication_idempotent(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_syndication, recompute_syndication
+
     await recompute_syndication(db, seed_brand)
     first = await list_syndication(db, seed_brand)
     await recompute_syndication(db, seed_brand)
@@ -81,6 +94,7 @@ async def test_syndication_idempotent(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_data_products_recompute(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_data_products, recompute_data_products
+
     result = await recompute_data_products(db, seed_brand)
     assert result["created"] >= 1
     items = await list_data_products(db, seed_brand)
@@ -92,6 +106,7 @@ async def test_data_products_recompute(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_data_products_idempotent(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_data_products, recompute_data_products
+
     await recompute_data_products(db, seed_brand)
     first = await list_data_products(db, seed_brand)
     await recompute_data_products(db, seed_brand)
@@ -103,6 +118,7 @@ async def test_data_products_idempotent(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_blockers_include_phase_b(db: AsyncSession, seed_brand):
     from apps.api.services.creator_revenue_service import list_blockers, recompute_blockers
+
     result = await recompute_blockers(db, seed_brand)
     assert result["created"] >= 1
     items = await list_blockers(db, seed_brand)
@@ -113,6 +129,7 @@ async def test_blockers_include_phase_b(db: AsyncSession, seed_brand):
 @pytest.mark.asyncio
 async def test_revenue_event_persistence(db: AsyncSession, seed_brand):
     from packages.db.models.creator_revenue import CreatorRevenueEvent
+
     event = CreatorRevenueEvent(
         brand_id=seed_brand,
         avenue_type="licensing",

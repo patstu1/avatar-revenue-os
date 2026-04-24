@@ -3,6 +3,7 @@
 Verifies every operator page renders 200 with expected core markup and
 that form POSTs mutate the right tables.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -38,8 +39,16 @@ async def test_operator_pipeline_page_renders(api_client, sample_org_data):
     headers = await _auth(api_client, sample_org_data)
     r = await api_client.get("/api/v1/operator/pipeline", headers=headers)
     assert r.status_code == 200
-    for section in ("Reply drafts", "Proposals", "Payments", "Clients",
-                    "Intakes", "Projects", "Production jobs", "Deliveries"):
+    for section in (
+        "Reply drafts",
+        "Proposals",
+        "Payments",
+        "Clients",
+        "Intakes",
+        "Projects",
+        "Production jobs",
+        "Deliveries",
+    ):
         assert section in r.text, f"Missing section {section}"
 
 
@@ -68,9 +77,7 @@ async def test_providers_page_renders_and_save(api_client, db_session, sample_or
 
     row = (
         await db_session.execute(
-            select(IntegrationProvider).where(
-                IntegrationProvider.provider_key == "test_provider_xyz"
-            )
+            select(IntegrationProvider).where(IntegrationProvider.provider_key == "test_provider_xyz")
         )
     ).scalar_one()
     assert row.is_enabled is True
@@ -98,9 +105,7 @@ async def test_inbound_route_page_and_save(api_client, db_session, sample_org_da
 
     row = (
         await db_session.execute(
-            select(IntegrationProvider).where(
-                IntegrationProvider.provider_key == "inbound_email_route"
-            )
+            select(IntegrationProvider).where(IntegrationProvider.provider_key == "inbound_email_route")
         )
     ).scalar_one()
     assert row.extra_config["to_address"] == "reply@test.proofhook.dev"
@@ -135,11 +140,7 @@ async def test_team_page_and_invite(api_client, db_session, sample_org_data):
     )
     assert invite.status_code == 303
 
-    u = (
-        await db_session.execute(
-            select(User).where(User.email == new_email)
-        )
-    ).scalar_one()
+    u = (await db_session.execute(select(User).where(User.email == new_email))).scalar_one()
     assert u.full_name == "Invited Person"
     assert u.is_active is True
 

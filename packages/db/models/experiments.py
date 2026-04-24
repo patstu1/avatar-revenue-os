@@ -1,4 +1,5 @@
 """Experiments, variants, winner cloning."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -14,16 +15,12 @@ from packages.db.enums import ExperimentStatus, JobStatus
 class Experiment(Base):
     __tablename__ = "experiments"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     hypothesis: Mapped[Optional[str]] = mapped_column(Text)
     experiment_type: Mapped[str] = mapped_column(String(100), nullable=False)
     target_metric: Mapped[str] = mapped_column(String(100), nullable=False)
-    status: Mapped[ExperimentStatus] = mapped_column(
-        Enum(ExperimentStatus), default=ExperimentStatus.DRAFT, index=True
-    )
+    status: Mapped[ExperimentStatus] = mapped_column(Enum(ExperimentStatus), default=ExperimentStatus.DRAFT, index=True)
     min_sample_size: Mapped[int] = mapped_column(Integer, default=100)
     current_sample_size: Mapped[int] = mapped_column(Integer, default=0)
     confidence_threshold: Mapped[float] = mapped_column(Float, default=0.95)
@@ -43,9 +40,7 @@ class ExperimentVariant(Base):
     variant_label: Mapped[str] = mapped_column(String(100), nullable=False)
     is_control: Mapped[bool] = mapped_column(Boolean, default=False)
     variant_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("content_items.id")
-    )
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"))
     impressions: Mapped[int] = mapped_column(Integer, default=0)
     conversions: Mapped[int] = mapped_column(Integer, default=0)
     revenue: Mapped[float] = mapped_column(Float, default=0.0)
@@ -57,9 +52,7 @@ class ExperimentVariant(Base):
 class WinnerCloneJob(Base):
     __tablename__ = "winner_clone_jobs"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True
-    )
+    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     source_content_item_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=False
     )

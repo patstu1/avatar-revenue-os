@@ -3,6 +3,7 @@
 Determines the best time to publish content per platform and prevents multiple
 accounts from posting at the same minute.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -21,8 +22,14 @@ OPTIMAL_POSTING_WINDOWS: dict[str, list[tuple[int, int]]] = {
 }
 
 TIMEZONE_OFFSETS: dict[str, int] = {
-    "US_EAST": -5, "US_CENTRAL": -6, "US_MOUNTAIN": -7, "US_PACIFIC": -8,
-    "UK": 0, "EU_CENTRAL": 1, "AUSTRALIA": 10, "INDIA": 5,
+    "US_EAST": -5,
+    "US_CENTRAL": -6,
+    "US_MOUNTAIN": -7,
+    "US_PACIFIC": -8,
+    "UK": 0,
+    "EU_CENTRAL": 1,
+    "AUSTRALIA": 10,
+    "INDIA": 5,
 }
 
 
@@ -111,13 +118,15 @@ def build_daily_schedule(
             proposed = get_optimal_publish_time(platform, seed_id, target_timezone)
             final_time = resolve_collision(proposed, booked_times)
             booked_times.append(final_time)
-            schedule.append({
-                "account_id": acct["account_id"],
-                "account_username": acct.get("username", ""),
-                "platform": platform,
-                "scheduled_at": final_time.isoformat(),
-                "post_number": post_num + 1,
-            })
+            schedule.append(
+                {
+                    "account_id": acct["account_id"],
+                    "account_username": acct.get("username", ""),
+                    "platform": platform,
+                    "scheduled_at": final_time.isoformat(),
+                    "post_number": post_num + 1,
+                }
+            )
 
     schedule.sort(key=lambda s: s["scheduled_at"])
     return schedule

@@ -1,4 +1,5 @@
 """Unit tests for Creator Revenue Avenues Phase C engines."""
+
 from __future__ import annotations
 
 from packages.scoring.creator_revenue_engine import (
@@ -27,6 +28,7 @@ def _rich_ctx() -> dict:
 
 
 # ── Merch ──────────────────────────────────────────────────────────────
+
 
 class TestScoreMerchOpportunities:
     def test_returns_list(self):
@@ -86,6 +88,7 @@ class TestScoreMerchOpportunities:
 
 # ── Live Events ────────────────────────────────────────────────────────
 
+
 class TestScoreLiveEventOpportunities:
     def test_returns_list(self):
         results = score_live_event_opportunities(_rich_ctx())
@@ -141,12 +144,15 @@ class TestScoreLiveEventOpportunities:
         ctx = {**_rich_ctx(), "audience_size": 1000}
         results = score_live_event_opportunities(ctx)
         niche = [r for r in results if r["event_type"] == "niche_event_product"]
-        rich_niche = [r for r in score_live_event_opportunities(_rich_ctx()) if r["event_type"] == "niche_event_product"]
+        rich_niche = [
+            r for r in score_live_event_opportunities(_rich_ctx()) if r["event_type"] == "niche_event_product"
+        ]
         if niche and rich_niche:
             assert niche[0]["confidence"] < rich_niche[0]["confidence"]
 
 
 # ── Owned Affiliate Program ───────────────────────────────────────────
+
 
 class TestScoreOwnedAffiliateOpportunities:
     def test_returns_list(self):
@@ -191,12 +197,15 @@ class TestScoreOwnedAffiliateOpportunities:
         ctx = {**_rich_ctx(), "audience_size": 1000}
         results = score_owned_affiliate_opportunities(ctx)
         expansion = [r for r in results if r["program_type"] == "partner_tier_expansion"]
-        rich_expansion = [r for r in score_owned_affiliate_opportunities(_rich_ctx()) if r["program_type"] == "partner_tier_expansion"]
+        rich_expansion = [
+            r for r in score_owned_affiliate_opportunities(_rich_ctx()) if r["program_type"] == "partner_tier_expansion"
+        ]
         if expansion and rich_expansion:
             assert expansion[0]["confidence"] < rich_expansion[0]["confidence"]
 
 
 # ── Phase C Blockers ───────────────────────────────────────────────────
+
 
 class TestDetectPhaseCBlockers:
     def test_no_blockers_for_rich_context(self):
@@ -230,7 +239,13 @@ class TestDetectPhaseCBlockers:
         assert len(pp) == 1
 
     def test_blockers_have_required_fields(self):
-        ctx = {**_rich_ctx(), "audience_size": 500, "content_count": 2, "offer_count": 0, "has_payment_processor": False}
+        ctx = {
+            **_rich_ctx(),
+            "audience_size": 500,
+            "content_count": 2,
+            "offer_count": 0,
+            "has_payment_processor": False,
+        }
         blockers = detect_phase_c_blockers(ctx)
         for b in blockers:
             assert "avenue_type" in b

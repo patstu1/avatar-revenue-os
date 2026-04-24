@@ -8,6 +8,7 @@ API docs:
 - Media: https://developer.x.com/en/docs/x-api/media/upload-media/api-reference
 - OAuth 2.0: https://developer.x.com/en/docs/authentication/oauth-2-0
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -30,8 +31,10 @@ CHUNK_SIZE = 5 * 1024 * 1024
 
 # ── Exceptions ──────────────────────────────────────────────────────────────
 
+
 class XError(Exception):
     """Base exception for X client errors."""
+
     def __init__(self, message: str, status_code: int = 0, response_body: Any = None):
         super().__init__(message)
         self.status_code = status_code
@@ -40,16 +43,19 @@ class XError(Exception):
 
 class AuthError(XError):
     """401/403 — credentials invalid or expired."""
+
     pass
 
 
 class PermanentError(XError):
     """4xx (non-auth) — bad request, not found, etc."""
+
     pass
 
 
 class TransientError(XError):
     """429 or 5xx — retryable server/rate-limit errors."""
+
     pass
 
 
@@ -62,6 +68,7 @@ def _classify_error(status_code: int, message: str, body: Any = None) -> XError:
 
 
 # ── Client ──────────────────────────────────────────────────────────────────
+
 
 class XClient:
     """Direct X (Twitter) API v2 client for posting and media upload."""
@@ -286,7 +293,7 @@ class XClient:
         segment_index = 0
         offset = 0
         while offset < total_bytes:
-            chunk = video_bytes[offset:offset + CHUNK_SIZE]
+            chunk = video_bytes[offset : offset + CHUNK_SIZE]
             async with httpx.AsyncClient(timeout=_UPLOAD_TIMEOUT) as client:
                 resp = await client.post(
                     self.MEDIA_UPLOAD_URL,
@@ -372,6 +379,7 @@ class XClient:
 
 # ── Text splitting ──────────────────────────────────────────────────────────
 
+
 def _smart_split(text: str, max_length: int = MAX_TWEET_LENGTH) -> list[str]:
     """Split long text into tweet-sized chunks at sentence boundaries.
 
@@ -414,21 +422,22 @@ def _smart_split(text: str, max_length: int = MAX_TWEET_LENGTH) -> list[str]:
 def _find_sentence_boundary(text: str) -> int:
     """Find the last sentence-ending punctuation position in text."""
     best = 0
-    for match in re.finditer(r'[.!?]\s', text):
+    for match in re.finditer(r"[.!?]\s", text):
         best = match.end()
     # Also check if text ends with sentence punctuation
-    if text and text[-1] in '.!?':
+    if text and text[-1] in ".!?":
         best = max(best, len(text))
     return best
 
 
 def _find_word_boundary(text: str) -> int:
     """Find the last whitespace position in text."""
-    pos = text.rfind(' ')
+    pos = text.rfind(" ")
     return pos if pos > 0 else len(text)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
+
 
 def _auth_header(access_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {access_token}"}

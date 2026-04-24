@@ -1,4 +1,5 @@
 """Pydantic schemas for Phase 2 discovery endpoints."""
+
 import uuid
 from datetime import datetime
 from typing import Optional

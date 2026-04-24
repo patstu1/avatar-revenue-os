@@ -1,4 +1,5 @@
 """Offer lifecycle service — health tracking, decay detection, state transitions."""
+
 from __future__ import annotations
 
 import uuid
@@ -27,21 +28,13 @@ def _strip_meta(d: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def recompute_offer_lifecycle(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> dict[str, Any]:
+async def recompute_offer_lifecycle(db: AsyncSession, brand_id: uuid.UUID) -> dict[str, Any]:
     brand = (await db.execute(select(Brand).where(Brand.id == brand_id))).scalar_one_or_none()
     if not brand:
         raise ValueError("Brand not found")
 
     offers = list(
-        (
-            await db.execute(
-                select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True))
-            )
-        )
-        .scalars()
-        .all()
+        (await db.execute(select(Offer).where(Offer.brand_id == brand_id, Offer.is_active.is_(True)))).scalars().all()
     )
     if not offers:
         return {"lifecycle_reports": 0, "lifecycle_events": 0}
@@ -57,9 +50,7 @@ async def recompute_offer_lifecycle(
             .group_by(PerformanceMetric.content_item_id)
         )
     ).all()
-    perf_map: dict[str, tuple[float, float]] = {
-        str(row[0]): (float(row[1]), float(row[2])) for row in perf_agg
-    }
+    perf_map: dict[str, tuple[float, float]] = {str(row[0]): (float(row[1]), float(row[2])) for row in perf_agg}
 
     existing_reports = list(
         (
@@ -73,9 +64,7 @@ async def recompute_offer_lifecycle(
         .scalars()
         .all()
     )
-    current_state_map: dict[str, str] = {
-        str(r.offer_id): r.lifecycle_state for r in existing_reports
-    }
+    current_state_map: dict[str, str] = {str(r.offer_id): r.lifecycle_state for r in existing_reports}
 
     offer_dicts: list[dict[str, Any]] = []
     for o in offers:
@@ -84,33 +73,39 @@ async def recompute_offer_lifecycle(
         age_days = int(getattr(o, "age_days", 30) or 30)
         growth_rate = float(getattr(o, "growth_rate", 0.05) or 0.05)
 
-        offer_dicts.append({
-            "offer_id": str(o.id),
-            "name": o.name,
-            "age_days": age_days,
-            "total_conversions": conversions,
-            "revenue": revenue,
-            "growth_rate": growth_rate,
-            "is_paused": not o.is_active,
-            "is_retired": False,
-        })
+        offer_dicts.append(
+            {
+                "offer_id": str(o.id),
+                "name": o.name,
+                "age_days": age_days,
+                "total_conversions": conversions,
+                "revenue": revenue,
+                "growth_rate": growth_rate,
+                "is_paused": not o.is_active,
+                "is_retired": False,
+            }
+        )
 
     performance_history: list[dict[str, Any]] = []
     for o in offers:
         oid = str(o.id)
         rev, eng = perf_map.get(oid, (0.0, 0.0))
-        performance_history.append({
-            "offer_id": oid,
-            "period_index": 0,
-            "conversion_rate": float(o.conversion_rate or 0),
-            "revenue": rev,
-        })
-        performance_history.append({
-            "offer_id": oid,
-            "period_index": 1,
-            "conversion_rate": float(o.conversion_rate or 0) * 0.95,
-            "revenue": rev * 0.95,
-        })
+        performance_history.append(
+            {
+                "offer_id": oid,
+                "period_index": 0,
+                "conversion_rate": float(o.conversion_rate or 0),
+                "revenue": rev,
+            }
+        )
+        performance_history.append(
+            {
+                "offer_id": oid,
+                "period_index": 1,
+                "conversion_rate": float(o.conversion_rate or 0) * 0.95,
+                "revenue": rev * 0.95,
+            }
+        )
 
     assessments = assess_offer_lifecycle(offer_dicts, performance_history)
 
@@ -217,9 +212,7 @@ def _ole_dict(x: OfferLifecycleEvent) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-async def get_offer_lifecycle_reports(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_offer_lifecycle_reports(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(
@@ -238,9 +231,7 @@ async def get_offer_lifecycle_reports(
     return [_olr_dict(r) for r in rows]
 
 
-async def get_offer_lifecycle_events(
-    db: AsyncSession, brand_id: uuid.UUID
-) -> list[dict[str, Any]]:
+async def get_offer_lifecycle_events(db: AsyncSession, brand_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = list(
         (
             await db.execute(

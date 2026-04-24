@@ -3,6 +3,7 @@
 Revision ID: promote_win_001
 Revises: pattern_meta_001
 """
+
 from collections.abc import Sequence
 from typing import Union
 
@@ -17,7 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table("pw_active_experiments",
+    op.create_table(
+        "pw_active_experiments",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -45,7 +47,8 @@ def upgrade() -> None:
     op.create_index("ix_pwae_brand", "pw_active_experiments", ["brand_id"])
     op.create_index("ix_pwae_status", "pw_active_experiments", ["status"])
 
-    op.create_table("pw_experiment_variants",
+    op.create_table(
+        "pw_experiment_variants",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -62,7 +65,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_pwev_experiment", "pw_experiment_variants", ["experiment_id"])
 
-    op.create_table("pw_experiment_assignments",
+    op.create_table(
+        "pw_experiment_assignments",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -77,7 +81,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table("pw_experiment_observations",
+    op.create_table(
+        "pw_experiment_observations",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -93,7 +98,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table("pw_experiment_winners",
+    op.create_table(
+        "pw_experiment_winners",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -111,7 +117,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table("pw_experiment_losers",
+    op.create_table(
+        "pw_experiment_losers",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -127,7 +134,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table("promoted_winner_rules",
+    op.create_table(
+        "promoted_winner_rules",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
@@ -150,7 +158,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for t in ("promoted_winner_rules", "pw_experiment_losers", "pw_experiment_winners",
-              "pw_experiment_observations", "pw_experiment_assignments",
-              "pw_experiment_variants", "pw_active_experiments"):
+    for t in (
+        "promoted_winner_rules",
+        "pw_experiment_losers",
+        "pw_experiment_winners",
+        "pw_experiment_observations",
+        "pw_experiment_assignments",
+        "pw_experiment_variants",
+        "pw_active_experiments",
+    ):
         op.drop_table(t)

@@ -1,10 +1,18 @@
 """Brand Governance Engine — rule eval, off-brand detection, editorial scoring. Pure functions."""
+
 from __future__ import annotations
 
 from typing import Any
 
 RULE_TYPES = ["banned_phrase", "required_phrase", "tone", "claim", "cta", "disclosure", "trust_risk", "style"]
-EDITORIAL_CATEGORIES = ["tone_compliance", "disclosure_compliance", "claim_accuracy", "style_standard", "proof_completeness", "cta_completeness"]
+EDITORIAL_CATEGORIES = [
+    "tone_compliance",
+    "disclosure_compliance",
+    "claim_accuracy",
+    "style_standard",
+    "proof_completeness",
+    "cta_completeness",
+]
 
 
 def evaluate_voice_rules(text: str, rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -17,26 +25,56 @@ def evaluate_voice_rules(text: str, rules: list[dict[str, Any]]) -> list[dict[st
         rv = rule.get("rule_value") or {}
 
         if rt == "banned_phrase" and rk in lower:
-            violations.append({"violation_type": "banned_phrase", "severity": rule.get("severity", "hard"), "detail": f"Banned phrase '{rk}' found in content", "rule_id": rule.get("id")})
+            violations.append(
+                {
+                    "violation_type": "banned_phrase",
+                    "severity": rule.get("severity", "hard"),
+                    "detail": f"Banned phrase '{rk}' found in content",
+                    "rule_id": rule.get("id"),
+                }
+            )
 
         elif rt == "required_phrase" and rk not in lower:
-            violations.append({"violation_type": "missing_required_phrase", "severity": rule.get("severity", "soft"), "detail": f"Required phrase '{rk}' missing", "rule_id": rule.get("id")})
+            violations.append(
+                {
+                    "violation_type": "missing_required_phrase",
+                    "severity": rule.get("severity", "soft"),
+                    "detail": f"Required phrase '{rk}' missing",
+                    "rule_id": rule.get("id"),
+                }
+            )
 
         elif rt == "claim":
             banned_claims = rv.get("banned_claims", [])
             for bc in banned_claims:
                 if bc.lower() in lower:
-                    violations.append({"violation_type": "banned_claim", "severity": "hard", "detail": f"Banned claim '{bc}' detected", "rule_id": rule.get("id")})
+                    violations.append(
+                        {
+                            "violation_type": "banned_claim",
+                            "severity": "hard",
+                            "detail": f"Banned claim '{bc}' detected",
+                            "rule_id": rule.get("id"),
+                        }
+                    )
 
         elif rt == "disclosure":
             req = rv.get("required_text", "")
             if req and req.lower() not in lower:
-                violations.append({"violation_type": "missing_disclosure", "severity": "hard", "detail": f"Required disclosure '{req[:50]}...' missing", "rule_id": rule.get("id")})
+                violations.append(
+                    {
+                        "violation_type": "missing_disclosure",
+                        "severity": "hard",
+                        "detail": f"Required disclosure '{req[:50]}...' missing",
+                        "rule_id": rule.get("id"),
+                    }
+                )
 
     return violations
 
 
-def score_editorial_compliance(content: dict[str, Any], rules: list[dict[str, Any]], governance_profile: dict[str, Any]) -> dict[str, Any]:
+def score_editorial_compliance(
+    content: dict[str, Any], rules: list[dict[str, Any]], governance_profile: dict[str, Any]
+) -> dict[str, Any]:
     """Score content against editorial standards."""
     scores: dict[str, float] = {}
     text = (content.get("body_text", "") + " " + content.get("hook_text", "")).lower()

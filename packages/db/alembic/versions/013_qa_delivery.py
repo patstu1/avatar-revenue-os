@@ -6,6 +6,7 @@ Create Date: 2026-04-20
 
 Batch 3D. Additive; each table guarded by ``IF NOT EXISTS``.
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -19,9 +20,7 @@ depends_on = None
 def _table_exists(name: str) -> bool:
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"
-        ),
+        sa.text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :t)"),
         {"t": name},
     )
     return bool(result.scalar())
@@ -30,13 +29,13 @@ def _table_exists(name: str) -> bool:
 def _base_cols():
     return (
         sa.Column(
-            "id", UUID(as_uuid=True), primary_key=True,
+            "id",
+            UUID(as_uuid=True),
+            primary_key=True,
             server_default=sa.text("gen_random_uuid()"),
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True),
-                  server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True),
-                  server_default=sa.func.now(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
 
 
@@ -82,8 +81,7 @@ def upgrade() -> None:
             sa.Column("metadata_json", JSONB, nullable=True),
             sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
         )
-        for col in ("org_id", "client_id", "project_id", "production_job_id",
-                    "channel", "status"):
+        for col in ("org_id", "client_id", "project_id", "production_job_id", "channel", "status"):
             op.create_index(f"ix_deliveries_{col}", "deliveries", [col])
 
 

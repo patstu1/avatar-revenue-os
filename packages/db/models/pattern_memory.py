@@ -1,4 +1,5 @@
 """Winning-Pattern Memory — reusable strategic memory layer."""
+
 import uuid
 from typing import Optional
 
@@ -36,9 +37,13 @@ class WinningPatternMemory(Base):
 class WinningPatternEvidence(Base):
     __tablename__ = "winning_pattern_evidence"
 
-    pattern_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("winning_pattern_memory.id"), nullable=False, index=True)
+    pattern_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("winning_pattern_memory.id"), nullable=False, index=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True)
+    content_item_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id"), nullable=True, index=True
+    )
     impressions: Mapped[int] = mapped_column(Integer, default=0)
     clicks: Mapped[int] = mapped_column(Integer, default=0)
     saves: Mapped[int] = mapped_column(Integer, default=0)
@@ -87,7 +92,9 @@ class PatternReuseRecommendation(Base):
     __tablename__ = "pattern_reuse_recommendations"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    pattern_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("winning_pattern_memory.id"), nullable=False, index=True)
+    pattern_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("winning_pattern_memory.id"), nullable=False, index=True
+    )
     target_platform: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     target_content_form: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     expected_uplift: Mapped[float] = mapped_column(Float, default=0.0)
@@ -100,7 +107,9 @@ class PatternDecayReport(Base):
     __tablename__ = "pattern_decay_reports"
 
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
-    pattern_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("winning_pattern_memory.id"), nullable=False, index=True)
+    pattern_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("winning_pattern_memory.id"), nullable=False, index=True
+    )
     decay_rate: Mapped[float] = mapped_column(Float, default=0.0)
     decay_reason: Mapped[str] = mapped_column(String(120), nullable=False)
     previous_win_score: Mapped[float] = mapped_column(Float, default=0.0)

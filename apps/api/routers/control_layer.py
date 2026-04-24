@@ -3,6 +3,7 @@
 This replaces fragmented dashboard endpoints with a unified operational API
 that surfaces real system state, pending actions, and recent events.
 """
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query
@@ -54,7 +55,9 @@ async def get_pending_actions(
     current_user: CurrentUser,
     db: DBSession,
     limit: int = Query(default=50, le=200),
-    category: str = Query(default=None, description="Filter by category: blocker, approval, opportunity, failure, health, monetization"),
+    category: str = Query(
+        default=None, description="Filter by category: blocker, approval, opportunity, failure, health, monetization"
+    ),
     priority: str = Query(default=None, description="Filter by priority: critical, high, medium, low"),
 ):
     """List pending operator actions — the things that need attention."""
@@ -86,11 +89,11 @@ async def complete_operator_action(
 ):
     """Mark an operator action as completed."""
     org_id = current_user.organization_id
-    action = (await db.execute(
-        select(OperatorAction).where(
-            and_(OperatorAction.id == action_id, OperatorAction.organization_id == org_id)
+    action = (
+        await db.execute(
+            select(OperatorAction).where(and_(OperatorAction.id == action_id, OperatorAction.organization_id == org_id))
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if not action:
         raise HTTPException(status_code=404, detail="Action not found")
@@ -99,10 +102,15 @@ async def complete_operator_action(
 
     await complete_action(db, action, completed_by=str(current_user.id), result=body.result)
     await emit_event(
-        db, domain="governance", event_type="action.completed",
+        db,
+        domain="governance",
+        event_type="action.completed",
         summary=f"Action completed: {action.title}",
-        org_id=org_id, entity_type="operator_action", entity_id=action.id,
-        actor_type="human", actor_id=str(current_user.id),
+        org_id=org_id,
+        entity_type="operator_action",
+        entity_id=action.id,
+        actor_type="human",
+        actor_id=str(current_user.id),
         details={"action_type": action.action_type, "result": body.result},
     )
     await db.commit()
@@ -119,11 +127,11 @@ async def dismiss_operator_action(
 ):
     """Dismiss an operator action."""
     org_id = current_user.organization_id
-    action = (await db.execute(
-        select(OperatorAction).where(
-            and_(OperatorAction.id == action_id, OperatorAction.organization_id == org_id)
+    action = (
+        await db.execute(
+            select(OperatorAction).where(and_(OperatorAction.id == action_id, OperatorAction.organization_id == org_id))
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
 
     if not action:
         raise HTTPException(status_code=404, detail="Action not found")
@@ -139,7 +147,10 @@ async def get_system_events(
     current_user: CurrentUser,
     db: DBSession,
     limit: int = Query(default=50, le=200),
-    domain: str = Query(default=None, description="Filter by domain: content, publishing, monetization, intelligence, orchestration, governance, recovery"),
+    domain: str = Query(
+        default=None,
+        description="Filter by domain: content, publishing, monetization, intelligence, orchestration, governance, recovery",
+    ),
     severity: str = Query(default=None, description="Filter by severity: info, warning, error, critical"),
 ):
     """List recent system events — the activity feed."""

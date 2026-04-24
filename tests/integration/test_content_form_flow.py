@@ -1,4 +1,5 @@
 """DB-backed integration tests for Content Form Selection."""
+
 import pytest
 
 import workers.content_form_worker.tasks  # noqa: F401 — register @app.task names under pytest

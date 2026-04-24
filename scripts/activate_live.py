@@ -9,6 +9,7 @@ Usage:
   docker exec aro-api python scripts/activate_live.py --channel age_fix_daily --image-url https://...
   docker exec aro-api python scripts/activate_live.py --channel agefixdaily
 """
+
 import argparse
 import asyncio
 import sys
@@ -21,9 +22,9 @@ CHANNEL_MAP = {
     "age_fix_daily": {"id": "69d6ad2d031bfa423ce27fca", "platform": "instagram", "needs_image": True},
     "velvetwire.co": {"id": "69d6aedb031bfa423ce28620", "platform": "instagram", "needs_image": True},
     "thetoolsignal": {"id": "69d6b78b031bfa423ce2b8bd", "platform": "instagram", "needs_image": True},
-    "agefixdaily":   {"id": "69d6b814031bfa423ce2bb7e", "platform": "tiktok", "needs_image": False},
-    "Body Theory":   {"id": "69d6d46b031bfa423ce34666", "platform": "youtube", "needs_image": False},
-    "toolsignal01":  {"id": "69d6d531031bfa423ce349aa", "platform": "x", "needs_image": False},
+    "agefixdaily": {"id": "69d6b814031bfa423ce2bb7e", "platform": "tiktok", "needs_image": False},
+    "Body Theory": {"id": "69d6d46b031bfa423ce34666", "platform": "youtube", "needs_image": False},
+    "toolsignal01": {"id": "69d6d531031bfa423ce349aa", "platform": "x", "needs_image": False},
 }
 
 # Stock images by niche (Unsplash, free to use)
@@ -95,17 +96,18 @@ async def run_one(channel_name: str, post_data: dict, image_url: str | None, run
     platform = channel["platform"]
     needs_image = channel["needs_image"]
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  RUN {run_number}: {channel_name} ({platform})")
     print(f"  Post: {post_data['title']}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     async with get_async_session_factory()() as db:
         # ── Get brand + org ──────────────────────────────────────
         from packages.db.models.core import Brand
-        brand = (await db.execute(
-            select(Brand).where(Brand.is_active.is_(True)).order_by(Brand.created_at).limit(1)
-        )).scalar_one_or_none()
+
+        brand = (
+            await db.execute(select(Brand).where(Brand.is_active.is_(True)).order_by(Brand.created_at).limit(1))
+        ).scalar_one_or_none()
         if not brand:
             print("  FAIL: No brand")
             return None
@@ -115,12 +117,17 @@ async def run_one(channel_name: str, post_data: dict, image_url: str | None, run
 
         # Get creator account for this platform
         from packages.db.models.accounts import CreatorAccount
-        account = (await db.execute(
-            select(CreatorAccount).where(
-                CreatorAccount.brand_id == brand_id,
-                CreatorAccount.is_active.is_(True),
-            ).limit(1)
-        )).scalar_one_or_none()
+
+        account = (
+            await db.execute(
+                select(CreatorAccount)
+                .where(
+                    CreatorAccount.brand_id == brand_id,
+                    CreatorAccount.is_active.is_(True),
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         account_id = account.id if account else None
 
         # ── STEP 1: ContentBrief ─────────────────────────────────
@@ -128,7 +135,11 @@ async def run_one(channel_name: str, post_data: dict, image_url: str | None, run
             brand_id=brand_id,
             creator_account_id=account_id,
             title=post_data["title"],
-            content_type="short_video" if platform in ("tiktok", "youtube") else "static_image" if needs_image else "text_post",
+            content_type="short_video"
+            if platform in ("tiktok", "youtube")
+            else "static_image"
+            if needs_image
+            else "text_post",
             target_platform=platform,
             angle="educational",
             hook=post_data["hook"],
@@ -297,9 +308,10 @@ async def run_one(channel_name: str, post_data: dict, image_url: str | None, run
 
             # Store BufferPublishJob record
             from packages.db.models.buffer_distribution import BufferProfile
-            profile = (await db.execute(
-                select(BufferProfile).where(BufferProfile.buffer_profile_id == channel_id).limit(1)
-            )).scalar_one_or_none()
+
+            profile = (
+                await db.execute(select(BufferProfile).where(BufferProfile.buffer_profile_id == channel_id).limit(1))
+            ).scalar_one_or_none()
 
             buffer_job = BufferPublishJob(
                 brand_id=brand_id,
@@ -362,9 +374,9 @@ async def main(channels: list[str], count: int, image_url: str | None):
             results.append(r)
 
     # ── Final Report ─────────────────────────────────────────
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("  ACTIVATION REPORT")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     passed = sum(1 for r in results if r["success"])
     failed = sum(1 for r in results if not r["success"])
     print(f"  Total: {len(results)}  |  Success: {passed}  |  Failed: {failed}")
@@ -378,7 +390,7 @@ async def main(channels: list[str], count: int, image_url: str | None):
             print(f"         Buffer:  {r['buffer_post_id']}")
         else:
             print(f"         Error:   {r['error']}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":

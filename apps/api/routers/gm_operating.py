@@ -19,6 +19,7 @@ Endpoints:
     GET  /api/v1/gm/unlock-plans          (NEW — LIVE_BUT_DORMANT unlock seq)
     GET  /api/v1/gm/startup-inspection
 """
+
 from __future__ import annotations
 
 import structlog
@@ -112,9 +113,7 @@ async def floor_status(
     """Trailing-30d revenue vs floor, COMBINED across all ledgers
     (payments + creator_revenue_events + per-avenue sources) with
     per-avenue breakdown."""
-    return await compute_floor_status(
-        db, org_id=current_user.organization_id, month_index=month_index
-    )
+    return await compute_floor_status(db, org_id=current_user.organization_id, month_index=month_index)
 
 
 @router.get("/avenue-portfolio")
@@ -155,9 +154,7 @@ async def blocking_floors(
     month_index: int = Query(1, ge=1, le=24),
 ):
     """Floor + in-flight potential combined with blocker_reasons."""
-    return await compute_blocking_floors(
-        db, org_id=current_user.organization_id, month_index=month_index
-    )
+    return await compute_blocking_floors(db, org_id=current_user.organization_id, month_index=month_index)
 
 
 @router.get("/game-plan")
@@ -167,9 +164,7 @@ async def game_plan(
     month_index: int = Query(1, ge=1, le=24),
 ):
     """FULL-MACHINE priority-ranked action list (every avenue, every engine)."""
-    return await compute_game_plan(
-        db, org_id=current_user.organization_id, month_index=month_index
-    )
+    return await compute_game_plan(db, org_id=current_user.organization_id, month_index=month_index)
 
 
 @router.get("/ask-operator")
@@ -184,9 +179,7 @@ async def ask_operator(
     activations, code-only avenue first-steps, missing credentials,
     budget/authority decisions.
     """
-    return await compute_ask_operator(
-        db, org_id=current_user.organization_id, month_index=month_index
-    )
+    return await compute_ask_operator(db, org_id=current_user.organization_id, month_index=month_index)
 
 
 @router.get("/unlock-plans")
@@ -204,6 +197,5 @@ async def startup_inspection(
 ):
     """Single-fetch session opener — full-machine state in one call."""
     from apps.api.services.gm_startup import run_revenue_startup_inspection
-    return await run_revenue_startup_inspection(
-        db, org_id=current_user.organization_id, month_index=month_index
-    )
+
+    return await run_revenue_startup_inspection(db, org_id=current_user.organization_id, month_index=month_index)

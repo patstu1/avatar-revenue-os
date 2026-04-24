@@ -1,4 +1,5 @@
 """Deterministic gate evaluation for autonomous execution (no ML)."""
+
 from __future__ import annotations
 
 from typing import Any

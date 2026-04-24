@@ -3,6 +3,7 @@
 Pure functions — no I/O, no SQLAlchemy. Each function returns a dict with
 scored outputs plus an ``EP2B: True`` marker.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -13,6 +14,7 @@ from typing import Any
 EP2B = "expansion_pack2_phase_b"
 
 # ─── helpers ────────────────────────────────────────────────────────────────
+
 
 def _clamp(v, lo=0.0, hi=1.0):
     return max(lo, min(hi, v))
@@ -87,7 +89,9 @@ def recommend_pricing(
         rec_type = "hold"
 
     # --- revenue impact (monthly proxy) ---
-    volume_proxy = sum(d.get("quantity_sold", 10) for d in historical_sales_data[-3:]) / max(1, min(3, len(historical_sales_data)))
+    volume_proxy = sum(d.get("quantity_sold", 10) for d in historical_sales_data[-3:]) / max(
+        1, min(3, len(historical_sales_data))
+    )
     estimated_revenue_impact = round((recommended_price - cp) * volume_proxy, 2)
 
     # --- confidence ---
@@ -137,18 +141,20 @@ def recommend_bundles(
     features, and market trend alignment.  Returns a list of bundle dicts.
     """
     if not available_offers:
-        return [{
-            "bundle_name": "No Bundle Recommended",
-            "offer_ids": [],
-            "bundle_strategy": "none",
-            "recommended_bundle_price": 0.0,
-            "savings_pct": 0.0,
-            "estimated_upsell_rate": 0.0,
-            "estimated_revenue_impact": 0.0,
-            "confidence": 0.0,
-            "explanation": "No offers available to bundle.",
-            EP2B: True,
-        }]
+        return [
+            {
+                "bundle_name": "No Bundle Recommended",
+                "offer_ids": [],
+                "bundle_strategy": "none",
+                "recommended_bundle_price": 0.0,
+                "savings_pct": 0.0,
+                "estimated_upsell_rate": 0.0,
+                "estimated_revenue_impact": 0.0,
+                "confidence": 0.0,
+                "explanation": "No offers available to bundle.",
+                EP2B: True,
+            }
+        ]
 
     bundles: list[dict[str, Any]] = []
     seen_combos: set[str] = set()
@@ -180,22 +186,24 @@ def recommend_bundles(
             f"{strategy.replace('_', ' ').title()} bundle: {' + '.join(names)} "
             f"at ${bundle_price:.2f} ({savings}% off). Est. upsell rate {upsell_rate:.1%}."
         )
-        bundles.append({
-            "bundle_name": name,
-            "offer_ids": offer_ids,
-            "bundle_strategy": strategy,
-            "recommended_bundle_price": bundle_price,
-            "savings_pct": savings,
-            "estimated_upsell_rate": upsell_rate,
-            "estimated_revenue_impact": rev_impact,
-            "confidence": conf,
-            "explanation": explanation,
-            EP2B: True,
-        })
+        bundles.append(
+            {
+                "bundle_name": name,
+                "offer_ids": offer_ids,
+                "bundle_strategy": strategy,
+                "recommended_bundle_price": bundle_price,
+                "savings_pct": savings,
+                "estimated_upsell_rate": upsell_rate,
+                "estimated_revenue_impact": rev_impact,
+                "confidence": conf,
+                "explanation": explanation,
+                EP2B: True,
+            }
+        )
 
     # Strategy 1: value_stack — top 2-3 offers, 20% off
     if len(sorted_offers) >= 2:
-        top = sorted_offers[:min(3, len(sorted_offers))]
+        top = sorted_offers[: min(3, len(sorted_offers))]
         _add_bundle(
             f"{brand_name or 'Premium'} Value Stack",
             [o["id"] for o in top],
@@ -240,18 +248,24 @@ def recommend_bundles(
             0.25,
         )
 
-    return bundles[:4] if bundles else [{
-        "bundle_name": "No Bundle Recommended",
-        "offer_ids": [],
-        "bundle_strategy": "none",
-        "recommended_bundle_price": 0.0,
-        "savings_pct": 0.0,
-        "estimated_upsell_rate": 0.0,
-        "estimated_revenue_impact": 0.0,
-        "confidence": 0.0,
-        "explanation": "Not enough offers to build a bundle.",
-        EP2B: True,
-    }]
+    return (
+        bundles[:4]
+        if bundles
+        else [
+            {
+                "bundle_name": "No Bundle Recommended",
+                "offer_ids": [],
+                "bundle_strategy": "none",
+                "recommended_bundle_price": 0.0,
+                "savings_pct": 0.0,
+                "estimated_upsell_rate": 0.0,
+                "estimated_revenue_impact": 0.0,
+                "confidence": 0.0,
+                "explanation": "Not enough offers to build a bundle.",
+                EP2B: True,
+            }
+        ]
+    )
 
 
 # Keep backward-compatible single-bundle API used by existing service layer
@@ -270,13 +284,21 @@ def recommend_bundle(
 # ═══════════════════════════════════════════════════════════════════════════
 
 _RETENTION_STRATEGIES = (
-    "personalized_offer", "engagement_campaign", "loyalty_reward",
-    "feedback_survey", "vip_upgrade", "win_back_discount",
+    "personalized_offer",
+    "engagement_campaign",
+    "loyalty_reward",
+    "feedback_survey",
+    "vip_upgrade",
+    "win_back_discount",
 )
 
 _REACTIVATION_TYPES = (
-    "email_series", "discount_offer", "content_drip",
-    "social_retarget", "personal_outreach", "limited_time_access",
+    "email_series",
+    "discount_offer",
+    "content_drip",
+    "social_retarget",
+    "personal_outreach",
+    "limited_time_access",
 )
 
 
@@ -337,9 +359,12 @@ def recommend_retention(
 
     # --- estimated lift ---
     base_lift = {
-        "win_back_discount": 0.18, "personal_outreach": 0.12,
-        "personalized_offer": 0.15, "engagement_campaign": 0.10,
-        "loyalty_reward": 0.08, "vip_upgrade": 0.12,
+        "win_back_discount": 0.18,
+        "personal_outreach": 0.12,
+        "personalized_offer": 0.15,
+        "engagement_campaign": 0.10,
+        "loyalty_reward": 0.08,
+        "vip_upgrade": 0.12,
         "feedback_survey": 0.05,
     }.get(rec_type, 0.08)
     offer_bonus = 0.05 if available_retention_offers else 0.0
@@ -377,11 +402,7 @@ def recommend_reactivation_campaign(
     available campaign channels to recommend an optimal reactivation play.
     """
     # --- target segment ---
-    target_segment = (
-        lapsed_customer_segment[0]["segment_name"]
-        if lapsed_customer_segment
-        else "lapsed_customers"
-    )
+    target_segment = lapsed_customer_segment[0]["segment_name"] if lapsed_customer_segment else "lapsed_customers"
 
     # --- lapse duration signal ---
     lapse_days = []
@@ -407,16 +428,21 @@ def recommend_reactivation_campaign(
 
     # --- reactivation rate estimate ---
     base_rate = {
-        "email_series": 0.05, "discount_offer": 0.08,
-        "content_drip": 0.04, "social_retarget": 0.06,
-        "personal_outreach": 0.10, "limited_time_access": 0.07,
+        "email_series": 0.05,
+        "discount_offer": 0.08,
+        "content_drip": 0.04,
+        "social_retarget": 0.06,
+        "personal_outreach": 0.10,
+        "limited_time_access": 0.07,
     }.get(campaign_type, 0.05)
     lapse_penalty = _clamp(avg_lapse / 365.0, 0.0, 0.50) * 0.5
     hist_bonus = min(best_rate * 0.30, 0.05) if best_rate > 0 else 0.0
     estimated_rate = round(_clamp(base_rate - lapse_penalty + hist_bonus, 0.01, 0.30), 3)
 
     # --- revenue impact ---
-    segment_size = sum(seg.get("segment_size", 100) for seg in lapsed_customer_segment) if lapsed_customer_segment else 100
+    segment_size = (
+        sum(seg.get("segment_size", 100) for seg in lapsed_customer_segment) if lapsed_customer_segment else 100
+    )
     avg_aov = 75.0
     estimated_revenue = round(segment_size * estimated_rate * avg_aov, 2)
 

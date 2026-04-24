@@ -1,11 +1,42 @@
 """Offer Lab Engine — generate, score, rank, test, learn, revise. Pure functions."""
+
 from __future__ import annotations
 
 from typing import Any
 
-OFFER_TYPES = ["affiliate", "lead_gen", "product", "service", "subscription", "premium_access", "consulting", "course", "download", "event"]
-VARIANT_TYPES = ["budget", "premium", "convenience", "authority", "comparison", "problem_relief", "identity", "recurring_value"]
-ANGLES = ["value_demo", "social_proof", "scarcity", "authority", "comparison", "problem_solution", "identity", "convenience", "risk_reversal"]
+OFFER_TYPES = [
+    "affiliate",
+    "lead_gen",
+    "product",
+    "service",
+    "subscription",
+    "premium_access",
+    "consulting",
+    "course",
+    "download",
+    "event",
+]
+VARIANT_TYPES = [
+    "budget",
+    "premium",
+    "convenience",
+    "authority",
+    "comparison",
+    "problem_relief",
+    "identity",
+    "recurring_value",
+]
+ANGLES = [
+    "value_demo",
+    "social_proof",
+    "scarcity",
+    "authority",
+    "comparison",
+    "problem_solution",
+    "identity",
+    "convenience",
+    "risk_reversal",
+]
 
 
 def generate_offer(source: dict[str, Any], brand: dict[str, Any]) -> dict[str, Any]:
@@ -45,14 +76,16 @@ def generate_variants(offer: dict[str, Any]) -> list[dict[str, Any]]:
     for i, vt in enumerate(VARIANT_TYPES):
         angle = ANGLES[i % len(ANGLES)]
         vp = price * (0.7 if vt == "budget" else 1.5 if vt == "premium" else 1.0)
-        variants.append({
-            "variant_type": vt,
-            "variant_name": f"{name} — {vt.replace('_', ' ').title()}",
-            "angle": angle,
-            "price_point": round(vp, 2),
-            "value_promise": f"{vt.replace('_', ' ').title()} version of {name}",
-            "is_control": i == 0,
-        })
+        variants.append(
+            {
+                "variant_type": vt,
+                "variant_name": f"{name} — {vt.replace('_', ' ').title()}",
+                "angle": angle,
+                "price_point": round(vp, 2),
+                "value_promise": f"{vt.replace('_', ' ').title()} version of {name}",
+                "is_control": i == 0,
+            }
+        )
     return variants
 
 
@@ -74,13 +107,15 @@ def generate_bundles(offers: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for i in range(0, len(offers) - 1, 2):
         a, b = offers[i], offers[i + 1]
         combined = float(a.get("price_point", 0)) + float(b.get("price_point", 0))
-        bundles.append({
-            "bundle_name": f"{a.get('offer_name', '')} + {b.get('offer_name', '')} Bundle",
-            "offer_ids": [str(a.get("id", "")), str(b.get("id", ""))],
-            "combined_price": round(combined * 0.85, 2),
-            "savings_pct": 15.0,
-            "expected_uplift": 0.2,
-        })
+        bundles.append(
+            {
+                "bundle_name": f"{a.get('offer_name', '')} + {b.get('offer_name', '')} Bundle",
+                "offer_ids": [str(a.get("id", "")), str(b.get("id", ""))],
+                "combined_price": round(combined * 0.85, 2),
+                "savings_pct": 15.0,
+                "expected_uplift": 0.2,
+            }
+        )
     return bundles
 
 
@@ -88,12 +123,14 @@ def generate_upsells(offers: list[dict[str, Any]]) -> list[dict[str, Any]]:
     sorted_offers = sorted(offers, key=lambda o: float(o.get("price_point", 0)))
     upsells = []
     for i in range(len(sorted_offers) - 1):
-        upsells.append({
-            "primary_offer_id": str(sorted_offers[i].get("id", "")),
-            "upsell_offer_id": str(sorted_offers[i + 1].get("id", "")),
-            "upsell_type": "upsell",
-            "expected_take_rate": 0.15,
-        })
+        upsells.append(
+            {
+                "primary_offer_id": str(sorted_offers[i].get("id", "")),
+                "upsell_offer_id": str(sorted_offers[i + 1].get("id", "")),
+                "upsell_type": "upsell",
+                "expected_take_rate": 0.15,
+            }
+        )
     return upsells
 
 
@@ -111,13 +148,41 @@ def score_offer(offer: dict[str, Any]) -> float:
 def detect_offer_issues(offer: dict[str, Any]) -> list[dict[str, Any]]:
     issues = []
     if float(offer.get("expected_upside", 0)) == 0:
-        issues.append({"blocker_type": "no_expected_upside", "description": "Offer has no expected upside — not validated", "recommendation": "Add EPC or conversion data", "severity": "high"})
+        issues.append(
+            {
+                "blocker_type": "no_expected_upside",
+                "description": "Offer has no expected upside — not validated",
+                "recommendation": "Add EPC or conversion data",
+                "severity": "high",
+            }
+        )
     if float(offer.get("price_point", 0)) == 0:
-        issues.append({"blocker_type": "no_price_point", "description": "No price point set", "recommendation": "Set price point for margin calculation", "severity": "medium"})
+        issues.append(
+            {
+                "blocker_type": "no_price_point",
+                "description": "No price point set",
+                "recommendation": "Set price point for margin calculation",
+                "severity": "medium",
+            }
+        )
     if float(offer.get("confidence", 0)) < 0.3:
-        issues.append({"blocker_type": "low_confidence", "description": f"Confidence {offer.get('confidence', 0):.0%} is too low", "recommendation": "Run pricing/positioning tests to build confidence", "severity": "medium"})
+        issues.append(
+            {
+                "blocker_type": "low_confidence",
+                "description": f"Confidence {offer.get('confidence', 0):.0%} is too low",
+                "recommendation": "Run pricing/positioning tests to build confidence",
+                "severity": "medium",
+            }
+        )
     if offer.get("trust_requirement") == "high" and float(offer.get("platform_fit", 0)) < 0.4:
-        issues.append({"blocker_type": "trust_platform_mismatch", "description": "High trust offer on low-fit platform", "recommendation": "Move to authority platform or add proof", "severity": "high"})
+        issues.append(
+            {
+                "blocker_type": "trust_platform_mismatch",
+                "description": "High trust offer on low-fit platform",
+                "recommendation": "Move to authority platform or add proof",
+                "severity": "high",
+            }
+        )
     return issues
 
 

@@ -4,6 +4,7 @@ Strategic operating brain that scans, plans, directs, and manages
 the entire revenue machine. Includes conversational operator endpoint
 with full tool-use execution authority.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -23,6 +24,7 @@ router = APIRouter()
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
 
+
 class GMChatRequest(BaseModel):
     brand_id: uuid.UUID
     message: str
@@ -37,6 +39,7 @@ class GMChatResponse(BaseModel):
 
 
 # ── Existing read-only endpoints ─────────────────────────────────────────────
+
 
 @router.get("/gm/scan")
 async def full_scan(current_user: CurrentUser, db: DBSession, brand_id: uuid.UUID = Query(...)):
@@ -75,6 +78,7 @@ async def gm_status(current_user: CurrentUser, db: DBSession, brand_id: uuid.UUI
 
 
 # ── Conversational GM Operator Endpoint ──────────────────────────────────────
+
 
 @router.post("/gm/chat")
 async def gm_chat(
@@ -142,12 +146,14 @@ async def gm_chat(
     # Persist actions log
     existing_log = list(conversation.actions_log or [])
     for action in result.get("actions_taken", []):
-        existing_log.append({
-            "tool": action["tool"],
-            "input": action["input"],
-            "result": action["result"],
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
+        existing_log.append(
+            {
+                "tool": action["tool"],
+                "input": action["input"],
+                "result": action["result"],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
     conversation.actions_log = existing_log
 
     await db.flush()
@@ -167,11 +173,14 @@ async def list_conversations(
 ):
     """List all GM operator conversations for a brand."""
     result = await db.execute(
-        select(GMConversation).where(
+        select(GMConversation)
+        .where(
             GMConversation.organization_id == current_user.organization_id,
             GMConversation.brand_id == brand_id,
             GMConversation.is_active.is_(True),
-        ).order_by(desc(GMConversation.updated_at)).limit(20)
+        )
+        .order_by(desc(GMConversation.updated_at))
+        .limit(20)
     )
     conversations = result.scalars().all()
     return [
@@ -203,6 +212,7 @@ async def get_conversation(
     conversation = result.scalar_one_or_none()
     if not conversation:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     return {

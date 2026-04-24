@@ -1,4 +1,5 @@
 """Unit tests for integrations + listening engine."""
+
 from packages.scoring.integrations_listening_engine import (
     CONNECTOR_TYPES,
     SIGNAL_TYPES,
@@ -12,7 +13,9 @@ from packages.scoring.integrations_listening_engine import (
 
 class TestConnectorEval:
     def test_healthy(self):
-        r = evaluate_connector_sync({"status": "active", "credential_env_key": "KEY", "endpoint_url": "https://api.example.com"})
+        r = evaluate_connector_sync(
+            {"status": "active", "credential_env_key": "KEY", "endpoint_url": "https://api.example.com"}
+        )
         assert r["healthy"] is True
 
     def test_no_endpoint(self):
@@ -26,7 +29,10 @@ class TestConnectorEval:
         assert r["blocker"] == "no_credentials"
 
     def test_failed_sync(self):
-        r = evaluate_connector_sync({"status": "active", "credential_env_key": "KEY", "endpoint_url": "https://x.com"}, {"sync_status": "failed", "detail": "timeout"})
+        r = evaluate_connector_sync(
+            {"status": "active", "credential_env_key": "KEY", "endpoint_url": "https://x.com"},
+            {"sync_status": "failed", "detail": "timeout"},
+        )
         assert r["healthy"] is False
 
 
@@ -48,12 +54,26 @@ class TestClustering:
 
 class TestCompetitorExtraction:
     def test_high_opportunity(self):
-        signals = [{"competitor_name": "Rival", "signal_type": "competitor_mention", "raw_text": "Disappointed with Rival, looking for alternative", "sentiment": -0.5}]
+        signals = [
+            {
+                "competitor_name": "Rival",
+                "signal_type": "competitor_mention",
+                "raw_text": "Disappointed with Rival, looking for alternative",
+                "sentiment": -0.5,
+            }
+        ]
         scored = extract_competitor_signals(signals)
         assert scored[0]["opportunity_score"] > 0.5
 
     def test_neutral_signal(self):
-        signals = [{"competitor_name": "Rival", "signal_type": "competitor_mention", "raw_text": "Rival is okay", "sentiment": 0.1}]
+        signals = [
+            {
+                "competitor_name": "Rival",
+                "signal_type": "competitor_mention",
+                "raw_text": "Rival is okay",
+                "sentiment": 0.1,
+            }
+        ]
         scored = extract_competitor_signals(signals)
         assert scored[0]["opportunity_score"] < 0.5
 
@@ -86,5 +106,6 @@ class TestResponseRecs:
 class TestTypes:
     def test_signal_types(self):
         assert len(SIGNAL_TYPES) == 7
+
     def test_connector_types(self):
         assert len(CONNECTOR_TYPES) == 8

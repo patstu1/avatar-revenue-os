@@ -4,6 +4,7 @@ Makes governance observable and memory accessible: approval state,
 permission enforcement, audit trail, gatekeeper health, creative memory,
 and learning context — all in one operational API.
 """
+
 import uuid
 
 from fastapi import APIRouter, Query
@@ -46,7 +47,11 @@ async def get_creative_atoms(
 ):
     """Creative memory atoms: reusable content patterns with confidence scores."""
     return await gov.get_creative_atoms(
-        db, brand_id, atom_type=atom_type, min_confidence=min_confidence, limit=limit,
+        db,
+        brand_id,
+        atom_type=atom_type,
+        min_confidence=min_confidence,
+        limit=limit,
     )
 
 
@@ -58,8 +63,10 @@ async def check_permission(
 ):
     """Check if an action is permitted by the governance matrix."""
     result = await gov.check_permission(
-        db, current_user.organization_id, action_class,
-        user_role=current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role),
+        db,
+        current_user.organization_id,
+        action_class,
+        user_role=current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role),
         actor_id=str(current_user.id),
     )
     await db.commit()
@@ -77,7 +84,9 @@ async def record_generation_outcome(
 ):
     """Record a content generation outcome for the memory layer."""
     entry = await gov.record_generation_outcome(
-        db, brand_id, content_item_id,
+        db,
+        brand_id,
+        content_item_id,
         generation_params={"recorded_by": str(current_user.id)},
         quality_score=quality_score,
         approval_status=approval_status,

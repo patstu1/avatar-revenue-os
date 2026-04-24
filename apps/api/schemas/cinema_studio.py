@@ -1,4 +1,5 @@
 """Pydantic schemas for Cinema Studio module."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 # StudioProject
 # ---------------------------------------------------------------------------
+
 
 class StudioProjectCreate(BaseModel):
     title: str
@@ -48,6 +50,7 @@ class StudioProjectResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # StudioScene
 # ---------------------------------------------------------------------------
+
 
 class StudioSceneCreate(BaseModel):
     project_id: Optional[uuid.UUID] = None
@@ -110,6 +113,7 @@ class StudioSceneResponse(BaseModel):
 # CharacterBible
 # ---------------------------------------------------------------------------
 
+
 class CharacterBibleCreate(BaseModel):
     name: str
     description: str
@@ -168,6 +172,7 @@ class CharacterBibleResponse(BaseModel):
 # StylePreset
 # ---------------------------------------------------------------------------
 
+
 class StylePresetCreate(BaseModel):
     name: str
     description: str
@@ -205,6 +210,7 @@ class StylePresetResponse(BaseModel):
 # StudioGeneration
 # ---------------------------------------------------------------------------
 
+
 class GenerationTrigger(BaseModel):
     model: str = "runway"
     seed: Optional[int] = None
@@ -237,6 +243,7 @@ class StudioGenerationResponse(BaseModel):
 # StudioActivity
 # ---------------------------------------------------------------------------
 
+
 class StudioActivityResponse(BaseModel):
     id: uuid.UUID
     brand_id: uuid.UUID
@@ -253,6 +260,7 @@ class StudioActivityResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Dashboard stats
 # ---------------------------------------------------------------------------
+
 
 class StudioDashboardStats(BaseModel):
     total_projects: int = 0

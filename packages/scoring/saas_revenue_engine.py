@@ -7,6 +7,7 @@ prioritisation — from raw subscription data using only the Python stdlib.
 All functions are pure/deterministic. No DB access, no numpy, no sklearn.
 Uses: math, statistics, collections, dataclasses, datetime, itertools.
 """
+
 from __future__ import annotations
 
 import math
@@ -18,6 +19,7 @@ from datetime import datetime, timedelta
 # ══════════════════════════════════════════════════════════════════════════════
 # HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def _parse_date(d: str | datetime | None) -> datetime | None:
     if d is None:
@@ -67,7 +69,7 @@ def _linear_regression(xs: list[float], ys: list[float]) -> tuple[float, float, 
     slope = ss_xy / ss_xx
     intercept = y_bar - slope * x_bar
     ss_yy = sum((y - y_bar) ** 2 for y in ys)
-    r_sq = (ss_xy ** 2) / (ss_xx * ss_yy) if ss_yy else 0.0
+    r_sq = (ss_xy**2) / (ss_xx * ss_yy) if ss_yy else 0.0
     return slope, intercept, r_sq
 
 
@@ -78,6 +80,7 @@ def _months_between(start: datetime, end: datetime) -> float:
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. SaaS METRICS CALCULATOR
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class SaaSMetrics:
@@ -164,16 +167,8 @@ def compute_saas_metrics(
             and (prev_status in ("", "new", None) or cid not in active_start)
             and prev_status != "cancelled"
         )
-        is_reactivation = (
-            start_dt is not None
-            and p_start <= start_dt <= p_end
-            and prev_status == "cancelled"
-        )
-        is_churned = (
-            cancel_dt is not None
-            and p_start <= cancel_dt <= p_end
-            and status in ("cancelled", "churned")
-        )
+        is_reactivation = start_dt is not None and p_start <= start_dt <= p_end and prev_status == "cancelled"
+        is_churned = cancel_dt is not None and p_start <= cancel_dt <= p_end and status in ("cancelled", "churned")
 
         if is_reactivation:
             reactivation[cid] = reactivation.get(cid, 0) + mrr
@@ -269,6 +264,7 @@ def compute_saas_metrics(
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. CHURN PREDICTION ENGINE
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class CustomerHealthSignals:
@@ -519,15 +515,17 @@ def _select_interventions(
             continue
         expected_saved = revenue_at_risk * item["expected_retention_lift"]
         roi = _safe_div(expected_saved - item["cost"], item["cost"])
-        results.append({
-            "action": item["action"],
-            "description": item["description"],
-            "cost": item["cost"],
-            "expected_retention_lift": item["expected_retention_lift"],
-            "expected_revenue_saved": round(expected_saved, 2),
-            "urgency": item["urgency_threshold"],
-            "roi": round(roi, 2),
-        })
+        results.append(
+            {
+                "action": item["action"],
+                "description": item["description"],
+                "cost": item["cost"],
+                "expected_retention_lift": item["expected_retention_lift"],
+                "expected_revenue_saved": round(expected_saved, 2),
+                "urgency": item["urgency_threshold"],
+                "roi": round(roi, 2),
+            }
+        )
 
     results.sort(key=lambda x: -x["roi"])
     return results[:5]
@@ -548,18 +546,20 @@ def predict_churn_risk(
         raw_score = scorer_fn(customer)
         weighted = raw_score * cfg["weight"]
         weighted_sum += weighted
-        factor_scores.append({
-            "factor": factor_name,
-            "weight": cfg["weight"],
-            "value": round(raw_score, 4),
-            "weighted_value": round(weighted, 4),
-            "explanation": cfg["description"],
-        })
+        factor_scores.append(
+            {
+                "factor": factor_name,
+                "weight": cfg["weight"],
+                "value": round(raw_score, 4),
+                "weighted_value": round(weighted, 4),
+                "explanation": cfg["description"],
+            }
+        )
 
     composite_likelihood = _clamp(weighted_sum / sum(c["weight"] for c in _CHURN_FACTOR_CONFIG.values()))
 
     tenure_factor = min(1.0, customer.tenure_months / 12.0)
-    composite_likelihood *= (1.0 - tenure_factor * 0.15)
+    composite_likelihood *= 1.0 - tenure_factor * 0.15
 
     if customer.expansion_signals > 0:
         dampening = 1.0 - min(0.3, customer.expansion_signals * 0.08)
@@ -636,15 +636,17 @@ def batch_churn_analysis(
             expected_saved = p.revenue_at_risk * best["expected_retention_lift"]
             expected_revenue_recovered += expected_saved
             expected_saves += 1
-            intervention_plan.append({
-                "customer_id": p.customer_id,
-                "risk_tier": p.risk_tier,
-                "churn_probability": p.churn_probability,
-                "revenue_at_risk": p.revenue_at_risk,
-                "recommended_action": best["action"],
-                "expected_revenue_saved": round(expected_saved, 2),
-                "roi": best["roi"],
-            })
+            intervention_plan.append(
+                {
+                    "customer_id": p.customer_id,
+                    "risk_tier": p.risk_tier,
+                    "churn_probability": p.churn_probability,
+                    "revenue_at_risk": p.revenue_at_risk,
+                    "recommended_action": best["action"],
+                    "expected_revenue_saved": round(expected_saved, 2),
+                    "roi": best["roi"],
+                }
+            )
 
     return {
         "total_customers_analyzed": len(customers),
@@ -664,6 +666,7 @@ def batch_churn_analysis(
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. EXPANSION REVENUE OPTIMIZER
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class ExpansionOpportunity:
@@ -818,27 +821,34 @@ def identify_expansion_opportunities(
         usage_pcts = usage_by_customer.get(cid, {})
 
         upsell_score, upsell_signals, upsell_approach = _score_upsell_readiness(
-            customer, usage_pcts, current_plan, next_plan,
+            customer,
+            usage_pcts,
+            current_plan,
+            next_plan,
         )
         if upsell_score > 0.25 and next_plan is not None:
             next_mrr = float(next_plan.get("mrr", 0))
             exp_mrr = next_mrr - customer.mrr
             if exp_mrr > 0:
-                timing = "immediate" if upsell_score > 0.65 else ("this_month" if upsell_score > 0.45 else "next_quarter")
-                opportunities.append(ExpansionOpportunity(
-                    customer_id=cid,
-                    opportunity_type="upsell",
-                    current_plan=current_plan_name,
-                    recommended_plan=next_plan.get("plan_name", ""),
-                    current_mrr=customer.mrr,
-                    potential_mrr=next_mrr,
-                    expansion_mrr=exp_mrr,
-                    probability=round(upsell_score, 3),
-                    expected_value=round(exp_mrr * upsell_score, 2),
-                    timing=timing,
-                    trigger_signals=upsell_signals,
-                    recommended_approach=upsell_approach,
-                ))
+                timing = (
+                    "immediate" if upsell_score > 0.65 else ("this_month" if upsell_score > 0.45 else "next_quarter")
+                )
+                opportunities.append(
+                    ExpansionOpportunity(
+                        customer_id=cid,
+                        opportunity_type="upsell",
+                        current_plan=current_plan_name,
+                        recommended_plan=next_plan.get("plan_name", ""),
+                        current_mrr=customer.mrr,
+                        potential_mrr=next_mrr,
+                        expansion_mrr=exp_mrr,
+                        probability=round(upsell_score, 3),
+                        expected_value=round(exp_mrr * upsell_score, 2),
+                        timing=timing,
+                        trigger_signals=upsell_signals,
+                        recommended_approach=upsell_approach,
+                    )
+                )
 
         seat_score, seat_signals, seat_approach = _score_seat_expansion(customer, current_plan)
         if seat_score > 0.20:
@@ -847,20 +857,22 @@ def identify_expansion_opportunities(
             seat_exp_mrr = per_seat * additional_seats
             if seat_exp_mrr > 0:
                 timing = "immediate" if seat_score > 0.55 else "this_month"
-                opportunities.append(ExpansionOpportunity(
-                    customer_id=cid,
-                    opportunity_type="seat_expansion",
-                    current_plan=current_plan_name,
-                    recommended_plan=current_plan_name,
-                    current_mrr=customer.mrr,
-                    potential_mrr=customer.mrr + seat_exp_mrr,
-                    expansion_mrr=seat_exp_mrr,
-                    probability=round(seat_score, 3),
-                    expected_value=round(seat_exp_mrr * seat_score, 2),
-                    timing=timing,
-                    trigger_signals=seat_signals,
-                    recommended_approach=seat_approach,
-                ))
+                opportunities.append(
+                    ExpansionOpportunity(
+                        customer_id=cid,
+                        opportunity_type="seat_expansion",
+                        current_plan=current_plan_name,
+                        recommended_plan=current_plan_name,
+                        current_mrr=customer.mrr,
+                        potential_mrr=customer.mrr + seat_exp_mrr,
+                        expansion_mrr=seat_exp_mrr,
+                        probability=round(seat_score, 3),
+                        expected_value=round(seat_exp_mrr * seat_score, 2),
+                        timing=timing,
+                        trigger_signals=seat_signals,
+                        recommended_approach=seat_approach,
+                    )
+                )
 
         power_user = (
             customer.feature_adoption_pct > 0.80
@@ -872,24 +884,28 @@ def identify_expansion_opportunities(
             top_mrr = float(top_plan.get("mrr", 0))
             exp_mrr = top_mrr - customer.mrr
             if exp_mrr > 0:
-                opportunities.append(ExpansionOpportunity(
-                    customer_id=cid,
-                    opportunity_type="usage_upgrade",
-                    current_plan=current_plan_name,
-                    recommended_plan=top_plan.get("plan_name", ""),
-                    current_mrr=customer.mrr,
-                    potential_mrr=top_mrr,
-                    expansion_mrr=exp_mrr,
-                    probability=round(min(0.85, upsell_score + 0.20), 3),
-                    expected_value=round(exp_mrr * min(0.85, upsell_score + 0.20), 2),
-                    timing="immediate",
-                    trigger_signals=["Power user pattern: high adoption + engagement + growth"],
-                    recommended_approach="VIP treatment — offer exclusive beta features, dedicated support, or custom pricing.",
-                ))
+                opportunities.append(
+                    ExpansionOpportunity(
+                        customer_id=cid,
+                        opportunity_type="usage_upgrade",
+                        current_plan=current_plan_name,
+                        recommended_plan=top_plan.get("plan_name", ""),
+                        current_mrr=customer.mrr,
+                        potential_mrr=top_mrr,
+                        expansion_mrr=exp_mrr,
+                        probability=round(min(0.85, upsell_score + 0.20), 3),
+                        expected_value=round(exp_mrr * min(0.85, upsell_score + 0.20), 2),
+                        timing="immediate",
+                        trigger_signals=["Power user pattern: high adoption + engagement + growth"],
+                        recommended_approach="VIP treatment — offer exclusive beta features, dedicated support, or custom pricing.",
+                    )
+                )
 
         cross_sell_features = [
-            f for f, pct in usage_pcts.items()
-            if pct > 0.60 and next_plan
+            f
+            for f, pct in usage_pcts.items()
+            if pct > 0.60
+            and next_plan
             and f in next_plan.get("features", [])
             and f not in current_plan.get("features", [])
         ]
@@ -898,20 +914,22 @@ def identify_expansion_opportunities(
             exp_mrr = next_mrr - customer.mrr
             if exp_mrr > 0:
                 prob = min(0.70, 0.30 + len(cross_sell_features) * 0.10)
-                opportunities.append(ExpansionOpportunity(
-                    customer_id=cid,
-                    opportunity_type="cross_sell",
-                    current_plan=current_plan_name,
-                    recommended_plan=next_plan.get("plan_name", ""),
-                    current_mrr=customer.mrr,
-                    potential_mrr=next_mrr,
-                    expansion_mrr=exp_mrr,
-                    probability=round(prob, 3),
-                    expected_value=round(exp_mrr * prob, 2),
-                    timing="this_month",
-                    trigger_signals=[f"Heavy usage of higher-tier feature: {f}" for f in cross_sell_features],
-                    recommended_approach=f"Highlight that upgrading unlocks full access to {', '.join(cross_sell_features)}.",
-                ))
+                opportunities.append(
+                    ExpansionOpportunity(
+                        customer_id=cid,
+                        opportunity_type="cross_sell",
+                        current_plan=current_plan_name,
+                        recommended_plan=next_plan.get("plan_name", ""),
+                        current_mrr=customer.mrr,
+                        potential_mrr=next_mrr,
+                        expansion_mrr=exp_mrr,
+                        probability=round(prob, 3),
+                        expected_value=round(exp_mrr * prob, 2),
+                        timing="this_month",
+                        trigger_signals=[f"Heavy usage of higher-tier feature: {f}" for f in cross_sell_features],
+                        recommended_approach=f"Highlight that upgrading unlocks full access to {', '.join(cross_sell_features)}.",
+                    )
+                )
 
     opportunities.sort(key=lambda o: -o.expected_value)
     return opportunities
@@ -920,6 +938,7 @@ def identify_expansion_opportunities(
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. PRICING INTELLIGENCE ENGINE
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class PriceElasticityResult:
@@ -957,10 +976,7 @@ def estimate_price_elasticity(
     Revenue R = P * Q, so dR/dP = 0 yields optimal price = cost / (1 + 1/b)
     when b < -1 (elastic demand).
     """
-    valid = [
-        h for h in price_history
-        if float(h.get("price", 0)) > 0 and float(h.get("conversions", 0)) > 0
-    ]
+    valid = [h for h in price_history if float(h.get("price", 0)) > 0 and float(h.get("conversions", 0)) > 0]
     if len(valid) < 2:
         return PriceElasticityResult(
             segment=segment,
@@ -981,7 +997,9 @@ def estimate_price_elasticity(
         elasticity = -0.5
 
     if abs(elasticity) > 0.01 and abs(elasticity) != 1.0:
-        max_revenue_price = math.exp(-intercept / (elasticity + 1)) if elasticity < -1 else max(h["price"] for h in valid)
+        max_revenue_price = (
+            math.exp(-intercept / (elasticity + 1)) if elasticity < -1 else max(h["price"] for h in valid)
+        )
     else:
         max_revenue_price = _mean([float(h["price"]) for h in valid])
 
@@ -1103,17 +1121,19 @@ def optimize_pricing_tiers(
             reasoning_parts.append(f"floored at {min_price_for_margin:.2f} to maintain {target_margin:.0%} margin")
         reasoning = "; ".join(reasoning_parts) + "."
 
-        recommendations.append(PricingRecommendation(
-            segment=seg_name,
-            current_price=current_price,
-            recommended_price=recommended,
-            price_change_pct=round(change_pct, 4),
-            expected_conversion_impact=round(conversion_impact, 4),
-            expected_revenue_impact=round(revenue_impact, 2),
-            expected_ltv_impact=round(ltv_impact_factor, 4),
-            confidence=round(confidence, 3),
-            reasoning=reasoning,
-        ))
+        recommendations.append(
+            PricingRecommendation(
+                segment=seg_name,
+                current_price=current_price,
+                recommended_price=recommended,
+                price_change_pct=round(change_pct, 4),
+                expected_conversion_impact=round(conversion_impact, 4),
+                expected_revenue_impact=round(revenue_impact, 2),
+                expected_ltv_impact=round(ltv_impact_factor, 4),
+                confidence=round(confidence, 3),
+                reasoning=reasoning,
+            )
+        )
 
     recommendations.sort(key=lambda r: -abs(r.expected_revenue_impact))
     return recommendations
@@ -1122,6 +1142,7 @@ def optimize_pricing_tiers(
 # ══════════════════════════════════════════════════════════════════════════════
 # 5. COHORT ANALYSIS ENGINE
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class CohortMetrics:
@@ -1228,16 +1249,18 @@ def analyze_cohorts(
                 worst_ret = seg_avg
                 worst_seg = seg
 
-        results.append(CohortMetrics(
-            cohort_id=cohort_id,
-            cohort_size=cohort_size,
-            retention_curve=retention_curve,
-            revenue_curve=revenue_curve,
-            ltv_estimate=round(ltv, 2),
-            avg_months_retained=round(avg_months, 2),
-            best_retained_segment=best_seg,
-            worst_retained_segment=worst_seg,
-        ))
+        results.append(
+            CohortMetrics(
+                cohort_id=cohort_id,
+                cohort_size=cohort_size,
+                retention_curve=retention_curve,
+                revenue_curve=revenue_curve,
+                ltv_estimate=round(ltv, 2),
+                avg_months_retained=round(avg_months, 2),
+                best_retained_segment=best_seg,
+                worst_retained_segment=worst_seg,
+            )
+        )
 
     return results
 
@@ -1286,10 +1309,14 @@ def project_cohort_revenue(
     avg_mrr_per_customer = 0.0
     if cohort.revenue_curve and cohort.cohort_size > 0:
         total_months_active = sum(curve)
-        avg_mrr_per_customer = _safe_div(
-            cohort.revenue_curve[-1],
-            total_months_active * cohort.cohort_size,
-        ) if total_months_active > 0 else _safe_div(cohort.revenue_curve[-1], max(len(curve), 1) * cohort.cohort_size)
+        avg_mrr_per_customer = (
+            _safe_div(
+                cohort.revenue_curve[-1],
+                total_months_active * cohort.cohort_size,
+            )
+            if total_months_active > 0
+            else _safe_div(cohort.revenue_curve[-1], max(len(curve), 1) * cohort.cohort_size)
+        )
 
     if avg_mrr_per_customer <= 0 and cohort.revenue_curve:
         avg_mrr_per_customer = _safe_div(cohort.revenue_curve[-1], max(len(curve), 1))
@@ -1302,19 +1329,21 @@ def project_cohort_revenue(
         if future_month <= 0:
             retention = 1.0
         else:
-            retention = a_coeff * (future_month ** decay_exp)
+            retention = a_coeff * (future_month**decay_exp)
 
         retention = _clamp(retention, 0.001, 1.0)
 
         monthly_rev = avg_mrr_per_customer * retention * cohort.cohort_size
         cumulative += monthly_rev
 
-        projections.append({
-            "month": future_month,
-            "projected_retention": round(retention, 4),
-            "projected_revenue": round(monthly_rev, 2),
-            "cumulative_revenue": round(cumulative, 2),
-        })
+        projections.append(
+            {
+                "month": future_month,
+                "projected_retention": round(retention, 4),
+                "projected_revenue": round(monthly_rev, 2),
+                "cumulative_revenue": round(cumulative, 2),
+            }
+        )
 
     return projections
 
@@ -1325,52 +1354,100 @@ def project_cohort_revenue(
 
 REVENUE_AVENUE_PROFILES: dict[str, dict] = {
     "saas": {
-        "avg_margin": 0.85, "recurring": True, "scalability": 0.95,
-        "ltv_multiple": 36, "setup_effort": "high", "time_to_revenue_months": 3,
+        "avg_margin": 0.85,
+        "recurring": True,
+        "scalability": 0.95,
+        "ltv_multiple": 36,
+        "setup_effort": "high",
+        "time_to_revenue_months": 3,
     },
     "digital_product": {
-        "avg_margin": 0.90, "recurring": False, "scalability": 0.90,
-        "ltv_multiple": 1.5, "setup_effort": "medium", "time_to_revenue_months": 1,
+        "avg_margin": 0.90,
+        "recurring": False,
+        "scalability": 0.90,
+        "ltv_multiple": 1.5,
+        "setup_effort": "medium",
+        "time_to_revenue_months": 1,
     },
     "membership": {
-        "avg_margin": 0.80, "recurring": True, "scalability": 0.85,
-        "ltv_multiple": 18, "setup_effort": "medium", "time_to_revenue_months": 2,
+        "avg_margin": 0.80,
+        "recurring": True,
+        "scalability": 0.85,
+        "ltv_multiple": 18,
+        "setup_effort": "medium",
+        "time_to_revenue_months": 2,
     },
     "consulting": {
-        "avg_margin": 0.70, "recurring": False, "scalability": 0.30,
-        "ltv_multiple": 3, "setup_effort": "low", "time_to_revenue_months": 0.5,
+        "avg_margin": 0.70,
+        "recurring": False,
+        "scalability": 0.30,
+        "ltv_multiple": 3,
+        "setup_effort": "low",
+        "time_to_revenue_months": 0.5,
     },
     "high_ticket_service": {
-        "avg_margin": 0.75, "recurring": False, "scalability": 0.40,
-        "ltv_multiple": 2, "setup_effort": "low", "time_to_revenue_months": 0.5,
+        "avg_margin": 0.75,
+        "recurring": False,
+        "scalability": 0.40,
+        "ltv_multiple": 2,
+        "setup_effort": "low",
+        "time_to_revenue_months": 0.5,
     },
     "course": {
-        "avg_margin": 0.88, "recurring": False, "scalability": 0.92,
-        "ltv_multiple": 2, "setup_effort": "high", "time_to_revenue_months": 2,
+        "avg_margin": 0.88,
+        "recurring": False,
+        "scalability": 0.92,
+        "ltv_multiple": 2,
+        "setup_effort": "high",
+        "time_to_revenue_months": 2,
     },
     "affiliate": {
-        "avg_margin": 1.00, "recurring": False, "scalability": 0.80,
-        "ltv_multiple": 1, "setup_effort": "low", "time_to_revenue_months": 0,
+        "avg_margin": 1.00,
+        "recurring": False,
+        "scalability": 0.80,
+        "ltv_multiple": 1,
+        "setup_effort": "low",
+        "time_to_revenue_months": 0,
     },
     "sponsor": {
-        "avg_margin": 0.95, "recurring": False, "scalability": 0.50,
-        "ltv_multiple": 4, "setup_effort": "medium", "time_to_revenue_months": 1,
+        "avg_margin": 0.95,
+        "recurring": False,
+        "scalability": 0.50,
+        "ltv_multiple": 4,
+        "setup_effort": "medium",
+        "time_to_revenue_months": 1,
     },
     "ad_revenue": {
-        "avg_margin": 1.00, "recurring": True, "scalability": 0.85,
-        "ltv_multiple": 12, "setup_effort": "low", "time_to_revenue_months": 0,
+        "avg_margin": 1.00,
+        "recurring": True,
+        "scalability": 0.85,
+        "ltv_multiple": 12,
+        "setup_effort": "low",
+        "time_to_revenue_months": 0,
     },
     "licensing": {
-        "avg_margin": 0.90, "recurring": True, "scalability": 0.70,
-        "ltv_multiple": 24, "setup_effort": "high", "time_to_revenue_months": 6,
+        "avg_margin": 0.90,
+        "recurring": True,
+        "scalability": 0.70,
+        "ltv_multiple": 24,
+        "setup_effort": "high",
+        "time_to_revenue_months": 6,
     },
     "community": {
-        "avg_margin": 0.75, "recurring": True, "scalability": 0.80,
-        "ltv_multiple": 14, "setup_effort": "medium", "time_to_revenue_months": 2,
+        "avg_margin": 0.75,
+        "recurring": True,
+        "scalability": 0.80,
+        "ltv_multiple": 14,
+        "setup_effort": "medium",
+        "time_to_revenue_months": 2,
     },
     "ecommerce": {
-        "avg_margin": 0.40, "recurring": False, "scalability": 0.65,
-        "ltv_multiple": 2, "setup_effort": "medium", "time_to_revenue_months": 1,
+        "avg_margin": 0.40,
+        "recurring": False,
+        "scalability": 0.65,
+        "ltv_multiple": 2,
+        "setup_effort": "medium",
+        "time_to_revenue_months": 1,
     },
 }
 
@@ -1651,8 +1728,12 @@ def prioritize_revenue_avenues(
         growth_rate = float(existing.get("growth_rate", 0))
 
         estimated_rev = _estimate_avenue_revenue(
-            avenue, profile, audience_size, audience_engagement_rate,
-            existing_rev, growth_rate,
+            avenue,
+            profile,
+            audience_size,
+            audience_engagement_rate,
+            existing_rev,
+            growth_rate,
         )
         if existing_rev > 0:
             estimated_rev = max(estimated_rev, existing_rev * (1 + growth_rate))
@@ -1683,7 +1764,7 @@ def prioritize_revenue_avenues(
         for existing_av in active_avenues:
             synergy = _SYNERGY_PAIRS.get((avenue, existing_av), 0.0)
             synergy_bonus += synergy
-        base_score *= (1.0 + synergy_bonus)
+        base_score *= 1.0 + synergy_bonus
 
         concentration_penalty = 0.0
         if avenue in active_avenues and len(active_avenues) == 1:
@@ -1698,11 +1779,11 @@ def prioritize_revenue_avenues(
                     concentration_penalty = 0.15
                 elif share > 0.50:
                     concentration_penalty = 0.08
-        base_score *= (1.0 - concentration_penalty)
+        base_score *= 1.0 - concentration_penalty
 
         skill_gap = max(0, required_level - operator_level)
         if skill_gap > 0:
-            base_score *= (1.0 - skill_gap * 0.25)
+            base_score *= 1.0 - skill_gap * 0.25
 
         float(profile["time_to_revenue_months"])
 
@@ -1737,19 +1818,23 @@ def prioritize_revenue_avenues(
     for rank, (avenue, score, est_rev, reasoning) in enumerate(scored, 1):
         profile = REVENUE_AVENUE_PROFILES[avenue]
         margin = float(profile["avg_margin"])
-        recommendations.append(AvenueRecommendation(
-            avenue=avenue,
-            priority_rank=rank,
-            composite_score=round(score, 2),
-            expected_monthly_revenue=round(est_rev, 2),
-            expected_annual_revenue=round(est_rev * 12, 2),
-            margin=margin,
-            time_to_revenue=f"{profile['time_to_revenue_months']} months" if profile["time_to_revenue_months"] > 0 else "immediate",
-            effort_level=profile["setup_effort"],
-            reasoning=reasoning,
-            next_steps=_AVENUE_NEXT_STEPS.get(avenue, []),
-            dependencies=_AVENUE_DEPENDENCIES.get(avenue, []),
-        ))
+        recommendations.append(
+            AvenueRecommendation(
+                avenue=avenue,
+                priority_rank=rank,
+                composite_score=round(score, 2),
+                expected_monthly_revenue=round(est_rev, 2),
+                expected_annual_revenue=round(est_rev * 12, 2),
+                margin=margin,
+                time_to_revenue=f"{profile['time_to_revenue_months']} months"
+                if profile["time_to_revenue_months"] > 0
+                else "immediate",
+                effort_level=profile["setup_effort"],
+                reasoning=reasoning,
+                next_steps=_AVENUE_NEXT_STEPS.get(avenue, []),
+                dependencies=_AVENUE_DEPENDENCIES.get(avenue, []),
+            )
+        )
 
     return recommendations
 
@@ -1758,9 +1843,11 @@ def prioritize_revenue_avenues(
 # 7. UNIFIED REVENUE INTELLIGENCE REPORT
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class RevenueIntelligenceReport:
     """Top-level output combining all engines into a single actionable report."""
+
     generated_at: str
     saas_metrics: SaaSMetrics | None = None
     churn_analysis: dict | None = None
@@ -1827,8 +1914,11 @@ def generate_revenue_intelligence_report(
     saas_metrics = None
     if subscriptions and period_start and period_end:
         saas_metrics = compute_saas_metrics(
-            subscriptions, period_start, period_end,
-            prior_period_sales_spend, total_costs,
+            subscriptions,
+            period_start,
+            period_end,
+            prior_period_sales_spend,
+            total_costs,
         )
 
     churn_analysis = None
@@ -1854,8 +1944,12 @@ def generate_revenue_intelligence_report(
     avenue_recs: list[AvenueRecommendation] = []
     if current_avenues is not None:
         avenue_recs = prioritize_revenue_avenues(
-            current_avenues, audience_size, audience_engagement_rate,
-            niche, monthly_content_capacity, operator_skill_level,
+            current_avenues,
+            audience_size,
+            audience_engagement_rate,
+            niche,
+            monthly_content_capacity,
+            operator_skill_level,
         )
 
     top_actions: list[dict] = []
@@ -1864,38 +1958,46 @@ def generate_revenue_intelligence_report(
         crit_count = churn_analysis.get("tier_summary", {}).get("critical", {}).get("count", 0)
         crit_rev = churn_analysis.get("tier_summary", {}).get("critical", {}).get("revenue_at_risk", 0)
         if crit_count > 0:
-            top_actions.append({
-                "action": f"Address {crit_count} critical churn-risk customers (${crit_rev:,.0f} at risk)",
-                "impact": "high",
-                "category": "retention",
-            })
+            top_actions.append(
+                {
+                    "action": f"Address {crit_count} critical churn-risk customers (${crit_rev:,.0f} at risk)",
+                    "impact": "high",
+                    "category": "retention",
+                }
+            )
 
     if expansion_opps:
         total_exp = sum(o.expected_value for o in expansion_opps[:10])
-        top_actions.append({
-            "action": f"Pursue top {min(10, len(expansion_opps))} expansion opportunities (${total_exp:,.0f} expected value)",
-            "impact": "high",
-            "category": "growth",
-        })
+        top_actions.append(
+            {
+                "action": f"Pursue top {min(10, len(expansion_opps))} expansion opportunities (${total_exp:,.0f} expected value)",
+                "impact": "high",
+                "category": "growth",
+            }
+        )
 
     if pricing_recs:
         best_pricing = max(pricing_recs, key=lambda r: r.expected_revenue_impact, default=None)
         if best_pricing and best_pricing.expected_revenue_impact > 0:
-            top_actions.append({
-                "action": f"Adjust {best_pricing.segment} pricing to ${best_pricing.recommended_price:.2f} (+${best_pricing.expected_revenue_impact:,.0f} revenue)",
-                "impact": "medium",
-                "category": "pricing",
-            })
+            top_actions.append(
+                {
+                    "action": f"Adjust {best_pricing.segment} pricing to ${best_pricing.recommended_price:.2f} (+${best_pricing.expected_revenue_impact:,.0f} revenue)",
+                    "impact": "medium",
+                    "category": "pricing",
+                }
+            )
 
     if avenue_recs:
         new_avs = [a for a in avenue_recs if a.avenue not in current_avenues]
         if new_avs:
             best_new = new_avs[0]
-            top_actions.append({
-                "action": f"Launch {best_new.avenue} revenue stream (est. ${best_new.expected_monthly_revenue:,.0f}/mo)",
-                "impact": "medium",
-                "category": "diversification",
-            })
+            top_actions.append(
+                {
+                    "action": f"Launch {best_new.avenue} revenue stream (est. ${best_new.expected_monthly_revenue:,.0f}/mo)",
+                    "impact": "medium",
+                    "category": "diversification",
+                }
+            )
 
     health_score = 50.0
     if saas_metrics:

@@ -3,6 +3,7 @@
 Identifies top-performing content and recommends cloning across
 accounts/platforms. Deterministic, rules-based.
 """
+
 from dataclasses import dataclass
 
 FORMULA_VERSION = "v1"
@@ -84,16 +85,18 @@ def detect_winners(items: list[ContentPerformance], available_platforms: list[st
         else:
             explanation = f"Neutral: win_score {win_score:.2f}. Not enough signal to classify."
 
-        results.append(WinnerSignal(
-            content_id=item.content_id,
-            title=item.title,
-            is_winner=is_winner,
-            is_loser=is_loser,
-            win_score=round(win_score, 3),
-            clone_recommended=is_winner and len(clone_targets) > 0,
-            clone_targets=clone_targets,
-            explanation=explanation,
-        ))
+        results.append(
+            WinnerSignal(
+                content_id=item.content_id,
+                title=item.title,
+                is_winner=is_winner,
+                is_loser=is_loser,
+                win_score=round(win_score, 3),
+                clone_recommended=is_winner and len(clone_targets) > 0,
+                clone_targets=clone_targets,
+                explanation=explanation,
+            )
+        )
 
     results.sort(key=lambda x: -x.win_score)
     return results

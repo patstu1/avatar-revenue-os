@@ -1,4 +1,5 @@
 """MXP Capacity — production throughput, throttle decisions, queue allocations."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status

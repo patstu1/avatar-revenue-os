@@ -21,6 +21,7 @@ These endpoints are unauthenticated (behind a proxy / internal network)
 so automation can scrape them without JWT overhead. No state is
 mutated.
 """
+
 from __future__ import annotations
 
 import os
@@ -43,9 +44,9 @@ CANONICAL_BRANCH = "recovery/from-prod"
 # Critical provider keys — the system cannot operate without these
 # (or at least should loudly flag their absence).
 CRITICAL_PROVIDER_KEYS = (
-    "stripe_webhook",     # inbound Stripe verification
-    "inbound_email_route",# inbound reply routing
-    "smtp",               # outbound email
+    "stripe_webhook",  # inbound Stripe verification
+    "inbound_email_route",  # inbound reply routing
+    "smtp",  # outbound email
 )
 RECENT_WINDOW_MINUTES = 60
 
@@ -78,9 +79,7 @@ async def lock_status() -> dict:
         "deployed_at": os.environ.get("DEPLOY_MANIFEST_AT", ""),
         "deployed_by": os.environ.get("DEPLOY_MANIFEST_BY", ""),
         "build_id": os.environ.get("DEPLOY_MANIFEST_BUILD_ID", ""),
-        "matches_canonical": (
-            os.environ.get("DEPLOY_MANIFEST_BRANCH", "") == CANONICAL_BRANCH
-        ),
+        "matches_canonical": (os.environ.get("DEPLOY_MANIFEST_BRANCH", "") == CANONICAL_BRANCH),
     }
 
 
@@ -106,122 +105,131 @@ async def health_check(db: DBSession) -> dict:
     # aborted by a missing alembic_version table (e.g. test DBs that
     # bootstrap via Base.metadata.create_all).
     from sqlalchemy import text as _text
+
     code_rev = _alembic_head_revision()
-    has_alembic_table = bool((
-        await db.execute(
-            _text(
-                "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
-                "WHERE table_name = 'alembic_version')"
+    has_alembic_table = bool(
+        (
+            await db.execute(
+                _text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'alembic_version')")
             )
-        )
-    ).scalar())
+        ).scalar()
+    )
 
     if not has_alembic_table:
-        checks.append({
-            "name": "alembic_version_matches_code",
-            "ok": True,  # test / create_all environment — informational only
-            "detail": f"alembic_version table absent; code head={code_rev or 'unknown'}",
-        })
+        checks.append(
+            {
+                "name": "alembic_version_matches_code",
+                "ok": True,  # test / create_all environment — informational only
+                "detail": f"alembic_version table absent; code head={code_rev or 'unknown'}",
+            }
+        )
     else:
         try:
-            db_rev = (
-                await db.execute(
-                    _text("SELECT version_num FROM alembic_version LIMIT 1")
-                )
-            ).scalar()
-            checks.append({
-                "name": "alembic_version_matches_code",
-                "ok": (not code_rev) or (db_rev == code_rev),
-                "detail": f"db={db_rev} code={code_rev or 'unknown'}",
-            })
+            db_rev = (await db.execute(_text("SELECT version_num FROM alembic_version LIMIT 1"))).scalar()
+            checks.append(
+                {
+                    "name": "alembic_version_matches_code",
+                    "ok": (not code_rev) or (db_rev == code_rev),
+                    "detail": f"db={db_rev} code={code_rev or 'unknown'}",
+                }
+            )
         except Exception as exc:
-            checks.append({"name": "alembic_version_matches_code", "ok": False,
-                           "detail": str(exc)[:120]})
+            checks.append({"name": "alembic_version_matches_code", "ok": False, "detail": str(exc)[:120]})
 
     # 3. Canonical provider rows exist + enabled in ALL orgs that have
     # any configured providers at all (orgs that have never configured
     # anything are not penalised).
     missing_providers: list[dict] = []
-    configured_orgs = (
-        await db.execute(
-            select(IntegrationProvider.organization_id).distinct()
-        )
-    ).scalars().all()
+    configured_orgs = (await db.execute(select(IntegrationProvider.organization_id).distinct())).scalars().all()
     for org_id in configured_orgs:
         present = (
-            await db.execute(
-                select(IntegrationProvider.provider_key).where(
-                    IntegrationProvider.organization_id == org_id,
-                    IntegrationProvider.provider_key.in_(CRITICAL_PROVIDER_KEYS),
-                    IntegrationProvider.is_enabled.is_(True),
+            (
+                await db.execute(
+                    select(IntegrationProvider.provider_key).where(
+                        IntegrationProvider.organization_id == org_id,
+                        IntegrationProvider.provider_key.in_(CRITICAL_PROVIDER_KEYS),
+                        IntegrationProvider.is_enabled.is_(True),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         missing = [k for k in CRITICAL_PROVIDER_KEYS if k not in present]
         if missing:
             missing_providers.append({"org_id": str(org_id), "missing": missing})
-    checks.append({
-        "name": "critical_providers_configured",
-        "ok": not missing_providers,
-        "detail": missing_providers or f"{len(configured_orgs)} orgs checked",
-    })
+    checks.append(
+        {
+            "name": "critical_providers_configured",
+            "ok": not missing_providers,
+            "detail": missing_providers or f"{len(configured_orgs)} orgs checked",
+        }
+    )
 
     # 4. Event flow — at least one SystemEvent in the last hour across
     # the whole system is a weak but useful "is anything alive" signal.
     since = datetime.now(timezone.utc) - timedelta(minutes=RECENT_WINDOW_MINUTES)
     recent_evt_count = (
-        await db.execute(
-            select(func.count()).select_from(SystemEvent).where(
-                SystemEvent.created_at >= since
-            )
-        )
+        await db.execute(select(func.count()).select_from(SystemEvent).where(SystemEvent.created_at >= since))
     ).scalar() or 0
-    checks.append({
-        "name": "event_flow_recent",
-        "ok": True,  # informational — not a hard fail
-        "detail": f"{recent_evt_count} events in last {RECENT_WINDOW_MINUTES}m",
-    })
+    checks.append(
+        {
+            "name": "event_flow_recent",
+            "ok": True,  # informational — not a hard fail
+            "detail": f"{recent_evt_count} events in last {RECENT_WINDOW_MINUTES}m",
+        }
+    )
 
     # 5. Hard-stuck stages (SLA past by more than 2x timeout)
     now = datetime.now(timezone.utc)
     hard_stuck = (
-        await db.execute(
-            select(StageState).where(
-                StageState.is_active.is_(True),
-                StageState.sla_deadline.is_not(None),
-                StageState.sla_deadline < now - timedelta(hours=1),
+        (
+            await db.execute(
+                select(StageState).where(
+                    StageState.is_active.is_(True),
+                    StageState.sla_deadline.is_not(None),
+                    StageState.sla_deadline < now - timedelta(hours=1),
+                )
             )
         )
-    ).scalars().all()
-    checks.append({
-        "name": "no_hard_stuck_stages",
-        "ok": len(hard_stuck) == 0,
-        "detail": [
-            {
-                "entity_type": s.entity_type,
-                "entity_id": str(s.entity_id),
-                "stage": s.stage,
-                "sla_deadline": s.sla_deadline.isoformat() if s.sla_deadline else None,
-            }
-            for s in hard_stuck[:20]
-        ],
-    })
+        .scalars()
+        .all()
+    )
+    checks.append(
+        {
+            "name": "no_hard_stuck_stages",
+            "ok": len(hard_stuck) == 0,
+            "detail": [
+                {
+                    "entity_type": s.entity_type,
+                    "entity_id": str(s.entity_id),
+                    "stage": s.stage,
+                    "sla_deadline": s.sla_deadline.isoformat() if s.sla_deadline else None,
+                }
+                for s in hard_stuck[:20]
+            ],
+        }
+    )
 
     # 6. Unacknowledged high-severity escalations
     unack_error = (
         await db.execute(
-            select(func.count()).select_from(GMEscalation).where(
+            select(func.count())
+            .select_from(GMEscalation)
+            .where(
                 GMEscalation.is_active.is_(True),
                 GMEscalation.status == "open",
                 GMEscalation.severity == "error",
             )
         )
     ).scalar() or 0
-    checks.append({
-        "name": "no_unacknowledged_error_escalations",
-        "ok": unack_error == 0,
-        "detail": f"{unack_error} open error escalations",
-    })
+    checks.append(
+        {
+            "name": "no_unacknowledged_error_escalations",
+            "ok": unack_error == 0,
+            "detail": f"{unack_error} open error escalations",
+        }
+    )
 
     healthy = all(c["ok"] for c in checks)
     return {
@@ -265,6 +273,7 @@ def _alembic_head_revision() -> str:
     """
     try:
         import re
+
         # __file__ = .../<repo>/apps/api/routers/ops_lock.py
         # 4 dirname() calls climb back to <repo>.
         here = os.path.abspath(__file__)
@@ -308,4 +317,5 @@ def _alembic_head_revision() -> str:
 
 def _python_version() -> str:
     import sys
+
     return sys.version.split()[0]

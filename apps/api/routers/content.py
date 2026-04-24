@@ -1,4 +1,5 @@
 """Content pipeline endpoints — briefs, scripts, content items."""
+
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -32,9 +33,13 @@ async def create_brief(body: ContentBriefCreate, current_user: CurrentUser, db: 
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     brief = await brief_service.create(db, **body.model_dump())
     await log_action(
-        db, "content_brief.created",
-        brand_id=body.brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="content_brief", entity_id=brief.id,
+        db,
+        "content_brief.created",
+        brand_id=body.brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="content_brief",
+        entity_id=brief.id,
     )
     return brief
 
@@ -99,26 +104,34 @@ async def generate_batch(body: GenerateBatchRequest, current_user: OperatorUser,
     for brief in created_briefs:
         try:
             from apps.api.services.content_generation_service import generate_content_from_brief
+
             gen_result = await generate_content_from_brief(db, brief.id)
-            results.append({
-                "brief_id": str(brief.id),
-                "title": brief.title,
-                "success": gen_result.get("success", False),
-                "content_item_id": gen_result.get("content_item_id"),
-                "error": gen_result.get("error"),
-            })
+            results.append(
+                {
+                    "brief_id": str(brief.id),
+                    "title": brief.title,
+                    "success": gen_result.get("success", False),
+                    "content_item_id": gen_result.get("content_item_id"),
+                    "error": gen_result.get("error"),
+                }
+            )
         except Exception as e:
-            results.append({
-                "brief_id": str(brief.id),
-                "title": brief.title,
-                "success": False,
-                "error": str(e),
-            })
+            results.append(
+                {
+                    "brief_id": str(brief.id),
+                    "title": brief.title,
+                    "success": False,
+                    "error": str(e),
+                }
+            )
 
     await log_action(
-        db, "content.batch_generated",
-        brand_id=body.brand_id, user_id=current_user.id,
-        actor_type="human", entity_type="content_batch",
+        db,
+        "content.batch_generated",
+        brand_id=body.brand_id,
+        user_id=current_user.id,
+        actor_type="human",
+        entity_type="content_batch",
         details={"count": count, "topic": body.topic, "platform": body.platform},
     )
 

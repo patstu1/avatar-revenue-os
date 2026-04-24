@@ -1,4 +1,5 @@
 """SaaS metrics, subscriptions, pipeline, and pricing models."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -12,9 +13,12 @@ from packages.db.base import Base
 
 class Subscription(Base):
     """Tracks individual subscriptions (SaaS, membership, community)."""
+
     __tablename__ = "subscriptions"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True)
+    brand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     customer_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     customer_email: Mapped[Optional[str]] = mapped_column(String(255))
     customer_name: Mapped[Optional[str]] = mapped_column(String(255))
@@ -33,10 +37,15 @@ class Subscription(Base):
 
 class SubscriptionEvent(Base):
     """Tracks subscription lifecycle events (new, upgrade, downgrade, churn, reactivation)."""
+
     __tablename__ = "subscription_events"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True)
-    subscription_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("subscriptions.id"), nullable=False, index=True)
+    brand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    subscription_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("subscriptions.id"), nullable=False, index=True
+    )
     customer_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     old_mrr: Mapped[float] = mapped_column(Float, default=0.0)
@@ -52,9 +61,12 @@ class SubscriptionEvent(Base):
 
 class SaaSMetricSnapshot(Base):
     """Daily/weekly snapshot of SaaS metrics for trend tracking."""
+
     __tablename__ = "saas_metric_snapshots"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True)
+    brand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     period: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
     snapshot_date: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
     mrr: Mapped[float] = mapped_column(Float, default=0.0)
@@ -78,9 +90,12 @@ class SaaSMetricSnapshot(Base):
 
 class HighTicketDeal(Base):
     """Tracks high-ticket sales pipeline (consulting, services, courses)."""
+
     __tablename__ = "high_ticket_deals"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True)
+    brand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     customer_name: Mapped[str] = mapped_column(String(255), nullable=False)
     customer_email: Mapped[Optional[str]] = mapped_column(String(255))
     deal_value: Mapped[float] = mapped_column(Float, default=0.0)
@@ -99,9 +114,12 @@ class HighTicketDeal(Base):
 
 class ProductLaunch(Base):
     """Tracks digital product/course launches."""
+
     __tablename__ = "product_launches"
 
-    brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True)
+    brand_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("brands.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     product_name: Mapped[str] = mapped_column(String(255), nullable=False)
     product_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     price: Mapped[float] = mapped_column(Float, default=0.0)

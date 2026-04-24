@@ -8,6 +8,7 @@ Uses TikTok's v2 Content Posting API with chunked upload flow:
 
 API docs: https://developers.tiktok.com/doc/content-posting-api-reference-direct-post
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -25,8 +26,10 @@ _POLL_INTERVAL = 5  # seconds between status polls
 
 # ── Exceptions ──────────────────────────────────────────────────────────────
 
+
 class TikTokError(Exception):
     """Base exception for TikTok client errors."""
+
     def __init__(self, message: str, status_code: int = 0, response_body: Any = None):
         super().__init__(message)
         self.status_code = status_code
@@ -35,16 +38,19 @@ class TikTokError(Exception):
 
 class AuthError(TikTokError):
     """401/403 — credentials invalid or expired."""
+
     pass
 
 
 class PermanentError(TikTokError):
     """4xx (non-auth) — bad request, not found, etc."""
+
     pass
 
 
 class TransientError(TikTokError):
     """429 or 5xx — retryable server/rate-limit errors."""
+
     pass
 
 
@@ -76,6 +82,7 @@ def _check_tiktok_error(data: dict, http_status: int) -> None:
 
 
 # ── Client ──────────────────────────────────────────────────────────────────
+
 
 class TikTokClient:
     """Direct TikTok Content Posting API v2 client."""
@@ -318,6 +325,7 @@ class TikTokClient:
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
+
 
 def _auth_header(access_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {access_token}"}

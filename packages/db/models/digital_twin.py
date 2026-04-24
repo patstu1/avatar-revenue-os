@@ -1,4 +1,5 @@
 """Digital Twin / Simulation Layer — simulate decisions before execution."""
+
 import uuid
 from typing import Optional
 
@@ -22,7 +23,9 @@ class SimulationRun(Base):
 
 class SimulationScenario(Base):
     __tablename__ = "dt_scenarios"
-    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("dt_simulation_runs.id"), nullable=False, index=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("dt_simulation_runs.id"), nullable=False, index=True
+    )
     scenario_type: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
     option_label: Mapped[str] = mapped_column(String(255), nullable=False)
     compared_to: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -39,7 +42,9 @@ class SimulationScenario(Base):
 
 class SimulationAssumption(Base):
     __tablename__ = "dt_assumptions"
-    scenario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("dt_scenarios.id"), nullable=False, index=True)
+    scenario_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("dt_scenarios.id"), nullable=False, index=True
+    )
     assumption_key: Mapped[str] = mapped_column(String(120), nullable=False)
     assumption_value: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
@@ -48,7 +53,9 @@ class SimulationAssumption(Base):
 
 class SimulationOutcome(Base):
     __tablename__ = "dt_outcomes"
-    scenario_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("dt_scenarios.id"), nullable=False, index=True)
+    scenario_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("dt_scenarios.id"), nullable=False, index=True
+    )
     metric: Mapped[str] = mapped_column(String(60), nullable=False)
     predicted_value: Mapped[float] = mapped_column(Float, default=0.0)
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
@@ -58,7 +65,9 @@ class SimulationOutcome(Base):
 
 class SimulationRecommendation(Base):
     __tablename__ = "dt_recommendations"
-    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("dt_simulation_runs.id"), nullable=False, index=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("dt_simulation_runs.id"), nullable=False, index=True
+    )
     brand_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("brands.id"), nullable=False, index=True)
     recommended_action: Mapped[str] = mapped_column(Text, nullable=False)
     scenario_type: Mapped[str] = mapped_column(String(60), nullable=False)

@@ -4,6 +4,7 @@ Revision ID: k1f6g7h8i9j0
 Revises: j0e5f6g7h8i9
 Create Date: 2026-03-29
 """
+
 from collections.abc import Sequence
 from typing import Union
 

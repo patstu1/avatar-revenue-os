@@ -1,4 +1,5 @@
 """Pattern Memory workers — extraction, scoring, clustering, decay, reuse."""
+
 import logging
 
 from celery import shared_task

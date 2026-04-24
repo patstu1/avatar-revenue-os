@@ -22,6 +22,7 @@ Nothing in this module duplicates business logic from the wrapped
 services. The single source of truth for each business rule remains
 in its canonical service.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -70,10 +71,7 @@ async def audit_gm_write(
         organization_id=actor.organization_id,
         action_type=f"gm.write.{tool_name}",
         title=f"GM {tool_name} — {decision}",
-        description=(
-            f"{actor.email} invoked GM tool {tool_name}. "
-            f"Action class: {action_class}. Decision: {decision}."
-        ),
+        description=(f"{actor.email} invoked GM tool {tool_name}. Action class: {action_class}. Decision: {decision}."),
         priority="medium",
         category="gm_operating",
         entity_type=entity_type,
@@ -81,9 +79,7 @@ async def audit_gm_write(
         source_module="gm_write",
         action_payload=payload,
         status="completed" if decision == "executed" else "recorded",
-        completed_at=(
-            datetime.now(timezone.utc) if decision == "executed" else None
-        ),
+        completed_at=(datetime.now(timezone.utc) if decision == "executed" else None),
     )
     db.add(action_row)
     await db.flush()
@@ -125,8 +121,8 @@ def forbid_escalation_as_mutation(
     The caller handles HTTP shape; this only enforces the rule.
     """
     from apps.api.services.gm_doctrine import ACTION_CLASS_ESCALATE
+
     if action_class == ACTION_CLASS_ESCALATE:
         raise PermissionError(
-            f"GM tool {tool_name} refused: action classified as "
-            f"{ACTION_CLASS_ESCALATE}. Open a GMEscalation instead."
+            f"GM tool {tool_name} refused: action classified as {ACTION_CLASS_ESCALATE}. Open a GMEscalation instead."
         )

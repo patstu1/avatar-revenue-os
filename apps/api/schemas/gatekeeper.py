@@ -1,4 +1,5 @@
 """Pydantic schemas for AI Gatekeeper APIs."""
+
 from __future__ import annotations
 
 import uuid

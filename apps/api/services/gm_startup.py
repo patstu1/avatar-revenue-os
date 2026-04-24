@@ -4,6 +4,7 @@ This is the strategic operating brain. It scans the full machine state,
 generates launch blueprints via Claude, revises interactively, and
 executes approved plans by creating real entities in the database.
 """
+
 from __future__ import annotations
 
 import json
@@ -35,6 +36,7 @@ logger = structlog.get_logger()
 # Machine State Scanner
 # ---------------------------------------------------------------------------
 
+
 async def get_machine_state(
     db: AsyncSession,
     org_id: uuid.UUID,
@@ -46,6 +48,7 @@ async def get_machine_state(
     provider_list: list[dict] = []
     try:
         from apps.api.services import secrets_service
+
         db_keys = await secrets_service.get_all_keys(db, org_id)
         providers_from_db = {k: v for k, v in db_keys.items() if v}
 
@@ -75,17 +78,16 @@ async def get_machine_state(
 
     # --- Brands ---
     brand_result = await db.execute(
-        select(Brand).where(
+        select(Brand)
+        .where(
             Brand.organization_id == org_id,
             Brand.is_active == True,  # noqa: E712
-        ).order_by(Brand.created_at)
+        )
+        .order_by(Brand.created_at)
     )
     brands = brand_result.scalars().all()
     brand_count = len(brands)
-    brand_details = [
-        {"id": str(b.id), "name": b.name, "niche": b.niche, "slug": b.slug}
-        for b in brands
-    ]
+    brand_details = [{"id": str(b.id), "name": b.name, "niche": b.niche, "slug": b.slug} for b in brands]
 
     # --- Accounts ---
     account_count = 0
@@ -102,17 +104,19 @@ async def get_machine_state(
         accounts = acct_result.scalars().all()
         account_count = len(accounts)
         for a in accounts:
-            plat = a.platform.value if hasattr(a.platform, 'value') else str(a.platform)
+            plat = a.platform.value if hasattr(a.platform, "value") else str(a.platform)
             accounts_by_platform[plat] = accounts_by_platform.get(plat, 0) + 1
-            account_details.append({
-                "id": str(a.id),
-                "platform": plat,
-                "username": a.platform_username,
-                "followers": a.follower_count,
-                "revenue": float(a.total_revenue or 0),
-                "credential_status": a.credential_status,
-                "scale_role": a.scale_role,
-            })
+            account_details.append(
+                {
+                    "id": str(a.id),
+                    "platform": plat,
+                    "username": a.platform_username,
+                    "followers": a.follower_count,
+                    "revenue": float(a.total_revenue or 0),
+                    "credential_status": a.credential_status,
+                    "scale_role": a.scale_role,
+                }
+            )
 
     # --- Offers ---
     offer_count = 0
@@ -127,18 +131,24 @@ async def get_machine_state(
         offers = offer_result.scalars().all()
         offer_count = len(offers)
         for o in offers:
-            offer_details.append({
-                "id": str(o.id),
-                "name": o.name,
-                "method": o.monetization_method.value if hasattr(o.monetization_method, 'value') else str(o.monetization_method),
-                "payout": float(o.payout_amount or 0),
-            })
+            offer_details.append(
+                {
+                    "id": str(o.id),
+                    "name": o.name,
+                    "method": o.monetization_method.value
+                    if hasattr(o.monetization_method, "value")
+                    else str(o.monetization_method),
+                    "payout": float(o.payout_amount or 0),
+                }
+            )
 
     # --- Content ---
     content_count = 0
     if brand_count > 0:
         content_result = await db.execute(
-            select(func.count()).select_from(ContentBrief).where(
+            select(func.count())
+            .select_from(ContentBrief)
+            .where(
                 ContentBrief.brand_id.in_(brand_ids),
             )
         )
@@ -153,10 +163,12 @@ async def get_machine_state(
             select(
                 RevenueLedgerEntry.revenue_type,
                 func.sum(RevenueLedgerEntry.amount_usd),
-            ).where(
+            )
+            .where(
                 RevenueLedgerEntry.organization_id == org_id,
                 RevenueLedgerEntry.event_date >= cutoff,
-            ).group_by(RevenueLedgerEntry.revenue_type)
+            )
+            .group_by(RevenueLedgerEntry.revenue_type)
         )
         for row in rev_result.fetchall():
             rtype = row[0] if isinstance(row[0], str) else str(row[0])
@@ -206,6 +218,7 @@ async def get_machine_state(
 # ---------------------------------------------------------------------------
 # Startup Prompt — state-aware opening for first-boot GM conversation
 # ---------------------------------------------------------------------------
+
 
 async def get_startup_prompt(
     db: AsyncSession,
@@ -332,6 +345,7 @@ def _build_gm_opening(phase: str, state: dict[str, Any]) -> str:
 # Blueprint Generation (calls Claude)
 # ---------------------------------------------------------------------------
 
+
 async def generate_launch_blueprint(
     db: AsyncSession,
     org_id: uuid.UUID,
@@ -352,9 +366,11 @@ async def generate_launch_blueprint(
 
     try:
         import anthropic
+
         api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         if not api_key:
             from apps.api.services import secrets_service
+
             db_keys = await secrets_service.get_all_keys(db, org_id)
             api_key = db_keys.get("anthropic", "")
 
@@ -372,7 +388,10 @@ async def generate_launch_blueprint(
             max_tokens=8000,
             system=GM_STARTUP_PROMPT,
             messages=[
-                {"role": "user", "content": f"Here is the current machine state. Generate the full launch blueprint.\n\n{context_block}"}
+                {
+                    "role": "user",
+                    "content": f"Here is the current machine state. Generate the full launch blueprint.\n\n{context_block}",
+                }
             ],
         )
 
@@ -428,9 +447,11 @@ Revise the blueprint to incorporate this feedback.
 
     try:
         import anthropic
+
         api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         if not api_key:
             from apps.api.services import secrets_service
+
             db_keys = await secrets_service.get_all_keys(db, org_id)
             api_key = db_keys.get("anthropic", "")
 
@@ -486,9 +507,11 @@ async def gm_conversation(
 
     try:
         import anthropic
+
         api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         if not api_key:
             from apps.api.services import secrets_service
+
             db_keys = await secrets_service.get_all_keys(db, org_id)
             api_key = db_keys.get("anthropic", "")
 
@@ -517,6 +540,7 @@ async def gm_conversation(
 # Blueprint Execution
 # ---------------------------------------------------------------------------
 
+
 async def execute_blueprint_step(
     db: AsyncSession,
     org_id: uuid.UUID,
@@ -539,6 +563,7 @@ async def execute_blueprint_step(
             slug = f"{slug}-{uuid.uuid4().hex[:6]}"
 
             from apps.api.services.onboarding_service import DEFAULT_BRAND_GUIDELINES
+
             brand = Brand(
                 organization_id=org_id,
                 name=brand_name,
@@ -609,10 +634,12 @@ async def execute_blueprint_step(
             return {"success": False, "error": "No monetization paths in blueprint"}
 
         brand_result = await db.execute(
-            select(Brand).where(
+            select(Brand)
+            .where(
                 Brand.organization_id == org_id,
                 Brand.is_active == True,  # noqa: E712
-            ).limit(1)
+            )
+            .limit(1)
         )
         brand = brand_result.scalar_one_or_none()
         if not brand:
@@ -659,6 +686,7 @@ async def execute_blueprint_step(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _parse_blueprint_sections(content: str) -> dict[str, Any]:
     """Best-effort extraction of blueprint sections from GM response text."""

@@ -1,4 +1,5 @@
 """Unit tests for account-state intelligence engine — pure functions, no DB."""
+
 from packages.scoring.account_state_intel_engine import (
     ACCOUNT_STATES,
     STATE_POLICIES,
@@ -11,9 +12,20 @@ from packages.scoring.account_state_intel_engine import (
 class TestStates:
     def test_all_12_states(self):
         assert len(ACCOUNT_STATES) == 12
-        for s in ("newborn", "warming", "early_signal", "scaling", "monetizing",
-                   "authority_building", "trust_repair", "saturated", "cooling",
-                   "weak", "suppressed", "blocked"):
+        for s in (
+            "newborn",
+            "warming",
+            "early_signal",
+            "scaling",
+            "monetizing",
+            "authority_building",
+            "trust_repair",
+            "saturated",
+            "cooling",
+            "weak",
+            "suppressed",
+            "blocked",
+        ):
             assert s in ACCOUNT_STATES
 
     def test_every_state_has_policy(self):
@@ -60,16 +72,30 @@ class TestClassify:
         assert r["current_state"] == "cooling"
 
     def test_weak(self):
-        r = classify_account_state({"account_health": "warning", "engagement_rate": 0.01, "age_days": 45, "post_count": 30})
+        r = classify_account_state(
+            {"account_health": "warning", "engagement_rate": 0.01, "age_days": 45, "post_count": 30}
+        )
         assert r["current_state"] == "weak"
 
     def test_monetizing(self):
-        r = classify_account_state({"total_revenue": 200, "conversion_rate": 0.05, "total_profit": 50, "age_days": 90, "post_count": 100, "impressions": 30000, "engagement_rate": 0.06})
+        r = classify_account_state(
+            {
+                "total_revenue": 200,
+                "conversion_rate": 0.05,
+                "total_profit": 50,
+                "age_days": 90,
+                "post_count": 100,
+                "impressions": 30000,
+                "engagement_rate": 0.06,
+            }
+        )
         assert r["current_state"] == "monetizing"
         assert r["monetization_intensity"] == "high"
 
     def test_scaling(self):
-        r = classify_account_state({"impressions": 60000, "engagement_rate": 0.06, "total_profit": 10, "age_days": 60, "post_count": 80})
+        r = classify_account_state(
+            {"impressions": 60000, "engagement_rate": 0.06, "total_profit": 10, "age_days": 60, "post_count": 80}
+        )
         assert r["current_state"] == "scaling"
         assert r["expansion_eligible"] is True
 
@@ -88,7 +114,13 @@ class TestClassify:
 
     def test_next_best_move_always_set(self):
         for state in ACCOUNT_STATES:
-            r = classify_account_state({"blocker_state": "blocked"} if state == "blocked" else {"account_health": "suspended"} if state == "suppressed" else {})
+            r = classify_account_state(
+                {"blocker_state": "blocked"}
+                if state == "blocked"
+                else {"account_health": "suspended"}
+                if state == "suppressed"
+                else {}
+            )
             assert r["next_best_move"] is not None
 
 

@@ -4,6 +4,7 @@ Revision ID: brain_phase_d_001
 Revises: brain_phase_c_001
 Create Date: 2026-03-31
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql

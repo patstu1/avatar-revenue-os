@@ -8,6 +8,7 @@ Replaces sequential one-brief-at-a-time processing with fan-out:
 
 This is the mass-scale content velocity engine.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -25,8 +26,10 @@ MAX_CONCURRENT = 10  # Max parallel generation tasks
 
 
 async def generate_batch(
-    db: AsyncSession, brand_id: uuid.UUID,
-    *, brief_ids: list[uuid.UUID] | None = None,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    *,
+    brief_ids: list[uuid.UUID] | None = None,
     max_concurrent: int = MAX_CONCURRENT,
 ) -> dict:
     """Generate scripts for multiple briefs in parallel.
@@ -42,10 +45,12 @@ async def generate_batch(
         )
     else:
         briefs_q = await db.execute(
-            select(ContentBrief).where(
+            select(ContentBrief)
+            .where(
                 ContentBrief.brand_id == brand_id,
                 ContentBrief.status == "draft",
-            ).limit(max_concurrent)
+            )
+            .limit(max_concurrent)
         )
 
     briefs = briefs_q.scalars().all()
@@ -56,19 +61,21 @@ async def generate_batch(
     # Process in parallel chunks
     results = []
     for i in range(0, len(briefs), max_concurrent):
-        chunk = briefs[i:i + max_concurrent]
+        chunk = briefs[i : i + max_concurrent]
         chunk_results = await asyncio.gather(
             *[_generate_single(db, brief) for brief in chunk],
             return_exceptions=True,
         )
         for brief, result in zip(chunk, chunk_results):
             if isinstance(result, Exception):
-                results.append({
-                    "brief_id": str(brief.id),
-                    "title": brief.title[:60],
-                    "status": "failed",
-                    "error": str(result)[:200],
-                })
+                results.append(
+                    {
+                        "brief_id": str(brief.id),
+                        "title": brief.title[:60],
+                        "status": "failed",
+                        "error": str(result)[:200],
+                    }
+                )
             else:
                 results.append(result)
 
@@ -88,6 +95,7 @@ async def _generate_single(db: AsyncSession, brief: ContentBrief) -> dict:
     """Generate a single script. Called in parallel by generate_batch."""
     try:
         from apps.api.services.content_lifecycle import generate_script_with_events
+
         script = await generate_script_with_events(db, brief.id)
         return {
             "brief_id": str(brief.id),
@@ -107,8 +115,10 @@ async def _generate_single(db: AsyncSession, brief: ContentBrief) -> dict:
 
 
 async def publish_batch(
-    db: AsyncSession, brand_id: uuid.UUID,
-    *, content_ids: list[uuid.UUID],
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    *,
+    content_ids: list[uuid.UUID],
     creator_account_id: uuid.UUID,
     platform: str,
     max_concurrent: int = MAX_CONCURRENT,
@@ -117,7 +127,7 @@ async def publish_batch(
 
     results = []
     for i in range(0, len(content_ids), max_concurrent):
-        chunk = content_ids[i:i + max_concurrent]
+        chunk = content_ids[i : i + max_concurrent]
         chunk_results = await asyncio.gather(
             *[_publish_single(db, cid, creator_account_id, platform) for cid in chunk],
             return_exceptions=True,
@@ -139,6 +149,7 @@ async def publish_batch(
 async def _publish_single(db, content_id, creator_account_id, platform) -> dict:
     try:
         from apps.api.services.content_lifecycle import publish_with_events
+
         result = await publish_with_events(db, content_id, creator_account_id, platform)
         return {"content_id": str(content_id), "status": "publishing", "job_id": str(result["job"].id)}
     except Exception as e:

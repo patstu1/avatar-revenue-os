@@ -2,6 +2,7 @@
 
 Core Phase 4 orchestration. All business logic in service layer.
 """
+
 import uuid
 
 from sqlalchemy import func, select
@@ -29,9 +30,14 @@ from packages.scoring.winner import ContentPerformance, detect_winners
 
 # ── Performance Ingestion ────────────────────────────────────────────────────
 
+
 async def ingest_performance(
-    db: AsyncSession, brand_id: uuid.UUID, content_item_id: uuid.UUID,
-    creator_account_id: uuid.UUID, platform: str, metrics: dict,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    content_item_id: uuid.UUID,
+    creator_account_id: uuid.UUID,
+    platform: str,
+    metrics: dict,
 ) -> PerformanceMetric:
     impressions = metrics.get("impressions", 0)
     views = metrics.get("views", 0)
@@ -69,6 +75,7 @@ async def ingest_performance(
 
 
 # ── Attribution Events ───────────────────────────────────────────────────────
+
 
 async def track_click(db: AsyncSession, data: dict) -> AttributionEvent:
     event = AttributionEvent(
@@ -112,36 +119,51 @@ async def track_conversion(db: AsyncSession, data: dict) -> AttributionEvent:
 
 # ── Revenue Rollups ──────────────────────────────────────────────────────────
 
+
 async def get_revenue_dashboard(db: AsyncSession, brand_id: uuid.UUID) -> dict:
-    gross = (await db.execute(
-        select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0))
-        .where(PerformanceMetric.brand_id == brand_id)
-    )).scalar() or 0.0
+    gross = (
+        await db.execute(
+            select(func.coalesce(func.sum(PerformanceMetric.revenue), 0.0)).where(
+                PerformanceMetric.brand_id == brand_id
+            )
+        )
+    ).scalar() or 0.0
 
-    total_cost = (await db.execute(
-        select(func.coalesce(func.sum(ContentItem.total_cost), 0.0))
-        .where(ContentItem.brand_id == brand_id)
-    )).scalar() or 0.0
+    total_cost = (
+        await db.execute(
+            select(func.coalesce(func.sum(ContentItem.total_cost), 0.0)).where(ContentItem.brand_id == brand_id)
+        )
+    ).scalar() or 0.0
 
-    total_impressions = (await db.execute(
-        select(func.coalesce(func.sum(PerformanceMetric.impressions), 0))
-        .where(PerformanceMetric.brand_id == brand_id)
-    )).scalar() or 0
+    total_impressions = (
+        await db.execute(
+            select(func.coalesce(func.sum(PerformanceMetric.impressions), 0)).where(
+                PerformanceMetric.brand_id == brand_id
+            )
+        )
+    ).scalar() or 0
 
-    total_clicks = (await db.execute(
-        select(func.coalesce(func.sum(PerformanceMetric.clicks), 0))
-        .where(PerformanceMetric.brand_id == brand_id)
-    )).scalar() or 0
+    total_clicks = (
+        await db.execute(
+            select(func.coalesce(func.sum(PerformanceMetric.clicks), 0)).where(PerformanceMetric.brand_id == brand_id)
+        )
+    ).scalar() or 0
 
-    total_conversions = (await db.execute(
-        select(func.count()).select_from(AttributionEvent)
-        .where(AttributionEvent.brand_id == brand_id, AttributionEvent.event_type != "click")
-    )).scalar() or 0
+    total_conversions = (
+        await db.execute(
+            select(func.count())
+            .select_from(AttributionEvent)
+            .where(AttributionEvent.brand_id == brand_id, AttributionEvent.event_type != "click")
+        )
+    ).scalar() or 0
 
-    attribution_revenue = (await db.execute(
-        select(func.coalesce(func.sum(AttributionEvent.event_value), 0.0))
-        .where(AttributionEvent.brand_id == brand_id, AttributionEvent.event_type != "click")
-    )).scalar() or 0.0
+    attribution_revenue = (
+        await db.execute(
+            select(func.coalesce(func.sum(AttributionEvent.event_value), 0.0)).where(
+                AttributionEvent.brand_id == brand_id, AttributionEvent.event_type != "click"
+            )
+        )
+    ).scalar() or 0.0
 
     net_profit = float(gross) + float(attribution_revenue) - float(total_cost)
     rpm = (float(gross) / total_impressions * 1000) if total_impressions > 0 else 0.0
@@ -156,8 +178,9 @@ async def get_revenue_dashboard(db: AsyncSession, brand_id: uuid.UUID) -> dict:
         .group_by(PerformanceMetric.platform)
     )
     for row in platform_q.all():
-        by_platform[row[0].value if hasattr(row[0], 'value') else str(row[0])] = {
-            "revenue": float(row[1] or 0), "impressions": int(row[2] or 0),
+        by_platform[row[0].value if hasattr(row[0], "value") else str(row[0])] = {
+            "revenue": float(row[1] or 0),
+            "impressions": int(row[2] or 0),
         }
 
     return {
@@ -179,65 +202,104 @@ async def get_revenue_dashboard(db: AsyncSession, brand_id: uuid.UUID) -> dict:
 
 # ── Content Performance ──────────────────────────────────────────────────────
 
+
 async def get_content_performance(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
-    items = (await db.execute(
-        select(ContentItem).where(ContentItem.brand_id == brand_id).order_by(ContentItem.created_at.desc()).limit(50)
-    )).scalars().all()
+    items = (
+        (
+            await db.execute(
+                select(ContentItem)
+                .where(ContentItem.brand_id == brand_id)
+                .order_by(ContentItem.created_at.desc())
+                .limit(50)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     results = []
     for item in items:
-        metrics = (await db.execute(
-            select(
-                func.coalesce(func.sum(PerformanceMetric.impressions), 0),
-                func.coalesce(func.sum(PerformanceMetric.views), 0),
-                func.coalesce(func.sum(PerformanceMetric.clicks), 0),
-                func.coalesce(func.sum(PerformanceMetric.revenue), 0.0),
-                func.coalesce(func.avg(PerformanceMetric.ctr), 0.0),
-                func.coalesce(func.avg(PerformanceMetric.engagement_rate), 0.0),
-                func.coalesce(func.avg(PerformanceMetric.avg_watch_pct), 0.0),
-            ).where(PerformanceMetric.content_item_id == item.id)
-        )).one()
+        metrics = (
+            await db.execute(
+                select(
+                    func.coalesce(func.sum(PerformanceMetric.impressions), 0),
+                    func.coalesce(func.sum(PerformanceMetric.views), 0),
+                    func.coalesce(func.sum(PerformanceMetric.clicks), 0),
+                    func.coalesce(func.sum(PerformanceMetric.revenue), 0.0),
+                    func.coalesce(func.avg(PerformanceMetric.ctr), 0.0),
+                    func.coalesce(func.avg(PerformanceMetric.engagement_rate), 0.0),
+                    func.coalesce(func.avg(PerformanceMetric.avg_watch_pct), 0.0),
+                ).where(PerformanceMetric.content_item_id == item.id)
+            )
+        ).one()
 
-        attr_rev = (await db.execute(
-            select(func.coalesce(func.sum(AttributionEvent.event_value), 0.0))
-            .where(AttributionEvent.content_item_id == item.id, AttributionEvent.event_type != "click")
-        )).scalar() or 0.0
+        attr_rev = (
+            await db.execute(
+                select(func.coalesce(func.sum(AttributionEvent.event_value), 0.0)).where(
+                    AttributionEvent.content_item_id == item.id, AttributionEvent.event_type != "click"
+                )
+            )
+        ).scalar() or 0.0
 
         imps = int(metrics[0])
         revenue = float(metrics[3]) + float(attr_rev)
         profit = revenue - item.total_cost
 
-        results.append({
-            "content_id": str(item.id), "title": item.title,
-            "status": item.status, "platform": item.platform,
-            "impressions": imps, "views": int(metrics[1]), "clicks": int(metrics[2]),
-            "revenue": round(revenue, 2), "cost": round(item.total_cost, 2),
-            "profit": round(profit, 2),
-            "rpm": round((revenue / imps * 1000) if imps > 0 else 0, 2),
-            "ctr": round(float(metrics[4]), 4),
-            "engagement_rate": round(float(metrics[5]), 4),
-            "avg_watch_pct": round(float(metrics[6]), 4),
-        })
+        results.append(
+            {
+                "content_id": str(item.id),
+                "title": item.title,
+                "status": item.status,
+                "platform": item.platform,
+                "impressions": imps,
+                "views": int(metrics[1]),
+                "clicks": int(metrics[2]),
+                "revenue": round(revenue, 2),
+                "cost": round(item.total_cost, 2),
+                "profit": round(profit, 2),
+                "rpm": round((revenue / imps * 1000) if imps > 0 else 0, 2),
+                "ctr": round(float(metrics[4]), 4),
+                "engagement_rate": round(float(metrics[5]), 4),
+                "avg_watch_pct": round(float(metrics[6]), 4),
+            }
+        )
 
     return sorted(results, key=lambda x: -x["profit"])
 
 
 # ── Winner Detection + Clone ─────────────────────────────────────────────────
 
+
 async def detect_and_clone_winners(db: AsyncSession, brand_id: uuid.UUID) -> dict:
     perf = await get_content_performance(db, brand_id)
 
-    accounts = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalars().all()
+    accounts = (
+        (
+            await db.execute(
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
     available_platforms = list({a.platform.value for a in accounts})
 
-    items = [ContentPerformance(
-        content_id=p["content_id"], title=p["title"],
-        impressions=p["impressions"], revenue=p["revenue"], profit=p["profit"],
-        rpm=p["rpm"], ctr=p["ctr"], engagement_rate=p["engagement_rate"],
-        conversion_rate=0.0, platform=p["platform"] or "", account_id="",
-    ) for p in perf]
+    items = [
+        ContentPerformance(
+            content_id=p["content_id"],
+            title=p["title"],
+            impressions=p["impressions"],
+            revenue=p["revenue"],
+            profit=p["profit"],
+            rpm=p["rpm"],
+            ctr=p["ctr"],
+            engagement_rate=p["engagement_rate"],
+            conversion_rate=0.0,
+            platform=p["platform"] or "",
+            account_id="",
+        )
+        for p in perf
+    ]
 
     signals = detect_winners(items, available_platforms)
     winners = [s for s in signals if s.is_winner]
@@ -249,11 +311,15 @@ async def detect_and_clone_winners(db: AsyncSession, brand_id: uuid.UUID) -> dic
             cid = uuid.UUID(w.content_id)
             dup = (
                 await db.execute(
-                    select(WinnerCloneJob.id).where(
+                    select(WinnerCloneJob.id)
+                    .where(
                         WinnerCloneJob.brand_id == brand_id,
                         WinnerCloneJob.source_content_item_id == cid,
-                        WinnerCloneJob.status.in_([JobStatus.PENDING, JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.RETRYING]),
-                    ).limit(1)
+                        WinnerCloneJob.status.in_(
+                            [JobStatus.PENDING, JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.RETRYING]
+                        ),
+                    )
+                    .limit(1)
                 )
             ).scalar_one_or_none()
             if dup:
@@ -270,26 +336,41 @@ async def detect_and_clone_winners(db: AsyncSession, brand_id: uuid.UUID) -> dic
             clone_jobs.append(w.content_id)
 
     for w in winners:
-        await _update_memory(db, brand_id, f"winner:{w.content_id}",
-                           "content_performance", "winner",
-                           w.explanation, {"win_score": w.win_score, "title": w.title})
+        await _update_memory(
+            db,
+            brand_id,
+            f"winner:{w.content_id}",
+            "content_performance",
+            "winner",
+            w.explanation,
+            {"win_score": w.win_score, "title": w.title},
+        )
 
     for l in losers:
-        await _update_memory(db, brand_id, f"loser:{l.content_id}",
-                           "content_performance", "loser",
-                           l.explanation, {"title": l.title})
+        await _update_memory(
+            db, brand_id, f"loser:{l.content_id}", "content_performance", "loser", l.explanation, {"title": l.title}
+        )
 
     await db.flush()
     return {
         "total_analyzed": len(signals),
-        "winners": [{"content_id": s.content_id, "title": s.title, "win_score": s.win_score,
-                     "clone_recommended": s.clone_recommended, "explanation": s.explanation} for s in winners],
+        "winners": [
+            {
+                "content_id": s.content_id,
+                "title": s.title,
+                "win_score": s.win_score,
+                "clone_recommended": s.clone_recommended,
+                "explanation": s.explanation,
+            }
+            for s in winners
+        ],
         "losers": [{"content_id": s.content_id, "title": s.title, "explanation": s.explanation} for s in losers],
         "clone_jobs_created": len(clone_jobs),
     }
 
 
 # ── Suppression Engine ───────────────────────────────────────────────────────
+
 
 async def evaluate_suppressions(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
     perf = await get_content_performance(db, brand_id)
@@ -313,7 +394,9 @@ async def evaluate_suppressions(db: AsyncSession, brand_id: uuid.UUID) -> list[d
         elif p["impressions"] > 5000 and p.get("engagement_rate", 0) < 0.005:
             should_suppress = True
             reason = SuppressionReason.FATIGUE
-            detail = f"Engagement {p.get('engagement_rate', 0):.3%} after {p['impressions']} impressions — audience fatigue"
+            detail = (
+                f"Engagement {p.get('engagement_rate', 0):.3%} after {p['impressions']} impressions — audience fatigue"
+            )
 
         elif p.get("saturation_score", 0) > 0.85:
             should_suppress = True
@@ -339,12 +422,14 @@ async def evaluate_suppressions(db: AsyncSession, brand_id: uuid.UUID) -> list[d
             cid = uuid.UUID(p["content_id"])
             already = (
                 await db.execute(
-                    select(SuppressionAction.id).where(
+                    select(SuppressionAction.id)
+                    .where(
                         SuppressionAction.brand_id == brand_id,
                         SuppressionAction.target_entity_type == "content_item",
                         SuppressionAction.target_entity_id == cid,
                         SuppressionAction.is_lifted.is_(False),
-                    ).limit(1)
+                    )
+                    .limit(1)
                 )
             ).scalar_one_or_none()
             if already:
@@ -376,10 +461,14 @@ async def evaluate_suppressions(db: AsyncSession, brand_id: uuid.UUID) -> list[d
             )
             db.add(decision)
 
-            results.append({
-                "content_id": p["content_id"], "title": p["title"],
-                "reason": reason.value, "detail": detail,
-            })
+            results.append(
+                {
+                    "content_id": p["content_id"],
+                    "title": p["title"],
+                    "reason": reason.value,
+                    "detail": detail,
+                }
+            )
 
     await db.flush()
     return results
@@ -387,28 +476,40 @@ async def evaluate_suppressions(db: AsyncSession, brand_id: uuid.UUID) -> list[d
 
 # ── Bottleneck Classification ────────────────────────────────────────────────
 
+
 async def classify_bottlenecks(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
-    accounts = (await db.execute(
-        select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
-    )).scalars().all()
+    accounts = (
+        (
+            await db.execute(
+                select(CreatorAccount).where(CreatorAccount.brand_id == brand_id, CreatorAccount.is_active.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     results = []
     for acct in accounts:
-        metrics = (await db.execute(
-            select(
-                func.coalesce(func.sum(PerformanceMetric.impressions), 0),
-                func.coalesce(func.sum(PerformanceMetric.clicks), 0),
-                func.coalesce(func.avg(PerformanceMetric.ctr), 0.0),
-                func.coalesce(func.avg(PerformanceMetric.avg_watch_pct), 0.0),
-                func.coalesce(func.avg(PerformanceMetric.engagement_rate), 0.0),
-                func.coalesce(func.sum(PerformanceMetric.revenue), 0.0),
-            ).where(PerformanceMetric.creator_account_id == acct.id)
-        )).one()
+        metrics = (
+            await db.execute(
+                select(
+                    func.coalesce(func.sum(PerformanceMetric.impressions), 0),
+                    func.coalesce(func.sum(PerformanceMetric.clicks), 0),
+                    func.coalesce(func.avg(PerformanceMetric.ctr), 0.0),
+                    func.coalesce(func.avg(PerformanceMetric.avg_watch_pct), 0.0),
+                    func.coalesce(func.avg(PerformanceMetric.engagement_rate), 0.0),
+                    func.coalesce(func.sum(PerformanceMetric.revenue), 0.0),
+                ).where(PerformanceMetric.creator_account_id == acct.id)
+            )
+        ).one()
 
-        conversions = (await db.execute(
-            select(func.count()).select_from(AttributionEvent)
-            .where(AttributionEvent.creator_account_id == acct.id, AttributionEvent.event_type != "click")
-        )).scalar() or 0
+        conversions = (
+            await db.execute(
+                select(func.count())
+                .select_from(AttributionEvent)
+                .where(AttributionEvent.creator_account_id == acct.id, AttributionEvent.event_type != "click")
+            )
+        ).scalar() or 0
 
         inp = BottleneckInput(
             impressions=int(metrics[0]),
@@ -423,54 +524,79 @@ async def classify_bottlenecks(db: AsyncSession, brand_id: uuid.UUID) -> list[di
             posting_capacity_used_pct=0.5,
         )
         result = classify_bottleneck(inp)
-        results.append({
-            "account_id": str(acct.id),
-            "username": acct.platform_username,
-            "platform": acct.platform.value,
-            "primary_bottleneck": result.primary_bottleneck,
-            "severity": result.severity,
-            "explanation": result.explanation,
-            "recommended_actions": result.recommended_actions,
-            "all_bottlenecks": result.all_bottlenecks,
-        })
+        results.append(
+            {
+                "account_id": str(acct.id),
+                "username": acct.platform_username,
+                "platform": acct.platform.value,
+                "primary_bottleneck": result.primary_bottleneck,
+                "severity": result.severity,
+                "explanation": result.explanation,
+                "recommended_actions": result.recommended_actions,
+                "all_bottlenecks": result.all_bottlenecks,
+            }
+        )
 
     return results
 
 
 # ── Funnel View ──────────────────────────────────────────────────────────────
 
+
 async def get_funnel_data(db: AsyncSession, brand_id: uuid.UUID) -> dict:
-    impressions = (await db.execute(
-        select(func.coalesce(func.sum(PerformanceMetric.impressions), 0))
-        .where(PerformanceMetric.brand_id == brand_id)
-    )).scalar() or 0
+    impressions = (
+        await db.execute(
+            select(func.coalesce(func.sum(PerformanceMetric.impressions), 0)).where(
+                PerformanceMetric.brand_id == brand_id
+            )
+        )
+    ).scalar() or 0
 
-    clicks = (await db.execute(
-        select(func.count()).select_from(AttributionEvent)
-        .where(AttributionEvent.brand_id == brand_id, AttributionEvent.event_type == "click")
-    )).scalar() or 0
+    clicks = (
+        await db.execute(
+            select(func.count())
+            .select_from(AttributionEvent)
+            .where(AttributionEvent.brand_id == brand_id, AttributionEvent.event_type == "click")
+        )
+    ).scalar() or 0
 
-    event_types = ["click", "opt_in", "lead", "booked_call", "purchase",
-                   "coupon_redemption", "affiliate_conversion", "assisted_conversion"]
+    event_types = [
+        "click",
+        "opt_in",
+        "lead",
+        "booked_call",
+        "purchase",
+        "coupon_redemption",
+        "affiliate_conversion",
+        "assisted_conversion",
+    ]
     funnel = {}
     for et in event_types:
-        count = (await db.execute(
-            select(func.count()).select_from(AttributionEvent)
-            .where(AttributionEvent.brand_id == brand_id, AttributionEvent.event_type == et)
-        )).scalar() or 0
-        value = (await db.execute(
-            select(func.coalesce(func.sum(AttributionEvent.event_value), 0.0))
-            .where(AttributionEvent.brand_id == brand_id, AttributionEvent.event_type == et)
-        )).scalar() or 0.0
+        count = (
+            await db.execute(
+                select(func.count())
+                .select_from(AttributionEvent)
+                .where(AttributionEvent.brand_id == brand_id, AttributionEvent.event_type == et)
+            )
+        ).scalar() or 0
+        value = (
+            await db.execute(
+                select(func.coalesce(func.sum(AttributionEvent.event_value), 0.0)).where(
+                    AttributionEvent.brand_id == brand_id, AttributionEvent.event_type == et
+                )
+            )
+        ).scalar() or 0.0
         funnel[et] = {"count": count, "value": round(float(value), 2)}
 
     return {
-        "impressions": impressions, "total_clicks": clicks,
+        "impressions": impressions,
+        "total_clicks": clicks,
         "funnel_stages": funnel,
     }
 
 
 # ── Revenue Leaks ────────────────────────────────────────────────────────────
+
 
 async def preview_revenue_leaks(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]:
     """Read-only leak list for dashboards (no suppression persistence)."""
@@ -478,25 +604,29 @@ async def preview_revenue_leaks(db: AsyncSession, brand_id: uuid.UUID) -> list[d
     leaks = []
     for b in bottlenecks:
         if b["severity"] in ("critical", "warning"):
-            leaks.append({
-                "type": "bottleneck",
-                "entity": f"{b['username']} ({b['platform']})",
-                "issue": b["primary_bottleneck"],
-                "severity": b["severity"],
-                "detail": b["explanation"],
-                "actions": b["recommended_actions"],
-            })
+            leaks.append(
+                {
+                    "type": "bottleneck",
+                    "entity": f"{b['username']} ({b['platform']})",
+                    "issue": b["primary_bottleneck"],
+                    "severity": b["severity"],
+                    "detail": b["explanation"],
+                    "actions": b["recommended_actions"],
+                }
+            )
     perf = await get_content_performance(db, brand_id)
     for p in perf:
         if p["impressions"] > 500 and p["profit"] < -5:
-            leaks.append({
-                "type": "performance",
-                "entity": p["title"],
-                "issue": "low_profit",
-                "severity": "critical",
-                "detail": f"Negative profit ${p['profit']:.2f} after {p['impressions']} impressions",
-                "actions": ["Suppress or rework content", "Check offer fit"],
-            })
+            leaks.append(
+                {
+                    "type": "performance",
+                    "entity": p["title"],
+                    "issue": "low_profit",
+                    "severity": "critical",
+                    "detail": f"Negative profit ${p['profit']:.2f} after {p['impressions']} impressions",
+                    "actions": ["Suppress or rework content", "Check offer fit"],
+                }
+            )
     return leaks
 
 
@@ -507,37 +637,47 @@ async def get_revenue_leaks(db: AsyncSession, brand_id: uuid.UUID) -> list[dict]
 
     for b in bottlenecks:
         if b["severity"] in ("critical", "warning"):
-            leaks.append({
-                "type": "bottleneck",
-                "entity": f"{b['username']} ({b['platform']})",
-                "issue": b["primary_bottleneck"],
-                "severity": b["severity"],
-                "detail": b["explanation"],
-                "actions": b["recommended_actions"],
-            })
+            leaks.append(
+                {
+                    "type": "bottleneck",
+                    "entity": f"{b['username']} ({b['platform']})",
+                    "issue": b["primary_bottleneck"],
+                    "severity": b["severity"],
+                    "detail": b["explanation"],
+                    "actions": b["recommended_actions"],
+                }
+            )
 
     for s in suppressions:
-        leaks.append({
-            "type": "suppression",
-            "entity": s["title"],
-            "issue": s["reason"],
-            "severity": "critical",
-            "detail": s["detail"],
-            "actions": ["Suppress content", "Rewrite", "Change offer"],
-        })
+        leaks.append(
+            {
+                "type": "suppression",
+                "entity": s["title"],
+                "issue": s["reason"],
+                "severity": "critical",
+                "detail": s["detail"],
+                "actions": ["Suppress content", "Rewrite", "Change offer"],
+            }
+        )
 
     return leaks
 
 
 # ── Memory Engine ────────────────────────────────────────────────────────────
 
+
 async def _update_memory(
-    db: AsyncSession, brand_id: uuid.UUID, key: str,
-    memory_type: str, category: str, value: str, structured: dict,
+    db: AsyncSession,
+    brand_id: uuid.UUID,
+    key: str,
+    memory_type: str,
+    category: str,
+    value: str,
+    structured: dict,
 ):
-    existing = (await db.execute(
-        select(MemoryEntry).where(MemoryEntry.brand_id == brand_id, MemoryEntry.key == key)
-    )).scalar_one_or_none()
+    existing = (
+        await db.execute(select(MemoryEntry).where(MemoryEntry.brand_id == brand_id, MemoryEntry.key == key))
+    ).scalar_one_or_none()
 
     if existing:
         existing.value = value
@@ -545,9 +685,13 @@ async def _update_memory(
         existing.times_reinforced += 1
     else:
         entry = MemoryEntry(
-            brand_id=brand_id, memory_type=memory_type,
-            category=category, key=key, value=value,
-            structured_value=structured, confidence=0.7,
+            brand_id=brand_id,
+            memory_type=memory_type,
+            category=category,
+            key=key,
+            value=value,
+            structured_value=structured,
+            confidence=0.7,
             source_type="analytics_service",
         )
         db.add(entry)

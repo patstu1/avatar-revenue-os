@@ -1,4 +1,5 @@
 """Unit tests for offer lab engine."""
+
 from packages.scoring.offer_lab_engine import (
     OFFER_TYPES,
     VARIANT_TYPES,
@@ -16,7 +17,16 @@ from packages.scoring.offer_lab_engine import (
 
 class TestGeneration:
     def test_generate_offer(self):
-        o = generate_offer({"name": "Test Product", "monetization_method": "affiliate", "payout_amount": 30, "epc": 2.0, "conversion_rate": 0.04}, {"niche": "tech"})
+        o = generate_offer(
+            {
+                "name": "Test Product",
+                "monetization_method": "affiliate",
+                "payout_amount": 30,
+                "epc": 2.0,
+                "conversion_rate": 0.04,
+            },
+            {"niche": "tech"},
+        )
         assert o["offer_name"] == "Test Product"
         assert o["truth_label"] == "recommendation_only"
         assert o["expected_upside"] > 0
@@ -57,11 +67,27 @@ class TestBundlesUpsells:
 
 class TestScoring:
     def test_high_score(self):
-        s = score_offer({"expected_upside": 80, "confidence": 0.9, "platform_fit": 0.8, "margin_estimate": 40, "trust_requirement": "low"})
+        s = score_offer(
+            {
+                "expected_upside": 80,
+                "confidence": 0.9,
+                "platform_fit": 0.8,
+                "margin_estimate": 40,
+                "trust_requirement": "low",
+            }
+        )
         assert s > 0.5
 
     def test_low_score(self):
-        s = score_offer({"expected_upside": 0, "confidence": 0.1, "platform_fit": 0.2, "margin_estimate": 0, "trust_requirement": "high"})
+        s = score_offer(
+            {
+                "expected_upside": 0,
+                "confidence": 0.1,
+                "platform_fit": 0.2,
+                "margin_estimate": 0,
+                "trust_requirement": "high",
+            }
+        )
         assert s < 0.4
 
 
@@ -75,7 +101,15 @@ class TestIssues:
         assert any(i["blocker_type"] == "low_confidence" for i in issues)
 
     def test_clean_offer(self):
-        issues = detect_offer_issues({"expected_upside": 50, "price_point": 30, "confidence": 0.7, "trust_requirement": "medium", "platform_fit": 0.6})
+        issues = detect_offer_issues(
+            {
+                "expected_upside": 50,
+                "price_point": 30,
+                "confidence": 0.7,
+                "trust_requirement": "medium",
+                "platform_fit": 0.6,
+            }
+        )
         assert len(issues) == 0
 
 
@@ -86,12 +120,22 @@ class TestRevision:
         assert "revise_pricing" in recs
 
     def test_keep_current(self):
-        recs = recommend_revision({"expected_upside": 80, "confidence": 0.9, "platform_fit": 0.8, "margin_estimate": 40, "trust_requirement": "low"}, [])
+        recs = recommend_revision(
+            {
+                "expected_upside": 80,
+                "confidence": 0.9,
+                "platform_fit": 0.8,
+                "margin_estimate": 40,
+                "trust_requirement": "low",
+            },
+            [],
+        )
         assert "keep_current" in recs
 
 
 class TestTypes:
     def test_offer_types(self):
         assert len(OFFER_TYPES) == 10
+
     def test_variant_types(self):
         assert len(VARIANT_TYPES) == 8

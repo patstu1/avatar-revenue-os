@@ -1,4 +1,5 @@
 """Autonomous execution Phase A — signal scanning, auto-queue, warmup & output."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

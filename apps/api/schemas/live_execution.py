@@ -1,4 +1,5 @@
 """Pydantic schemas for Live Execution Closure Phase 1."""
+
 from __future__ import annotations
 
 import uuid
@@ -9,10 +10,12 @@ from pydantic import BaseModel, Field
 
 # ── Analytics ──────────────────────────────────────────────────────────
 
+
 class AnalyticsImportCreate(BaseModel):
     source: str
     source_category: str = "social"
     events: list[dict[str, Any]] = Field(default_factory=list)
+
 
 class AnalyticsImportOut(BaseModel):
     id: uuid.UUID
@@ -26,8 +29,10 @@ class AnalyticsImportOut(BaseModel):
     status: str
     error_message: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
+
 
 class AnalyticsEventOut(BaseModel):
     id: uuid.UUID
@@ -42,16 +47,19 @@ class AnalyticsEventOut(BaseModel):
     metric_value: float
     truth_level: str
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Conversions ────────────────────────────────────────────────────────
 
+
 class ConversionImportCreate(BaseModel):
     source: str
     source_category: str = "checkout"
     conversions: list[dict[str, Any]] = Field(default_factory=list)
+
 
 class ConversionImportOut(BaseModel):
     id: uuid.UUID
@@ -63,8 +71,10 @@ class ConversionImportOut(BaseModel):
     status: str
     error_message: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
+
 
 class ConversionEventOut(BaseModel):
     id: uuid.UUID
@@ -80,15 +90,18 @@ class ConversionEventOut(BaseModel):
     currency: str
     truth_level: str
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Experiment Truth ───────────────────────────────────────────────────
 
+
 class ExperimentObservationImportCreate(BaseModel):
     source: str
     observations: list[dict[str, Any]] = Field(default_factory=list)
+
 
 class ExperimentObservationImportOut(BaseModel):
     id: uuid.UUID
@@ -99,8 +112,10 @@ class ExperimentObservationImportOut(BaseModel):
     status: str
     error_message: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
+
 
 class ExperimentLiveResultOut(BaseModel):
     id: uuid.UUID
@@ -117,11 +132,13 @@ class ExperimentLiveResultOut(BaseModel):
     truth_level: str
     previous_truth_level: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── CRM / Contacts ────────────────────────────────────────────────────
+
 
 class CrmContactCreate(BaseModel):
     email: str | None = None
@@ -131,6 +148,7 @@ class CrmContactCreate(BaseModel):
     lifecycle_stage: str = "subscriber"
     source: str = "manual"
     tags: list[str] = Field(default_factory=list)
+
 
 class CrmContactOut(BaseModel):
     id: uuid.UUID
@@ -144,8 +162,10 @@ class CrmContactOut(BaseModel):
     source: str
     sync_status: str
     created_at: datetime
+
     class Config:
         from_attributes = True
+
 
 class CrmSyncOut(BaseModel):
     id: uuid.UUID
@@ -159,11 +179,13 @@ class CrmSyncOut(BaseModel):
     status: str
     error_message: str | None = None
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Email ──────────────────────────────────────────────────────────────
+
 
 class EmailSendCreate(BaseModel):
     to_email: str
@@ -174,6 +196,7 @@ class EmailSendCreate(BaseModel):
     sequence_step: str | None = None
     provider: str = "smtp"
     contact_id: uuid.UUID | None = None
+
 
 class EmailSendOut(BaseModel):
     id: uuid.UUID
@@ -187,11 +210,13 @@ class EmailSendOut(BaseModel):
     error_message: str | None = None
     retry_count: int
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── SMS ────────────────────────────────────────────────────────────────
+
 
 class SmsSendCreate(BaseModel):
     to_phone: str
@@ -199,6 +224,7 @@ class SmsSendCreate(BaseModel):
     sequence_step: str | None = None
     provider: str = "twilio"
     contact_id: uuid.UUID | None = None
+
 
 class SmsSendOut(BaseModel):
     id: uuid.UUID
@@ -212,11 +238,13 @@ class SmsSendOut(BaseModel):
     error_message: str | None = None
     retry_count: int
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Messaging Blockers ────────────────────────────────────────────────
+
 
 class MessagingBlockerOut(BaseModel):
     id: uuid.UUID
@@ -228,11 +256,13 @@ class MessagingBlockerOut(BaseModel):
     operator_action_needed: str
     resolved: bool
     created_at: datetime
+
     class Config:
         from_attributes = True
 
 
 # ── Shared ────────────────────────────────────────────────────────────
+
 
 class RecomputeSummaryOut(BaseModel):
     created: int = 0
