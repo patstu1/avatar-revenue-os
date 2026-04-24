@@ -74,9 +74,9 @@ async def _get_smtp_credentials(db, org_id: uuid.UUID) -> dict:
     configured = bool(host and username and password)
     if not configured:
         logger.warning(
-            "outreach.smtp_not_configured",
-            org_id=str(org_id),
-            hint="Add SMTP credentials via Settings > Integrations (provider_key='smtp')",
+            "outreach.smtp_not_configured org_id=%s hint=%s",
+            str(org_id),
+            "Add SMTP credentials via Settings > Integrations (provider_key='smtp')",
         )
 
     return {
@@ -110,9 +110,9 @@ async def _get_imap_credentials(db, org_id: uuid.UUID) -> dict:
     configured = bool(host and username and password)
     if not configured:
         logger.warning(
-            "outreach.imap_not_configured",
-            org_id=str(org_id),
-            hint="Add IMAP credentials via Settings > Integrations (provider_key='imap')",
+            "outreach.imap_not_configured org_id=%s hint=%s",
+            str(org_id),
+            "Add IMAP credentials via Settings > Integrations (provider_key='imap')",
         )
 
     return {
@@ -497,9 +497,10 @@ async def _poll_inbox_impl(org_id: str) -> dict:
             mail.login(imap_creds["username"], imap_creds["password"])
             mail.select("INBOX")
 
-            # Fetch unread emails — no artificial caps
+            # Fetch unread emails — cap per-cycle to avoid OOM on large inboxes
             _, message_numbers = mail.search(None, "UNSEEN")
             nums = message_numbers[0].split() if message_numbers[0] else []
+            nums = nums[:50]  # Process at most 50 per beat cycle; remainder caught next run
 
             ingested = 0
             errors = 0
