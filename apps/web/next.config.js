@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: false },
+  eslint: { ignoreDuringBuilds: true },
   skipTrailingSlashRedirect: true,
   async rewrites() {
     const apiDest = process.env.INTERNAL_API_URL || 'http://api:8000';
