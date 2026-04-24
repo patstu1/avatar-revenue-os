@@ -1,1 +1,0 @@
-"""Trend / Viral Opportunity workers."""

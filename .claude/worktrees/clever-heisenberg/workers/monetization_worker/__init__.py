@@ -1,1 +1,0 @@
-# Monetization Machine Celery worker

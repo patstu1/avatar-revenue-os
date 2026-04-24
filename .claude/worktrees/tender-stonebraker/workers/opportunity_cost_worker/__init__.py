@@ -1,1 +1,0 @@
-"""Opportunity-Cost Ranking workers."""

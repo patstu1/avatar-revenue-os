@@ -58,3 +58,4 @@ celerybeat-schedule
 uploads/
 media/
 .backups/
+.claude/

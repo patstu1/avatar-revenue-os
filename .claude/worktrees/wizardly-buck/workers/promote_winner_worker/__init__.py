@@ -1,1 +1,0 @@
-"""Promote-Winner workers."""
