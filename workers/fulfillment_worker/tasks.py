@@ -534,6 +534,11 @@ async def _execute_content_pack_jobs() -> dict:
     from packages.db.models.fulfillment import ProductionJob
     from packages.db.models.gm_control import GMEscalation
     from packages.media.storage import MediaStorage
+    # Ensure FK-referenced models are in the mapper registry before any flush.
+    # ClientProject.proposal_id references proposals.id — importing Proposal
+    # here prevents NoReferencedTableError / PendingRollbackError mid-flush.
+    from packages.db.models.proposals import Proposal  # noqa: F401
+    from packages.db.models.fulfillment import ClientProject  # noqa: F401
 
     Session, engine = _fresh_session_factory()
     async with Session() as db:
