@@ -482,6 +482,7 @@ Brief:
 
 
 _GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
+_ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-4-20250514"
 _ANTHROPIC_PREMIUM_MODEL = "claude-opus-4-5"
 
 _PREMIUM_AVENUE_SLUGS = frozenset({"high_ticket", "sponsor_deals"})
@@ -495,25 +496,35 @@ def _select_content_pack_provider(job) -> tuple[str | None, str | None, str | No
       - avenue_slug in _PREMIUM_AVENUE_SLUGS
       - metadata_json.tier in _PREMIUM_TIER_KEYS
 
-    All other jobs default to Groq (cheaper, fast, high-quality).
-    Returns (None, None, None) when the required key is missing.
+    Default: Anthropic Sonnet (confirmed working in production).
+    Groq used only when GROQ_CONTENT_PACK_MODEL env var is explicitly set
+    AND GROQ_API_KEY is non-empty (opt-in for quota-bearing accounts).
+
+    Returns (None, None, error_msg) when the required key is missing.
     """
     meta = job.metadata_json or {}
     tier = str(meta.get("tier", "")).lower()
     is_premium = job.avenue_slug in _PREMIUM_AVENUE_SLUGS or tier in _PREMIUM_TIER_KEYS
 
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+
     if is_premium:
-        key = os.environ.get("ANTHROPIC_API_KEY", "")
         model = os.environ.get("ANTHROPIC_PREMIUM_MODEL", _ANTHROPIC_PREMIUM_MODEL)
-        if not key:
+        if not anthropic_key:
             return None, None, "ANTHROPIC_API_KEY not configured"
-        return "anthropic", model, key
-    else:
-        key = os.environ.get("GROQ_API_KEY", "")
-        model = os.environ.get("GROQ_CONTENT_PACK_MODEL", _GROQ_DEFAULT_MODEL)
-        if not key:
-            return None, None, "GROQ_API_KEY not configured"
-        return "groq", model, key
+        return "anthropic", model, anthropic_key
+
+    # Opt-in Groq: only use when explicitly configured with a quota-bearing key
+    groq_key = os.environ.get("GROQ_API_KEY", "")
+    groq_model_override = os.environ.get("GROQ_CONTENT_PACK_MODEL", "")
+    if groq_key and groq_model_override:
+        return "groq", groq_model_override, groq_key
+
+    # Default: Anthropic Sonnet
+    model = os.environ.get("ANTHROPIC_DEFAULT_MODEL", _ANTHROPIC_DEFAULT_MODEL)
+    if not anthropic_key:
+        return None, None, "ANTHROPIC_API_KEY not configured"
+    return "anthropic", model, anthropic_key
 
 
 async def _execute_content_pack_jobs() -> dict:
