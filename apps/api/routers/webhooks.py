@@ -295,6 +295,143 @@ async def _process_operator_payment_event(
             webhook_event.processed = True
             await db.flush()
 
+    # ── checkout.session.completed / payment_intent.succeeded
+    #    (ProofHook public package buy-now path) ──
+    # Public Payment Links carry metadata.source in {proofhook_public_checkout,
+    # proofhook_public_checkout_live} plus org_id, package (or package_slug),
+    # avenue, and (problematically) a STATIC reused proposal_id per package.
+    # record_payment_from_stripe drops that proposal_id (corruption guard) and
+    # stamps package_slug/package_name onto Payment.metadata_json. Then we
+    # activate the Client + IntakeRequest from this same Payment so buyer
+    # money produces a fulfillable artifact even though the buyer never had
+    # a Proposal.
+    elif (
+        event_type in ("checkout.session.completed", "payment_intent.succeeded")
+        and meta.get("source") in ("proofhook_public_checkout", "proofhook_public_checkout_live")
+    ):
+        meta_org_id = _safe_uuid(meta.get("org_id"))
+        if meta_org_id is None:
+            logger.warning(
+                "stripe.public_checkout_no_org",
+                event_id=event_id,
+                source=meta.get("source"),
+            )
+            return
+        if event_type == "checkout.session.completed":
+            amount_cents = int(obj.get("amount_total") or obj.get("amount_subtotal") or 0)
+        else:
+            amount_cents = int(obj.get("amount_received") or obj.get("amount") or 0)
+        if amount_cents <= 0:
+            return
+
+        from apps.api.services.client_activation import activate_client_from_payment
+        from apps.api.services.proposals_service import record_payment_from_stripe
+
+        payment = await record_payment_from_stripe(
+            db,
+            org_id=meta_org_id,
+            event_id=event_id or "",
+            event_type=event_type,
+            amount_cents=amount_cents,
+            stripe_object=obj,
+            brand_id=brand_id,
+            currency=str(obj.get("currency") or "usd"),
+            payment_intent_id=(
+                obj.get("payment_intent") if isinstance(obj.get("payment_intent"), str) else None
+            ),
+            checkout_session_id=obj.get("id") if event_type == "checkout.session.completed" else None,
+            customer_email=str(obj.get("customer_email") or obj.get("receipt_email") or ""),
+            customer_name=str((obj.get("customer_details") or {}).get("name") or ""),
+            metadata=meta,
+        )
+
+        if payment is not None and payment.status == "succeeded":
+            try:
+                await activate_client_from_payment(db, payment=payment)
+            except Exception as act_err:
+                logger.warning(
+                    "stripe.public_checkout_activation_failed",
+                    payment_id=str(payment.id),
+                    error=str(act_err)[:200],
+                )
+
+            # Canonical revenue ledger entry — idempotent on webhook_ref.
+            # revenue_ledger.brand_id is NOT NULL. If the public link metadata
+            # didn't carry brand_id we cannot write the ledger row safely
+            # without picking an arbitrary brand; skip with a clear log so
+            # the operator can update Stripe metadata. Payment + Client +
+            # IntakeRequest still succeed — the buyer chain is unaffected.
+            webhook_ref = f"stripe_public:{event_id}" if event_id else None
+            if brand_id is None:
+                logger.warning(
+                    "stripe.public_checkout_no_brand_for_ledger",
+                    event_id=event_id,
+                    payment_id=str(payment.id),
+                    hint="Add metadata.brand_id to the Stripe Payment Link to enable ledger attribution.",
+                )
+            else:
+                ledger_existing = None
+                if webhook_ref:
+                    ledger_existing = (
+                        await db.execute(
+                            select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref)
+                        )
+                    ).scalar_one_or_none()
+                if ledger_existing is None:
+                    amount = float(amount_cents) / 100.0
+                    pkg_slug = meta.get("package_slug") or meta.get("package")
+                    pkg_name = meta.get("package_name")
+                    entry = RevenueLedgerEntry(
+                        revenue_source_type="service_fee",
+                        brand_id=brand_id,
+                        offer_id=offer_id,
+                        content_item_id=content_item_id,
+                        gross_amount=amount,
+                        net_amount=amount,
+                        currency=str(obj.get("currency") or "usd").upper(),
+                        payment_state="confirmed",
+                        attribution_state="auto_attributed" if pkg_slug else "unattributed",
+                        payment_processor="stripe",
+                        external_transaction_id=str(obj.get("payment_intent") or obj.get("id") or ""),
+                        webhook_ref=webhook_ref,
+                        description=(
+                            f"ProofHook public checkout: {pkg_name or pkg_slug or 'package'} "
+                            f"${amount:.2f} — {obj.get('customer_email') or ''}"
+                        )[:500],
+                        metadata_json={
+                            "stripe_event_id": event_id,
+                            "stripe_event_type": event_type,
+                            "source": meta.get("source"),
+                            "package_slug": pkg_slug,
+                            "package_name": pkg_name,
+                            "fulfillment_type": meta.get("fulfillment_type") or "content_pack",
+                            "customer_email": obj.get("customer_email", ""),
+                            "payment_id": str(payment.id) if payment is not None else None,
+                        },
+                    )
+                    db.add(entry)
+                    await db.flush()
+
+                    await emit_event(
+                        db,
+                        domain="monetization",
+                        event_type="ledger.proofhook_public_checkout",
+                        summary=f"ProofHook public checkout: ${amount:.2f}",
+                        org_id=meta_org_id,
+                        brand_id=brand_id,
+                        entity_type="revenue_ledger",
+                        entity_id=entry.id,
+                        details={
+                            "gross": amount,
+                            "source": meta.get("source"),
+                            "package_slug": pkg_slug,
+                            "stripe_event_id": event_id,
+                            "payment_id": str(payment.id) if payment is not None else None,
+                        },
+                    )
+            webhook_event.processed = True
+            await db.flush()
+
     # ── checkout.session.completed (operator offer payments) ──
     elif event_type == "checkout.session.completed" and brand_id and meta.get("source") == "outreach_proposal":
         amount = float(obj.get("amount_total", 0)) / 100.0

@@ -36,6 +36,14 @@ from packages.db.models.proposals import (
 
 logger = structlog.get_logger()
 
+# Stripe metadata.source values that identify a public ProofHook checkout
+# (no Proposal exists for the buyer). These links carry a static, reused
+# proposal_id per package which must be ignored — see record_payment_from_stripe.
+PUBLIC_CHECKOUT_SOURCES = frozenset({
+    "proofhook_public_checkout",
+    "proofhook_public_checkout_live",
+})
+
 
 @dataclass
 class LineItemInput:
@@ -357,9 +365,35 @@ async def record_payment_from_stripe(
         return existing
 
     meta = (metadata or {}) if isinstance(metadata, dict) else {}
+    source = str(meta.get("source") or "").strip()
+    is_public_checkout = source in PUBLIC_CHECKOUT_SOURCES
+
     proposal_id = _safe_uuid(meta.get("proposal_id"))
     payment_link_id = _safe_uuid(meta.get("payment_link_id"))
     offer_id = _safe_uuid(meta.get("offer_id"))
+
+    # Public ProofHook checkout links carry a STATIC, REUSED proposal_id per
+    # package. Linking to it would flip a draft scaffolding proposal to paid
+    # and, via _recover_email_from_proposal, collapse every public buyer of a
+    # given package onto the same Client. Drop the link entirely for this
+    # source — the Payment row stands alone, attribution flows through
+    # package_slug/customer_email instead.
+    proposal_id_skipped_reason = None
+    if is_public_checkout and proposal_id is not None:
+        proposal_id_skipped_reason = "public_checkout"
+        proposal_id = None
+
+    package_slug = meta.get("package_slug") or meta.get("package") or None
+    if isinstance(package_slug, str):
+        package_slug = package_slug[:60].strip() or None
+    else:
+        package_slug = None
+    package_name = meta.get("package_name") or None
+    if isinstance(package_name, str):
+        package_name = package_name[:255].strip() or None
+    else:
+        package_name = None
+
     # Batch 9: avenue attribution — prefer explicit metadata.avenue on the
     # Stripe object; fall back to the originating proposal's avenue_slug
     # once resolved. Keeps every downstream entity (Client, IntakeRequest,
@@ -371,7 +405,9 @@ async def record_payment_from_stripe(
     else:
         avenue_slug = None
 
-    # Try to resolve payment_link by stripe link id if not in metadata
+    # Try to resolve payment_link by stripe link id if not in metadata.
+    # Skip the proposal-id back-fill for public checkout — same corruption
+    # rationale as above.
     if payment_link_id is None and stripe_object.get("payment_link"):
         link_row = (
             await db.execute(
@@ -383,8 +419,19 @@ async def record_payment_from_stripe(
         ).scalar_one_or_none()
         if link_row is not None:
             payment_link_id = link_row.id
-            if proposal_id is None and link_row.proposal_id is not None:
+            if not is_public_checkout and proposal_id is None and link_row.proposal_id is not None:
                 proposal_id = link_row.proposal_id
+
+    # Persist package + skip-reason audit on metadata_json so downstream
+    # readers (operator dashboards, cascade) can see them without a model
+    # migration. metadata_json is JSONB so additive keys are safe.
+    persisted_meta = dict(meta)
+    if package_slug:
+        persisted_meta["package_slug"] = package_slug
+    if package_name:
+        persisted_meta["package_name"] = package_name
+    if proposal_id_skipped_reason:
+        persisted_meta["proposal_id_skipped_reason"] = proposal_id_skipped_reason
 
     now = datetime.now(timezone.utc)
     payment = Payment(
@@ -405,7 +452,7 @@ async def record_payment_from_stripe(
         customer_email=customer_email[:255],
         customer_name=customer_name[:255],
         raw_event_json={"event_type": event_type, "object": stripe_object},
-        metadata_json=meta,
+        metadata_json=persisted_meta,
         avenue_slug=avenue_slug,
     )
     db.add(payment)

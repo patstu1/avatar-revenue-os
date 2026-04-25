@@ -116,7 +116,10 @@ async def activate_client_from_payment(
     # renewal detection on is_recurring alone.
     from apps.api.services.retention_service import recurring_period_for_package
 
-    src_pkg = proposal.package_slug if proposal else None
+    # Public-checkout payments have no proposal — fall back to the package
+    # slug stamped onto Payment.metadata_json by record_payment_from_stripe.
+    payment_meta = (payment.metadata_json or {}) if isinstance(payment.metadata_json, dict) else {}
+    src_pkg = (proposal.package_slug if proposal else None) or payment_meta.get("package_slug")
     period_days = recurring_period_for_package(src_pkg)
 
     client = Client(
@@ -180,11 +183,24 @@ async def activate_client_from_payment(
     except Exception as stage_exc:
         logger.warning("stage_controller.mark_failed", entity="client", error=str(stage_exc)[:150])
 
+    # Public-checkout payments have no proposal but DO carry package_slug
+    # / package_name on Payment.metadata_json — pass them through so the
+    # IntakeRequest, ClientProject, and downstream brief/job all know which
+    # ProofHook package was bought.
+    package_context = None
+    if not payment.proposal_id and payment_meta.get("package_slug"):
+        package_context = {
+            "package_slug": payment_meta.get("package_slug"),
+            "package_name": payment_meta.get("package_name"),
+            "source": payment_meta.get("source"),
+        }
+
     intake = await start_onboarding(
         db,
         client=client,
         proposal_id=payment.proposal_id,
         payment_id=payment.id,
+        package_context=package_context,
     )
     return (client, True, intake)
 
@@ -198,6 +214,7 @@ async def start_onboarding(
     schema: dict | None = None,
     title: str | None = None,
     instructions: str | None = None,
+    package_context: dict | None = None,
 ) -> IntakeRequest:
     """Create the first IntakeRequest for a client and mark it sent.
 
@@ -262,6 +279,17 @@ async def start_onboarding(
         schema_to_use = schema or DEFAULT_INTAKE_SCHEMA
         instructions_to_use = instructions or "Please complete the following to kick off production."
         title_to_use = title or f"Intake for {client.display_name}"
+
+    # Stamp the package context into schema_json (additive, JSONB-safe). The
+    # email builder already reads schema_json["package_slug"], and
+    # create_project_from_intake will use these when no Proposal is linked.
+    if package_context and isinstance(package_context, dict) and package_context.get("package_slug"):
+        schema_to_use = dict(schema_to_use)
+        schema_to_use["package_slug"] = package_context.get("package_slug")
+        if package_context.get("package_name"):
+            schema_to_use["package_name"] = package_context.get("package_name")
+        if package_context.get("source"):
+            schema_to_use["source"] = package_context.get("source")
 
     intake = IntakeRequest(
         org_id=client.org_id,
@@ -429,7 +457,7 @@ async def send_intake_invite(
     from packages.clients.email_templates import build_intake_invite
     from packages.clients.external_clients import SmtpEmailClient
 
-    smtp = await SmtpEmailClient.from_db(db, client.org_id)
+    smtp = await SmtpEmailClient.resolve(db, client.org_id)
     if smtp is None:
         result = {"success": False, "error": "no_smtp_configured", "provider": None}
     else:

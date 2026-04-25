@@ -217,6 +217,17 @@ async def _ingest_missed_event(
 
         from apps.api.services.proposals_service import record_payment_from_stripe
 
+        # Carry brand_id from metadata when the buyer link was tagged with
+        # one. Public ProofHook links currently don't include brand_id, but
+        # operator offer links do.
+        brand_id = None
+        meta_brand = meta.get("brand_id")
+        if meta_brand:
+            try:
+                brand_id = uuid.UUID(str(meta_brand))
+            except (ValueError, AttributeError, TypeError):
+                brand_id = None
+
         payment = await record_payment_from_stripe(
             db,
             org_id=org_id,
@@ -224,6 +235,7 @@ async def _ingest_missed_event(
             event_type=event_type,
             amount_cents=amount_cents,
             stripe_object=obj,
+            brand_id=brand_id,
             payment_intent_id=obj.get("payment_intent") if isinstance(obj.get("payment_intent"), str) else None,
             checkout_session_id=obj.get("id") if event_type == "checkout.session.completed" else None,
             charge_id=obj.get("id") if event_type == "charge.succeeded" else None,

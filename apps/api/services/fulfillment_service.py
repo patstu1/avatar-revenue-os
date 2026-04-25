@@ -81,6 +81,18 @@ async def create_project_from_intake(
             package_slug = proposal.package_slug
             title = proposal.title or title
 
+    # Public-checkout fallback: no Proposal, but the package was stamped onto
+    # IntakeRequest.schema_json by start_onboarding (see client_activation).
+    if package_slug is None and intake_request is not None:
+        schema = intake_request.schema_json or {}
+        if isinstance(schema, dict):
+            sj_pkg = schema.get("package_slug")
+            if isinstance(sj_pkg, str) and sj_pkg.strip():
+                package_slug = sj_pkg.strip()[:60]
+            sj_name = schema.get("package_name")
+            if isinstance(sj_name, str) and sj_name.strip() and title.startswith("Project for "):
+                title = sj_name.strip()
+
     now = datetime.now(timezone.utc)
     # Batch 9: carry avenue_slug through. Intake request is the most
     # recently-set carrier; fall back to proposal if intake didn't have it.

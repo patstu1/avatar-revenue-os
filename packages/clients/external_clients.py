@@ -1011,6 +1011,90 @@ class SmtpEmailClient:
                 "provider": "smtp",
             }
 
+    # ── Construction helpers ──
+    #
+    # Multiple call-sites need a per-org SMTP client: outbound proposal
+    # mailers, the dunning service, retention service, sponsor reporting,
+    # the QA→delivery worker, and (the immediate driver of this fix) the
+    # public-checkout intake invite send. Two names are in use across the
+    # codebase: ``resolve`` (canonical, used by the public-checkout path
+    # and proposal_drain) and ``from_db`` (legacy, used by 7 other
+    # services). Both must work — calling either previously raised
+    # AttributeError, silently failing every email send. ``from_db`` is
+    # kept as a thin alias so legacy callers keep functioning unchanged.
+    @classmethod
+    async def resolve(cls, db, org_id) -> "SmtpEmailClient | None":
+        """Return an SmtpEmailClient configured for ``org_id``.
+
+        Resolution order:
+          1. ``integration_providers`` row for (org, "smtp"): api_key
+             becomes the SMTP password; ``extra_config`` carries host,
+             port, username, from_email, from_name, reply_to, use_tls.
+          2. Environment variables (``SMTP_HOST``, ``SMTP_USERNAME`` /
+             ``SMTP_USER``, ``SMTP_PASSWORD`` / ``SMTP_PASS``,
+             ``SMTP_FROM_EMAIL`` / ``SMTP_FROM``, ``SMTP_FROM_NAME``,
+             ``SMTP_REPLY_TO``, ``SMTP_PORT``, ``SMTP_USE_TLS``).
+          3. ``None`` when neither source yields a usable configuration.
+
+        Returns ``None`` (not an unconfigured instance) so callers can
+        cleanly skip the send and surface a structured failure event
+        rather than triggering an SMTP connection attempt that will
+        always fail.
+        """
+        creds: dict = {"api_key": None, "oauth_token": None, "extra_config": {}}
+        try:
+            # Avoid a hard import cycle — apps.api.* imports back into
+            # packages.clients in a few places. Import lazily.
+            from apps.api.services.integration_manager import get_credential_full
+
+            creds = await get_credential_full(db, org_id, "smtp")
+        except Exception as exc:  # pragma: no cover — best-effort DB read
+            logger.warning("smtp.resolve.db_lookup_failed", error=str(exc)[:200])
+            creds = {"api_key": None, "oauth_token": None, "extra_config": {}}
+
+        extra = (creds.get("extra_config") or {}) if isinstance(creds, dict) else {}
+        api_key = creds.get("api_key") if isinstance(creds, dict) else None
+
+        # Build a candidate from DB credentials when present.
+        instance = cls()
+        if api_key or extra:
+            if extra.get("host"):
+                instance.host = str(extra["host"])
+            if extra.get("port"):
+                try:
+                    instance.port = int(extra["port"])
+                except (TypeError, ValueError):
+                    pass
+            if extra.get("username"):
+                instance.username = str(extra["username"])
+            if api_key:
+                instance.password = str(api_key)
+            elif extra.get("password"):
+                instance.password = str(extra["password"])
+            if extra.get("from_email"):
+                instance.from_email = str(extra["from_email"])
+            if extra.get("from_name"):
+                instance.from_name = str(extra["from_name"])
+            if extra.get("reply_to"):
+                instance.reply_to = str(extra["reply_to"])
+            if extra.get("use_tls") is not None:
+                instance.use_tls = bool(extra["use_tls"])
+
+        if instance._is_configured():
+            return instance
+        return None
+
+    @classmethod
+    async def from_db(cls, db, org_id) -> "SmtpEmailClient | None":
+        """Back-compat alias for :meth:`resolve`. Prefer ``resolve`` in new code.
+
+        Kept so the seven legacy callers (proposal_dunning_service,
+        retention_service, invoice_service, sponsor_reporting_service,
+        the fulfillment_worker QA/delivery + reminder paths, and the
+        original client_activation site) keep working through this fix.
+        """
+        return await cls.resolve(db, org_id)
+
 
 # ---------------------------------------------------------------------------
 # SECTION 6 — SMS (Twilio-compatible) Client
