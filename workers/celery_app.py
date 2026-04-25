@@ -939,6 +939,15 @@ app.conf.update(
             "task": "workers.health_monitor_worker.tasks.detect_inactive_shells",
             "schedule": crontab(minute=45, hour="*/4"),
         },
+        # --- Fulfillment: content_pack executor ---
+        # Generates real Markdown content packs from approved briefs for in_progress
+        # production jobs that have no output_url yet. Calls submit_production_output()
+        # which triggers the existing QA → delivery → followup chain automatically.
+        # Max 5 jobs per run. One failure never kills the task.
+        "execute-content-pack-jobs-every-2m": {
+            "task": "workers.fulfillment_worker.tasks.execute_content_pack_jobs",
+            "schedule": crontab(minute="*/2"),
+        },
     },
 )
 
@@ -1009,5 +1018,6 @@ app.autodiscover_tasks(
         "workers.pipeline_worker",
         "workers.outreach_worker",
         "workers.health_monitor_worker",
+        "workers.fulfillment_worker",
     ]
 )

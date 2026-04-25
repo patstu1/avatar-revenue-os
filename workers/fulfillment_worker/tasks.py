@@ -443,3 +443,438 @@ def scan_overdue_invoices_task():
 )
 def reconcile_stripe_webhooks_task():
     return _run_async(_reconcile_stripe_webhooks_task())
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  7. execute_content_pack_jobs
+#
+#  Picks up in_progress content_pack ProductionJobs that have no output_url
+#  yet, generates a real Markdown content pack via Anthropic from the
+#  approved brief, uploads the artifact via MediaStorage (S3 or local
+#  fallback), then calls submit_production_output() which triggers the
+#  existing QA → delivery → followup chain automatically.
+#
+#  Beat: every 2 minutes.  Max 5 jobs per run.  One job failure never
+#  kills the whole task.  Fully idempotent — skips jobs that already have
+#  output_url or that are no longer in_progress.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_CONTENT_PACK_MAX_PER_RUN = 5
+_CONTENT_PACK_PROMPT = """\
+You are a professional B2B content strategist producing a client-ready content pack.
+Generate a complete, structured Markdown content pack based on the project brief below.
+
+The output must be:
+- Immediately usable by the client (no placeholders, no "fill in later" notes)
+- Professionally written, clear, and actionable
+- Formatted in clean Markdown with headings (##), bullet points, and numbered lists
+- Between 600 and 1200 words
+
+Structure the pack with these sections (adapt titles to the project):
+1. **Overview** — what the pack covers and who it is for
+2. **Key Messages** — 3–5 core messages or value propositions
+3. **Content Calendar / Topics** — a list of specific content ideas or topics (at least 6)
+4. **Sample Content** — one fully written example piece (email, post, or article intro)
+5. **Next Steps** — 3 concrete actions the client should take after receiving this pack
+
+Brief:
+"""
+
+
+_GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
+_ANTHROPIC_PREMIUM_MODEL = "claude-opus-4-5"
+
+_PREMIUM_AVENUE_SLUGS = frozenset({"high_ticket", "sponsor_deals"})
+_PREMIUM_TIER_KEYS = frozenset({"retainer", "enterprise", "premium", "high_ticket"})
+
+
+def _select_content_pack_provider(job) -> tuple[str | None, str | None, str | None]:
+    """Return (provider, model, api_key) based on job routing rules.
+
+    Premium signals (→ Anthropic Opus):
+      - avenue_slug in _PREMIUM_AVENUE_SLUGS
+      - metadata_json.tier in _PREMIUM_TIER_KEYS
+
+    All other jobs default to Groq (cheaper, fast, high-quality).
+    Returns (None, None, None) when the required key is missing.
+    """
+    meta = job.metadata_json or {}
+    tier = str(meta.get("tier", "")).lower()
+    is_premium = job.avenue_slug in _PREMIUM_AVENUE_SLUGS or tier in _PREMIUM_TIER_KEYS
+
+    if is_premium:
+        key = os.environ.get("ANTHROPIC_API_KEY", "")
+        model = os.environ.get("ANTHROPIC_PREMIUM_MODEL", _ANTHROPIC_PREMIUM_MODEL)
+        if not key:
+            return None, None, "ANTHROPIC_API_KEY not configured"
+        return "anthropic", model, key
+    else:
+        key = os.environ.get("GROQ_API_KEY", "")
+        model = os.environ.get("GROQ_CONTENT_PACK_MODEL", _GROQ_DEFAULT_MODEL)
+        if not key:
+            return None, None, "GROQ_API_KEY not configured"
+        return "groq", model, key
+
+
+async def _execute_content_pack_jobs() -> dict:
+    """Generate content packs for in_progress jobs that have no output yet."""
+    from apps.api.services.event_bus import emit_event
+    from apps.api.services.qa_delivery_service import submit_production_output
+    from packages.db.models.fulfillment import ProductionJob
+    from packages.db.models.gm_control import GMEscalation
+    from packages.media.storage import MediaStorage
+
+    Session, engine = _fresh_session_factory()
+    async with Session() as db:
+        # ── 1. Find eligible jobs ──────────────────────────────────────────
+        eligible = (
+            (
+                await db.execute(
+                    select(ProductionJob)
+                    .where(
+                        ProductionJob.status == "in_progress",
+                        ProductionJob.job_type == "content_pack",
+                        ProductionJob.is_active.is_(True),
+                        ProductionJob.output_url.is_(None),
+                        ProductionJob.attempt_count <= ProductionJob.retry_limit,
+                    )
+                    .order_by(ProductionJob.picked_up_at.asc().nullslast())
+                    .limit(_CONTENT_PACK_MAX_PER_RUN)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        generated = 0
+        failed = 0
+        skipped = 0
+
+        for job in eligible:
+            # ── 2. Guard: skip if state changed since query ────────────────
+            if job.status != "in_progress" or job.output_url:
+                skipped += 1
+                continue
+
+            # ── 3. Load approved brief ────────────────────────────────────
+            from packages.db.models.fulfillment import ProjectBrief as _PB
+
+            brief = (
+                await db.execute(
+                    select(_PB).where(
+                        _PB.id == job.brief_id,
+                        _PB.is_active.is_(True),
+                    )
+                )
+            ).scalar_one_or_none()
+
+            if brief is None or brief.status != "approved":
+                logger.warning(
+                    "content_pack.no_approved_brief",
+                    job_id=str(job.id),
+                    brief_id=str(job.brief_id),
+                    brief_status=brief.status if brief is not None else "missing",
+                )
+                skipped += 1
+                continue
+
+            # ── 4. Emit generation started ────────────────────────────────
+            await emit_event(
+                db,
+                domain="fulfillment",
+                event_type="content_pack.generation_started",
+                summary=f"Content pack generation started: {job.title[:80]}",
+                org_id=job.org_id,
+                entity_type="production_job",
+                entity_id=job.id,
+                actor_type="system",
+                actor_id=_WORKER_ID,
+                details={
+                    "production_job_id": str(job.id),
+                    "brief_id": str(brief.id),
+                    "avenue_slug": job.avenue_slug,
+                },
+            )
+            await db.flush()
+
+            # ── 5. Build brief context for LLM ───────────────────────────
+            brief_text = "\n".join(
+                filter(
+                    None,
+                    [
+                        f"Title: {brief.title}",
+                        f"Summary: {brief.summary}" if brief.summary else None,
+                        f"Goals: {brief.goals}" if brief.goals else None,
+                        f"Audience: {brief.audience}" if brief.audience else None,
+                        f"Tone and voice: {brief.tone_and_voice}" if brief.tone_and_voice else None,
+                        (
+                            f"Deliverables: {brief.deliverables_json}"
+                            if brief.deliverables_json
+                            else None
+                        ),
+                    ],
+                )
+            )
+
+            # ── 6. Select provider and generate content ───────────────────
+            generation_error: str | None = None
+            markdown_content: str | None = None
+            provider, model_slug, provider_key_or_err = _select_content_pack_provider(job)
+
+            if provider is None:
+                generation_error = provider_key_or_err or "No LLM provider available"
+            else:
+                try:
+                    prompt_text = _CONTENT_PACK_PROMPT + brief_text
+                    if provider == "groq":
+                        from groq import Groq
+                        client = Groq(api_key=provider_key_or_err)
+                        completion = client.chat.completions.create(
+                            model=model_slug,
+                            max_tokens=2000,
+                            messages=[{"role": "user", "content": prompt_text}],
+                        )
+                        markdown_content = (
+                            completion.choices[0].message.content
+                            if completion.choices
+                            else None
+                        )
+                    elif provider == "anthropic":
+                        import anthropic
+                        client = anthropic.Anthropic(api_key=provider_key_or_err)
+                        response = client.messages.create(
+                            model=model_slug,
+                            max_tokens=2000,
+                            messages=[{"role": "user", "content": prompt_text}],
+                        )
+                        markdown_content = (
+                            response.content[0].text if response.content else None
+                        )
+                    if not markdown_content or len(markdown_content.strip()) < 100:
+                        generation_error = "LLM returned empty or too-short content"
+                        markdown_content = None
+                except Exception as llm_exc:
+                    generation_error = f"LLM call failed ({provider}): {str(llm_exc)[:200]}"
+                    logger.warning(
+                        "content_pack.llm_failed",
+                        job_id=str(job.id),
+                        provider=provider,
+                        model=model_slug,
+                        error=generation_error,
+                    )
+
+            # ── 7. Handle generation failure ─────────────────────────────
+            if generation_error or not markdown_content:
+                failed += 1
+                err_msg = generation_error or "No content returned from LLM"
+                job.error_message = err_msg
+
+                await emit_event(
+                    db,
+                    domain="fulfillment",
+                    event_type="content_pack.generation_failed",
+                    summary=f"Content pack generation failed: {job.title[:80]}",
+                    org_id=job.org_id,
+                    entity_type="production_job",
+                    entity_id=job.id,
+                    actor_type="system",
+                    actor_id=_WORKER_ID,
+                    details={
+                        "production_job_id": str(job.id),
+                        "error": err_msg,
+                        "avenue_slug": job.avenue_slug,
+                    },
+                )
+
+                # Escalate if not already open
+                existing_esc = (
+                    await db.execute(
+                        select(GMEscalation).where(
+                            GMEscalation.entity_type == "production_job",
+                            GMEscalation.entity_id == job.id,
+                            GMEscalation.reason_code == "content_pack_generation_failed",
+                            GMEscalation.status == "open",
+                        )
+                    )
+                ).scalar_one_or_none()
+                if existing_esc is None:
+                    db.add(
+                        GMEscalation(
+                            org_id=job.org_id,
+                            reason_code="content_pack_generation_failed",
+                            entity_type="production_job",
+                            entity_id=job.id,
+                            title=f"Content pack generation failed: {job.title[:300]}",
+                            description=(
+                                f"Job {job.id} failed to generate content: {err_msg}. "
+                                f"Check provider API keys (GROQ_API_KEY / ANTHROPIC_API_KEY) "
+                                f"or brief completeness. Job remains in_progress for retry "
+                                f"(attempt {job.attempt_count} of {job.retry_limit})."
+                            ),
+                            severity="warning",
+                            status="open",
+                            details_json={
+                                "production_job_id": str(job.id),
+                                "avenue_slug": job.avenue_slug,
+                                "error": err_msg,
+                            },
+                        )
+                    )
+                await db.flush()
+                continue
+
+            # ── 8. Upload artifact via MediaStorage ───────────────────────
+            output_url: str | None = None
+            try:
+                storage = MediaStorage()
+                key = f"content_packs/{job.id}.md"
+                output_url = storage.upload_bytes(
+                    data=markdown_content.encode("utf-8"),
+                    key=key,
+                    content_type="text/markdown; charset=utf-8",
+                )
+            except Exception as upload_exc:
+                upload_error_msg = f"Storage upload failed: {str(upload_exc)[:200]}"
+                logger.warning(
+                    "content_pack.upload_failed",
+                    job_id=str(job.id),
+                    error=upload_error_msg,
+                )
+                failed += 1
+                job.error_message = upload_error_msg
+
+                await emit_event(
+                    db,
+                    domain="fulfillment",
+                    event_type="content_pack.generation_failed",
+                    summary=f"Content pack upload failed: {job.title[:80]}",
+                    org_id=job.org_id,
+                    entity_type="production_job",
+                    entity_id=job.id,
+                    actor_type="system",
+                    actor_id=_WORKER_ID,
+                    details={
+                        "production_job_id": str(job.id),
+                        "error": upload_error_msg,
+                        "avenue_slug": job.avenue_slug,
+                        "note": "Content was generated but could not be stored. Retry will regenerate.",
+                    },
+                )
+
+                existing_esc = (
+                    await db.execute(
+                        select(GMEscalation).where(
+                            GMEscalation.entity_type == "production_job",
+                            GMEscalation.entity_id == job.id,
+                            GMEscalation.reason_code == "content_pack_generation_failed",
+                            GMEscalation.status == "open",
+                        )
+                    )
+                ).scalar_one_or_none()
+                if existing_esc is None:
+                    db.add(
+                        GMEscalation(
+                            org_id=job.org_id,
+                            reason_code="content_pack_generation_failed",
+                            entity_type="production_job",
+                            entity_id=job.id,
+                            title=f"Content pack storage upload failed: {job.title[:300]}",
+                            description=(
+                                f"Job {job.id} generated content successfully but upload failed: "
+                                f"{upload_error_msg}. "
+                                f"Check S3_BUCKET / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY env vars. "
+                                f"Job remains in_progress for retry."
+                            ),
+                            severity="warning",
+                            status="open",
+                            details_json={
+                                "production_job_id": str(job.id),
+                                "avenue_slug": job.avenue_slug,
+                                "error": upload_error_msg,
+                            },
+                        )
+                    )
+                await db.flush()
+                # Do NOT call submit_production_output — no valid output_url exists.
+                continue
+
+            # ── 9. Submit output → triggers QA → delivery → followup ─────
+            try:
+                result = await submit_production_output(
+                    db,
+                    job=job,
+                    output_url=output_url,
+                    output_payload={
+                        "format": "markdown",
+                        "content": markdown_content,
+                        "word_count": len(markdown_content.split()),
+                        "generator": f"{provider}:{model_slug}",
+                    },
+                    auto_qa=True,
+                    auto_dispatch=True,
+                )
+                generated += 1
+
+                await emit_event(
+                    db,
+                    domain="fulfillment",
+                    event_type="content_pack.generation_completed",
+                    summary=f"Content pack generated and submitted: {job.title[:80]}",
+                    org_id=job.org_id,
+                    entity_type="production_job",
+                    entity_id=job.id,
+                    actor_type="system",
+                    actor_id=_WORKER_ID,
+                    details={
+                        "production_job_id": str(job.id),
+                        "output_url": output_url,
+                        "word_count": len(markdown_content.split()),
+                        "qa_result": (result.get("qa") or {}).get("result"),
+                        "delivery_id": (result.get("delivery") or {}).get("delivery_id"),
+                        "avenue_slug": job.avenue_slug,
+                    },
+                )
+                logger.info(
+                    "content_pack.generation_completed",
+                    job_id=str(job.id),
+                    output_url=output_url,
+                    qa_result=(result.get("qa") or {}).get("result"),
+                    delivery_id=(result.get("delivery") or {}).get("delivery_id"),
+                )
+            except Exception as submit_exc:
+                failed += 1
+                err = f"submit_production_output failed: {str(submit_exc)[:200]}"
+                job.error_message = err
+                logger.error("content_pack.submit_failed", job_id=str(job.id), error=err)
+                await emit_event(
+                    db,
+                    domain="fulfillment",
+                    event_type="content_pack.generation_failed",
+                    summary=f"Content pack submit failed: {job.title[:80]}",
+                    org_id=job.org_id,
+                    entity_type="production_job",
+                    entity_id=job.id,
+                    actor_type="system",
+                    actor_id=_WORKER_ID,
+                    details={"production_job_id": str(job.id), "error": err},
+                )
+
+        await db.commit()
+        summary = {
+            "eligible": len(eligible),
+            "generated": generated,
+            "failed": failed,
+            "skipped": skipped,
+        }
+        logger.info("fulfillment.execute_content_pack.done", **summary)
+    await engine.dispose()
+    return summary
+
+
+@shared_task(
+    base=TrackedTask,
+    name="workers.fulfillment_worker.tasks.execute_content_pack_jobs",
+    queue="default",
+)
+def execute_content_pack_jobs():
+    return _run_async(_execute_content_pack_jobs())
