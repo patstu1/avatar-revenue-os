@@ -38,6 +38,7 @@ from apps.api.services.proposals_service import (
     record_payment_link as svc_record_payment_link,
 )
 from apps.api.services.stripe_billing_service import create_payment_link
+from apps.api.services.test_record_guard import is_test_or_synthetic_record
 from packages.clients.email_templates import build_proof_email
 from packages.clients.external_clients import SmtpEmailClient
 from packages.db.models.offers import Offer
@@ -152,6 +153,39 @@ async def _drain_one(action: OperatorAction, db, smtp: SmtpEmailClient) -> dict:
             "action_id": str(action.id),
             "status": "skipped",
             "reason": "no sender in action_payload",
+        }
+
+    # ── Live-payment safety guard ──────────────────────────────────────────
+    # Block test / synthetic / fixture records before creating a Stripe
+    # payment link or sending any customer email.  Marks the action as
+    # skipped with an audit reason so it is visible in the drain summary
+    # and never silently re-queued.
+    _guard_blocked, _guard_reason = is_test_or_synthetic_record(
+        email=sender_email,
+        source=payload.get("source") or payload.get("reply_type"),
+        metadata={
+            k: str(v)
+            for k, v in payload.items()
+            if isinstance(v, str)
+        },
+    )
+    if _guard_blocked:
+        logger.warning(
+            "proposal_drain.guard_blocked",
+            action_id=str(action.id),
+            sender=sender_email,
+            reason=_guard_reason,
+        )
+        action.status = "skipped"
+        action.action_payload = {
+            **payload,
+            "guard_blocked_at": datetime.now(timezone.utc).isoformat(),
+            "guard_reason": _guard_reason,
+        }
+        return {
+            "action_id": str(action.id),
+            "status": "skipped",
+            "reason": _guard_reason,
         }
 
     body_preview = payload.get("body_preview", "")

@@ -49,6 +49,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.services.event_bus import emit_event
+from apps.api.services.test_record_guard import is_test_or_synthetic_email
 from packages.db.models.clients import (
     Client,
     ClientRetentionEvent,
@@ -307,7 +308,25 @@ async def detect_renewal_due(
         .order_by(Client.next_renewal_at.asc())
         .limit(limit)
     )
-    return list((await db.execute(q)).scalars().all())
+    candidates = list((await db.execute(q)).scalars().all())
+
+    # ── Live-payment safety guard ──────────────────────────────────────────
+    # Filter out test / synthetic / fixture clients before returning so
+    # that no caller can accidentally reach Stripe or send email to a
+    # non-real address.  Logged at warning level so the exclusion is
+    # always visible in the task log without being noisy on normal runs.
+    safe: list[Client] = []
+    for c in candidates:
+        if is_test_or_synthetic_email(c.primary_email or ""):
+            logger.warning(
+                "detect_renewal_due.blocked_test_record",
+                client_id=str(c.id),
+                email=c.primary_email,
+                reason="email matched test_record_guard pattern",
+            )
+        else:
+            safe.append(c)
+    return safe
 
 
 async def detect_reactivation_candidates(

@@ -973,6 +973,7 @@ async def _execute_renewal_pipeline() -> dict:
     from apps.api.services.stripe_billing_service import (
         create_payment_link as stripe_create_payment_link,
     )
+    from apps.api.services.test_record_guard import is_test_or_synthetic_record
     from packages.clients.external_clients import SmtpEmailClient
     from packages.db.models.clients import Client
     from packages.db.models.proposals import PaymentLink, Proposal
@@ -1078,6 +1079,24 @@ async def _execute_renewal_pipeline() -> dict:
                 proposal = open_proposal
 
                 # ── 3. Idempotency: find or create Stripe payment link ──
+                # Re-check guard here as a defence-in-depth measure: even if
+                # detect_renewal_due already filtered, verify again before any
+                # money-touching operation.
+                _guard_blocked, _guard_reason = is_test_or_synthetic_record(
+                    email=client.primary_email or "",
+                    source=client.avenue_slug,
+                    metadata={"client_id": str(client.id)},
+                )
+                if _guard_blocked:
+                    logger.warning(
+                        "renewal_pipeline.guard_blocked",
+                        client_id=str(client.id),
+                        email=client.primary_email,
+                        reason=_guard_reason,
+                    )
+                    skipped += 1
+                    continue
+
                 existing_link = (
                     await db.execute(
                         select(PaymentLink)
