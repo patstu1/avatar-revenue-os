@@ -192,8 +192,111 @@ async def _process_operator_payment_event(
     if brand_id:
         org_id = (await db.execute(select(Brand.organization_id).where(Brand.id == brand_id))).scalar()
 
+    # ── checkout.session.completed (renewal / retainer payment) ──
+    # Detects source=renewal or retention_source=renewal in Stripe metadata.
+    # Writes to revenue ledger with renewal attribution, updates client retention
+    # state, and emits client.retention.renewal_paid.
+    # Payment + proposal marking is handled upstream by stripe_reconciliation_service
+    # (record_payment_from_stripe + activate_client_from_payment).  This branch
+    # adds the renewal-specific ledger attribution and system event.
+    if (
+        event_type == "checkout.session.completed"
+        and brand_id
+        and (
+            meta.get("retention_source") == "renewal"
+            or meta.get("source") == "renewal"
+        )
+    ):
+        amount = float(obj.get("amount_total", 0)) / 100.0
+        if amount > 0:
+            webhook_ref = f"stripe_renewal:{event_id}" if event_id else None
+            # Idempotency — skip if already written
+            if webhook_ref:
+                existing = (
+                    await db.execute(
+                        select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref)
+                    )
+                ).scalar_one_or_none()
+                if existing:
+                    return
+
+            entry = RevenueLedgerEntry(
+                revenue_source_type="renewal",
+                brand_id=brand_id,
+                offer_id=offer_id,
+                content_item_id=content_item_id,
+                gross_amount=amount,
+                net_amount=amount,
+                currency=obj.get("currency", "usd").upper(),
+                payment_state="confirmed",
+                attribution_state="auto_attributed",
+                payment_processor="stripe",
+                external_transaction_id=obj.get("payment_intent") or obj.get("id") or "",
+                webhook_ref=webhook_ref,
+                description=f"Renewal payment: ${amount:.2f} — {obj.get('customer_email', '')}",
+                metadata_json={
+                    "stripe_event_id": event_id,
+                    "stripe_event_type": event_type,
+                    "source": "renewal",
+                    "retention_source": "renewal",
+                    "avenue_slug": meta.get("avenue_slug", "retainer_renewal"),
+                    "proposal_id": meta.get("proposal_id"),
+                    "client_id": meta.get("client_id"),
+                    "customer_email": obj.get("customer_email", ""),
+                },
+            )
+            db.add(entry)
+            await db.flush()
+
+            # Update client retention state after renewal payment
+            _client_id = _safe_uuid(meta.get("client_id"))
+            if _client_id and org_id:
+                try:
+                    from datetime import timedelta
+
+                    from packages.db.models.clients import Client as _Client
+
+                    _client = (
+                        await db.execute(
+                            select(_Client).where(
+                                _Client.id == _client_id,
+                                _Client.org_id == org_id,
+                            )
+                        )
+                    ).scalar_one_or_none()
+                    if _client is not None:
+                        _now = datetime.now(timezone.utc)
+                        _client.last_paid_at = _now
+                        _client.retention_state = "active"
+                        if _client.recurring_period_days:
+                            _client.next_renewal_at = _now + timedelta(days=_client.recurring_period_days)
+                        await db.flush()
+                except Exception as _ce:
+                    logger.warning("renewal_webhook.client_update_failed", error=str(_ce)[:200])
+
+            await emit_event(
+                db,
+                domain="fulfillment",
+                event_type="client.retention.renewal_paid",
+                summary=f"Renewal payment confirmed: ${amount:.2f} — {obj.get('customer_email', '')}",
+                org_id=org_id,
+                brand_id=brand_id,
+                entity_type="revenue_ledger",
+                entity_id=entry.id,
+                details={
+                    "gross": amount,
+                    "source": "renewal",
+                    "client_id": meta.get("client_id"),
+                    "proposal_id": meta.get("proposal_id"),
+                    "avenue_slug": meta.get("avenue_slug", "retainer_renewal"),
+                    "stripe_event_id": event_id,
+                },
+            )
+            webhook_event.processed = True
+            await db.flush()
+
     # ── checkout.session.completed (operator offer payments) ──
-    if event_type == "checkout.session.completed" and brand_id and meta.get("source") == "outreach_proposal":
+    elif event_type == "checkout.session.completed" and brand_id and meta.get("source") == "outreach_proposal":
         amount = float(obj.get("amount_total", 0)) / 100.0
         if amount > 0:
             webhook_ref = f"stripe_checkout:{event_id}" if event_id else None

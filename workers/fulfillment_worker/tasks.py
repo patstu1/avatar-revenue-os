@@ -894,3 +894,348 @@ async def _execute_content_pack_jobs() -> dict:
 )
 def execute_content_pack_jobs():
     return _run_async(_execute_content_pack_jobs())
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  8. execute_renewal_pipeline
+#
+#  Every 6h: for each org find clients in retention_state='renewal_due' or
+#  'renewal_overdue', then for each client:
+#    a) Ensure an open renewal proposal exists (create via trigger_renewal if not).
+#    b) Ensure a Stripe payment link exists on that proposal.
+#    c) Send one renewal email and flip proposal draft → sent.
+#  Dunning (chase_unpaid_proposals) owns all subsequent follow-ups once
+#  proposal.status == 'sent'.
+#
+#  Idempotency:
+#   - Skips if open renewal proposal already exists for that client.
+#   - Skips payment link creation if PaymentLink row already exists on proposal.
+#   - Skips email send if proposal.status already 'sent'.
+#   - trigger_renewal is debounced 24h inside retention_service.
+#   - GMEscalation upserted by unique (org_id, entity_type, entity_id, reason_code).
+# ═══════════════════════════════════════════════════════════════════════════
+
+_RENEWAL_MAX_PER_ORG = 20
+
+
+async def _upsert_gm_escalation(
+    db,
+    *,
+    client,
+    reason_code: str,
+    title: str,
+    details: dict,
+) -> None:
+    """Insert a GMEscalation if not already open; bump occurrence_count otherwise."""
+    from packages.db.models.gm_control import GMEscalation
+
+    now = datetime.now(timezone.utc)
+    existing = (
+        await db.execute(
+            select(GMEscalation).where(
+                GMEscalation.org_id == client.org_id,
+                GMEscalation.entity_type == "client",
+                GMEscalation.entity_id == client.id,
+                GMEscalation.reason_code == reason_code,
+                GMEscalation.status == "open",
+            ).limit(1)
+        )
+    ).scalar_one_or_none()
+    if existing is None:
+        db.add(
+            GMEscalation(
+                org_id=client.org_id,
+                entity_type="client",
+                entity_id=client.id,
+                reason_code=reason_code,
+                title=title,
+                severity="warning",
+                details_json=details,
+                status="open",
+                first_seen_at=now,
+                last_seen_at=now,
+                source_module="renewal_pipeline",
+            )
+        )
+    else:
+        existing.last_seen_at = now
+        existing.occurrence_count = (existing.occurrence_count or 1) + 1
+    await db.flush()
+
+
+async def _execute_renewal_pipeline() -> dict:
+    """Renewal pipeline — scanner, proposal creation, Stripe link, email send."""
+    import uuid as _uuid
+
+    from apps.api.services.event_bus import emit_event
+    from apps.api.services.proposals_service import record_payment_link
+    from apps.api.services.retention_service import detect_renewal_due, trigger_renewal
+    from apps.api.services.stripe_billing_service import (
+        create_payment_link as stripe_create_payment_link,
+    )
+    from packages.clients.external_clients import SmtpEmailClient
+    from packages.db.models.clients import Client
+    from packages.db.models.proposals import PaymentLink, Proposal
+
+    Session, engine = _fresh_session_factory()
+    processed = linked = emailed = escalated = skipped = 0
+
+    async with Session() as db:
+        now = datetime.now(timezone.utc)
+
+        # ── 1. Discover all orgs with eligible clients ──────────────────
+        org_ids = list(
+            (
+                await db.execute(
+                    select(Client.org_id)
+                    .where(
+                        Client.is_active.is_(True),
+                        Client.retention_state.in_(("renewal_due", "renewal_overdue")),
+                    )
+                    .distinct()
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        for org_id in org_ids:
+            clients = await detect_renewal_due(db, org_id=org_id, limit=_RENEWAL_MAX_PER_ORG)
+
+            for client in clients:
+                processed += 1
+
+                # ── 2. Idempotency: find existing open renewal proposal ──
+                open_proposal = (
+                    await db.execute(
+                        select(Proposal)
+                        .where(
+                            Proposal.extra_json["source_client_id"].astext == str(client.id),
+                            Proposal.extra_json["retention_source"].astext == "renewal",
+                            ~Proposal.status.in_(("paid", "cancelled", "rejected")),
+                        )
+                        .order_by(Proposal.created_at.desc())
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+
+                if open_proposal is None:
+                    # Determine renewal amount from the client's first (source) proposal.
+                    renewal_cents = 0
+                    if client.first_proposal_id:
+                        src_prop = (
+                            await db.execute(
+                                select(Proposal).where(Proposal.id == client.first_proposal_id)
+                            )
+                        ).scalar_one_or_none()
+                        if src_prop:
+                            renewal_cents = src_prop.total_amount_cents or 0
+
+                    if renewal_cents <= 0:
+                        escalated += 1
+                        await _upsert_gm_escalation(
+                            db,
+                            client=client,
+                            reason_code="renewal_amount_unknown",
+                            title=f"Renewal amount unknown for {client.display_name or client.primary_email}",
+                            details={"client_id": str(client.id), "first_proposal_id": str(client.first_proposal_id) if client.first_proposal_id else None},
+                        )
+                        continue
+
+                    pkg = client.avenue_slug or "recurring_retainer"
+                    trigger_result = await trigger_renewal(
+                        db,
+                        client=client,
+                        package_slug=pkg,
+                        line_items=[
+                            {
+                                "description": f"Renewal — {pkg}",
+                                "unit_amount_cents": renewal_cents,
+                                "quantity": 1,
+                                "currency": "usd",
+                                "position": 0,
+                            }
+                        ],
+                        actor_type="system",
+                        actor_id=_WORKER_ID,
+                    )
+
+                    pid = trigger_result.get("proposal_id")
+                    if not pid:
+                        # Debounced with no resolvable proposal — skip this tick
+                        skipped += 1
+                        continue
+
+                    open_proposal = (
+                        await db.execute(
+                            select(Proposal).where(Proposal.id == _uuid.UUID(pid))
+                        )
+                    ).scalar_one_or_none()
+                    if open_proposal is None:
+                        skipped += 1
+                        continue
+
+                proposal = open_proposal
+
+                # ── 3. Idempotency: find or create Stripe payment link ──
+                existing_link = (
+                    await db.execute(
+                        select(PaymentLink)
+                        .where(
+                            PaymentLink.proposal_id == proposal.id,
+                            PaymentLink.status.in_(("active", "pending")),
+                        )
+                        .limit(1)
+                    )
+                ).scalar_one_or_none()
+
+                payment_link_url: str | None = None
+                if existing_link is not None:
+                    payment_link_url = existing_link.url
+                else:
+                    stripe_meta = {
+                        "source": "renewal",
+                        "retention_source": "renewal",
+                        "avenue_slug": "retainer_renewal",
+                        "proposal_id": str(proposal.id),
+                        "client_id": str(client.id),
+                        "org_id": str(client.org_id),
+                        "brand_id": str(client.brand_id) if client.brand_id else "",
+                    }
+                    stripe_result = await stripe_create_payment_link(
+                        amount_cents=proposal.total_amount_cents,
+                        currency="usd",
+                        product_name=proposal.title
+                        or f"Renewal — {client.display_name or client.primary_email}",
+                        metadata=stripe_meta,
+                        db=db,
+                        org_id=client.org_id,
+                    )
+                    if stripe_result.get("error") or not stripe_result.get("url"):
+                        escalated += 1
+                        await _upsert_gm_escalation(
+                            db,
+                            client=client,
+                            reason_code="renewal_payment_link_failed",
+                            title=f"Renewal Stripe link failed for {client.display_name or client.primary_email}",
+                            details={
+                                "client_id": str(client.id),
+                                "proposal_id": str(proposal.id),
+                                "stripe_error": stripe_result.get("error", "no_url_returned"),
+                            },
+                        )
+                        continue
+
+                    link_rec = await record_payment_link(
+                        db,
+                        org_id=client.org_id,
+                        brand_id=client.brand_id,
+                        proposal_id=proposal.id,
+                        provider="stripe",
+                        provider_link_id=stripe_result["id"],
+                        url=stripe_result["url"],
+                        amount_cents=proposal.total_amount_cents,
+                        currency="usd",
+                        source="renewal",
+                        metadata=stripe_meta,
+                    )
+                    payment_link_url = link_rec.url
+                    linked += 1
+
+                # ── 4. Send initial renewal email (once only) ────────────
+                if proposal.status == "sent":
+                    # Already emailed — dunning owns follow-ups from here.
+                    skipped += 1
+                    continue
+
+                smtp = await SmtpEmailClient.from_db(db, client.org_id)
+                first_name = (client.display_name or client.primary_email or "").split(" ")[0] or "there"
+                subject = f"Your renewal is ready — {proposal.title}"
+                body_text = (
+                    f"Hi {first_name},\n\n"
+                    f"Your renewal is ready. Complete your payment here:\n\n"
+                    f"{payment_link_url}\n\n"
+                    f"Amount: ${proposal.total_amount_cents / 100:,.2f} USD\n\n"
+                    f"Reply to this email with any questions.\n\nThank you!"
+                )
+
+                if smtp is None:
+                    escalated += 1
+                    await _upsert_gm_escalation(
+                        db,
+                        client=client,
+                        reason_code="renewal_email_failed",
+                        title=f"No SMTP — renewal email not sent to {client.primary_email}",
+                        details={
+                            "client_id": str(client.id),
+                            "proposal_id": str(proposal.id),
+                            "payment_link_url": payment_link_url,
+                        },
+                    )
+                else:
+                    send_res = await smtp.send_email(
+                        to_email=client.primary_email,
+                        subject=subject,
+                        body_text=body_text,
+                        body_html=f"<p>{body_text.replace(chr(10), '<br>')}</p>",
+                    )
+                    if send_res.get("success"):
+                        emailed += 1
+                    else:
+                        logger.warning(
+                            "renewal_pipeline.email_send_failed",
+                            client_id=str(client.id),
+                            error=send_res.get("error"),
+                        )
+
+                # ── 5. Transition proposal draft → sent ─────────────────
+                proposal.status = "sent"
+                proposal.sent_at = now
+                await db.flush()
+
+                await emit_event(
+                    db,
+                    domain="fulfillment",
+                    event_type="client.retention.renewal_email_sent",
+                    summary=f"Renewal email sent to {client.primary_email}: {proposal.title}",
+                    org_id=client.org_id,
+                    brand_id=client.brand_id,
+                    entity_type="proposal",
+                    entity_id=proposal.id,
+                    actor_type="system",
+                    actor_id=_WORKER_ID,
+                    details={
+                        "client_id": str(client.id),
+                        "proposal_id": str(proposal.id),
+                        "payment_link_url": payment_link_url,
+                        "avenue_slug": client.avenue_slug,
+                    },
+                )
+                logger.info(
+                    "renewal_pipeline.proposal_sent",
+                    client_id=str(client.id),
+                    proposal_id=str(proposal.id),
+                    avenue_slug=client.avenue_slug,
+                )
+
+        await db.commit()
+
+    await engine.dispose()
+    summary = {
+        "processed": processed,
+        "payment_links_created": linked,
+        "emails_sent": emailed,
+        "escalated": escalated,
+        "skipped": skipped,
+    }
+    logger.info("renewal_pipeline.done", **summary)
+    return summary
+
+
+@shared_task(
+    base=TrackedTask,
+    name="workers.fulfillment_worker.tasks.execute_renewal_pipeline",
+    queue="default",
+)
+def execute_renewal_pipeline():
+    return _run_async(_execute_renewal_pipeline())

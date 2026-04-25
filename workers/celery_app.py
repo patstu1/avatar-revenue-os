@@ -948,6 +948,28 @@ app.conf.update(
             "task": "workers.fulfillment_worker.tasks.execute_content_pack_jobs",
             "schedule": crontab(minute="*/2"),
         },
+        # --- Retainer / Renewal lane (3rd full-circle revenue lane) ---
+        # scan-retention-states: recomputes retention_state, next_renewal_at, and
+        # churn_risk_score for every active client. Must run before the renewal
+        # pipeline so clients are classified correctly before proposals fire.
+        "scan-retention-states-every-6h": {
+            "task": "workers.fulfillment_worker.tasks.scan_retention_states",
+            "schedule": crontab(hour="*/6", minute=30),
+        },
+        # execute-renewal-pipeline: for each renewal_due/overdue client → open
+        # proposal (or reuse) → Stripe payment link → send renewal email once →
+        # flip proposal draft→sent. Dunning owns all subsequent follow-ups.
+        "execute-renewal-pipeline-every-6h": {
+            "task": "workers.fulfillment_worker.tasks.execute_renewal_pipeline",
+            "schedule": crontab(hour="*/6", minute=35),
+        },
+        # chase-unpaid-proposals: sends dunning reminders (#1 @ 24h, #2 @ 72h,
+        # #3 @ 7d) for any proposal in status=sent that has not been paid.
+        # Covers renewal proposals and all other sent proposals.
+        "chase-unpaid-proposals-every-6h": {
+            "task": "workers.fulfillment_worker.tasks.chase_unpaid_proposals",
+            "schedule": crontab(hour="*/6", minute=40),
+        },
     },
 )
 
