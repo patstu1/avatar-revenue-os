@@ -363,6 +363,8 @@ services:
     environment: *worker-env
     healthcheck: *worker-healthcheck
     depends_on: *worker-depends
+    volumes:
+      - aro_media:/app/media
     deploy:
       resources:
         limits:
