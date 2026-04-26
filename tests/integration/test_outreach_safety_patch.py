@@ -462,3 +462,435 @@ async def test_send_smtp_email_unconfigured_creds_short_circuit(monkeypatch):
     assert result["success"] is False
     assert "SMTP not configured" in result["error"]
     assert smtp_stub.calls == []
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 5. Send-path idempotency — first-touch (_send_outreach_email_impl)
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _make_fake_session_for_outreach(seq_obj, target_obj):
+    """Build a fake async session that returns seq then target on
+    successive `execute()` calls. Records commit/flush activity."""
+
+    class _FakeResult:
+        def __init__(self, value):
+            self._v = value
+
+        def scalar_one_or_none(self):
+            return self._v
+
+    class _FakeSession:
+        def __init__(self):
+            self._return_seq = True
+            self.commits = 0
+            self.flushes = 0
+            self.events: list[str] = []
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
+        async def execute(self, _q):
+            if self._return_seq:
+                self._return_seq = False
+                return _FakeResult(seq_obj)
+            return _FakeResult(target_obj)
+
+        def add(self, *a, **k):
+            pass
+
+        async def flush(self):
+            self.flushes += 1
+            self.events.append("flush")
+
+        async def commit(self):
+            self.commits += 1
+            self.events.append("commit")
+
+    return _FakeSession()
+
+
+@pytest.mark.asyncio
+async def test_outreach_idempotency_skips_when_already_sent(monkeypatch):
+    """First-touch: if steps[0].status == 'sent', return duplicate_skipped
+    without invoking SMTP."""
+    monkeypatch.setenv("PROOFHOOK_MAILING_ADDRESS", "1 X St, Y, CA 90028")
+    smtp_stub = _CapturingSmtpStub()
+    import aiosmtplib
+
+    monkeypatch.setattr(aiosmtplib, "send", smtp_stub)
+
+    from workers.outreach_worker import tasks as t
+
+    class _FakeSequence:
+        id = uuid.uuid4()
+        sponsor_target_id = uuid.uuid4()
+        confidence = 0.9
+        steps = [
+            {
+                "subject": "x",
+                "body": "y",
+                "autonomous_send": True,
+                "status": "sent",
+                "sent_at": "2026-01-01T00:00:00+00:00",
+            }
+        ]
+
+    class _FakeTarget:
+        id = uuid.uuid4()
+        target_company_name = "RealCo"
+        # Real-looking email that does NOT trip the test/synthetic guard
+        contact_info = {"email": "real-buyer@example-company.io"}
+
+    sess = _make_fake_session_for_outreach(_FakeSequence(), _FakeTarget())
+    monkeypatch.setattr(t, "get_async_session_factory", lambda: lambda: sess)
+
+    async def _noop_emit(*a, **k):
+        return None
+
+    from apps.api.services import event_bus
+
+    monkeypatch.setattr(event_bus, "emit_event", _noop_emit)
+
+    result = await t._send_outreach_email_impl(
+        outreach_id=str(_FakeSequence.id),
+        brand_id=str(uuid.uuid4()),
+        org_id=str(uuid.uuid4()),
+    )
+
+    assert result["status"] == "duplicate_skipped"
+    assert result["reason"] == "step_already_sent"
+    assert result["sent_at"] == "2026-01-01T00:00:00+00:00"
+    # SMTP transport was NEVER invoked
+    assert smtp_stub.calls == []
+    # No commit issued — the early-return path commits nothing
+    assert sess.commits == 0
+
+
+@pytest.mark.asyncio
+async def test_outreach_idempotency_skips_when_in_flight(monkeypatch):
+    """First-touch: if steps[0].status == 'sending', return duplicate_skipped
+    without invoking SMTP."""
+    monkeypatch.setenv("PROOFHOOK_MAILING_ADDRESS", "1 X St, Y, CA 90028")
+    smtp_stub = _CapturingSmtpStub()
+    import aiosmtplib
+
+    monkeypatch.setattr(aiosmtplib, "send", smtp_stub)
+
+    from workers.outreach_worker import tasks as t
+
+    class _FakeSequence:
+        id = uuid.uuid4()
+        sponsor_target_id = uuid.uuid4()
+        confidence = 0.9
+        steps = [
+            {
+                "subject": "x",
+                "body": "y",
+                "autonomous_send": True,
+                "status": "sending",
+                "sending_started_at": "2026-04-26T09:55:00+00:00",
+            }
+        ]
+
+    class _FakeTarget:
+        id = uuid.uuid4()
+        target_company_name = "RealCo"
+        contact_info = {"email": "real-buyer@example-company.io"}
+
+    sess = _make_fake_session_for_outreach(_FakeSequence(), _FakeTarget())
+    monkeypatch.setattr(t, "get_async_session_factory", lambda: lambda: sess)
+
+    async def _noop_emit(*a, **k):
+        return None
+
+    from apps.api.services import event_bus
+
+    monkeypatch.setattr(event_bus, "emit_event", _noop_emit)
+
+    result = await t._send_outreach_email_impl(
+        outreach_id=str(_FakeSequence.id),
+        brand_id=str(uuid.uuid4()),
+        org_id=str(uuid.uuid4()),
+    )
+
+    assert result["status"] == "duplicate_skipped"
+    assert result["reason"] == "step_in_flight"
+    assert result["sending_started_at"] == "2026-04-26T09:55:00+00:00"
+    assert smtp_stub.calls == []
+    assert sess.commits == 0
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 6. Send-path idempotency — follow-up (_send_follow_up_impl)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_follow_up_idempotency_skips_when_already_sent(monkeypatch):
+    """Follow-up: if current_step.status == 'sent', return duplicate_skipped
+    without invoking SMTP."""
+    monkeypatch.setenv("PROOFHOOK_MAILING_ADDRESS", "1 X St, Y, CA 90028")
+    smtp_stub = _CapturingSmtpStub()
+    import aiosmtplib
+
+    monkeypatch.setattr(aiosmtplib, "send", smtp_stub)
+
+    from workers.outreach_worker import tasks as t
+
+    class _FakeSequence:
+        id = uuid.uuid4()
+        sponsor_target_id = uuid.uuid4()
+        steps = [
+            {"subject": "x", "body": "y", "status": "sent"},
+            {
+                "subject": "follow",
+                "body": "up",
+                "status": "sent",
+                "sent_at": "2026-04-20T00:00:00+00:00",
+                "delay_days": 7,
+            },
+        ]
+
+    class _FakeTarget:
+        id = uuid.uuid4()
+        target_company_name = "RealCo"
+        contact_info = {"email": "real-buyer@example-company.io"}
+
+    sess = _make_fake_session_for_outreach(_FakeSequence(), _FakeTarget())
+    monkeypatch.setattr(t, "get_async_session_factory", lambda: lambda: sess)
+
+    async def _noop_emit(*a, **k):
+        return None
+
+    from apps.api.services import event_bus
+
+    monkeypatch.setattr(event_bus, "emit_event", _noop_emit)
+
+    result = await t._send_follow_up_impl(
+        outreach_id=str(_FakeSequence.id),
+        sequence_step=1,
+        org_id=str(uuid.uuid4()),
+    )
+
+    assert result["status"] == "duplicate_skipped"
+    assert result["reason"] == "step_already_sent"
+    assert result["step"] == 1
+    assert result["sent_at"] == "2026-04-20T00:00:00+00:00"
+    assert smtp_stub.calls == []
+    assert sess.commits == 0
+
+
+@pytest.mark.asyncio
+async def test_follow_up_idempotency_skips_when_in_flight(monkeypatch):
+    """Follow-up: if current_step.status == 'sending', return duplicate_skipped
+    without invoking SMTP."""
+    monkeypatch.setenv("PROOFHOOK_MAILING_ADDRESS", "1 X St, Y, CA 90028")
+    smtp_stub = _CapturingSmtpStub()
+    import aiosmtplib
+
+    monkeypatch.setattr(aiosmtplib, "send", smtp_stub)
+
+    from workers.outreach_worker import tasks as t
+
+    class _FakeSequence:
+        id = uuid.uuid4()
+        sponsor_target_id = uuid.uuid4()
+        steps = [
+            {"subject": "x", "body": "y", "status": "sent"},
+            {
+                "subject": "follow",
+                "body": "up",
+                "status": "sending",
+                "sending_started_at": "2026-04-26T09:55:00+00:00",
+                "delay_days": 7,
+            },
+        ]
+
+    class _FakeTarget:
+        id = uuid.uuid4()
+        target_company_name = "RealCo"
+        contact_info = {"email": "real-buyer@example-company.io"}
+
+    sess = _make_fake_session_for_outreach(_FakeSequence(), _FakeTarget())
+    monkeypatch.setattr(t, "get_async_session_factory", lambda: lambda: sess)
+
+    async def _noop_emit(*a, **k):
+        return None
+
+    from apps.api.services import event_bus
+
+    monkeypatch.setattr(event_bus, "emit_event", _noop_emit)
+
+    result = await t._send_follow_up_impl(
+        outreach_id=str(_FakeSequence.id),
+        sequence_step=1,
+        org_id=str(uuid.uuid4()),
+    )
+
+    assert result["status"] == "duplicate_skipped"
+    assert result["reason"] == "step_in_flight"
+    assert result["step"] == 1
+    assert result["sending_started_at"] == "2026-04-26T09:55:00+00:00"
+    assert smtp_stub.calls == []
+    assert sess.commits == 0
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 7. Pre-send marker is committed BEFORE SMTP send (order proof)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_outreach_commits_sending_marker_before_smtp(monkeypatch):
+    """First-touch autonomous send: the pre-send marker (status='sending')
+    must be committed to DB BEFORE aiosmtplib.send is invoked. Otherwise
+    a kill between SMTP-220-OK and the post-send commit would leave the
+    DB unmarked and the redelivered task would re-send."""
+    monkeypatch.setenv("PROOFHOOK_MAILING_ADDRESS", "1 X St, Y, CA 90028")
+
+    from workers.outreach_worker import tasks as t
+
+    class _FakeSequence:
+        id = uuid.uuid4()
+        sponsor_target_id = uuid.uuid4()
+        confidence = 0.95
+        steps = [
+            {
+                "subject": "x",
+                "body": "y",
+                "autonomous_send": True,
+                # NO existing status — fresh send
+            }
+        ]
+
+    class _FakeTarget:
+        id = uuid.uuid4()
+        target_company_name = "RealCo"
+        contact_info = {"email": "real-buyer@example-company.io"}
+
+    sess = _make_fake_session_for_outreach(_FakeSequence(), _FakeTarget())
+    monkeypatch.setattr(t, "get_async_session_factory", lambda: lambda: sess)
+
+    # Stub _get_smtp_credentials so we don't hit integration_manager
+    async def _fake_creds(db, org_id):
+        return {**SMTP_CREDS_OK}
+
+    monkeypatch.setattr(t, "_get_smtp_credentials", _fake_creds)
+
+    # Capture aiosmtplib.send AND record into the same event timeline as
+    # session.commit() so we can assert relative order.
+    import aiosmtplib
+
+    async def _send_capturing(msg, **kwargs):
+        sess.events.append("smtp_send")
+        return None
+
+    monkeypatch.setattr(aiosmtplib, "send", _send_capturing)
+
+    async def _noop_emit(*a, **k):
+        return None
+
+    from apps.api.services import event_bus
+
+    monkeypatch.setattr(event_bus, "emit_event", _noop_emit)
+
+    # Stub send_follow_up.apply_async so it doesn't try to enqueue
+    monkeypatch.setattr(t.send_follow_up, "apply_async", lambda *a, **k: None)
+
+    result = await t._send_outreach_email_impl(
+        outreach_id=str(_FakeSequence.id),
+        brand_id=str(uuid.uuid4()),
+        org_id=str(uuid.uuid4()),
+    )
+
+    # The send must have completed successfully (sanity) and the
+    # final step is marked sent + send_result attached.
+    assert result["status"] == "sent"
+    assert result["to_email"] == "real-buyer@example-company.io"
+
+    # Order check: at least one commit happened BEFORE the first smtp_send.
+    # In this impl the events list looks like:
+    #   ['commit'  (pre-send marker),
+    #    'smtp_send',
+    #    'flush'   (post-send),
+    #    'commit'  (final)]
+    # We assert that the FIRST smtp_send is preceded by a commit.
+    assert "smtp_send" in sess.events
+    first_send_idx = sess.events.index("smtp_send")
+    pre_send_events = sess.events[:first_send_idx]
+    assert "commit" in pre_send_events, (
+        f"No commit before first smtp_send. Event timeline: {sess.events}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_follow_up_commits_sending_marker_before_smtp(monkeypatch):
+    """Follow-up send: the pre-send marker must be committed BEFORE
+    aiosmtplib.send is invoked, mirroring the first-touch guarantee."""
+    monkeypatch.setenv("PROOFHOOK_MAILING_ADDRESS", "1 X St, Y, CA 90028")
+
+    from workers.outreach_worker import tasks as t
+
+    class _FakeSequence:
+        id = uuid.uuid4()
+        sponsor_target_id = uuid.uuid4()
+        steps = [
+            {"subject": "x", "body": "y", "status": "sent"},
+            {
+                "subject": "follow",
+                "body": "up",
+                "delay_days": 7,
+                # NO existing status on step 1 — fresh follow-up send
+            },
+        ]
+
+    class _FakeTarget:
+        id = uuid.uuid4()
+        target_company_name = "RealCo"
+        contact_info = {"email": "real-buyer@example-company.io"}
+
+    sess = _make_fake_session_for_outreach(_FakeSequence(), _FakeTarget())
+    monkeypatch.setattr(t, "get_async_session_factory", lambda: lambda: sess)
+
+    async def _fake_creds(db, org_id):
+        return {**SMTP_CREDS_OK}
+
+    monkeypatch.setattr(t, "_get_smtp_credentials", _fake_creds)
+
+    import aiosmtplib
+
+    async def _send_capturing(msg, **kwargs):
+        sess.events.append("smtp_send")
+        return None
+
+    monkeypatch.setattr(aiosmtplib, "send", _send_capturing)
+
+    async def _noop_emit(*a, **k):
+        return None
+
+    from apps.api.services import event_bus
+
+    monkeypatch.setattr(event_bus, "emit_event", _noop_emit)
+
+    monkeypatch.setattr(t.send_follow_up, "apply_async", lambda *a, **k: None)
+
+    result = await t._send_follow_up_impl(
+        outreach_id=str(_FakeSequence.id),
+        sequence_step=1,
+        org_id=str(uuid.uuid4()),
+    )
+
+    assert result["status"] == "sent"
+    assert result["step"] == 1
+    assert result["to_email"] == "real-buyer@example-company.io"
+
+    assert "smtp_send" in sess.events
+    first_send_idx = sess.events.index("smtp_send")
+    pre_send_events = sess.events[:first_send_idx]
+    assert "commit" in pre_send_events, (
+        f"No commit before first smtp_send. Event timeline: {sess.events}"
+    )

@@ -329,6 +329,25 @@ async def _send_outreach_email_impl(outreach_id: str, brand_id: str, org_id: str
         if not steps:
             return {"error": "Outreach sequence has no steps defined"}
 
+        # Idempotency check — refuse to re-send a step that's already been
+        # sent or is currently in flight on another worker. Prevents
+        # duplicates when Celery redelivers a task after a worker dies
+        # between SMTP-220-OK and the post-send commit
+        # (task_acks_late + task_reject_on_worker_lost).
+        status0 = (steps[0] or {}).get("status")
+        if status0 == "sent" or steps[0].get("sent_at"):
+            return {
+                "status": "duplicate_skipped",
+                "reason": "step_already_sent",
+                "sent_at": steps[0].get("sent_at"),
+            }
+        if status0 == "sending":
+            return {
+                "status": "duplicate_skipped",
+                "reason": "step_in_flight",
+                "sending_started_at": steps[0].get("sending_started_at"),
+            }
+
         # First step is the initial outreach
         first_step = steps[0]
         subject = first_step.get("subject", f"Partnership Opportunity with {target.target_company_name}")
@@ -369,6 +388,14 @@ async def _send_outreach_email_impl(outreach_id: str, brand_id: str, org_id: str
             }
 
         # Autonomous: send directly
+        # Pre-send marker — committed BEFORE SMTP so a kill between
+        # SMTP-OK and the post-send commit makes the redelivered task
+        # skip rather than re-send.
+        steps[0]["status"] = "sending"
+        steps[0]["sending_started_at"] = datetime.now(timezone.utc).isoformat()
+        outreach.steps = steps
+        await db.commit()
+
         smtp_creds = await _get_smtp_credentials(db, org_uuid)
         result = await _send_smtp_email(smtp_creds, to_email, subject, body_html, body_text)
 
@@ -381,6 +408,7 @@ async def _send_outreach_email_impl(outreach_id: str, brand_id: str, org_id: str
         if steps:
             steps[0]["status"] = "sent"
             steps[0]["sent_at"] = now_iso
+            steps[0]["send_result"] = {"provider": "smtp", "ok": True}
         outreach.steps = steps  # trigger JSONB update
         await db.flush()
 
@@ -470,6 +498,26 @@ async def _send_follow_up_impl(outreach_id: str, sequence_step: int, org_id: str
             if s.get("status") == "replied":
                 return {"status": "skipped", "reason": "Reply received on earlier step — follow-up cancelled"}
 
+        # Idempotency check — refuse to re-send a follow-up step that's
+        # already been sent or is currently in flight on another worker.
+        # Prevents duplicates on Celery task redelivery after a worker
+        # dies between SMTP-220-OK and the post-send commit.
+        status_now = current_step.get("status")
+        if status_now == "sent" or current_step.get("sent_at"):
+            return {
+                "status": "duplicate_skipped",
+                "reason": "step_already_sent",
+                "step": sequence_step,
+                "sent_at": current_step.get("sent_at"),
+            }
+        if status_now == "sending":
+            return {
+                "status": "duplicate_skipped",
+                "reason": "step_in_flight",
+                "step": sequence_step,
+                "sending_started_at": current_step.get("sending_started_at"),
+            }
+
         contact_info = target.contact_info or {}
         to_email = contact_info.get("email", "")
         if not to_email:
@@ -520,6 +568,14 @@ async def _send_follow_up_impl(outreach_id: str, sequence_step: int, org_id: str
 
         body_html = current_step.get("body_html") or _text_to_html(body_text)
 
+        # Pre-send marker — committed BEFORE SMTP so a kill between
+        # SMTP-OK and the post-send commit makes the redelivered task
+        # skip rather than re-send.
+        steps[sequence_step]["status"] = "sending"
+        steps[sequence_step]["sending_started_at"] = datetime.now(timezone.utc).isoformat()
+        outreach.steps = steps
+        await db.commit()
+
         # Send via SMTP
         smtp_creds = await _get_smtp_credentials(db, org_uuid)
         result = await _send_smtp_email(smtp_creds, to_email, subject, body_html, body_text)
@@ -532,6 +588,7 @@ async def _send_follow_up_impl(outreach_id: str, sequence_step: int, org_id: str
         now_iso = datetime.now(timezone.utc).isoformat()
         steps[sequence_step]["status"] = "sent"
         steps[sequence_step]["sent_at"] = now_iso
+        steps[sequence_step]["send_result"] = {"provider": "smtp", "ok": True}
         outreach.steps = steps
         await db.flush()
 
