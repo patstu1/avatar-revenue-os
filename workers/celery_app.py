@@ -939,6 +939,18 @@ app.conf.update(
             "task": "workers.health_monitor_worker.tasks.detect_inactive_shells",
             "schedule": crontab(minute=45, hour="*/4"),
         },
+        # --- Fulfillment: drain queued production jobs (every minute) ---
+        # Picks up ProductionJob rows where status='queued' AND picked_up_at IS NULL,
+        # transitions to 'in_progress', sets picked_up_at + worker_id, and emits
+        # production.job.picked_up. Without this entry, jobs created by
+        # cascade_intake_to_production never advance — execute_content_pack_jobs
+        # only acts on in_progress, so the chain stalls forever at queued.
+        # Idempotent: jobs with picked_up_at IS NOT NULL are filtered, so re-running
+        # cannot double-pick a job already in flight.
+        "drain-pending-production-jobs-every-1m": {
+            "task": "workers.fulfillment_worker.tasks.drain_pending_production_jobs",
+            "schedule": crontab(minute="*"),
+        },
         # --- Fulfillment: content_pack executor ---
         # Generates real Markdown content packs from approved briefs for in_progress
         # production jobs that have no output_url yet. Calls submit_production_output()

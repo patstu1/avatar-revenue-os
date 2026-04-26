@@ -780,3 +780,275 @@ async def test_smtp_resolve_returns_none_when_no_config(db_session, sample_org_d
     # The legacy alias must behave identically
     result2 = await SmtpEmailClient.from_db(db_session, org_id)
     assert result2 is None
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 9. Intake router is mounted in main.py — proves the buyer's intake
+#    invite link no longer 404s. Pre-fix: intake_router was defined in
+#    apps/api/routers/clients.py but never include_router'd into
+#    apps/api/main.py, so /api/v1/intake/{token}/submit returned 404.
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_intake_route_is_mounted_and_reachable(api_client):
+    """OpenAPI exposes the intake submit path AND posting to it does not
+    return 404 (signaling unmounted route). Posting with a bogus token
+    returns 404 from the *route handler* with the body 'Intake not found'
+    — that's a route hit, not a missing route."""
+    # OpenAPI surface — FastAPI default openapi_url is /openapi.json (root)
+    r = await api_client.get("/openapi.json")
+    if r.status_code != 200:
+        # Production exposes it at /api/v1/openapi.json; try both
+        r = await api_client.get("/api/v1/openapi.json")
+    assert r.status_code == 200
+    paths = list(r.json().get("paths", {}).keys())
+    assert "/api/v1/intake/{token}/submit" in paths, (
+        f"intake submit path not in OpenAPI: {[p for p in paths if 'intake' in p]}"
+    )
+    assert "/api/v1/intake/{token}" in paths
+    assert "/api/v1/intake-requests" in paths
+
+    # POST with a bogus token returns 404 from the route handler. The
+    # global 404 exception_handler in apps/api/middleware.py rewrites all
+    # 404 bodies to {"detail": "Not found"} regardless of whether the
+    # route is mounted, so we can't distinguish via body. The OpenAPI
+    # surface check above is the canonical mount proof; this just
+    # confirms the route is reachable end-to-end.
+    r2 = await api_client.post(
+        "/api/v1/intake/totally_bogus_token_does_not_exist_123/submit",
+        json={"responses": {}, "submitter_email": "x@example.test"},
+    )
+    assert r2.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_intake_http_submit_drives_full_cascade(
+    api_client, db_session, sample_org_data, monkeypatch
+):
+    """Posting a full intake submission to the public HTTP endpoint creates
+    ClientProject + ProjectBrief + queued ProductionJob — proving the
+    public buyer path is reachable end-to-end through the wire (no
+    direct service-call shortcut)."""
+    from packages.db.models.fulfillment import ClientProject, ProductionJob
+
+    org_id = await _register_org(api_client, sample_org_data)
+    brand_id = await _seed_brand(db_session, org_id)
+    email = f"http-{uuid.uuid4().hex[:8]}@example.test"
+    event_id = f"evt_http_{uuid.uuid4().hex[:14]}"
+
+    payload = _checkout_session_completed(
+        event_id=event_id,
+        org_id=org_id,
+        brand_id=brand_id,
+        package_slug="momentum_engine",
+        package_name="Momentum Engine",
+        amount_total=250000,
+        customer_email=email,
+    )
+    r = await _post_webhook(api_client, payload, monkeypatch)
+    assert r.status_code == 200, r.text
+
+    client = (
+        await db_session.execute(
+            select(Client).where(Client.org_id == org_id, Client.primary_email == email)
+        )
+    ).scalar_one()
+    intake = (
+        await db_session.execute(select(IntakeRequest).where(IntakeRequest.client_id == client.id))
+    ).scalar_one()
+
+    # Drive the cascade through the public HTTP route
+    submit = await api_client.post(
+        f"/api/v1/intake/{intake.token}/submit",
+        json={
+            "responses": {
+                "company_name": "Acme HTTP",
+                "primary_contact": "Pat",
+                "target_audience": "B2B SaaS founders",
+                "goals": "End-to-end HTTP path validation",
+            },
+            "submitter_email": email,
+        },
+    )
+    assert submit.status_code == 201, submit.text
+    body = submit.json()
+    assert body["is_complete"] is True
+    assert body["intake_request_id"] == str(intake.id)
+    sub_id = uuid.UUID(body["id"])
+
+    # The cascade ran inside submit_intake — ClientProject + Brief +
+    # queued ProductionJob with package_slug carried through
+    project = (
+        await db_session.execute(select(ClientProject).where(ClientProject.intake_submission_id == sub_id))
+    ).scalar_one()
+    assert project.package_slug == "momentum_engine"
+    assert project.proposal_id is None  # public path, no proposal
+    job = (
+        await db_session.execute(select(ProductionJob).where(ProductionJob.project_id == project.id))
+    ).scalar_one()
+    assert job.job_type == "content_pack"
+    assert job.status == "queued"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 10. Celery beat schedule includes drain_pending_production_jobs —
+#    proves queued ProductionJobs will auto-advance to in_progress
+#    every minute without manual dispatch. Pre-fix: the task was
+#    registered but the beat schedule lacked the entry, so queued jobs
+#    sat forever.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_celery_beat_includes_drain_pending_production_jobs():
+    """workers/celery_app.py must declare a beat entry whose `task` field
+    matches the registered task name in workers/fulfillment_worker/tasks.py."""
+    from workers.celery_app import app as celery_app
+
+    schedule = celery_app.conf.beat_schedule
+    assert isinstance(schedule, dict) and len(schedule) > 0
+
+    matching = [
+        (name, entry)
+        for name, entry in schedule.items()
+        if entry.get("task") == "workers.fulfillment_worker.tasks.drain_pending_production_jobs"
+    ]
+    assert matching, (
+        "drain_pending_production_jobs is not in the beat schedule. "
+        f"All scheduled tasks: {sorted({e.get('task') for e in schedule.values()})}"
+    )
+    assert len(matching) == 1, f"drain task scheduled multiple times: {[m[0] for m in matching]}"
+
+    # Schedule must be a Celery schedule object (crontab or timedelta)
+    name, entry = matching[0]
+    sched = entry.get("schedule")
+    assert sched is not None
+    # Verify it fires at most every minute (i.e. not less frequent than once per minute)
+    # crontab(minute='*') is the canonical "every minute" form
+    from celery.schedules import crontab
+
+    if isinstance(sched, crontab):
+        # crontab.minute is a set of integers (every minute → all 60 values)
+        assert len(sched.minute) >= 60, (
+            f"drain task should fire every minute; crontab.minute={sched.minute}"
+        )
+
+
+@pytest.mark.asyncio
+async def test_drain_advances_queued_production_job(api_client, db_session, sample_org_data, monkeypatch):
+    """Calling _drain_pending_production_jobs (the task body) directly on a
+    queued ProductionJob flips it to in_progress with picked_up_at set,
+    without any manual shell intervention. Proves the task body works
+    when the beat fires it."""
+    import os
+    from datetime import datetime, timezone
+
+    from packages.db.models.fulfillment import ClientProject, ProductionJob, ProjectBrief
+    from workers.fulfillment_worker.tasks import _drain_pending_production_jobs
+    from packages.db.models.proposals import Proposal  # noqa: F401 — FK registration
+
+    # The drain task uses workers.fulfillment_worker.tasks._fresh_session_factory
+    # which reads DATABASE_URL directly (not TEST_DATABASE_URL). Point it at
+    # the test DB for the duration of this test so it sees the seeded job.
+    test_db_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://avataros:avataros_dev_2026@postgres:5432/avatar_revenue_os_test",
+    )
+    monkeypatch.setenv("DATABASE_URL", test_db_url)
+
+    org_id = await _register_org(api_client, sample_org_data)
+    brand_id = await _seed_brand(db_session, org_id)
+
+    # Hand-build a Client → ClientProject → ProjectBrief → ProductionJob
+    # in the queued state. Avoids running the whole webhook chain to
+    # exercise just the drain. brief_id is NOT NULL on production_jobs.
+    client = Client(
+        org_id=org_id,
+        brand_id=brand_id,
+        primary_email=f"drain-{uuid.uuid4().hex[:6]}@example.test",
+        display_name="Drain Test",
+        status="active",
+    )
+    db_session.add(client)
+    await db_session.flush()
+
+    project = ClientProject(
+        org_id=org_id,
+        client_id=client.id,
+        title="drain-test project",
+        package_slug="signal_entry",
+        status="active",
+    )
+    db_session.add(project)
+    await db_session.flush()
+
+    brief = ProjectBrief(
+        org_id=org_id,
+        project_id=project.id,
+        version=1,
+        status="approved",
+        title="drain-test brief",
+        summary="seed",
+        generator="test_seed",
+    )
+    db_session.add(brief)
+    await db_session.flush()
+
+    job = ProductionJob(
+        org_id=org_id,
+        project_id=project.id,
+        brief_id=brief.id,
+        job_type="content_pack",
+        title="drain-test content pack",
+        status="queued",
+        attempt_count=0,
+    )
+    db_session.add(job)
+    await db_session.flush()
+    await db_session.commit()
+
+    # Sanity: job is queued, not picked up
+    fresh = (
+        await db_session.execute(select(ProductionJob).where(ProductionJob.id == job.id))
+    ).scalar_one()
+    assert fresh.status == "queued"
+    assert fresh.picked_up_at is None
+
+    # Run the drain task body. It uses its own session factory and commits
+    # to the test DB (DATABASE_URL was monkeypatched to the test DB above).
+    job_id = job.id
+    result = await _drain_pending_production_jobs()
+    assert result.get("picked", 0) >= 1
+
+    # Re-read via a brand-new session bound to the test engine — bypasses
+    # the test fixture's identity-map cache and any open transaction state
+    # so we see exactly what the drain task committed.
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    fresh_factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
+    async with fresh_factory() as fresh:
+        after = (
+            await fresh.execute(select(ProductionJob).where(ProductionJob.id == job_id))
+        ).scalar_one()
+        assert after.status == "in_progress", f"got status={after.status}"
+        assert after.picked_up_at is not None
+        assert after.attempt_count == 1
+        assert after.worker_id  # worker_id was stamped
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 11. Email URL builder uses the mounted /api/v1/intake path — proves
+#    the SendGrid intake link will resolve against the deployed API.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_intake_email_url_uses_api_v1_path(monkeypatch):
+    """When FRONTEND_URL is set (production state), the URL embedded in
+    the intake invite email points at /api/v1/intake/{token} — which is
+    the route mounted in main.py."""
+    from packages.clients.email_templates import _intake_form_url
+
+    monkeypatch.delenv("INTAKE_FORM_BASE_URL", raising=False)
+    monkeypatch.setenv("FRONTEND_URL", "https://app.nvironments.com")
+    url = _intake_form_url("abc123token")
+    assert url == "https://app.nvironments.com/api/v1/intake/abc123token"

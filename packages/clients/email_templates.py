@@ -328,16 +328,27 @@ def build_proof_email(
 def _intake_form_url(token: str) -> str:
     """Base URL for the public intake form.
 
-    Override via env var ``INTAKE_FORM_BASE_URL`` — defaults to the
-    ARO API host at ``/intake/{token}``. Operators can point this at a
-    hosted form page (e.g. Typeform) if they swap the intake surface
-    later without touching this code.
+    Resolution order:
+      1. ``INTAKE_FORM_BASE_URL`` env (full URL to the form base; token
+         is appended). Use to point operators at a hosted form like
+         Typeform without code changes.
+      2. ``FRONTEND_URL`` env + ``/api/v1/intake`` — the canonical
+         path on the deployed API (matches the intake_router mount in
+         apps/api/main.py).
+      3. Best-effort default from ``DOMAIN`` env. Originally produced
+         a malformed host (``app.app.nvironments.com``) when DOMAIN
+         already contained a subdomain — fixed here to use DOMAIN
+         directly when it already has a dot.
     """
-    base = os.environ.get(
-        "INTAKE_FORM_BASE_URL",
-        f"https://app.{DOMAIN.replace('proofhook.com', 'nvironments.com')}/intake",
-    ).rstrip("/")
-    return f"{base}/{token}"
+    explicit = os.environ.get("INTAKE_FORM_BASE_URL", "").rstrip("/")
+    if explicit:
+        return f"{explicit}/{token}"
+    frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    if frontend:
+        return f"{frontend}/api/v1/intake/{token}"
+    # Fallback default — only kicks in when neither env var is set
+    host = DOMAIN if "." in DOMAIN else f"app.{DOMAIN}"
+    return f"https://{host}/api/v1/intake/{token}"
 
 
 def build_intake_invite(

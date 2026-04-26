@@ -134,6 +134,13 @@ from apps.api.routers import (
     settings as settings_router,
 )
 
+# clients module declares two routers — mount the intake one so the public
+# intake submit endpoint emitted on every Stripe public-checkout webhook is
+# reachable at /api/v1/intake/{token}/submit. Without this, buyers click
+# the link in the SendGrid intake invite and hit a 404. clients_router is
+# intentionally NOT mounted here; that's a separate, broader change.
+from apps.api.routers.clients import intake_router as _intake_router
+
 settings = get_settings()
 
 log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
@@ -334,6 +341,7 @@ app.include_router(
     tags=["Live Execution Phase 2: Webhooks, Triggers, Connectors, Buffer Expansion"],
 )
 app.include_router(webhooks.router, prefix="/api/v1", tags=["Webhooks: Stripe, Shopify, Media Providers"])
+app.include_router(_intake_router, prefix="/api/v1", tags=["Intake"])
 app.include_router(cold_outreach_tracking.router, tags=["Cold Outreach Tracking"])
 app.include_router(leads.router, prefix="/api/v1", tags=["Lead Capture: Public offer page submissions"])
 app.include_router(
