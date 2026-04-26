@@ -131,7 +131,22 @@ async def _send_smtp_email(
     body_html: str,
     body_text: str = "",
 ) -> dict:
-    """Send an email via SMTP. Uses aiosmtplib (same as EmailAdapter)."""
+    """Send an email via SMTP. Uses aiosmtplib (same as EmailAdapter).
+
+    Cold-outbound safety patch:
+      - Refuses to send commercial outreach without a configured physical
+        mailing address (CAN-SPAM § 5(a)(5)). Operator sets
+        ``PROOFHOOK_MAILING_ADDRESS`` env. If unset, returns a structured
+        ``{success: False, blocked: True, error: 'missing_physical_mailing_address'}``
+        result; the caller treats it as a non-send.
+      - Always appends a visible footer with the address + an explicit
+        opt-out line. Idempotent on the sentinel "Reply UNSUBSCRIBE to opt
+        out." so re-applying the footer does not duplicate it.
+      - Always sets the ``List-Unsubscribe`` header (parity with the
+        API-side SmtpEmailClient.send_email path).
+    """
+    import html as _html
+    import os
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
 
@@ -143,6 +158,41 @@ async def _send_smtp_email(
             "error": "SMTP not configured — add credentials via Settings > Integrations (provider_key='smtp')",
         }
 
+    # ── Compliance gate: physical mailing address required ──────────
+    mailing_address = os.environ.get("PROOFHOOK_MAILING_ADDRESS", "").strip()
+    if not mailing_address:
+        return {
+            "success": False,
+            "blocked": True,
+            "error": "missing_physical_mailing_address",
+            "hint": (
+                "Set PROOFHOOK_MAILING_ADDRESS env to the operator's verified "
+                "physical mailing address (CAN-SPAM § 5(a)(5))."
+            ),
+        }
+
+    # ── Footer enforcement: visible address + opt-out line ──────────
+    UNSUB_SENTINEL = "Reply UNSUBSCRIBE to opt out."
+    footer_text_block = (
+        "\n\n--\n"
+        "ProofHook\n"
+        f"{mailing_address}\n"
+        f"{UNSUB_SENTINEL}\n"
+    )
+    address_html = _html.escape(mailing_address).replace("\n", "<br>")
+    footer_html_block = (
+        '<hr style="margin-top:24px;border:none;border-top:1px solid #ccc">'
+        '<p style="font-size:12px;color:#666;line-height:1.5">'
+        "ProofHook<br>"
+        f"{address_html}<br>"
+        f"{UNSUB_SENTINEL}"
+        "</p>"
+    )
+    if UNSUB_SENTINEL not in (body_text or ""):
+        body_text = (body_text or "") + footer_text_block
+    if UNSUB_SENTINEL not in (body_html or ""):
+        body_html = (body_html or "") + footer_html_block
+
     msg = MIMEMultipart("alternative")
     msg["From"] = smtp_creds["from_email"]
     msg["To"] = to_email
@@ -153,6 +203,10 @@ async def _send_smtp_email(
     # which address to populate when they hit Reply.
     if smtp_creds.get("reply_to"):
         msg["Reply-To"] = smtp_creds["reply_to"]
+    # List-Unsubscribe header parity with the API-side SmtpEmailClient
+    # path (intake invite, dunning, retention, delivery emails). Bulk
+    # mailbox providers honor this; mailto fallback satisfies RFC 2369.
+    msg["List-Unsubscribe"] = f"<mailto:{smtp_creds['from_email']}?subject=unsubscribe>"
 
     if body_text:
         msg.attach(MIMEText(body_text, "plain", "utf-8"))
@@ -233,6 +287,43 @@ async def _send_outreach_email_impl(outreach_id: str, brand_id: str, org_id: str
         to_email = contact_info.get("email", "")
         if not to_email:
             return {"error": f"No contact email for target '{target.target_company_name}'"}
+
+        # Cold-outbound safety: never send to test/synthetic addresses.
+        # Catches @example.com, @test.com, @b10test.com, *.invalid,
+        # *.localhost, and the test/fixture/synth marker patterns. Runs
+        # BEFORE the autonomous gate so test addresses don't even create
+        # OperatorActions for review — the existing 122 sponsor_targets
+        # in production are all @b10test.com fixtures.
+        from apps.api.services.test_record_guard import is_test_or_synthetic_email
+
+        if is_test_or_synthetic_email(to_email):
+            logger.warning(
+                "outreach.blocked_test_email to=%s outreach_id=%s target=%s",
+                to_email,
+                outreach_id,
+                target.target_company_name,
+            )
+            await emit_event(
+                db,
+                domain="outreach",
+                event_type="outreach.blocked_test_email",
+                summary=f"Outreach blocked: test/synthetic email {to_email}",
+                org_id=org_uuid,
+                brand_id=brand_uuid,
+                severity="warning",
+                details={
+                    "outreach_id": outreach_id,
+                    "to_email": to_email,
+                    "target": target.target_company_name,
+                    "reason": "test_or_synthetic_email",
+                },
+            )
+            await db.commit()
+            return {
+                "status": "blocked",
+                "reason": "test_or_synthetic_email",
+                "to_email": to_email,
+            }
 
         steps = outreach.steps or []
         if not steps:
@@ -383,6 +474,42 @@ async def _send_follow_up_impl(outreach_id: str, sequence_step: int, org_id: str
         to_email = contact_info.get("email", "")
         if not to_email:
             return {"error": "No contact email for target"}
+
+        # Cold-outbound safety: never follow up on test/synthetic addresses.
+        # Same guard as initial outreach — even if step 0 was somehow sent
+        # past the guard, every subsequent step re-checks before sending.
+        from apps.api.services.test_record_guard import is_test_or_synthetic_email
+
+        if is_test_or_synthetic_email(to_email):
+            logger.warning(
+                "outreach.follow_up.blocked_test_email to=%s outreach_id=%s step=%d target=%s",
+                to_email,
+                outreach_id,
+                sequence_step,
+                target.target_company_name,
+            )
+            await emit_event(
+                db,
+                domain="outreach",
+                event_type="outreach.blocked_test_email",
+                summary=f"Follow-up blocked: test/synthetic email {to_email}",
+                org_id=org_uuid,
+                severity="warning",
+                details={
+                    "outreach_id": outreach_id,
+                    "sequence_step": sequence_step,
+                    "to_email": to_email,
+                    "target": target.target_company_name,
+                    "reason": "test_or_synthetic_email",
+                },
+            )
+            await db.commit()
+            return {
+                "status": "blocked",
+                "reason": "test_or_synthetic_email",
+                "to_email": to_email,
+                "step": sequence_step,
+            }
 
         subject = current_step.get("subject", f"Following up — {target.target_company_name}")
         body_text = current_step.get("body", "")
