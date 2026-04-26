@@ -37,10 +37,13 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy import select
 
-# Ensure stage_states / gm_* tables are registered with Base.metadata so the
-# test_engine fixture's create_all builds them (production has them via
-# migrations; the test fixture rebuilds from registered models only).
+# Ensure stage_states / gm_* / production_qa_reviews / deliveries tables
+# are registered with Base.metadata so the test_engine fixture's create_all
+# builds them (production has them via migrations; the test fixture
+# rebuilds from registered models only — packages/db/models/__init__.py
+# does not import these modules so we do it explicitly here).
 import packages.db.models.gm_control  # noqa: F401
+import packages.db.models.delivery  # noqa: F401
 from packages.db.models.clients import Client, IntakeRequest
 from packages.db.models.core import Brand
 from packages.db.models.fulfillment import (
@@ -1042,13 +1045,220 @@ async def test_drain_advances_queued_production_job(api_client, db_session, samp
 # ─────────────────────────────────────────────────────────────────────
 
 
-def test_intake_email_url_uses_api_v1_path(monkeypatch):
-    """When FRONTEND_URL is set (production state), the URL embedded in
-    the intake invite email points at /api/v1/intake/{token} — which is
-    the route mounted in main.py."""
+def test_intake_email_url_points_to_frontend_form(monkeypatch):
+    """When FRONTEND_URL is set (production state), the URL embedded in the
+    intake invite email points at the buyer-facing Next.js page at
+    ``/intake/{token}`` — NOT the raw API path. The frontend page calls
+    /api/v1/intake/* internally; buyers never see /api/v1/ in the link.
+
+    Pre-fix (Round N-1): URL pointed at /api/v1/intake/{token} → buyer
+    saw raw JSON. Now: URL points at /intake/{token} → buyer sees the
+    minimal ProofHook intake form rendered by Next.js.
+    """
     from packages.clients.email_templates import _intake_form_url
 
     monkeypatch.delenv("INTAKE_FORM_BASE_URL", raising=False)
     monkeypatch.setenv("FRONTEND_URL", "https://app.nvironments.com")
     url = _intake_form_url("abc123token")
-    assert url == "https://app.nvironments.com/api/v1/intake/abc123token"
+    assert url == "https://app.nvironments.com/intake/abc123token"
+    # Must NOT contain /api/v1 — that's the internal API path
+    assert "/api/v1" not in url
+
+
+def test_intake_email_url_explicit_override_takes_priority(monkeypatch):
+    """INTAKE_FORM_BASE_URL is preserved as the highest-priority override
+    so operators can swap to a hosted form (Typeform etc.) without code
+    changes — same behavior as before."""
+    from packages.clients.email_templates import _intake_form_url
+
+    monkeypatch.setenv("INTAKE_FORM_BASE_URL", "https://forms.example.com/intake")
+    monkeypatch.setenv("FRONTEND_URL", "https://app.nvironments.com")
+    url = _intake_form_url("xyz")
+    assert url == "https://forms.example.com/intake/xyz"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 12. Intake page (Next.js) source-level smoke tests. The codebase has
+#    no frontend test runner (no jest/vitest/playwright in
+#    apps/web/package.json), so we verify the page module exists and
+#    contains the wire contract: dynamic [token] route, fetches the
+#    schema from /api/v1/intake/{token}, posts to .../submit, and
+#    surfaces success/invalid/error states.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_intake_page_exists_and_wired_to_api():
+    """The Next.js page must exist at apps/web/src/app/intake/[token]/page.tsx
+    (the path the email URL builder now points to) and must call the
+    canonical API routes."""
+    import os
+
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    page_path = os.path.join(repo_root, "apps/web/src/app/intake/[token]/page.tsx")
+    assert os.path.isfile(page_path), f"intake page missing at {page_path}"
+
+    src = open(page_path).read()
+
+    # Wire contract — must hit the API routes the backend mounted
+    assert "/api/v1/intake/" in src, "intake page must call /api/v1/intake/{token}"
+    assert "/submit" in src, "intake page must POST to /submit"
+    assert "useParams" in src, "intake page must read token from dynamic route"
+
+    # User-visible states
+    assert 'data-testid="intake-form"' in src
+    assert 'data-testid="intake-completed"' in src
+    assert 'data-testid="intake-invalid"' in src
+
+    # Branding (minimal — just must not look broken)
+    assert "ProofHook" in src
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 13. Follow-up scheduling on delivery — proves the existing
+#    qa_delivery_service.dispatch_delivery path sets
+#    Delivery.followup_scheduled_at and emits a followup.scheduled
+#    SystemEvent. Pre-existing infrastructure; we just lock in
+#    the contract with a focused test.
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_delivery_dispatch_schedules_followup(api_client, db_session, sample_org_data):
+    """submit_production_output → run_qa_review (auto-pass) → dispatch_delivery
+    must:
+      - create a Delivery row with followup_scheduled_at set in the future
+        (DEFAULT_FOLLOWUP_DAYS days out)
+      - emit a followup.scheduled SystemEvent on that delivery
+    """
+    from datetime import datetime, timezone
+
+    from apps.api.services.qa_delivery_service import (
+        DEFAULT_FOLLOWUP_DAYS,
+        submit_production_output,
+    )
+    from packages.db.models.delivery import Delivery
+    from packages.db.models.fulfillment import (
+        ClientProject,
+        ProductionJob,
+        ProjectBrief,
+    )
+    from packages.db.models.proposals import Proposal  # noqa: F401 — FK registration
+    from packages.db.models.system_events import SystemEvent
+
+    org_id = await _register_org(api_client, sample_org_data)
+    brand_id = await _seed_brand(db_session, org_id)
+
+    client = Client(
+        org_id=org_id,
+        brand_id=brand_id,
+        primary_email=f"fu-{uuid.uuid4().hex[:6]}@example.test",
+        display_name="Follow-up Test",
+        status="active",
+    )
+    db_session.add(client)
+    await db_session.flush()
+
+    project = ClientProject(
+        org_id=org_id,
+        client_id=client.id,
+        title="follow-up test project",
+        package_slug="signal_entry",
+        status="active",
+    )
+    db_session.add(project)
+    await db_session.flush()
+
+    brief = ProjectBrief(
+        org_id=org_id,
+        project_id=project.id,
+        version=1,
+        status="approved",
+        title="follow-up test brief",
+        summary="seed",
+        generator="test_seed",
+    )
+    db_session.add(brief)
+    await db_session.flush()
+
+    job = ProductionJob(
+        org_id=org_id,
+        project_id=project.id,
+        brief_id=brief.id,
+        job_type="content_pack",
+        title="follow-up test pack",
+        status="in_progress",
+        attempt_count=1,
+        started_at=datetime.now(timezone.utc),
+        picked_up_at=datetime.now(timezone.utc),
+    )
+    db_session.add(job)
+    await db_session.flush()
+
+    # Drive the chain: output → auto-QA pass → dispatch_delivery →
+    # schedule followup
+    summary = await submit_production_output(
+        db_session,
+        job=job,
+        output_url="https://example.test/test-pack.md",
+        output_payload={"test": True},
+        auto_qa=True,
+        auto_dispatch=True,
+    )
+    await db_session.commit()
+
+    # QA passed and delivery created
+    assert summary["qa"]["result"] == "passed"
+    assert summary["delivery"] is not None
+    assert summary["delivery"]["followup_scheduled_at"] is not None
+
+    # Delivery row carries the schedule
+    delivery = (
+        await db_session.execute(select(Delivery).where(Delivery.production_job_id == job.id))
+    ).scalar_one()
+    assert delivery.status == "sent"
+    assert delivery.followup_scheduled_at is not None
+    assert delivery.followup_sent_at is None  # scheduled, not yet dispatched
+    # ~DEFAULT_FOLLOWUP_DAYS out from now (allow ±1 day for clock skew)
+    delta_days = (delivery.followup_scheduled_at - delivery.sent_at).days
+    assert abs(delta_days - DEFAULT_FOLLOWUP_DAYS) <= 1
+
+    # SystemEvent followup.scheduled emitted on this delivery
+    fu_events = (
+        (
+            await db_session.execute(
+                select(SystemEvent).where(
+                    SystemEvent.event_type == "followup.scheduled",
+                    SystemEvent.entity_type == "delivery",
+                    SystemEvent.entity_id == delivery.id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(fu_events) == 1
+    fu = fu_events[0]
+    details = fu.details or {}
+    assert details.get("delivery_id") == str(delivery.id)
+    assert details.get("followup_days") == DEFAULT_FOLLOWUP_DAYS
+
+
+def test_celery_beat_includes_dispatch_due_followups():
+    """workers/celery_app.py must declare a beat entry whose `task` field
+    matches workers.fulfillment_worker.tasks.dispatch_due_followups so
+    the followup_scheduled_at column actually gets sent. Mirrors the
+    drain-pending check that landed in the prior round."""
+    from workers.celery_app import app as celery_app
+
+    schedule = celery_app.conf.beat_schedule
+    matching = [
+        (name, entry)
+        for name, entry in schedule.items()
+        if entry.get("task") == "workers.fulfillment_worker.tasks.dispatch_due_followups"
+    ]
+    assert matching, (
+        "dispatch_due_followups is not in the beat schedule. Without it, "
+        "Delivery.followup_scheduled_at sits forever and the followup email "
+        "never sends."
+    )
+    assert len(matching) == 1, f"dispatch task scheduled multiple times: {[m[0] for m in matching]}"

@@ -960,6 +960,17 @@ app.conf.update(
             "task": "workers.fulfillment_worker.tasks.execute_content_pack_jobs",
             "schedule": crontab(minute="*/2"),
         },
+        # --- Fulfillment: dispatch due follow-ups (every 15 minutes) ---
+        # Scans deliveries with followup_scheduled_at <= now() and
+        # followup_sent_at IS NULL, sends the follow-up email, marks
+        # followup_sent_at + emits followup.sent. Without this entry, the
+        # followup_scheduled_at column is set at delivery time but no
+        # email is ever actually sent — the schedule sits there forever.
+        # Idempotent on followup_sent_at IS NULL.
+        "dispatch-due-followups-every-15m": {
+            "task": "workers.fulfillment_worker.tasks.dispatch_due_followups",
+            "schedule": crontab(minute="*/15"),
+        },
         # --- Retainer / Renewal lane (3rd full-circle revenue lane) ---
         # scan-retention-states: recomputes retention_state, next_renewal_at, and
         # churn_risk_score for every active client. Must run before the renewal
