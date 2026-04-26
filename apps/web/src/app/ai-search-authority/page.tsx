@@ -65,7 +65,7 @@ export const metadata: Metadata = {
 
 export default function AiSearchAuthorityPage() {
   return (
-    <MarketingShell breadcrumbs={[{ label: "Home", url: "/" }, { label: PKG.name, url: PAGE_URL }]}>
+    <MarketingShell pageId="ai-search-authority" breadcrumbs={[{ label: "Home", url: "/" }, { label: PKG.name, url: PAGE_URL }]}>
       <OrganizationJsonLd />
       <WebSiteJsonLd />
       <ServiceJsonLd pkg={PKG} pageUrl={PAGE_URL} />

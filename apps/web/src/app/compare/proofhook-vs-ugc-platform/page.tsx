@@ -62,6 +62,7 @@ const ROWS: { dimension: string; proofhook: string; ugc: string }[] = [
 export default function CompareUgcPlatformPage() {
   return (
     <MarketingShell
+      pageId="compare/proofhook-vs-ugc-platform"
       breadcrumbs={[
         { label: "Home", url: "/" },
         { label: "Compare", url: "/compare" },

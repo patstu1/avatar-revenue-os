@@ -81,7 +81,23 @@ REQUIRED_PAGE_PATHS = {
     "/industries/ai-startups": "apps/web/src/app/industries/ai-startups/page.tsx",
     "/industries/saas": "apps/web/src/app/industries/saas/page.tsx",
     "/industries/ecommerce": "apps/web/src/app/industries/ecommerce/page.tsx",
+    # Round 2 marketing additions: entity, answer-engine, proof, examples
+    "/about": "apps/web/src/app/about/page.tsx",
+    "/proof": "apps/web/src/app/proof/page.tsx",
+    "/examples": "apps/web/src/app/examples/page.tsx",
+    "/answers/what-is-proof-based-content": "apps/web/src/app/answers/what-is-proof-based-content/page.tsx",
+    "/answers/proof-content-vs-ugc": "apps/web/src/app/answers/proof-content-vs-ugc/page.tsx",
+    "/answers/how-much-do-short-form-content-packages-cost": "apps/web/src/app/answers/how-much-do-short-form-content-packages-cost/page.tsx",
+    "/answers/best-content-package-for-founder-led-brands": "apps/web/src/app/answers/best-content-package-for-founder-led-brands/page.tsx",
+    "/answers/how-to-make-a-company-ai-searchable": "apps/web/src/app/answers/how-to-make-a-company-ai-searchable/page.tsx",
+    "/answers/what-is-ai-search-authority": "apps/web/src/app/answers/what-is-ai-search-authority/page.tsx",
+    "/answers/how-to-get-cited-by-ai-search-engines": "apps/web/src/app/answers/how-to-get-cited-by-ai-search-engines/page.tsx",
 }
+
+# The seven /answers/* pages must each carry FAQPage + BreadcrumbList JSON-LD,
+# direct-answer copy in the first paragraph, and internal links to authority /
+# how-it-works / faq / packages.
+ANSWER_PAGE_PATHS = [p for p in REQUIRED_PAGE_PATHS if p.startswith("/answers/")]
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -293,3 +309,133 @@ def test_sitemap_includes_every_required_path():
     src = _read("apps/web/src/app/sitemap.ts")
     for path in REQUIRED_PAGE_PATHS.keys():
         assert f'path: "{path}"' in src, f"sitemap.ts missing required path: {path}"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 6. Answer-engine pages — each has FAQPage + BreadcrumbList, direct
+#    answer in the opening paragraph, internal links back to canonical
+#    pages.
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("path", ANSWER_PAGE_PATHS)
+def test_answer_page_has_faq_and_breadcrumb_jsonld(path: str):
+    src = _read(REQUIRED_PAGE_PATHS[path])
+    # FAQPage emitted via FaqJsonLd helper
+    assert "FaqJsonLd" in src, f"answer page missing FAQPage JSON-LD: {path}"
+    # BreadcrumbList emitted by MarketingShell when breadcrumbs prop is set
+    assert "breadcrumbs={[" in src or "breadcrumbs={ [" in src, (
+        f"answer page missing breadcrumbs prop (no BreadcrumbList JSON-LD): {path}"
+    )
+
+
+@pytest.mark.parametrize("path", ANSWER_PAGE_PATHS)
+def test_answer_page_links_to_canonical_pages(path: str):
+    """Each answer page must internally link back to at least one of the
+    authority/how-it-works/faq/package pages so AI search systems traverse
+    the entity graph."""
+    src = _read(REQUIRED_PAGE_PATHS[path])
+    canonical_targets = [
+        '"/ai-search-authority"',
+        '"/how-it-works"',
+        '"/faq"',
+    ]
+    hits = sum(1 for t in canonical_targets if t in src)
+    assert hits >= 2, (
+        f"answer page {path} must link to at least 2 of "
+        f"{canonical_targets} — found {hits}"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 7. Analytics tracking hooks — data-cta + data-page on the marketing shell
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_marketing_shell_emits_analytics_hooks():
+    """MarketingShell renders <main data-page=...>, and CTA renders
+    <a data-cta=... data-package=...>. These give a future analytics layer
+    deterministic selectors that don't couple to a specific provider."""
+    src = _read("apps/web/src/components/marketing-shell.tsx")
+    assert 'data-page={pageId}' in src, "MarketingShell must emit data-page"
+    assert 'data-cta=' in src, "CTA must emit data-cta"
+    assert 'data-package=' in src, "CTA must emit data-package (universal slug only)"
+
+
+@pytest.mark.parametrize("path", REQUIRED_PAGE_PATHS.keys())
+def test_page_sets_pageid_for_analytics(path: str):
+    """Every page must pass a `pageId` to MarketingShell so analytics can
+    identify the surface where a click occurred."""
+    if path == "/services/ai-search-authority":
+        return  # redirect-only page; no MarketingShell
+    src = _read(REQUIRED_PAGE_PATHS[path])
+    assert "pageId=" in src, f"page missing pageId prop: {path}"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 8. No backend / payment / Stripe / migration files changed in this
+#    marketing surface change. Compares the working tree against
+#    origin/main using git directly so the test self-verifies even
+#    after the next commit lands.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_no_backend_or_payment_files_changed_against_main():
+    """Every file under the diff vs origin/main must live under
+    apps/web/ or tests/ — never apps/api/, packages/db/, packages/clients/,
+    workers/, requirements.*, or migrations."""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", REPO_ROOT, "diff", "origin/main", "--name-only"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pytest.skip("git not available or timed out")
+    if result.returncode != 0:
+        pytest.skip(f"git diff failed (origin/main may be missing): {result.stderr}")
+    changed = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+    # Also include untracked new files so a fresh feature branch is checked
+    try:
+        u = subprocess.run(
+            ["git", "-C", REPO_ROOT, "ls-files", "--others", "--exclude-standard"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if u.returncode == 0:
+            changed.extend(line.strip() for line in u.stdout.splitlines() if line.strip())
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    forbidden_prefixes = (
+        "apps/api/",
+        "packages/db/",
+        "packages/clients/",
+        "workers/",
+    )
+    forbidden_exact = {
+        "requirements.txt",
+        "requirements.lock",
+    }
+    offenders = []
+    for path in changed:
+        if path.startswith(forbidden_prefixes) or path in forbidden_exact:
+            offenders.append(path)
+    assert not offenders, (
+        f"marketing-surface change must not touch backend/payment/migration files. "
+        f"Offending paths: {offenders}"
+    )
+
+
+def test_robots_disallows_operator_paths():
+    """robots.txt must continue to block /api/, /dashboard/, /login —
+    operator-internal surfaces must not be exposed to AI/search crawlers."""
+    src = _read("apps/web/src/app/robots.ts")
+    assert "/api/" in src, "robots must disallow /api/"
+    assert "/dashboard/" in src, "robots must disallow /dashboard/"
+    assert "/login" in src, "robots must disallow /login"

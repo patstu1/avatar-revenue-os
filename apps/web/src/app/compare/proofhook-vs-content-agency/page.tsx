@@ -63,6 +63,7 @@ const ROWS: { dimension: string; proofhook: string; agency: string }[] = [
 export default function CompareContentAgencyPage() {
   return (
     <MarketingShell
+      pageId="compare/proofhook-vs-content-agency"
       breadcrumbs={[
         { label: "Home", url: "/" },
         { label: "Compare", url: "/compare" },

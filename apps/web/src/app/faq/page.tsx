@@ -67,7 +67,7 @@ export const metadata: Metadata = {
 
 export default function FaqPage() {
   return (
-    <MarketingShell breadcrumbs={[{ label: "Home", url: "/" }, { label: "FAQ", url: PAGE_URL }]}>
+    <MarketingShell pageId="faq" breadcrumbs={[{ label: "Home", url: "/" }, { label: "FAQ", url: PAGE_URL }]}>
       <OrganizationJsonLd />
       <WebSiteJsonLd />
       <FaqJsonLd qa={FAQ} />

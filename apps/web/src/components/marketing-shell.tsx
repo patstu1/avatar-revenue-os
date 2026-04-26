@@ -18,13 +18,22 @@ const NAV_LINKS = [
 
 export function MarketingShell({
   breadcrumbs,
+  pageId,
   children,
 }: {
   breadcrumbs?: Crumb[];
+  /** Analytics hook — emitted as data-page on the <main> root so a
+   * future analytics layer can identify which marketing surface a
+   * click happened on. Examples: "ai-search-authority", "faq",
+   * "answers/what-is-proof-based-content", "industries/saas". */
+  pageId?: string;
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased">
+    <main
+      data-page={pageId}
+      className="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased"
+    >
       <header className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link href="/" className="font-mono text-sm tracking-wider text-zinc-100">
@@ -92,15 +101,28 @@ export function CTA({
   email,
   label,
   subject,
+  ctaId,
+  packageSlug,
 }: {
   email?: string;
   label: string;
   subject: string;
+  /** Analytics hook — emitted as data-cta on the rendered element so a
+   * future analytics layer (GA4 dataLayer, Posthog, server-side) can
+   * read clicks without coupling to a specific provider. Common values:
+   * "ai-search-authority", "contact", "answers", "package-buy". */
+  ctaId?: string;
+  /** Optional universal package slug for package-related CTAs. Renders
+   * as data-package — analytics groups CTAs by universal slug, never by
+   * niche. */
+  packageSlug?: string;
 }) {
   const to = email ?? ORG.contactEmail;
   return (
     <a
       href={`mailto:${to}?subject=${encodeURIComponent(subject)}`}
+      data-cta={ctaId ?? "contact"}
+      data-package={packageSlug}
       className="inline-block rounded-md border border-zinc-100 bg-zinc-100 px-5 py-2.5 text-sm font-medium text-zinc-950 hover:bg-zinc-200"
     >
       {label}

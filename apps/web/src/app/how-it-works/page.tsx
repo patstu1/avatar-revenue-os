@@ -56,6 +56,7 @@ const STEPS: { title: string; body: string }[] = [
 export default function HowItWorksPage() {
   return (
     <MarketingShell
+      pageId="how-it-works"
       breadcrumbs={[{ label: "Home", url: "/" }, { label: "How it works", url: PAGE_URL }]}
     >
       <OrganizationJsonLd />

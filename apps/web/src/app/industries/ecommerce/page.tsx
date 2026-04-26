@@ -25,6 +25,7 @@ export const metadata: Metadata = {
 export default function IndustryEcommercePage() {
   return (
     <MarketingShell
+      pageId="industries/ecommerce"
       breadcrumbs={[
         { label: "Home", url: "/" },
         { label: "Industries", url: "/industries" },
