@@ -62,9 +62,7 @@ def test_check_credentials_present(monkeypatch):
     moved to the DB-only credential doctrine and reports not_required from
     the env-check; its credentials are validated by integration_manager
     against integration_providers, not here)."""
-    env_provider = next(
-        p for p in PROVIDER_INVENTORY if p.get("env_keys")
-    )
+    env_provider = next(p for p in PROVIDER_INVENTORY if p.get("env_keys"))
     for key in env_provider["env_keys"]:
         monkeypatch.setenv(key, "configured-value")
     result = check_provider_credentials(env_provider)
