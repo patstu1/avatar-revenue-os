@@ -49,7 +49,7 @@ _BLOCKED_EMAIL_DOMAINS: tuple[str, ...] = (
     "@example.com",
     "@localhost",
     "@b10test.com",  # batch-10 test domain found in draft proposals
-    ".test",         # any *.test TLD
+    ".test",  # any *.test TLD
     ".example",
     ".invalid",
     ".localhost",

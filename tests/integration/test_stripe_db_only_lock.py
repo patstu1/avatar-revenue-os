@@ -23,23 +23,22 @@ import pytest_asyncio
 from sqlalchemy import select
 
 import packages.db.models  # noqa: F401 — model registration
+import packages.db.models.clients  # noqa: F401
+import packages.db.models.delivery  # noqa: F401
+import packages.db.models.fulfillment  # noqa: F401 — needed by delivery FKs
+import packages.db.models.gm_control  # noqa: F401
+import packages.db.models.live_execution_phase2  # noqa: F401
+
 # Force-register tables that the test fixture's create_all needs to build.
 # Without these explicit imports the test DB is missing rows the webhook
 # handler writes to, and the resulting transaction abort masks the test
 # we actually want to assert on.
 import packages.db.models.proposals  # noqa: F401
-import packages.db.models.clients  # noqa: F401
 import packages.db.models.revenue_ledger  # noqa: F401
-import packages.db.models.live_execution_phase2  # noqa: F401
 import packages.db.models.system_events  # noqa: F401
-import packages.db.models.gm_control  # noqa: F401
-import packages.db.models.delivery  # noqa: F401
-import packages.db.models.fulfillment  # noqa: F401 — needed by delivery FKs
-
 from apps.api.services import integration_manager as im
 from apps.api.services import stripe_billing_service as sbs
 from packages.db.models.integration_registry import IntegrationProvider
-
 
 # ─────────────────────────────────────────────────────────────────────
 # Fixtures
@@ -167,8 +166,10 @@ class _FakeStripeModule:
             }[name]
             return self._ObjModule(self, kind)
         if name == "checkout":
+
             class _Ck:
                 Session = self._ObjModule(self, "checkout_session")
+
             return _Ck()
         raise AttributeError(name)
 
@@ -179,7 +180,7 @@ async def test_create_payment_link_uses_db_key(db_session, operator_org_id, monk
     await _seed_stripe(db_session, operator_org_id, api_key="sk_test_db_wins")
 
     fake = _FakeStripeModule()
-    monkeypatch.setattr(sbs, "_init_stripe", lambda key: (setattr(fake, "captured_api_key", key) or fake))
+    monkeypatch.setattr(sbs, "_init_stripe", lambda key: setattr(fake, "captured_api_key", key) or fake)
 
     result = await sbs.create_payment_link(
         amount_cents=1500,
@@ -203,7 +204,7 @@ async def test_create_checkout_session_uses_db_key(db_session, operator_org_id, 
     await _seed_stripe(db_session, operator_org_id, api_key="sk_test_db_wins_subscription")
 
     fake = _FakeStripeModule()
-    monkeypatch.setattr(sbs, "_init_stripe", lambda key: (setattr(fake, "captured_api_key", key) or fake))
+    monkeypatch.setattr(sbs, "_init_stripe", lambda key: setattr(fake, "captured_api_key", key) or fake)
 
     # Make a plan price ID resolvable so we don't error before reaching Stripe.
     from apps.api.config import get_settings
@@ -228,7 +229,7 @@ async def test_create_credit_purchase_session_uses_db_key(db_session, operator_o
     await _seed_stripe(db_session, operator_org_id, api_key="sk_test_db_wins_credit")
 
     fake = _FakeStripeModule()
-    monkeypatch.setattr(sbs, "_init_stripe", lambda key: (setattr(fake, "captured_api_key", key) or fake))
+    monkeypatch.setattr(sbs, "_init_stripe", lambda key: setattr(fake, "captured_api_key", key) or fake)
 
     # Use a real pack_id from the pricing ladder so the function reaches Stripe.
     from packages.scoring.monetization_machine import design_pricing_ladder
@@ -334,17 +335,13 @@ async def test_webhook_verifies_with_db_secret(api_client, db_session, operator_
     assert r.json()["status"] == "accepted"
 
     we = (
-        await db_session.execute(
-            select(WebhookEvent).where(WebhookEvent.idempotency_key == f"stripe:{event_id}")
-        )
+        await db_session.execute(select(WebhookEvent).where(WebhookEvent.idempotency_key == f"stripe:{event_id}"))
     ).scalar_one()
     assert we.processed is True
 
 
 @pytest.mark.asyncio
-async def test_webhook_ignores_env_secret_when_db_secret_present(
-    api_client, db_session, operator_org_id, monkeypatch
-):
+async def test_webhook_ignores_env_secret_when_db_secret_present(api_client, db_session, operator_org_id, monkeypatch):
     """DB secret is what matters. Env may exist but is never consulted —
     a payload signed with the env-only secret must FAIL.
     """
@@ -479,23 +476,23 @@ async def test_public_checkout_rejects_missing_required_metadata(
     assert (
         await db_session.execute(select(Client).where(Client.org_id == operator_org_id))
     ).scalars().all() == [] or True  # other tests may add clients in this session
-    intakes = (
-        await db_session.execute(select(IntakeRequest))
-    ).scalars().all()
+    intakes = (await db_session.execute(select(IntakeRequest))).scalars().all()
     # Specifically: no intake whose schema_json carries this event_id
     assert not any((i.schema_json or {}).get("stripe_event_id") == event_id for i in intakes)
     ledgers = (
-        await db_session.execute(
-            select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == f"stripe_public:{event_id}")
+        (
+            await db_session.execute(
+                select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == f"stripe_public:{event_id}")
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert ledgers == []
 
     # WebhookEvent marked unprocessed with reason
     we = (
-        await db_session.execute(
-            select(WebhookEvent).where(WebhookEvent.idempotency_key == f"stripe:{event_id}")
-        )
+        await db_session.execute(select(WebhookEvent).where(WebhookEvent.idempotency_key == f"stripe:{event_id}"))
     ).scalar_one()
     assert we.processed is False
     assert we.processing_result == "missing_metadata"
@@ -503,13 +500,17 @@ async def test_public_checkout_rejects_missing_required_metadata(
 
     # Operator-visible system event emitted
     fail_events = (
-        await db_session.execute(
-            select(SystemEvent).where(
-                SystemEvent.event_type == "payment.metadata_missing",
-                SystemEvent.event_domain == "monetization",
+        (
+            await db_session.execute(
+                select(SystemEvent).where(
+                    SystemEvent.event_type == "payment.metadata_missing",
+                    SystemEvent.event_domain == "monetization",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     matching = [e for e in fail_events if (e.details or {}).get("stripe_event_id") == event_id]
     assert len(matching) == 1
 

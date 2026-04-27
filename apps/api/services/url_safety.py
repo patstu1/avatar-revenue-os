@@ -131,10 +131,7 @@ def _reject_unsafe_host(host: str) -> None:
     # eTLD+1 (i.e. "staging.acme.com" but allow "stagingfeature.acme.com").
     for prefix in _DEV_LABEL_PREFIXES:
         if host.startswith(prefix):
-            raise UrlSafetyError(
-                f"'{host}' looks like a non-production environment. "
-                f"Submit your live public website."
-            )
+            raise UrlSafetyError(f"'{host}' looks like a non-production environment. Submit your live public website.")
 
     # IP literal? Block private / loopback / link-local / reserved ranges.
     try:
@@ -143,12 +140,5 @@ def _reject_unsafe_host(host: str) -> None:
         # Not an IP literal — hostnames are allowed past this point.
         return
 
-    if (
-        ip.is_loopback
-        or ip.is_private
-        or ip.is_link_local
-        or ip.is_multicast
-        or ip.is_reserved
-        or ip.is_unspecified
-    ):
+    if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
         raise UrlSafetyError("Internal IP addresses cannot be scanned.")

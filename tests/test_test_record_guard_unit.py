@@ -12,67 +12,79 @@ from apps.api.services.test_record_guard import (
     is_test_or_synthetic_text,
 )
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # is_test_or_synthetic_email
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestEmailGuard:
     # Blocked — domain patterns
-    @pytest.mark.parametrize("email", [
-        "user@test.com",
-        "ops@internal.test",
-        "hello@example.com",
-        "anyone@localhost",
-        "alpha@b10test.com",   # batch-10 test domain
-        "x@sub.test",
-        "x@sub.example",
-        "x@sub.invalid",
-        "x@sub.localhost",
-        # Case variants
-        "User@TEST.COM",
-        "OPS@INTERNAL.TEST",
-    ])
+    @pytest.mark.parametrize(
+        "email",
+        [
+            "user@test.com",
+            "ops@internal.test",
+            "hello@example.com",
+            "anyone@localhost",
+            "alpha@b10test.com",  # batch-10 test domain
+            "x@sub.test",
+            "x@sub.example",
+            "x@sub.invalid",
+            "x@sub.localhost",
+            # Case variants
+            "User@TEST.COM",
+            "OPS@INTERNAL.TEST",
+        ],
+    )
     def test_blocked_domain(self, email):
         assert is_test_or_synthetic_email(email) is True
 
     # Blocked — marker in local-part
-    @pytest.mark.parametrize("email", [
-        "testreplier@realbrand.com",
-        "synth_user@realbrand.com",
-        "synthetic.client@agency.io",
-        "fixture_lead@brand.co",
-        "proof_test@proofhook.com",
-        "b11_client@company.com",
-        "b12@company.com",
-        "batch_fixture@company.com",
-        "demo_client@company.com",
-        "democlient@company.com",
-    ])
+    @pytest.mark.parametrize(
+        "email",
+        [
+            "testreplier@realbrand.com",
+            "synth_user@realbrand.com",
+            "synthetic.client@agency.io",
+            "fixture_lead@brand.co",
+            "proof_test@proofhook.com",
+            "b11_client@company.com",
+            "b12@company.com",
+            "batch_fixture@company.com",
+            "demo_client@company.com",
+            "democlient@company.com",
+        ],
+    )
     def test_blocked_marker_in_local(self, email):
         assert is_test_or_synthetic_email(email) is True
 
     # Blocked — empty / None
-    @pytest.mark.parametrize("email", [
-        "",
-        None,
-        "   ",
-    ])
+    @pytest.mark.parametrize(
+        "email",
+        [
+            "",
+            None,
+            "   ",
+        ],
+    )
     def test_blocked_empty(self, email):
         assert is_test_or_synthetic_email(email) is True  # type: ignore[arg-type]
 
     # Allowed — real emails
-    @pytest.mark.parametrize("email", [
-        "founder@realbrand.com",
-        "client@realagency.io",
-        "sarah.jones@gmail.com",
-        "ops@proofhook.com",
-        "contact@company.co.uk",
-        "hello@startup.ai",
-        # "demo" alone in domain is NOT a blocker (only demo_client/demo_fixture)
-        "user@demobrand.com",
-        "info@brandemo.com",
-    ])
+    @pytest.mark.parametrize(
+        "email",
+        [
+            "founder@realbrand.com",
+            "client@realagency.io",
+            "sarah.jones@gmail.com",
+            "ops@proofhook.com",
+            "contact@company.co.uk",
+            "hello@startup.ai",
+            # "demo" alone in domain is NOT a blocker (only demo_client/demo_fixture)
+            "user@demobrand.com",
+            "info@brandemo.com",
+        ],
+    )
     def test_allowed_real_email(self, email):
         assert is_test_or_synthetic_email(email) is False
 
@@ -81,29 +93,36 @@ class TestEmailGuard:
 # is_test_or_synthetic_text
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestTextGuard:
-    @pytest.mark.parametrize("value", [
-        "synth",
-        "synthetic_retainer",
-        "proof_test",
-        "b11",
-        "b12",
-        "fixture",
-        "batch_fixture",
-        "testreplier",
-        "SYNTHETIC",   # case-insensitive
-    ])
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "synth",
+            "synthetic_retainer",
+            "proof_test",
+            "b11",
+            "b12",
+            "fixture",
+            "batch_fixture",
+            "testreplier",
+            "SYNTHETIC",  # case-insensitive
+        ],
+    )
     def test_blocked_text(self, value):
         assert is_test_or_synthetic_text(value) is True
 
-    @pytest.mark.parametrize("value", [
-        "real_retainer",
-        "momentum_engine",
-        "b2b_retainer_monthly",
-        "ugc_monthly",
-        "",
-        None,
-    ])
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "real_retainer",
+            "momentum_engine",
+            "b2b_retainer_monthly",
+            "ugc_monthly",
+            "",
+            None,
+        ],
+    )
     def test_allowed_text(self, value):
         assert is_test_or_synthetic_text(value) is False  # type: ignore[arg-type]
 
@@ -111,6 +130,7 @@ class TestTextGuard:
 # ─────────────────────────────────────────────────────────────────────────────
 # is_test_or_synthetic_record
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestRecordGuard:
     def test_blocked_by_email(self):

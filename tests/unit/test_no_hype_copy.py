@@ -200,24 +200,24 @@ def test_snapshot_page_renders_required_elements():
     src = path.read_text(encoding="utf-8")
 
     # MarketingShell reused, not a new shell
-    assert 'MarketingShell' in src
+    assert "MarketingShell" in src
     assert 'pageId="ai-search-authority-snapshot"' in src
 
     # Both report_id branches present
-    assert 'Your AI Buyer Trust result is ready for review' in src
-    assert 'Full Authority Snapshot' in src
+    assert "Your AI Buyer Trust result is ready for review" in src
+    assert "Full Authority Snapshot" in src
 
     # Both CTAs present
-    assert 'Take the AI Buyer Trust Test' in src
-    assert 'Request Snapshot Review' in src
-    assert '/ai-search-authority/score' in src
+    assert "Take the AI Buyer Trust Test" in src
+    assert "Request Snapshot Review" in src
+    assert "/ai-search-authority/score" in src
 
     # Affirmative launch-pricing framing
-    assert 'free with email' in src.lower() or 'Free with email' in src
+    assert "free with email" in src.lower() or "Free with email" in src
 
     # Wires to the snapshot review API + handles the requested success state
-    assert 'requestSnapshotReview' in src
-    assert 'snapshot-requested' in src
+    assert "requestSnapshotReview" in src
+    assert "snapshot-requested" in src
 
 
 def test_dashboard_renders_recommended_lanes_block():
@@ -227,9 +227,9 @@ def test_dashboard_renders_recommended_lanes_block():
     path = REPO_ROOT / "apps/web/src/app/dashboard/ai-search-authority/page.tsx"
     assert path.exists()
     src = path.read_text(encoding="utf-8")
-    assert 'RecommendedLanesBlock' in src
-    assert 'AI Authority lane' in src
-    assert 'Creative Proof companion' in src
+    assert "RecommendedLanesBlock" in src
+    assert "AI Authority lane" in src
+    assert "Creative Proof companion" in src
     assert 'data-testid="recommended-lanes"' in src
     assert 'data-testid="lane-ai-authority"' in src
     assert 'data-testid="lane-creative-proof"' in src
@@ -245,17 +245,17 @@ def test_homepage_renders_commercial_sections():
 
     # Hero clarity
     assert 'data-testid="home-hero"' in src
-    assert 'Take the free AI Buyer Trust Test' in src
-    assert 'Authority Snapshot is free with email' in src
+    assert "Take the free AI Buyer Trust Test" in src
+    assert "Authority Snapshot is free with email" in src
 
     # All commercial sections imported and rendered
     for section in (
-        'HowItWorksSection',
-        'BuyerPsychologySection',
-        'WhatProofHookBuildsSection',
-        'ResultToPackageSection',
-        'AfterTheTestSection',
-        'CommercialFlowSection',
+        "HowItWorksSection",
+        "BuyerPsychologySection",
+        "WhatProofHookBuildsSection",
+        "ResultToPackageSection",
+        "AfterTheTestSection",
+        "CommercialFlowSection",
     ):
         assert section in src, f"homepage must import + render {section}"
 
@@ -264,7 +264,7 @@ def test_homepage_renders_commercial_sections():
     assert 'data-testid="home-creative-section"' in src
     # Each package card surfaces whoItsFor copy + price/timeline + CTA
     assert "Who it" in src and "for" in src  # "Who it's for"
-    assert 'packagePriceDisplay(pkg)' in src
+    assert "packagePriceDisplay(pkg)" in src
 
 
 def test_decision_layer_exports_all_commercial_sections():
@@ -273,30 +273,30 @@ def test_decision_layer_exports_all_commercial_sections():
     path = REPO_ROOT / "apps/web/src/components/ai-buyer-trust/DecisionLayerSections.tsx"
     src = path.read_text(encoding="utf-8")
     for fn in (
-        'export function HowItWorksSection',
-        'export function AfterTheTestSection',
-        'export function BuyerPsychologySection',
-        'export function WhatProofHookBuildsSection',
-        'export function ResultToPackageSection',
-        'export function CommercialFlowSection',
+        "export function HowItWorksSection",
+        "export function AfterTheTestSection",
+        "export function BuyerPsychologySection",
+        "export function WhatProofHookBuildsSection",
+        "export function ResultToPackageSection",
+        "export function CommercialFlowSection",
     ):
         assert fn in src, f"DecisionLayerSections.tsx must export {fn}"
 
     # Result-to-package mapping table renders score bands
     assert 'data-testid="result-to-package-table"' in src
-    assert 'Score band' in src
-    assert 'Recommended build' in src
+    assert "Score band" in src
+    assert "Recommended build" in src
 
     # Commercial flow ladder mentions every commercial stage
     assert 'data-testid="commercial-flow"' in src
     for stage in (
-        'Take the test',
-        'Receive Authority Score',
-        'Request reviewed Snapshot',
-        'Operator-recommended package',
-        'Written proposal',
-        'Build + fulfillment',
-        'Authority monitoring',
+        "Take the test",
+        "Receive Authority Score",
+        "Request reviewed Snapshot",
+        "Operator-recommended package",
+        "Written proposal",
+        "Build + fulfillment",
+        "Authority monitoring",
     ):
         assert stage in src, f"CommercialFlowSection must list {stage!r}"
 
@@ -306,9 +306,9 @@ def test_ai_search_authority_page_includes_result_to_package_and_flow():
     mapping, the after-the-test stages, and the full commercial flow."""
     path = REPO_ROOT / "apps/web/src/app/ai-search-authority/page.tsx"
     src = path.read_text(encoding="utf-8")
-    assert 'ResultToPackageSection' in src
-    assert 'AfterTheTestSection' in src
-    assert 'CommercialFlowSection' in src
+    assert "ResultToPackageSection" in src
+    assert "AfterTheTestSection" in src
+    assert "CommercialFlowSection" in src
     assert 'data-testid="ai-authority-packages"' in src
 
 
@@ -320,8 +320,8 @@ def test_snapshot_page_renders_request_flow_and_package_ladder():
     src = path.read_text(encoding="utf-8")
     assert 'data-testid="snapshot-request-flow"' in src
     assert 'data-testid="snapshot-package-ladder"' in src
-    assert 'Operator review' in src
-    assert 'Snapshot delivery' in src
+    assert "Operator review" in src
+    assert "Snapshot delivery" in src
 
 
 def test_score_result_card_surfaces_full_package_recommendation():
@@ -332,9 +332,9 @@ def test_score_result_card_surfaces_full_package_recommendation():
     src = path.read_text(encoding="utf-8")
     assert 'data-testid="recommended-next-step"' in src
     assert 'data-testid="recommended-primary-pkg"' in src
-    assert 'packagePriceDisplay(' in src
-    assert 'Talk to ProofHook' in src
-    assert 'Who it' in src and "for" in src  # "Who it's for"
+    assert "packagePriceDisplay(" in src
+    assert "Talk to ProofHook" in src
+    assert "Who it" in src and "for" in src  # "Who it's for"
 
 
 def test_packages_have_whoitsfor_and_lane_fields():
@@ -344,35 +344,35 @@ def test_packages_have_whoitsfor_and_lane_fields():
     src = path.read_text(encoding="utf-8")
 
     # Type contract carries the new fields
-    assert 'whoItsFor: string' in src
-    assert 'lane: ProofHookLane' in src
-    assert 'export type ProofHookLane' in src
+    assert "whoItsFor: string" in src
+    assert "lane: ProofHookLane" in src
+    assert "export type ProofHookLane" in src
 
     # Buyer-facing creative names locked in (slugs are unchanged for
     # Stripe metadata compatibility, only display names rotated).
     for buyer_name in (
-        'UGC Starter Pack',
-        'Proof Video Pack',
-        'Hook Pack',
-        'Paid Social Creative Pack',
-        'Founder Clip Pack',
-        'Creative Retainer',
+        "UGC Starter Pack",
+        "Proof Video Pack",
+        "Hook Pack",
+        "Paid Social Creative Pack",
+        "Founder Clip Pack",
+        "Creative Retainer",
     ):
         assert buyer_name in src, f"creative package must use buyer-facing name {buyer_name!r}"
 
     # Every slug must have at least one whoItsFor + lane assignment
     slugs = (
-        'signal_entry',
-        'momentum_engine',
-        'conversion_architecture',
-        'paid_media_engine',
-        'launch_sequence',
-        'creative_command',
-        'ai_search_authority_snapshot',
-        'ai_search_authority_sprint',
-        'proof_infrastructure_buildout',
-        'authority_monitoring_retainer',
-        'ai_search_authority_system',
+        "signal_entry",
+        "momentum_engine",
+        "conversion_architecture",
+        "paid_media_engine",
+        "launch_sequence",
+        "creative_command",
+        "ai_search_authority_snapshot",
+        "ai_search_authority_sprint",
+        "proof_infrastructure_buildout",
+        "authority_monitoring_retainer",
+        "ai_search_authority_system",
     )
     for slug in slugs:
         assert f'slug: "{slug}"' in src, f"package {slug} missing"
@@ -387,8 +387,8 @@ def test_homepage_test_form_includes_honeypot():
     that auto-complete by name fill it and get rejected by the backend."""
     path = REPO_ROOT / "apps/web/src/components/ai-buyer-trust/Test.tsx"
     src = path.read_text(encoding="utf-8")
-    assert 'bot_field' in src, "Test.tsx must wire the honeypot field"
-    assert 'tabIndex={-1}' in src, "Honeypot must be tab-skipped"
+    assert "bot_field" in src, "Test.tsx must wire the honeypot field"
+    assert "tabIndex={-1}" in src, "Honeypot must be tab-skipped"
     assert 'autoComplete="off"' in src, "Honeypot must be autocomplete-off"
     assert 'left: "-10000px"' in src, "Honeypot must be visually hidden"
 
@@ -407,12 +407,7 @@ def test_visual_palette_is_zinc_only_in_new_surfaces():
                 # Avoid false positives like 'red ' or comments — match a
                 # tailwind class form: token + digits OR token at word edge
                 # in a className-like position.
-                if (
-                    f' {token}' in lower
-                    or f'"{token}' in lower
-                    or f"'{token}" in lower
-                    or f' {token}' in lower
-                ):
+                if f" {token}" in lower or f'"{token}' in lower or f"'{token}" in lower or f" {token}" in lower:
                     findings.append((rel, i, token, raw.strip()))
     assert not findings, "Non-zinc Tailwind colors detected:\n" + "\n".join(
         f"  {rel}:{i}: {token!r}\n    > {line}" for rel, i, token, line in findings

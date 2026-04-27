@@ -30,18 +30,18 @@ export default function GrowthCommandCenterPage() {
   }, [brands, brandId]);
 
   const enabled = Boolean(brandId);
-  const q = (key: string, fn: () => Promise<unknown>) =>
+  const useQ = (key: string, fn: () => Promise<unknown>) =>
     useQuery({ queryKey: [key, brandId], queryFn: fn, enabled });
 
-  const cmds = q('gc-cmds', () => growthPackApi.growthCommands(brandId).then((r) => r.data));
-  const plan = q('gc-plan', () => growthPackApi.portfolioLaunchPlan(brandId).then((r) => r.data));
-  const blueprints = q('gc-bp', () => growthPackApi.accountBlueprints(brandId).then((r) => r.data));
-  const plat = q('gc-plat', () => growthPackApi.platformAllocation(brandId).then((r) => r.data));
-  const niche = q('gc-niche', () => growthPackApi.nicheDeployment(brandId).then((r) => r.data));
-  const blockers = q('gc-block', () => growthPackApi.growthBlockers(brandId).then((r) => r.data));
-  const capital = q('gc-cap', () => growthPackApi.capitalDeployment(brandId).then((r) => r.data));
-  const cann = q('gc-can', () => growthPackApi.crossCannibalization(brandId).then((r) => r.data));
-  const output = q('gc-out', () => growthPackApi.portfolioOutput(brandId).then((r) => r.data));
+  const cmds = useQ('gc-cmds', () => growthPackApi.growthCommands(brandId).then((r) => r.data));
+  const plan = useQ('gc-plan', () => growthPackApi.portfolioLaunchPlan(brandId).then((r) => r.data));
+  const blueprints = useQ('gc-bp', () => growthPackApi.accountBlueprints(brandId).then((r) => r.data));
+  const plat = useQ('gc-plat', () => growthPackApi.platformAllocation(brandId).then((r) => r.data));
+  const niche = useQ('gc-niche', () => growthPackApi.nicheDeployment(brandId).then((r) => r.data));
+  const blockers = useQ('gc-block', () => growthPackApi.growthBlockers(brandId).then((r) => r.data));
+  const capital = useQ('gc-cap', () => growthPackApi.capitalDeployment(brandId).then((r) => r.data));
+  const cann = useQ('gc-can', () => growthPackApi.crossCannibalization(brandId).then((r) => r.data));
+  const output = useQ('gc-out', () => growthPackApi.portfolioOutput(brandId).then((r) => r.data));
 
   const recomputeAll = useMutation({
     mutationFn: async () => {

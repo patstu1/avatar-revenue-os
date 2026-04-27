@@ -24,7 +24,7 @@ CLEAN_HTML = """
   <a href="#anchor">Anchor</a>
   <a href="mailto:x@acme.io">Mail</a>
 </body></html>
-""".encode("utf-8")
+""".encode()
 
 
 def test_parses_title_h1_h2_and_meta():
@@ -42,9 +42,7 @@ def test_extracts_jsonld_blocks_including_lists():
         {
             t
             for block in page.jsonld_blocks
-            for t in (
-                [block.get("@type")] if isinstance(block.get("@type"), str) else (block.get("@type") or [])
-            )
+            for t in ([block.get("@type")] if isinstance(block.get("@type"), str) else (block.get("@type") or []))
             if isinstance(t, str)
         }
     )

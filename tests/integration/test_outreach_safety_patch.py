@@ -18,12 +18,10 @@ inspect the MIME message that would have been transmitted.
 
 from __future__ import annotations
 
-import os
 import uuid
 from email import message_from_string
 
 import pytest
-
 
 # ─────────────────────────────────────────────────────────────────────
 # Helpers
@@ -367,9 +365,7 @@ async def test_send_smtp_email_footer_is_idempotent(monkeypatch):
 
     from workers.outreach_worker.tasks import _send_smtp_email
 
-    body_with_footer = (
-        "Hi there.\n\n--\nProofHook\n1 X, Y, Z\nReply UNSUBSCRIBE to opt out.\n"
-    )
+    body_with_footer = "Hi there.\n\n--\nProofHook\n1 X, Y, Z\nReply UNSUBSCRIBE to opt out.\n"
     await _send_smtp_email(
         SMTP_CREDS_OK,
         to_email="real-buyer@example-company.io",
@@ -822,9 +818,7 @@ async def test_outreach_commits_sending_marker_before_smtp(monkeypatch):
     assert "smtp_send" in sess.events
     first_send_idx = sess.events.index("smtp_send")
     pre_send_events = sess.events[:first_send_idx]
-    assert "commit" in pre_send_events, (
-        f"No commit before first smtp_send. Event timeline: {sess.events}"
-    )
+    assert "commit" in pre_send_events, f"No commit before first smtp_send. Event timeline: {sess.events}"
 
 
 @pytest.mark.asyncio
@@ -891,6 +885,4 @@ async def test_follow_up_commits_sending_marker_before_smtp(monkeypatch):
     assert "smtp_send" in sess.events
     first_send_idx = sess.events.index("smtp_send")
     pre_send_events = sess.events[:first_send_idx]
-    assert "commit" in pre_send_events, (
-        f"No commit before first smtp_send. Event timeline: {sess.events}"
-    )
+    assert "commit" in pre_send_events, f"No commit before first smtp_send. Event timeline: {sess.events}"

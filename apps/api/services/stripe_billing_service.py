@@ -94,8 +94,7 @@ async def _require_stripe_api_key(db: AsyncSession, org_id: uuid.UUID) -> str:
     api_key = await _get_stripe_api_key(db, org_id)
     if not api_key:
         raise StripeNotConfigured(
-            "Stripe is not configured for this organization. "
-            "Configure it via Settings > Integrations in the dashboard."
+            "Stripe is not configured for this organization. Configure it via Settings > Integrations in the dashboard."
         )
     return api_key
 

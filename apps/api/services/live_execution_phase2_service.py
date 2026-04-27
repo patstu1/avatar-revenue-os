@@ -217,12 +217,10 @@ async def run_payment_sync(
     # this still falls back to env until they are migrated.
     stripe_api_key: str | None = None
     if provider == "stripe":
-        from packages.db.models.core import Brand
         from apps.api.services.integration_manager import get_credential
+        from packages.db.models.core import Brand
 
-        brand_org_id = (
-            await db.execute(select(Brand.organization_id).where(Brand.id == brand_id))
-        ).scalar()
+        brand_org_id = (await db.execute(select(Brand.organization_id).where(Brand.id == brand_id))).scalar()
         if brand_org_id is not None:
             stripe_api_key = await get_credential(db, brand_org_id, "stripe")
         api_key_present = bool(stripe_api_key)

@@ -4,7 +4,6 @@ from packages.db.models.account_state_intel import (
     AccountStateTransition,
 )
 from packages.db.models.accounts import AccountPortfolio, CreatorAccount
-from packages.db.models.authority_score_reports import AuthorityScoreReport
 from packages.db.models.affiliate_enterprise import (
     AffiliateApproval,
     AffiliateAuditEvent,
@@ -37,6 +36,7 @@ from packages.db.models.audience_state import (
     AudienceStateEvent,
     AudienceStateReport,
 )
+from packages.db.models.authority_score_reports import AuthorityScoreReport
 from packages.db.models.autonomous_execution import (
     AutomationExecutionPolicy,
     AutomationExecutionRun,

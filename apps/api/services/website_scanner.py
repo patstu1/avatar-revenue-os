@@ -208,9 +208,7 @@ async def scan_website(homepage_url: str) -> ScanResult:
 # ─────────────────────────────────────────────────────────────────────
 
 
-async def _fetch_and_parse(
-    client: httpx.AsyncClient, url: str, started: float
-) -> FetchedPage:
+async def _fetch_and_parse(client: httpx.AsyncClient, url: str, started: float) -> FetchedPage:
     page = FetchedPage(url=url)
     try:
         async with client.stream("GET", url) as resp:
@@ -327,16 +325,14 @@ def _extract_internal_links(soup: BeautifulSoup, base_url: str) -> list[str]:
 # ─────────────────────────────────────────────────────────────────────
 
 
-async def _fetch_text(
-    client: httpx.AsyncClient, url: str, started: float
-) -> str | None:
+async def _fetch_text(client: httpx.AsyncClient, url: str, started: float) -> str | None:
     if time.monotonic() - started > _TOTAL_BUDGET_SECONDS:
         return None
     try:
         resp = await client.get(url)
         if resp.status_code >= 400:
             return None
-        return resp.text[: _MAX_BODY_BYTES]
+        return resp.text[:_MAX_BODY_BYTES]
     except (httpx.TimeoutException, httpx.RequestError):
         return None
 

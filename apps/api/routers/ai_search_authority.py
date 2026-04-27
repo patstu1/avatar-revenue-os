@@ -9,7 +9,6 @@ through the existing proposals_service).
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
@@ -29,12 +28,12 @@ class TrustTestSubmitRequest(BaseModel):
     company_name: str = Field(..., min_length=1, max_length=255)
     industry: str = Field(..., min_length=1, max_length=100)
     contact_email: str = Field(..., min_length=5, max_length=255)
-    competitor_url: Optional[str] = Field(default=None, max_length=500)
-    city_or_market: Optional[str] = Field(default=None, max_length=100)
+    competitor_url: str | None = Field(default=None, max_length=500)
+    city_or_market: str | None = Field(default=None, max_length=100)
     # Honeypot — humans never fill this, bots that auto-complete by name
     # do. Frontend renders the input visually hidden (off-screen + tab
     # skipped + autocomplete=off). Backend rejects when non-empty.
-    bot_field: Optional[str] = Field(default=None, max_length=300)
+    bot_field: str | None = Field(default=None, max_length=300)
 
 
 @router.post("/ai-search-authority/score")
@@ -82,11 +81,11 @@ async def list_reports(
     db: DBSession,
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    status: Optional[str] = Query(None),
-    score_min: Optional[int] = Query(None, ge=0, le=100),
-    score_max: Optional[int] = Query(None, ge=0, le=100),
-    package_slug: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    score_min: int | None = Query(None, ge=0, le=100),
+    score_max: int | None = Query(None, ge=0, le=100),
+    package_slug: str | None = Query(None),
+    search: str | None = Query(None),
 ):
     rows = await svc.list_reports(
         db,
@@ -133,9 +132,7 @@ async def request_snapshot_review(
     from packages.db.models.authority_score_reports import AuthorityScoreReport
 
     row = (
-        await db.execute(
-            select(AuthorityScoreReport).where(AuthorityScoreReport.id == report_id)
-        )
+        await db.execute(select(AuthorityScoreReport).where(AuthorityScoreReport.id == report_id))
     ).scalar_one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -168,9 +165,7 @@ async def request_snapshot_review(
             source_module="ai_buyer_trust_snapshot_request",
             action_payload={
                 "report_id": str(row.id),
-                "lead_opportunity_id": (
-                    str(row.lead_opportunity_id) if row.lead_opportunity_id else None
-                ),
+                "lead_opportunity_id": (str(row.lead_opportunity_id) if row.lead_opportunity_id else None),
                 "recommended_package_slug": row.recommended_package_slug,
                 "total_score": row.total_score,
             },
@@ -183,10 +178,7 @@ async def request_snapshot_review(
             db,
             domain="growth",
             event_type="ai_buyer_trust.snapshot_review_requested",
-            summary=(
-                f"Snapshot review requested for {row.company_name} "
-                f"(score {row.total_score})"
-            ),
+            summary=(f"Snapshot review requested for {row.company_name} (score {row.total_score})"),
             severity="info",
             org_id=row.organization_id,
             brand_id=row.brand_id,
@@ -237,7 +229,7 @@ async def create_proposal_from_report(
     from packages.db.models.expansion_pack2_phase_a import LeadOpportunity
 
     body = body or {}
-    override = (body.get("override_package_slug") or None)
+    override = body.get("override_package_slug") or None
     include_companion = bool(body.get("include_creative_companion"))
 
     report = (
@@ -255,10 +247,7 @@ async def create_proposal_from_report(
     if not primary_slug:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Report has no recommended_package_slug and no "
-                "override_package_slug was provided."
-            ),
+            detail=("Report has no recommended_package_slug and no override_package_slug was provided."),
         )
 
     # Look up package metadata server-side from the same catalog the
@@ -274,9 +263,7 @@ async def create_proposal_from_report(
     creative_slug = None
     creative_pkg = None
     if include_companion:
-        companion = (
-            (report.public_result or {}).get("recommended_package", {}) or {}
-        ).get("creative_proof_slug")
+        companion = ((report.public_result or {}).get("recommended_package", {}) or {}).get("creative_proof_slug")
         if companion:
             creative_slug = companion
             creative_pkg = catalog.get(companion)
@@ -348,11 +335,7 @@ async def create_proposal_from_report(
     lead_id_out = None
     if report.lead_opportunity_id:
         lead = (
-            await db.execute(
-                select(LeadOpportunity).where(
-                    LeadOpportunity.id == report.lead_opportunity_id
-                )
-            )
+            await db.execute(select(LeadOpportunity).where(LeadOpportunity.id == report.lead_opportunity_id))
         ).scalar_one_or_none()
         if lead is not None:
             lead.sales_stage = "proposal_sent"

@@ -45,27 +45,17 @@ async def resolve_proofhook_org_and_brand(
     column is nullable, and LeadOpportunity.brand_id is required so we'll
     only upsert a LeadOpportunity if a brand is resolved.
     """
-    org = (
-        await db.execute(
-            select(Organization).where(Organization.slug == PROOFHOOK_ORG_SLUG)
-        )
-    ).scalar_one_or_none()
+    org = (await db.execute(select(Organization).where(Organization.slug == PROOFHOOK_ORG_SLUG))).scalar_one_or_none()
 
     if org is None:
-        org = (
-            await db.execute(
-                select(Organization).where(Organization.name.ilike("ProofHook"))
-            )
-        ).scalar_one_or_none()
+        org = (await db.execute(select(Organization).where(Organization.name.ilike("ProofHook")))).scalar_one_or_none()
 
     if org is None:
         # Last fallback — single active org (single-tenant assumption).
         active_orgs = (
             (
                 await db.execute(
-                    select(Organization)
-                    .where(Organization.is_active.is_(True))
-                    .order_by(Organization.created_at.asc())
+                    select(Organization).where(Organization.is_active.is_(True)).order_by(Organization.created_at.asc())
                 )
             )
             .scalars()

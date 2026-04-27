@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -32,10 +31,10 @@ class AuthorityScoreReport(Base):
     organization_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False, index=True
     )
-    brand_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    brand_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("brands.id"), nullable=True, index=True
     )
-    lead_opportunity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    lead_opportunity_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("lead_opportunities.id"), nullable=True, index=True
     )
 
@@ -45,8 +44,8 @@ class AuthorityScoreReport(Base):
     website_domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     contact_email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     industry: Mapped[str] = mapped_column(String(100), nullable=False, default="")
-    competitor_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    city_or_market: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    competitor_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    city_or_market: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Score outputs
     total_score: Mapped[int] = mapped_column(Integer, default=0)
@@ -56,52 +55,52 @@ class AuthorityScoreReport(Base):
     authority_score: Mapped[int] = mapped_column(Integer, default=0)
     score_label: Mapped[str] = mapped_column(String(40), default="not_assessed")
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
-    dimension_scores: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
-    technical_scores: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
-    evidence: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
-    raw_signals: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
-    scanned_pages: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
-    top_gaps: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
-    quick_wins: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
-    recommended_package_slug: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    ai_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    public_result: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    dimension_scores: Mapped[dict | None] = mapped_column(JSONB, default=dict)
+    technical_scores: Mapped[dict | None] = mapped_column(JSONB, default=dict)
+    evidence: Mapped[dict | None] = mapped_column(JSONB, default=dict)
+    raw_signals: Mapped[dict | None] = mapped_column(JSONB, default=dict)
+    scanned_pages: Mapped[list | None] = mapped_column(JSONB, default=list)
+    top_gaps: Mapped[list | None] = mapped_column(JSONB, default=list)
+    quick_wins: Mapped[list | None] = mapped_column(JSONB, default=list)
+    recommended_package_slug: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    ai_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    public_result: Mapped[dict | None] = mapped_column(JSONB, default=dict)
 
     # Platform-ready fields — populated in patch 1 so the larger Decision-
     # Layer surfaces (history, monitoring, Authority Graph, snapshot
     # composer, proposal builder) can read from them without further
     # migrations. Each is JSON-shaped so the engine can evolve.
-    authority_graph: Mapped[Optional[dict]] = mapped_column(
+    authority_graph: Mapped[dict | None] = mapped_column(
         JSONB,
         default=dict,
         comment="Structured Authority Graph: entity, audience, offers, proof, comparisons, trust signals.",
     )
-    buyer_questions: Mapped[Optional[list]] = mapped_column(
+    buyer_questions: Mapped[list | None] = mapped_column(
         JSONB,
         default=list,
         comment="5–10 buyer questions the business should be prepared to answer publicly.",
     )
-    recommended_pages: Mapped[Optional[list]] = mapped_column(
+    recommended_pages: Mapped[list | None] = mapped_column(
         JSONB,
         default=list,
         comment="Pages ProofHook would build/refresh: [{slug, title, purpose, priority}].",
     )
-    recommended_schema: Mapped[Optional[list]] = mapped_column(
+    recommended_schema: Mapped[list | None] = mapped_column(
         JSONB,
         default=list,
         comment="JSON-LD blocks to add: [{type, target_url, why}].",
     )
-    recommended_proof_assets: Mapped[Optional[list]] = mapped_column(
+    recommended_proof_assets: Mapped[list | None] = mapped_column(
         JSONB,
         default=list,
         comment="Proof assets to publish: [{kind, description, priority}].",
     )
-    recommended_comparison_surfaces: Mapped[Optional[list]] = mapped_column(
+    recommended_comparison_surfaces: Mapped[list | None] = mapped_column(
         JSONB,
         default=list,
         comment="Comparison surfaces to publish: [{kind, slug_pattern, purpose, priority}].",
     )
-    monitoring_recommendation: Mapped[Optional[str]] = mapped_column(
+    monitoring_recommendation: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
         comment="One-paragraph description of what monitoring would watch for this business.",
@@ -114,9 +113,9 @@ class AuthorityScoreReport(Base):
         index=True,
         comment="queued | scanning | scored | proposal_created | qualified | archived | failed",
     )
-    scan_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    scan_completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    fetch_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    scan_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scan_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fetch_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     formula_version: Mapped[str] = mapped_column(String(20), default="v1")
     report_version: Mapped[str] = mapped_column(
         String(20),
@@ -130,7 +129,7 @@ class AuthorityScoreReport(Base):
     )
 
     # Auditing / dedup
-    request_ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    request_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     __table_args__ = (

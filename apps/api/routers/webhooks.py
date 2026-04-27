@@ -242,10 +242,7 @@ async def _process_operator_payment_event(
     if (
         event_type == "checkout.session.completed"
         and brand_id
-        and (
-            meta.get("retention_source") == "renewal"
-            or meta.get("source") == "renewal"
-        )
+        and (meta.get("retention_source") == "renewal" or meta.get("source") == "renewal")
     ):
         amount = float(obj.get("amount_total", 0)) / 100.0
         if amount > 0:
@@ -253,9 +250,7 @@ async def _process_operator_payment_event(
             # Idempotency — skip if already written
             if webhook_ref:
                 existing = (
-                    await db.execute(
-                        select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref)
-                    )
+                    await db.execute(select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref))
                 ).scalar_one_or_none()
                 if existing:
                     return
@@ -352,9 +347,9 @@ async def _process_operator_payment_event(
     # webhook event as missing_metadata, emit an operator-visible system
     # event, and acknowledge the webhook (Stripe must not retry a
     # signature-valid event).
-    elif (
-        event_type in ("checkout.session.completed", "payment_intent.succeeded")
-        and meta.get("source") in ("proofhook_public_checkout", "proofhook_public_checkout_live")
+    elif event_type in ("checkout.session.completed", "payment_intent.succeeded") and meta.get("source") in (
+        "proofhook_public_checkout",
+        "proofhook_public_checkout_live",
     ):
         meta_org_id = _safe_uuid(meta.get("org_id"))
         package_slug_meta = meta.get("package_slug") or meta.get("package")
@@ -396,9 +391,7 @@ async def _process_operator_payment_event(
             stripe_object=obj,
             brand_id=brand_id,
             currency=str(obj.get("currency") or "usd"),
-            payment_intent_id=(
-                obj.get("payment_intent") if isinstance(obj.get("payment_intent"), str) else None
-            ),
+            payment_intent_id=(obj.get("payment_intent") if isinstance(obj.get("payment_intent"), str) else None),
             checkout_session_id=obj.get("id") if event_type == "checkout.session.completed" else None,
             customer_email=str(obj.get("customer_email") or obj.get("receipt_email") or ""),
             customer_name=str((obj.get("customer_details") or {}).get("name") or ""),
@@ -422,9 +415,7 @@ async def _process_operator_payment_event(
             ledger_existing = None
             if webhook_ref:
                 ledger_existing = (
-                    await db.execute(
-                        select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref)
-                    )
+                    await db.execute(select(RevenueLedgerEntry).where(RevenueLedgerEntry.webhook_ref == webhook_ref))
                 ).scalar_one_or_none()
             if ledger_existing is None:
                 amount = float(amount_cents) / 100.0

@@ -19,7 +19,8 @@ Revises: 019_batch13, b6587e9c03b5  (merge migration — combines the two
 Create Date: 2026-04-26
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 import sqlalchemy as sa
 from alembic import op

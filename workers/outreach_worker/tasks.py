@@ -173,12 +173,7 @@ async def _send_smtp_email(
 
     # ── Footer enforcement: visible address + opt-out line ──────────
     UNSUB_SENTINEL = "Reply UNSUBSCRIBE to opt out."
-    footer_text_block = (
-        "\n\n--\n"
-        "ProofHook\n"
-        f"{mailing_address}\n"
-        f"{UNSUB_SENTINEL}\n"
-    )
+    footer_text_block = f"\n\n--\nProofHook\n{mailing_address}\n{UNSUB_SENTINEL}\n"
     address_html = _html.escape(mailing_address).replace("\n", "<br>")
     footer_html_block = (
         '<hr style="margin-top:24px;border:none;border-top:1px solid #ccc">'

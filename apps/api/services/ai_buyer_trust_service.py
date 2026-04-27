@@ -11,7 +11,6 @@ public message; the report row is still persisted with the error.
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -31,10 +30,8 @@ from apps.api.services.website_scanner import _make_signals_dict, scan_website
 from packages.db.models.authority_score_reports import AuthorityScoreReport
 from packages.db.models.expansion_pack2_phase_a import LeadOpportunity
 from packages.scoring.ai_buyer_trust_engine import (
-    PUBLIC_DIMENSION_LABEL,
     confidence_label_for,
     score_ai_buyer_trust,
-    score_label_for,
 )
 
 logger = structlog.get_logger()
@@ -143,9 +140,7 @@ async def submit_trust_test(
     # ── 2b. Public-form rate limits (per IP + per domain) ─────────────
     # Backed by counts of already-persisted AuthorityScoreReport rows so
     # the limiter survives restarts and needs no extra cache.
-    await _enforce_rate_limits(
-        db, org_id=org_id, request_ip=request_ip, domain=domain
-    )
+    await _enforce_rate_limits(db, org_id=org_id, request_ip=request_ip, domain=domain)
 
     # ── 3. Dedup: same domain + email submitted within the window? ──────
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=DEDUP_WINDOW_MINUTES)
@@ -245,9 +240,7 @@ async def submit_trust_test(
     report.recommended_pages = report_dict.get("recommended_pages") or []
     report.recommended_schema = report_dict.get("recommended_schema") or []
     report.recommended_proof_assets = report_dict.get("recommended_proof_assets") or []
-    report.recommended_comparison_surfaces = (
-        report_dict.get("recommended_comparison_surfaces") or []
-    )
+    report.recommended_comparison_surfaces = report_dict.get("recommended_comparison_surfaces") or []
     report.monitoring_recommendation = report_dict.get("monitoring_recommendation")
     report.formula_version = report_dict.get("formula_version", "v1")
     report.report_version = report_dict.get("report_version", "v1")
@@ -422,8 +415,7 @@ def _failure_envelope(report: AuthorityScoreReport) -> dict[str, Any]:
         "confidence_label": "low",
         "top_gaps": [],
         "quick_win": (
-            "We couldn't reach your site to score it. Confirm the URL is "
-            "publicly reachable and re-run the test."
+            "We couldn't reach your site to score it. Confirm the URL is publicly reachable and re-run the test."
         ),
         "recommended_package": {
             "primary_slug": None,
@@ -476,16 +468,20 @@ async def _upsert_lead_opportunity(
 
     # Find existing lead for the same email + brand + source.
     existing = (
-        await db.execute(
-            select(LeadOpportunity)
-            .where(
-                LeadOpportunity.brand_id == brand_id,
-                LeadOpportunity.lead_source == LEAD_SOURCE,
-                LeadOpportunity.is_active.is_(True),
+        (
+            await db.execute(
+                select(LeadOpportunity)
+                .where(
+                    LeadOpportunity.brand_id == brand_id,
+                    LeadOpportunity.lead_source == LEAD_SOURCE,
+                    LeadOpportunity.is_active.is_(True),
+                )
+                .order_by(LeadOpportunity.created_at.desc())
             )
-            .order_by(LeadOpportunity.created_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     # Match by email substring inside message_text since LeadOpportunity has
     # no native email column. Latest scan wins.
@@ -501,18 +497,14 @@ async def _upsert_lead_opportunity(
         same_email.package_slug = primary_slug
         same_email.confidence = report_dict["confidence"]
         same_email.explanation = rationale
-        same_email.message_text = (
-            f"{summary}\nemail={report.contact_email}\nreport_id={report.id}"
-        )[:2000]
+        same_email.message_text = (f"{summary}\nemail={report.contact_email}\nreport_id={report.id}")[:2000]
         await db.flush()
         return same_email
 
     lead = LeadOpportunity(
         brand_id=brand_id,
         lead_source=LEAD_SOURCE,
-        message_text=(
-            f"{summary}\nemail={report.contact_email}\nreport_id={report.id}"
-        )[:2000],
+        message_text=(f"{summary}\nemail={report.contact_email}\nreport_id={report.id}")[:2000],
         urgency_score=0.0,
         budget_proxy_score=0.0,
         sophistication_score=0.0,
@@ -575,9 +567,7 @@ async def _emit_operator_action(
             source_module="ai_buyer_trust_service",
             action_payload={
                 "report_id": str(report.id),
-                "lead_opportunity_id": (
-                    str(report.lead_opportunity_id) if report.lead_opportunity_id else None
-                ),
+                "lead_opportunity_id": (str(report.lead_opportunity_id) if report.lead_opportunity_id else None),
                 "recommended_package_slug": report.recommended_package_slug,
                 "total_score": report.total_score,
                 "score_label": report.score_label,
@@ -595,11 +585,7 @@ async def _emit_system_event(
     brand_id: uuid.UUID | None,
     lead_id: uuid.UUID | None,
 ) -> None:
-    event_type = (
-        "ai_buyer_trust.test_completed"
-        if report.report_status == "scored"
-        else "ai_buyer_trust.test_failed"
-    )
+    event_type = "ai_buyer_trust.test_completed" if report.report_status == "scored" else "ai_buyer_trust.test_failed"
     summary = (
         f"AI Buyer Trust Test completed for {report.company_name} — score {report.total_score}"
         if report.report_status == "scored"
@@ -678,9 +664,7 @@ async def list_reports(
     return [_row_to_list_item(r) for r in rows]
 
 
-async def get_report(
-    db: AsyncSession, org_id: uuid.UUID, report_id: uuid.UUID
-) -> dict[str, Any] | None:
+async def get_report(db: AsyncSession, org_id: uuid.UUID, report_id: uuid.UUID) -> dict[str, Any] | None:
     row = (
         await db.execute(
             select(AuthorityScoreReport).where(

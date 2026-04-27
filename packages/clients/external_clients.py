@@ -1034,7 +1034,7 @@ class SmtpEmailClient:
     # AttributeError, silently failing every email send. ``from_db`` is
     # kept as a thin alias so legacy callers keep functioning unchanged.
     @classmethod
-    async def resolve(cls, db, org_id) -> "SmtpEmailClient | None":
+    async def resolve(cls, db, org_id) -> SmtpEmailClient | None:
         """Return an SmtpEmailClient configured for ``org_id``.
 
         Resolution order:
@@ -1096,7 +1096,7 @@ class SmtpEmailClient:
         return None
 
     @classmethod
-    async def from_db(cls, db, org_id) -> "SmtpEmailClient | None":
+    async def from_db(cls, db, org_id) -> SmtpEmailClient | None:
         """Back-compat alias for :meth:`resolve`. Prefer ``resolve`` in new code.
 
         Kept so the seven legacy callers (proposal_dunning_service,

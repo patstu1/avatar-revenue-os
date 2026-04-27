@@ -614,16 +614,20 @@ async def resolve_operator_org_for_stripe(db: AsyncSession) -> uuid.UUID | None:
     operator can clean it up.
     """
     rows = (
-        await db.execute(
-            select(IntegrationProvider)
-            .where(
-                IntegrationProvider.provider_key == "stripe",
-                IntegrationProvider.is_enabled.is_(True),
-                IntegrationProvider.api_key_encrypted.isnot(None),
+        (
+            await db.execute(
+                select(IntegrationProvider)
+                .where(
+                    IntegrationProvider.provider_key == "stripe",
+                    IntegrationProvider.is_enabled.is_(True),
+                    IntegrationProvider.api_key_encrypted.isnot(None),
+                )
+                .order_by(IntegrationProvider.created_at.asc())
             )
-            .order_by(IntegrationProvider.created_at.asc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     if not rows:
         return None
@@ -695,9 +699,7 @@ async def get_stripe_credential_status(db: AsyncSession) -> dict:
         "webhook_secret_source": "db" if webhook_secret_present else "missing",
         "mode": mode,
         "last_health_check": (
-            provider.last_health_check.isoformat()
-            if provider and provider.last_health_check
-            else None
+            provider.last_health_check.isoformat() if provider and provider.last_health_check else None
         ),
         "health_status": provider.health_status if provider else None,
     }

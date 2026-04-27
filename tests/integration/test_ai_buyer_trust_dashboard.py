@@ -9,23 +9,20 @@ from __future__ import annotations
 
 import uuid
 
-import packages.db.models  # noqa: F401
-import packages.db.models.expansion_pack2_phase_a  # noqa: F401
-import packages.db.models.system_events  # noqa: F401
-import packages.db.models.proposals  # noqa: F401
-import packages.db.models.clients  # noqa: F401
-import packages.db.models.fulfillment  # noqa: F401
-import packages.db.models.live_execution_phase2  # noqa: F401
-import packages.db.models.delivery  # noqa: F401
-import packages.db.models.gm_control  # noqa: F401
-import packages.db.models.authority_score_reports  # noqa: F401
-
 import pytest
 
+import packages.db.models  # noqa: F401
+import packages.db.models.authority_score_reports  # noqa: F401
+import packages.db.models.clients  # noqa: F401
+import packages.db.models.delivery  # noqa: F401
+import packages.db.models.expansion_pack2_phase_a  # noqa: F401
+import packages.db.models.fulfillment  # noqa: F401
+import packages.db.models.gm_control  # noqa: F401
+import packages.db.models.live_execution_phase2  # noqa: F401
+import packages.db.models.proposals  # noqa: F401
+import packages.db.models.system_events  # noqa: F401
 from packages.db.models.core import Brand, Organization
-
 from tests.integration.test_ai_buyer_trust_flow import (  # noqa: E402 — reuse fixture helpers
-    PAGE_RESPONSES,
     _patch_scanner,
 )
 
@@ -46,14 +43,10 @@ async def _register_and_login_proofhook(api_client, db_session, sample_org_data)
     # Promote this org to canonical 'proofhook' so the resolver picks it.
     from sqlalchemy import select
 
-    org = (
-        await db_session.execute(select(Organization).where(Organization.id == org_id))
-    ).scalar_one()
+    org = (await db_session.execute(select(Organization).where(Organization.id == org_id))).scalar_one()
     org.slug = "proofhook"
     org.name = "ProofHook"
-    brand = Brand(
-        organization_id=org.id, name="ProofHook", slug="proofhook", niche="b2b", is_active=True
-    )
+    brand = Brand(organization_id=org.id, name="ProofHook", slug="proofhook", niche="b2b", is_active=True)
     db_session.add(brand)
     await db_session.flush()
     await db_session.commit()
@@ -62,9 +55,7 @@ async def _register_and_login_proofhook(api_client, db_session, sample_org_data)
 
 @pytest.mark.asyncio
 async def test_dashboard_list_and_detail(api_client, db_session, sample_org_data, monkeypatch):
-    headers, org_id, _brand_id = await _register_and_login_proofhook(
-        api_client, db_session, sample_org_data
-    )
+    headers, org_id, _brand_id = await _register_and_login_proofhook(api_client, db_session, sample_org_data)
     _patch_scanner(monkeypatch)
 
     # Submit one report via the public endpoint
@@ -81,9 +72,7 @@ async def test_dashboard_list_and_detail(api_client, db_session, sample_org_data
     report_id = sub.json()["report_id"]
 
     # Operator list
-    listing = await api_client.get(
-        "/api/v1/ai-search-authority/reports?limit=10", headers=headers
-    )
+    listing = await api_client.get("/api/v1/ai-search-authority/reports?limit=10", headers=headers)
     assert listing.status_code == 200
     body = listing.json()
     assert body["count"] >= 1
@@ -93,9 +82,7 @@ async def test_dashboard_list_and_detail(api_client, db_session, sample_org_data
     assert matched["report_status"] == "scored"
 
     # Operator detail
-    detail = await api_client.get(
-        f"/api/v1/ai-search-authority/reports/{report_id}", headers=headers
-    )
+    detail = await api_client.get(f"/api/v1/ai-search-authority/reports/{report_id}", headers=headers)
     assert detail.status_code == 200
     d = detail.json()
     assert d["company_name"] == "Acme"
@@ -127,15 +114,11 @@ async def test_mark_qualified_and_archive(api_client, db_session, sample_org_dat
     )
     report_id = sub.json()["report_id"]
 
-    qual = await api_client.post(
-        f"/api/v1/ai-search-authority/reports/{report_id}/mark-qualified", headers=headers
-    )
+    qual = await api_client.post(f"/api/v1/ai-search-authority/reports/{report_id}/mark-qualified", headers=headers)
     assert qual.status_code == 200
     assert qual.json()["report_status"] == "qualified"
 
-    arch = await api_client.post(
-        f"/api/v1/ai-search-authority/reports/{report_id}/archive", headers=headers
-    )
+    arch = await api_client.post(f"/api/v1/ai-search-authority/reports/{report_id}/archive", headers=headers)
     assert arch.status_code == 200
     assert arch.json()["report_status"] == "archived"
 

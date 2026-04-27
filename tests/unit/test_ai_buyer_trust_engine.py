@@ -37,8 +37,7 @@ def _signals_clean_saas(submitted: dict | None = None) -> dict:
         ],
         "meta_description": "Acme detects payment fraud at checkout for B2B SaaS — purpose-built for finance teams who care about authorization rate.",
         "jsonld_blocks": [
-            {"@type": "Organization", "name": "Acme", "url": "https://acme.io",
-             "sameAs": ["https://x.com/acmehq"]},
+            {"@type": "Organization", "name": "Acme", "url": "https://acme.io", "sameAs": ["https://x.com/acmehq"]},
             {"@type": "WebSite", "name": "Acme"},
             {"@type": "Service", "name": "Fraud detection"},
             {"@type": "FAQPage"},
@@ -307,9 +306,16 @@ def test_score_label_for_covers_every_band(score, label):
 )
 def test_package_recommendation_bands(score, expected_primary, expected_secondary):
     fake_dims = {
-        "entity_clarity": {"status": "assessed", "score": score, "detected": [], "missing": [],
-                            "why_it_matters": "", "recommended_fix": "", "confidence": 0.5,
-                            "public_label": "test"},
+        "entity_clarity": {
+            "status": "assessed",
+            "score": score,
+            "detected": [],
+            "missing": [],
+            "why_it_matters": "",
+            "recommended_fix": "",
+            "confidence": 0.5,
+            "public_label": "test",
+        },
     }
     rec = engine._recommend_package(score, fake_dims)
     assert rec["primary_slug"] == expected_primary
@@ -437,9 +443,20 @@ def test_clean_site_scores_well_and_populates_platform_outputs():
     # Decision-Layer node ordering: Company → Category → Offers → Audience
     # → Proof → Buyer Questions → FAQs → Comparisons → Schema → Answer Pages → CTAs
     for required_node in (
-        "company", "category", "entity", "audience", "offers", "proof",
-        "buyer_questions", "faqs", "comparisons", "schema",
-        "answer_pages", "ctas", "trust_signals", "crawlability",
+        "company",
+        "category",
+        "entity",
+        "audience",
+        "offers",
+        "proof",
+        "buyer_questions",
+        "faqs",
+        "comparisons",
+        "schema",
+        "answer_pages",
+        "ctas",
+        "trust_signals",
+        "crawlability",
     ):
         assert required_node in g, f"Authority Graph missing node: {required_node}"
     assert isinstance(g["buyer_questions"]["count"], int) and g["buyer_questions"]["count"] >= 5

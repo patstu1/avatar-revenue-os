@@ -66,12 +66,12 @@ PACKAGE_SYSTEM = "ai_search_authority_system"
 # Creative Proof lane companion slugs — recommended alongside the AI
 # Authority pick when a dimension gap reads as a creative-side fix
 # (proof videos, hook variants, founder clips, paid creative, etc.).
-CREATIVE_SIGNAL_ENTRY = "signal_entry"            # 4-asset pack
-CREATIVE_MOMENTUM_ENGINE = "momentum_engine"      # 8–12/mo recurring
+CREATIVE_SIGNAL_ENTRY = "signal_entry"  # 4-asset pack
+CREATIVE_MOMENTUM_ENGINE = "momentum_engine"  # 8–12/mo recurring
 CREATIVE_CONVERSION_ARCH = "conversion_architecture"  # audit + hook rebuild
-CREATIVE_PAID_MEDIA = "paid_media_engine"         # 12–20/mo + paid optim
+CREATIVE_PAID_MEDIA = "paid_media_engine"  # 12–20/mo + paid optim
 CREATIVE_LAUNCH_SEQUENCE = "launch_sequence"
-CREATIVE_COMMAND = "creative_command"             # high-throughput recurring
+CREATIVE_COMMAND = "creative_command"  # high-throughput recurring
 
 
 def score_label_for(total: int) -> str:
@@ -171,16 +171,8 @@ def score_ai_buyer_trust(signals: dict[str, Any]) -> dict[str, Any]:
     # Confidence — proportion of assessed dimensions × proportion of pages
     # that returned 200, with a 0.4 floor. Displayed as low/medium/high.
     assessed = sum(1 for d in dim_results.values() if d["status"] != "not_assessed")
-    pages_assessed = signals.get("subpages", []) + (
-        [signals["homepage"]] if signals.get("homepage") else []
-    )
-    pages_ok = sum(
-        1
-        for p in pages_assessed
-        if p
-        and (p.get("status_code") or 0) < 400
-        and not p.get("fetch_error")
-    )
+    pages_assessed = signals.get("subpages", []) + ([signals["homepage"]] if signals.get("homepage") else [])
+    pages_ok = sum(1 for p in pages_assessed if p and (p.get("status_code") or 0) < 400 and not p.get("fetch_error"))
     pages_attempted = max(len(pages_assessed), 1)
     confidence = _clamp(
         0.4 + 0.4 * (pages_ok / pages_attempted) + 0.2 * (assessed / len(DIMENSION_WEIGHTS)),
@@ -190,11 +182,7 @@ def score_ai_buyer_trust(signals: dict[str, Any]) -> dict[str, Any]:
 
     # Top 2 gaps — assessed dimensions sorted by lowest score
     sorted_gaps = sorted(
-        (
-            (dim, d)
-            for dim, d in dim_results.items()
-            if d["status"] != "not_assessed"
-        ),
+        ((dim, d) for dim, d in dim_results.items() if d["status"] != "not_assessed"),
         key=lambda kv: kv[1]["score"],
     )
     top_gaps = [
@@ -236,9 +224,7 @@ def score_ai_buyer_trust(signals: dict[str, Any]) -> dict[str, Any]:
     recommended_pages = _build_recommended_pages(signals, dim_results)
     recommended_schema = _build_recommended_schema(signals, technical)
     recommended_proof_assets = _build_recommended_proof_assets(signals, dim_results)
-    recommended_comparison_surfaces = _build_recommended_comparison_surfaces(
-        signals, dim_results
-    )
+    recommended_comparison_surfaces = _build_recommended_comparison_surfaces(signals, dim_results)
     monitoring_recommendation = _build_monitoring_recommendation(total_score)
 
     report = {
@@ -274,10 +260,7 @@ def score_ai_buyer_trust(signals: dict[str, Any]) -> dict[str, Any]:
 
 
 def _failed_homepage_report(signals: dict[str, Any]) -> dict[str, Any]:
-    error = (
-        (signals.get("homepage") or {}).get("fetch_error")
-        or "homepage_unreachable"
-    )
+    error = (signals.get("homepage") or {}).get("fetch_error") or "homepage_unreachable"
     not_assessed = {
         dim: {
             "score": 0,
@@ -314,9 +297,7 @@ def _failed_homepage_report(signals: dict[str, Any]) -> dict[str, Any]:
             for dim in DIMENSION_WEIGHTS
         },
         "top_gaps": [],
-        "quick_wins": [
-            "Make sure the URL you submitted is publicly reachable, then re-run the test."
-        ],
+        "quick_wins": ["Make sure the URL you submitted is publicly reachable, then re-run the test."],
         "recommended_package": {
             "primary_slug": None,
             "secondary_slug": None,
@@ -386,7 +367,8 @@ def _score_entity_clarity(signals: dict[str, Any]) -> dict[str, Any]:
         r"\b(based in|headquartered in|serving|located in|offices in)\s+[A-Z][a-z]+",
         homepage.get("body_text_snippet") or "",
     ) or re.search(
-        r"\b\d{5}(-\d{4})?\b", body,  # US ZIP
+        r"\b\d{5}(-\d{4})?\b",
+        body,  # US ZIP
     ):
         score += 10
         detected.append("Location language detected")
@@ -446,10 +428,7 @@ def _score_audience_clarity(signals: dict[str, Any]) -> dict[str, Any]:
     )
     if audience_phrases:
         score += 35
-        detected.append(
-            "Audience language detected: "
-            + ", ".join(sorted(set(audience_phrases))[:5])
-        )
+        detected.append("Audience language detected: " + ", ".join(sorted(set(audience_phrases))[:5]))
     else:
         missing.append("No 'for {audience}' language on the homepage")
 
@@ -668,7 +647,9 @@ def _score_comparison_readiness(signals: dict[str, Any]) -> dict[str, Any]:
         missing.append("No comparison language on the homepage")
 
     pricing = _find_subpage(signals, ("/pricing",))
-    if pricing and any(t in (pricing.get("body_text_snippet") or "").lower() for t in ("compared to", "vs ", "alternative")):
+    if pricing and any(
+        t in (pricing.get("body_text_snippet") or "").lower() for t in ("compared to", "vs ", "alternative")
+    ):
         score += 10
         detected.append("Pricing page references comparisons")
 
@@ -773,7 +754,9 @@ def _score_trust_signal_density(signals: dict[str, Any]) -> dict[str, Any]:
     else:
         missing.append("No /contact page reachable")
 
-    if re.search(r"\b\d{1,4}\s+\w+(\s+\w+){0,4}\s+(street|st\.?|avenue|ave\.?|road|rd\.?|suite|ste\.?|drive|dr\.?)", body):
+    if re.search(
+        r"\b\d{1,4}\s+\w+(\s+\w+){0,4}\s+(street|st\.?|avenue|ave\.?|road|rd\.?|suite|ste\.?|drive|dr\.?)", body
+    ):
         score += 15
         detected.append("Physical address detected on homepage")
     else:
@@ -823,9 +806,7 @@ def _score_trust_signal_density(signals: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _score_ai_search_eligibility(
-    signals: dict[str, Any], dim_results: dict[str, dict[str, Any]]
-) -> dict[str, Any]:
+def _score_ai_search_eligibility(signals: dict[str, Any], dim_results: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Composite-of-composites: rolls up differentiation language, schema
     breadth, comparison + proof. Always assessed because it depends only on
     other dimensions and the JSON-LD types we already have."""
@@ -850,8 +831,15 @@ def _score_ai_search_eligibility(
         if p:
             all_text += " " + (p.get("body_text_snippet") or "").lower()
     diff_words = (
-        "unlike", "different from", "the only", "purpose-built", "we focus", "we specialise", "we specialize",
-        "what makes us different", "why choose us"
+        "unlike",
+        "different from",
+        "the only",
+        "purpose-built",
+        "we focus",
+        "we specialise",
+        "we specialize",
+        "what makes us different",
+        "why choose us",
     )
     diff_hits = [w for w in diff_words if w in all_text]
     if diff_hits:
@@ -965,19 +953,12 @@ def _build_quick_wins(
             "should consider for buyer-question answers."
         )
     if not _find_subpage(signals, ("/faq",)):
-        wins.append(
-            "Publish a /faq page answering the top 6 buyer questions. Wrap it "
-            "in FAQPage JSON-LD."
-        )
+        wins.append("Publish a /faq page answering the top 6 buyer questions. Wrap it in FAQPage JSON-LD.")
 
     # If none of the technical wins fired, derive a win from the lowest dim.
     if not wins:
         sorted_dims = sorted(
-            (
-                (dim, d)
-                for dim, d in dim_results.items()
-                if d["status"] == "assessed"
-            ),
+            ((dim, d) for dim, d in dim_results.items() if d["status"] == "assessed"),
             key=lambda kv: kv[1]["score"],
         )
         if sorted_dims:
@@ -986,9 +967,7 @@ def _build_quick_wins(
     return wins[:1]  # first quick win is the public one
 
 
-def _recommend_package(
-    total_score: int, dim_results: dict[str, dict[str, Any]]
-) -> dict[str, Any]:
+def _recommend_package(total_score: int, dim_results: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Cross-lane recommendation:
       - primary_slug          — AI Authority lane (always)
       - secondary_slug        — AI Authority lane companion (sometimes)
@@ -1010,17 +989,11 @@ def _recommend_package(
     else:
         primary, secondary = PACKAGE_SYSTEM, None
 
-    creative_companion, creative_rationale = _recommend_creative_proof_companion(
-        total_score, dim_results
-    )
+    creative_companion, creative_rationale = _recommend_creative_proof_companion(total_score, dim_results)
 
     # One-sentence rationale referencing the lowest-scoring dimensions.
     sorted_dims = sorted(
-        (
-            (dim, d)
-            for dim, d in dim_results.items()
-            if d["status"] == "assessed"
-        ),
+        ((dim, d) for dim, d in dim_results.items() if d["status"] == "assessed"),
         key=lambda kv: kv[1]["score"],
     )
     if sorted_dims:
@@ -1159,7 +1132,7 @@ def _build_authority_graph(
     homepage = signals.get("homepage") or {}
     submitted = signals.get("submitted") or {}
     types = sorted(signals.get("all_jsonld_types") or [])
-    body = (homepage.get("body_text_snippet") or "")
+    body = homepage.get("body_text_snippet") or ""
     body_lower = body.lower()
 
     # CTA detection — links/text from the homepage that read as a primary
@@ -1288,65 +1261,73 @@ def _build_recommended_comparison_surfaces(
 
     has_compare = bool(_find_subpage(signals, ("/vs", "/compare", "/comparison", "/alternative")))
     has_best_of = bool(_find_subpage(signals, ("/best-", "/top-", "/leading-", "/category")))
-    has_buyer_guide = bool(
-        _find_subpage(signals, ("/how-to-choose", "/buyers-guide", "/buyer-guide"))
-    )
+    has_buyer_guide = bool(_find_subpage(signals, ("/how-to-choose", "/buyers-guide", "/buyer-guide")))
 
     if competitor_url:
-        out.append({
-            "kind": "competitor_comparison",
-            "slug_pattern": "/compare/{competitor}",
-            "purpose": (
-                f"Direct comparison page against the named competitor "
-                f"({competitor_url}) so the assistant builds the comparison "
-                "from your framing instead of theirs."
-            ),
-            "priority": "high",
-        })
+        out.append(
+            {
+                "kind": "competitor_comparison",
+                "slug_pattern": "/compare/{competitor}",
+                "purpose": (
+                    f"Direct comparison page against the named competitor "
+                    f"({competitor_url}) so the assistant builds the comparison "
+                    "from your framing instead of theirs."
+                ),
+                "priority": "high",
+            }
+        )
     elif not has_compare:
-        out.append({
-            "kind": "competitor_comparison",
-            "slug_pattern": "/compare/{competitor}",
-            "purpose": (
-                "Pick the most-asked-about alternative in your category and "
-                "publish one comparison page. One beats none."
-            ),
-            "priority": "high",
-        })
+        out.append(
+            {
+                "kind": "competitor_comparison",
+                "slug_pattern": "/compare/{competitor}",
+                "purpose": (
+                    "Pick the most-asked-about alternative in your category and "
+                    "publish one comparison page. One beats none."
+                ),
+                "priority": "high",
+            }
+        )
 
     if not has_best_of:
-        out.append({
-            "kind": "category_decision_support",
-            "slug_pattern": f"/best-{industry.replace(' ', '-')}",
-            "purpose": (
-                f"Category page targeting 'best {industry}' so AI assistants "
-                "have a destination when buyers research the category before "
-                "the brand."
-            ),
-            "priority": "medium",
-        })
+        out.append(
+            {
+                "kind": "category_decision_support",
+                "slug_pattern": f"/best-{industry.replace(' ', '-')}",
+                "purpose": (
+                    f"Category page targeting 'best {industry}' so AI assistants "
+                    "have a destination when buyers research the category before "
+                    "the brand."
+                ),
+                "priority": "medium",
+            }
+        )
 
     if not has_buyer_guide:
-        out.append({
-            "kind": "buyers_guide",
-            "slug_pattern": "/how-to-choose-a-{category}",
-            "purpose": (
-                "Decision-support article that names the trade-offs honestly. "
-                "AI assistants pull direct answers from these pages."
-            ),
-            "priority": "medium",
-        })
+        out.append(
+            {
+                "kind": "buyers_guide",
+                "slug_pattern": "/how-to-choose-a-{category}",
+                "purpose": (
+                    "Decision-support article that names the trade-offs honestly. "
+                    "AI assistants pull direct answers from these pages."
+                ),
+                "priority": "medium",
+            }
+        )
 
     if dim_results.get("comparison_readiness", {}).get("score", 0) < 30 and not out:
-        out.append({
-            "kind": "alternatives_page",
-            "slug_pattern": "/alternatives-to-{competitor}",
-            "purpose": (
-                "Alternatives surface for buyers searching 'alternatives to X'. "
-                "Owning the alternatives page wins the comparison click."
-            ),
-            "priority": "medium",
-        })
+        out.append(
+            {
+                "kind": "alternatives_page",
+                "slug_pattern": "/alternatives-to-{competitor}",
+                "purpose": (
+                    "Alternatives surface for buyers searching 'alternatives to X'. "
+                    "Owning the alternatives page wins the comparison click."
+                ),
+                "priority": "medium",
+            }
+        )
 
     return out
 
@@ -1363,11 +1344,7 @@ def _build_buyer_questions(
     detected dimension gaps. Operator sees the full list; the public
     result shows the first 3 (the trust-decision questions)."""
     submitted = signals.get("submitted") or {}
-    company = (
-        submitted.get("company_name")
-        or (signals.get("homepage") or {}).get("title")
-        or "this business"
-    )
+    company = submitted.get("company_name") or (signals.get("homepage") or {}).get("title") or "this business"
     company = company.split("|")[0].strip()[:80] or "this business"
     industry_raw = (submitted.get("industry") or "").strip()
     category = industry_raw or "provider"
@@ -1457,54 +1434,68 @@ def _build_recommended_pages(
     out: list[dict[str, Any]] = []
 
     if not _find_subpage(signals, ("/about",)):
-        out.append({
-            "slug": "/about",
-            "title": "About",
-            "purpose": "Names the entity, the founders, the audience, and links to Organization schema.",
-            "priority": "high",
-        })
+        out.append(
+            {
+                "slug": "/about",
+                "title": "About",
+                "purpose": "Names the entity, the founders, the audience, and links to Organization schema.",
+                "priority": "high",
+            }
+        )
     if not _find_subpage(signals, ("/services", "/products")):
-        out.append({
-            "slug": "/services",
-            "title": "Services / Products",
-            "purpose": "One heading per offer with Service or Product JSON-LD attached.",
-            "priority": "high",
-        })
+        out.append(
+            {
+                "slug": "/services",
+                "title": "Services / Products",
+                "purpose": "One heading per offer with Service or Product JSON-LD attached.",
+                "priority": "high",
+            }
+        )
     if not _find_subpage(signals, ("/pricing",)):
-        out.append({
-            "slug": "/pricing",
-            "title": "Pricing",
-            "purpose": "At minimum a 'starts at' range so AI can answer pricing questions.",
-            "priority": "high",
-        })
+        out.append(
+            {
+                "slug": "/pricing",
+                "title": "Pricing",
+                "purpose": "At minimum a 'starts at' range so AI can answer pricing questions.",
+                "priority": "high",
+            }
+        )
     if not _find_subpage(signals, ("/faq",)):
-        out.append({
-            "slug": "/faq",
-            "title": "FAQ",
-            "purpose": "Top 8 buyer questions, FAQPage JSON-LD.",
-            "priority": "high",
-        })
+        out.append(
+            {
+                "slug": "/faq",
+                "title": "FAQ",
+                "purpose": "Top 8 buyer questions, FAQPage JSON-LD.",
+                "priority": "high",
+            }
+        )
     if not _find_subpage(signals, ("/case", "/proof", "/testimonial", "/reviews")):
-        out.append({
-            "slug": "/case-studies",
-            "title": "Case Studies",
-            "purpose": "At least 3 specific (anonymized OK) buyer outcomes.",
-            "priority": "high",
-        })
+        out.append(
+            {
+                "slug": "/case-studies",
+                "title": "Case Studies",
+                "purpose": "At least 3 specific (anonymized OK) buyer outcomes.",
+                "priority": "high",
+            }
+        )
     if not _find_subpage(signals, ("/vs", "/compare", "/alternative")):
-        out.append({
-            "slug": "/compare/[competitor]",
-            "title": "Comparison page",
-            "purpose": "Name the trade-off honestly — one comparison page beats none.",
-            "priority": "medium",
-        })
+        out.append(
+            {
+                "slug": "/compare/[competitor]",
+                "title": "Comparison page",
+                "purpose": "Name the trade-off honestly — one comparison page beats none.",
+                "priority": "medium",
+            }
+        )
     if not _find_subpage(signals, ("/contact",)):
-        out.append({
-            "slug": "/contact",
-            "title": "Contact",
-            "purpose": "Email + phone + physical address. Trust + local-business signal.",
-            "priority": "medium",
-        })
+        out.append(
+            {
+                "slug": "/contact",
+                "title": "Contact",
+                "purpose": "Email + phone + physical address. Trust + local-business signal.",
+                "priority": "medium",
+            }
+        )
 
     return out
 
@@ -1519,41 +1510,53 @@ def _build_recommended_schema(
     homepage_url = homepage.get("url") or "/"
 
     if "Organization" not in types and "LocalBusiness" not in types:
-        out.append({
-            "type": "Organization",
-            "target_url": homepage_url,
-            "why": "Identifies the business as a real entity with name, url, logo, sameAs.",
-        })
+        out.append(
+            {
+                "type": "Organization",
+                "target_url": homepage_url,
+                "why": "Identifies the business as a real entity with name, url, logo, sameAs.",
+            }
+        )
     if "WebSite" not in types:
-        out.append({
-            "type": "WebSite",
-            "target_url": homepage_url,
-            "why": "Establishes the website-level identity and a SearchAction for site search.",
-        })
+        out.append(
+            {
+                "type": "WebSite",
+                "target_url": homepage_url,
+                "why": "Establishes the website-level identity and a SearchAction for site search.",
+            }
+        )
     if "Service" not in types and "Product" not in types and "Offer" not in types:
-        out.append({
-            "type": "Service",
-            "target_url": "/services/*",
-            "why": "Lets AI extract the offer and price for pricing-aware comparisons.",
-        })
+        out.append(
+            {
+                "type": "Service",
+                "target_url": "/services/*",
+                "why": "Lets AI extract the offer and price for pricing-aware comparisons.",
+            }
+        )
     if "FAQPage" not in types:
-        out.append({
-            "type": "FAQPage",
-            "target_url": "/faq",
-            "why": "Direct-answer surface for AI assistants. Highest leverage per minute spent.",
-        })
+        out.append(
+            {
+                "type": "FAQPage",
+                "target_url": "/faq",
+                "why": "Direct-answer surface for AI assistants. Highest leverage per minute spent.",
+            }
+        )
     if "BreadcrumbList" not in types:
-        out.append({
-            "type": "BreadcrumbList",
-            "target_url": "every page",
-            "why": "Helps AI place a page within the site hierarchy when summarizing.",
-        })
+        out.append(
+            {
+                "type": "BreadcrumbList",
+                "target_url": "every page",
+                "why": "Helps AI place a page within the site hierarchy when summarizing.",
+            }
+        )
     if "Review" not in types and "AggregateRating" not in types:
-        out.append({
-            "type": "Review / AggregateRating",
-            "target_url": "/case-studies, /reviews",
-            "why": "AI weighs credibility before recommending — public rating data is load-bearing.",
-        })
+        out.append(
+            {
+                "type": "Review / AggregateRating",
+                "target_url": "/case-studies, /reviews",
+                "why": "AI weighs credibility before recommending — public rating data is load-bearing.",
+            }
+        )
     return out
 
 
@@ -1564,34 +1567,44 @@ def _build_recommended_proof_assets(
     out: list[dict[str, str]] = []
     proof_score = dim_results.get("proof_strength", {}).get("score", 0)
     if proof_score < 60:
-        out.append({
-            "kind": "case_studies",
-            "description": "At least 3 named (or specifically-anonymized) outcome stories with the buyer's industry, problem, action, and result.",
-            "priority": "high",
-        })
+        out.append(
+            {
+                "kind": "case_studies",
+                "description": "At least 3 named (or specifically-anonymized) outcome stories with the buyer's industry, problem, action, and result.",
+                "priority": "high",
+            }
+        )
     if proof_score < 50:
-        out.append({
-            "kind": "testimonials",
-            "description": "5–8 short pull-quotes attributed to a real role + first name + company size.",
-            "priority": "high",
-        })
-        out.append({
-            "kind": "client_logos",
-            "description": "A logo strip on the homepage with at least 6 named buyers (with permission).",
-            "priority": "medium",
-        })
+        out.append(
+            {
+                "kind": "testimonials",
+                "description": "5–8 short pull-quotes attributed to a real role + first name + company size.",
+                "priority": "high",
+            }
+        )
+        out.append(
+            {
+                "kind": "client_logos",
+                "description": "A logo strip on the homepage with at least 6 named buyers (with permission).",
+                "priority": "medium",
+            }
+        )
     if dim_results.get("trust_signal_density", {}).get("score", 0) < 60:
-        out.append({
-            "kind": "credentials",
-            "description": "Certifications, partnerships, awards, press mentions — the kind of trust scaffolding that makes AI cite the business.",
-            "priority": "medium",
-        })
+        out.append(
+            {
+                "kind": "credentials",
+                "description": "Certifications, partnerships, awards, press mentions — the kind of trust scaffolding that makes AI cite the business.",
+                "priority": "medium",
+            }
+        )
     if dim_results.get("comparison_readiness", {}).get("score", 0) < 50:
-        out.append({
-            "kind": "comparison_data",
-            "description": "A side-by-side table with one named alternative — pricing, scope, time-to-value, what each is best for.",
-            "priority": "medium",
-        })
+        out.append(
+            {
+                "kind": "comparison_data",
+                "description": "A side-by-side table with one named alternative — pricing, scope, time-to-value, what each is best for.",
+                "priority": "medium",
+            }
+        )
     return out
 
 

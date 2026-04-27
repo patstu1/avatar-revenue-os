@@ -23,7 +23,6 @@ build, do not hit network, and do not touch the production site.
 
 from __future__ import annotations
 
-import json
 import os
 
 import pytest
@@ -115,9 +114,7 @@ def test_proofhook_packages_module_has_only_universal_slugs():
     # names as examples of what NOT to do — that's allowed; only data
     # entries (`name: "..."`) are forbidden.
     for name in FORBIDDEN_NICHE_NAMES:
-        assert f'name: "{name}"' not in src, (
-            f"forbidden niche-locked package name found in PACKAGES data: {name}"
-        )
+        assert f'name: "{name}"' not in src, f"forbidden niche-locked package name found in PACKAGES data: {name}"
     # The universal-package rule must be documented in-file so future edits
     # see the constraint
     assert "Universal-package rule" in src
@@ -164,9 +161,7 @@ def test_jsonld_helpers_cover_required_schema_types():
         "FaqJsonLd",
         "BreadcrumbJsonLd",
     ]:
-        assert f"function {fn}" in src or f"export function {fn}" in src, (
-            f"JSON-LD helper missing: {fn}"
-        )
+        assert f"function {fn}" in src or f"export function {fn}" in src, f"JSON-LD helper missing: {fn}"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -192,9 +187,7 @@ def test_page_has_canonical_url(path: str, relpath: str):
     if path == "/services/ai-search-authority":
         assert "redirect(" in src and '"/ai-search-authority"' in src
         return
-    assert "alternates" in src or "canonical" in src, (
-        f"page missing canonical metadata: {path}"
-    )
+    assert "alternates" in src or "canonical" in src, f"page missing canonical metadata: {path}"
 
 
 @pytest.mark.parametrize("path,relpath", REQUIRED_PAGE_PATHS.items())
@@ -265,9 +258,7 @@ def test_ai_search_authority_page_uses_approved_language():
         "easier for search engines and AI systems to understand",
     ]
     for phrase in approved_any_present:
-        assert phrase.lower() in src.lower(), (
-            f"AI search authority page missing approved phrase: {phrase}"
-        )
+        assert phrase.lower() in src.lower(), f"AI search authority page missing approved phrase: {phrase}"
 
 
 def test_industry_pages_disclose_universal_packages():
@@ -279,9 +270,7 @@ def test_industry_pages_disclose_universal_packages():
         "/industries/ecommerce",
     ]:
         src = _read(REQUIRED_PAGE_PATHS[path])
-        assert "not locked to any vertical" in src, (
-            f"industry page missing universal-package disclaimer: {path}"
-        )
+        assert "not locked to any vertical" in src, f"industry page missing universal-package disclaimer: {path}"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -341,10 +330,7 @@ def test_answer_page_links_to_canonical_pages(path: str):
         '"/faq"',
     ]
     hits = sum(1 for t in canonical_targets if t in src)
-    assert hits >= 2, (
-        f"answer page {path} must link to at least 2 of "
-        f"{canonical_targets} — found {hits}"
-    )
+    assert hits >= 2, f"answer page {path} must link to at least 2 of {canonical_targets} — found {hits}"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -357,9 +343,9 @@ def test_marketing_shell_emits_analytics_hooks():
     <a data-cta=... data-package=...>. These give a future analytics layer
     deterministic selectors that don't couple to a specific provider."""
     src = _read("apps/web/src/components/marketing-shell.tsx")
-    assert 'data-page={pageId}' in src, "MarketingShell must emit data-page"
-    assert 'data-cta=' in src, "CTA must emit data-cta"
-    assert 'data-package=' in src, "CTA must emit data-package (universal slug only)"
+    assert "data-page={pageId}" in src, "MarketingShell must emit data-page"
+    assert "data-cta=" in src, "CTA must emit data-cta"
+    assert "data-package=" in src, "CTA must emit data-package (universal slug only)"
 
 
 @pytest.mark.parametrize("path", REQUIRED_PAGE_PATHS.keys())
@@ -427,8 +413,7 @@ def test_no_backend_or_payment_files_changed_against_main():
         if path.startswith(forbidden_prefixes) or path in forbidden_exact:
             offenders.append(path)
     assert not offenders, (
-        f"marketing-surface change must not touch backend/payment/migration files. "
-        f"Offending paths: {offenders}"
+        f"marketing-surface change must not touch backend/payment/migration files. Offending paths: {offenders}"
     )
 
 

@@ -9,9 +9,7 @@ from __future__ import annotations
 
 import re
 
-_EMAIL_RE = re.compile(
-    r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
-)
+_EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
 
 # Domains that are clearly throwaways or documentation-reserved.
 _BLOCKED_DOMAINS = frozenset(

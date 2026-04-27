@@ -11,23 +11,21 @@ unbroken by the final implementation report.
 
 from __future__ import annotations
 
-import importlib
 import uuid
-
-import packages.db.models  # noqa: F401 — registers all models
-import packages.db.models.expansion_pack2_phase_a  # noqa: F401
-import packages.db.models.system_events  # noqa: F401
-import packages.db.models.proposals  # noqa: F401
-import packages.db.models.clients  # noqa: F401
-import packages.db.models.fulfillment  # noqa: F401
-import packages.db.models.live_execution_phase2  # noqa: F401
-import packages.db.models.delivery  # noqa: F401
-import packages.db.models.gm_control  # noqa: F401
-import packages.db.models.authority_score_reports  # noqa: F401
 
 import pytest
 from sqlalchemy import select
 
+import packages.db.models  # noqa: F401 — registers all models
+import packages.db.models.authority_score_reports  # noqa: F401
+import packages.db.models.clients  # noqa: F401
+import packages.db.models.delivery  # noqa: F401
+import packages.db.models.expansion_pack2_phase_a  # noqa: F401
+import packages.db.models.fulfillment  # noqa: F401
+import packages.db.models.gm_control  # noqa: F401
+import packages.db.models.live_execution_phase2  # noqa: F401
+import packages.db.models.proposals  # noqa: F401
+import packages.db.models.system_events  # noqa: F401
 from packages.db.models.authority_score_reports import AuthorityScoreReport
 from packages.db.models.core import Brand, Organization
 from packages.db.models.expansion_pack2_phase_a import LeadOpportunity
@@ -53,7 +51,7 @@ PUBLIC_HTML = """
   <a href="/compare/competitor">Acme vs Competitor</a>
   <a href="/contact">Contact</a>
 </body></html>
-""".encode("utf-8")
+""".encode()
 
 ABOUT_HTML = b"<html><body><h1>About</h1><p>For B2B SaaS finance teams.</p></body></html>"
 PRICING_HTML = b"<html><body><h1>Pricing</h1><p>Starts at $499/mo.</p></body></html>"
@@ -64,8 +62,10 @@ FAQ_HTML = (
     b"<h2>Where is data stored?</h2><h2>What support is included?</h2>"
     b"<h2>Do you integrate with Stripe?</h2></body></html>"
 )
-CASE_HTML = b"<html><body><h1>Case studies</h1><p>Testimonial from Foo: case study with named clients.</p></body></html>"
-COMPARE_HTML = "<html><body><h1>Acme vs Competitor</h1><p>Acme vs Competitor — pricing.</p></body></html>".encode("utf-8")
+CASE_HTML = (
+    b"<html><body><h1>Case studies</h1><p>Testimonial from Foo: case study with named clients.</p></body></html>"
+)
+COMPARE_HTML = "<html><body><h1>Acme vs Competitor</h1><p>Acme vs Competitor — pricing.</p></body></html>".encode()
 CONTACT_HTML = b"<html><body><h1>Contact</h1><p>1234 Market.</p></body></html>"
 
 
@@ -108,18 +108,14 @@ def _patch_scanner(monkeypatch, page_map: dict[str, bytes] | None = None, fail_h
         result = ws.ScanResult(homepage_url=homepage_url)
         # Homepage
         if fail_homepage:
-            page = ws.FetchedPage(
-                url=homepage_url, status_code=500, fetch_error="http_500", content_type=None
-            )
+            page = ws.FetchedPage(url=homepage_url, status_code=500, fetch_error="http_500", content_type=None)
             result.pages.append(page)
             result.homepage_failed = True
             return result
         body = page_map.get(homepage_url)
         if body is None:
             result.homepage_failed = True
-            result.pages.append(
-                ws.FetchedPage(url=homepage_url, status_code=404, fetch_error="http_404")
-            )
+            result.pages.append(ws.FetchedPage(url=homepage_url, status_code=404, fetch_error="http_404"))
             return result
         page = ws.parse_html_into_page(body, homepage_url)
         result.pages.append(page)
@@ -137,9 +133,7 @@ def _patch_scanner(monkeypatch, page_map: dict[str, bytes] | None = None, fail_h
 
     monkeypatch.setattr(ws, "scan_website", fake_scan)
     # The orchestrator imports scan_website by name from the module.
-    monkeypatch.setattr(
-        "apps.api.services.ai_buyer_trust_service.scan_website", fake_scan
-    )
+    monkeypatch.setattr("apps.api.services.ai_buyer_trust_service.scan_website", fake_scan)
 
 
 @pytest.mark.asyncio
@@ -210,11 +204,7 @@ async def test_full_flow_creates_report_lead_action_event(api_client, db_session
     assert report.scan_version == "v1"
 
     # LeadOpportunity created
-    lead = (
-        await db_session.execute(
-            select(LeadOpportunity).where(LeadOpportunity.brand_id == brand_id)
-        )
-    ).scalar_one()
+    lead = (await db_session.execute(select(LeadOpportunity).where(LeadOpportunity.brand_id == brand_id))).scalar_one()
     assert lead.lead_source == "ai_buyer_trust_test"
     assert lead.package_slug == report.recommended_package_slug
     assert "pat@acme.io" in (lead.message_text or "")
@@ -311,9 +301,7 @@ async def test_failed_homepage_returns_friendly_envelope(api_client, db_session,
     assert body["recommended_package"]["primary_slug"] is None
     # Report still persisted with failed status
     rep = (
-        await db_session.execute(
-            select(AuthorityScoreReport).where(AuthorityScoreReport.organization_id == org_id)
-        )
+        await db_session.execute(select(AuthorityScoreReport).where(AuthorityScoreReport.organization_id == org_id))
     ).scalar_one()
     assert rep.report_status == "failed"
     assert rep.fetch_error

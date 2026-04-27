@@ -11,21 +11,19 @@ from __future__ import annotations
 
 import uuid
 
-import packages.db.models  # noqa: F401
-import packages.db.models.expansion_pack2_phase_a  # noqa: F401
-import packages.db.models.system_events  # noqa: F401
-import packages.db.models.proposals  # noqa: F401
-import packages.db.models.clients  # noqa: F401
-import packages.db.models.fulfillment  # noqa: F401
-import packages.db.models.live_execution_phase2  # noqa: F401
-import packages.db.models.delivery  # noqa: F401
-import packages.db.models.gm_control  # noqa: F401
-import packages.db.models.authority_score_reports  # noqa: F401
-
 import pytest
 
+import packages.db.models  # noqa: F401
+import packages.db.models.authority_score_reports  # noqa: F401
+import packages.db.models.clients  # noqa: F401
+import packages.db.models.delivery  # noqa: F401
+import packages.db.models.expansion_pack2_phase_a  # noqa: F401
+import packages.db.models.fulfillment  # noqa: F401
+import packages.db.models.gm_control  # noqa: F401
+import packages.db.models.live_execution_phase2  # noqa: F401
+import packages.db.models.proposals  # noqa: F401
+import packages.db.models.system_events  # noqa: F401
 from packages.db.models.core import Brand, Organization
-
 from tests.integration.test_ai_buyer_trust_flow import _patch_scanner  # noqa: E402
 
 
@@ -119,8 +117,7 @@ async def test_per_ip_rate_limit_blocks_eleventh_submission(api_client, db_sessi
 
     r = await api_client.post(
         "/api/v1/ai-search-authority/score",
-        json=_payload(website_url="https://eleventh-domain.io",
-                     contact_email="newbuyer@elsewhere.com"),
+        json=_payload(website_url="https://eleventh-domain.io", contact_email="newbuyer@elsewhere.com"),
     )
     assert r.status_code == 429, r.text
     body = r.json()
@@ -129,9 +126,7 @@ async def test_per_ip_rate_limit_blocks_eleventh_submission(api_client, db_sessi
 
 
 @pytest.mark.asyncio
-async def test_per_domain_rate_limit_blocks_fourth_submission(
-    api_client, db_session, monkeypatch
-):
+async def test_per_domain_rate_limit_blocks_fourth_submission(api_client, db_session, monkeypatch):
     """Insert 3 prior reports for the same website_domain (different
     IPs), then attempt a 4th from a fresh IP. Expect 429.
     """
@@ -175,9 +170,7 @@ async def test_per_domain_rate_limit_blocks_fourth_submission(
 
 
 @pytest.mark.asyncio
-async def test_archived_reports_do_not_count_toward_rate_limit(
-    api_client, db_session, monkeypatch
-):
+async def test_archived_reports_do_not_count_toward_rate_limit(api_client, db_session, monkeypatch):
     """An archived report (is_active=False) must not consume the rate
     budget. Otherwise operators couldn't archive duplicate spam without
     permanently locking the legitimate prospect out."""

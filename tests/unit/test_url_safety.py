@@ -32,10 +32,7 @@ class TestNormalize:
         assert normalize_website_url("acme.io") == "https://acme.io"
 
     def test_keeps_path_and_query(self):
-        assert (
-            normalize_website_url("https://acme.io/services?x=1")
-            == "https://acme.io/services?x=1"
-        )
+        assert normalize_website_url("https://acme.io/services?x=1") == "https://acme.io/services?x=1"
 
     @pytest.mark.parametrize(
         "raw",
@@ -89,10 +86,7 @@ class TestBlockedHosts:
 
     def test_does_not_reject_label_substring(self):
         # 'developers.acme.com' is allowed even though 'dev' appears.
-        assert (
-            normalize_website_url("https://developers.acme.com")
-            == "https://developers.acme.com"
-        )
+        assert normalize_website_url("https://developers.acme.com") == "https://developers.acme.com"
 
 
 class TestDomainOf:
