@@ -153,7 +153,8 @@ _PROVIDER_MAP: dict[str, tuple[str, str]] = {
     "publer": ("publer_api_key", "Publer"),
     "ayrshare": ("ayrshare_api_key", "Ayrshare"),
     "serpapi": ("serpapi_key", "SerpAPI"),
-    "stripe": ("stripe_api_key", "Stripe"),
+    # Stripe status is reported via /integrations/stripe/status (DB-only).
+    # Do not introspect a settings field here — there is no env path.
     "youtube": ("youtube_api_key", "YouTube Data API"),
 }
 

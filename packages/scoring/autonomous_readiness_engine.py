@@ -114,11 +114,12 @@ ACTIVATION_CHECKLIST: list[dict[str, Any]] = [
     },
     {
         "provider": "Stripe",
-        "env_vars": ["STRIPE_API_KEY", "STRIPE_WEBHOOK_SECRET"],
+        # DB-only: Stripe credentials live in integration_providers. No env vars.
+        "env_vars": [],
         "priority": 3,
         "unlocks": "Payment tracking, revenue attribution, webhook-verified checkout events",
         "code_path_live": True,
-        "additional_config": "Configure webhook endpoint in Stripe dashboard",
+        "additional_config": "Configure API key + webhook signing secret via Settings > Integrations (DB-only).",
     },
     {
         "provider": "SMTP Email",

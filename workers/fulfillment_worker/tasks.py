@@ -531,14 +531,17 @@ async def _execute_content_pack_jobs() -> dict:
     """Generate content packs for in_progress jobs that have no output yet."""
     from apps.api.services.event_bus import emit_event
     from apps.api.services.qa_delivery_service import submit_production_output
-    from packages.db.models.fulfillment import ProductionJob
+    from packages.db.models.fulfillment import (
+        ClientProject,  # noqa: F401
+        ProductionJob,
+    )
     from packages.db.models.gm_control import GMEscalation
-    from packages.media.storage import MediaStorage
+
     # Ensure FK-referenced models are in the mapper registry before any flush.
     # ClientProject.proposal_id references proposals.id — importing Proposal
     # here prevents NoReferencedTableError / PendingRollbackError mid-flush.
     from packages.db.models.proposals import Proposal  # noqa: F401
-    from packages.db.models.fulfillment import ClientProject  # noqa: F401
+    from packages.media.storage import MediaStorage
 
     Session, engine = _fresh_session_factory()
     async with Session() as db:
@@ -623,11 +626,7 @@ async def _execute_content_pack_jobs() -> dict:
                         f"Goals: {brief.goals}" if brief.goals else None,
                         f"Audience: {brief.audience}" if brief.audience else None,
                         f"Tone and voice: {brief.tone_and_voice}" if brief.tone_and_voice else None,
-                        (
-                            f"Deliverables: {brief.deliverables_json}"
-                            if brief.deliverables_json
-                            else None
-                        ),
+                        (f"Deliverables: {brief.deliverables_json}" if brief.deliverables_json else None),
                     ],
                 )
             )
@@ -644,28 +643,24 @@ async def _execute_content_pack_jobs() -> dict:
                     prompt_text = _CONTENT_PACK_PROMPT + brief_text
                     if provider == "groq":
                         from groq import Groq
+
                         client = Groq(api_key=provider_key_or_err)
                         completion = client.chat.completions.create(
                             model=model_slug,
                             max_tokens=2000,
                             messages=[{"role": "user", "content": prompt_text}],
                         )
-                        markdown_content = (
-                            completion.choices[0].message.content
-                            if completion.choices
-                            else None
-                        )
+                        markdown_content = completion.choices[0].message.content if completion.choices else None
                     elif provider == "anthropic":
                         import anthropic
+
                         client = anthropic.Anthropic(api_key=provider_key_or_err)
                         response = client.messages.create(
                             model=model_slug,
                             max_tokens=2000,
                             messages=[{"role": "user", "content": prompt_text}],
                         )
-                        markdown_content = (
-                            response.content[0].text if response.content else None
-                        )
+                        markdown_content = response.content[0].text if response.content else None
                     if not markdown_content or len(markdown_content.strip()) < 100:
                         generation_error = "LLM returned empty or too-short content"
                         markdown_content = None
@@ -932,13 +927,15 @@ async def _upsert_gm_escalation(
     now = datetime.now(timezone.utc)
     existing = (
         await db.execute(
-            select(GMEscalation).where(
+            select(GMEscalation)
+            .where(
                 GMEscalation.org_id == client.org_id,
                 GMEscalation.entity_type == "client",
                 GMEscalation.entity_id == client.id,
                 GMEscalation.reason_code == reason_code,
                 GMEscalation.status == "open",
-            ).limit(1)
+            )
+            .limit(1)
         )
     ).scalar_one_or_none()
     if existing is None:
@@ -1025,9 +1022,7 @@ async def _execute_renewal_pipeline() -> dict:
                     renewal_cents = 0
                     if client.first_proposal_id:
                         src_prop = (
-                            await db.execute(
-                                select(Proposal).where(Proposal.id == client.first_proposal_id)
-                            )
+                            await db.execute(select(Proposal).where(Proposal.id == client.first_proposal_id))
                         ).scalar_one_or_none()
                         if src_prop:
                             renewal_cents = src_prop.total_amount_cents or 0
@@ -1039,7 +1034,12 @@ async def _execute_renewal_pipeline() -> dict:
                             client=client,
                             reason_code="renewal_amount_unknown",
                             title=f"Renewal amount unknown for {client.display_name or client.primary_email}",
-                            details={"client_id": str(client.id), "first_proposal_id": str(client.first_proposal_id) if client.first_proposal_id else None},
+                            details={
+                                "client_id": str(client.id),
+                                "first_proposal_id": str(client.first_proposal_id)
+                                if client.first_proposal_id
+                                else None,
+                            },
                         )
                         continue
 
@@ -1068,9 +1068,7 @@ async def _execute_renewal_pipeline() -> dict:
                         continue
 
                     open_proposal = (
-                        await db.execute(
-                            select(Proposal).where(Proposal.id == _uuid.UUID(pid))
-                        )
+                        await db.execute(select(Proposal).where(Proposal.id == _uuid.UUID(pid)))
                     ).scalar_one_or_none()
                     if open_proposal is None:
                         skipped += 1
@@ -1124,8 +1122,7 @@ async def _execute_renewal_pipeline() -> dict:
                     stripe_result = await stripe_create_payment_link(
                         amount_cents=proposal.total_amount_cents,
                         currency="usd",
-                        product_name=proposal.title
-                        or f"Renewal — {client.display_name or client.primary_email}",
+                        product_name=proposal.title or f"Renewal — {client.display_name or client.primary_email}",
                         metadata=stripe_meta,
                         db=db,
                         org_id=client.org_id,

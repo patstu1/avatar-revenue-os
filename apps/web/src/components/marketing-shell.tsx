@@ -103,6 +103,7 @@ export function CTA({
   subject,
   ctaId,
   packageSlug,
+  className,
 }: {
   email?: string;
   label: string;
@@ -116,6 +117,9 @@ export function CTA({
    * as data-package — analytics groups CTAs by universal slug, never by
    * niche. */
   packageSlug?: string;
+  /** Optional className override for in-card / compact placements.
+   * When omitted, renders the default primary-button styling. */
+  className?: string;
 }) {
   const to = email ?? ORG.contactEmail;
   return (
@@ -123,7 +127,10 @@ export function CTA({
       href={`mailto:${to}?subject=${encodeURIComponent(subject)}`}
       data-cta={ctaId ?? "contact"}
       data-package={packageSlug}
-      className="inline-block rounded-md border border-zinc-100 bg-zinc-100 px-5 py-2.5 text-sm font-medium text-zinc-950 hover:bg-zinc-200"
+      className={
+        className ??
+        "inline-block rounded-md border border-zinc-100 bg-zinc-100 px-5 py-2.5 text-sm font-medium text-zinc-950 hover:bg-zinc-200"
+      }
     >
       {label}
     </a>

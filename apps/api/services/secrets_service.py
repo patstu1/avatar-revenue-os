@@ -35,7 +35,7 @@ ENV_KEY_MAP = {
     "buffer": "BUFFER_API_KEY",
     "publer": "PUBLER_API_KEY",
     "ayrshare": "AYRSHARE_API_KEY",
-    "stripe": "STRIPE_API_KEY",
+    # Stripe is DB-only; intentionally omitted from the env fallback map.
     "impact": "IMPACT_ACCOUNT_SID",
     "shareasale": "SHAREASALE_API_TOKEN",
     "clickbank": "CLICKBANK_API_KEY",

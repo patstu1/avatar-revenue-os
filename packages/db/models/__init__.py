@@ -36,6 +36,7 @@ from packages.db.models.audience_state import (
     AudienceStateEvent,
     AudienceStateReport,
 )
+from packages.db.models.authority_score_reports import AuthorityScoreReport
 from packages.db.models.autonomous_execution import (
     AutomationExecutionPolicy,
     AutomationExecutionRun,
@@ -1007,6 +1008,7 @@ __all__ = [
     "PackPurchase",
     "MultiplicationEvent",
     "MonetizationTelemetryEvent",
+    "AuthorityScoreReport",
     "SystemEvent",
     "OperatorAction",
     "SystemHealthSnapshot",

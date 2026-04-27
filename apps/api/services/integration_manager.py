@@ -1,10 +1,13 @@
 """Integration Manager — CRUD + health + credential management for providers.
 
-This replaces .env-first credential management. Credentials are stored
-encrypted in the integration_providers table and loaded at runtime.
+Credentials are stored encrypted in the integration_providers table and
+loaded at runtime. Strict DB-only doctrine: there is no env fallback for
+provider credentials. The only env value consulted by this module is
+``API_SECRET_KEY``, which is the master encryption key that protects the
+on-disk ciphertext (legitimate infrastructure secret per doctrine).
 
 Encryption: Fernet (AES-128-CBC + HMAC-SHA256) derived from API_SECRET_KEY
-via PBKDF2.  Falls back to .env as a transition — with deprecation warnings.
+via PBKDF2-SHA256 (480k iterations).
 """
 
 from __future__ import annotations
@@ -346,11 +349,7 @@ async def set_credential(
 
 
 async def get_credential(db: AsyncSession, org_id: uuid.UUID, provider_key: str) -> str | None:
-    """Get decrypted API key for a provider.
-
-    Primary: encrypted DB credential.
-    Fallback: .env variable (with deprecation warning).
-    """
+    """Get decrypted API key for a provider — DB-only, no env fallback."""
     provider = (
         await db.execute(
             select(IntegrationProvider).where(
@@ -541,3 +540,166 @@ async def migrate_xor_to_fernet(db: AsyncSession) -> dict:
     await db.flush()
     logger.info("xor_to_fernet_migration_complete", migrated=migrated, skipped=skipped, errors=errors)
     return {"migrated": migrated, "already_fernet": skipped, "errors": errors}
+
+
+# ── Stripe-specific helpers (DB-only, no env reads) ─────────────────────────
+
+
+async def set_webhook_secret(
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    provider_key: str,
+    webhook_secret: str,
+) -> dict:
+    """Store an encrypted webhook signing secret on the provider row.
+
+    The webhook secret rides on ``api_secret_encrypted`` — the existing
+    encrypted Text column on integration_providers. Storing the secret
+    in ``extra_config`` (JSONB) would land plaintext on disk, which the
+    doctrine forbids; this slot is encrypted with the same Fernet key
+    as ``api_key_encrypted``.
+    """
+    if not webhook_secret or not webhook_secret.strip():
+        return {"error": "webhook_secret cannot be empty"}
+
+    provider = (
+        await db.execute(
+            select(IntegrationProvider).where(
+                IntegrationProvider.organization_id == org_id,
+                IntegrationProvider.provider_key == provider_key,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if not provider:
+        return {"error": f"Provider '{provider_key}' not found. Run seed_provider_catalog first."}
+
+    provider.api_secret_encrypted = _encrypt(webhook_secret.strip())
+    await db.flush()
+    return {"provider": provider_key, "webhook_secret": "configured", "encrypted": True}
+
+
+async def get_webhook_secret(
+    db: AsyncSession,
+    org_id: uuid.UUID,
+    provider_key: str,
+) -> str | None:
+    """DB-only resolver for an encrypted webhook signing secret."""
+    provider = (
+        await db.execute(
+            select(IntegrationProvider).where(
+                IntegrationProvider.organization_id == org_id,
+                IntegrationProvider.provider_key == provider_key,
+                IntegrationProvider.is_enabled.is_(True),
+            )
+        )
+    ).scalar_one_or_none()
+
+    if not provider or not provider.api_secret_encrypted:
+        return None
+    return _decrypt(provider.api_secret_encrypted)
+
+
+async def resolve_operator_org_for_stripe(db: AsyncSession) -> uuid.UUID | None:
+    """Find the org that owns the operator's Stripe account.
+
+    Single-tenant assumption: there is exactly one organization in the
+    database that has ``provider_key='stripe'`` configured and enabled.
+    That row is the operator's own org, which receives all incoming
+    Stripe revenue.
+
+    Resolution is DB-only by design — there is no ``OPERATOR_ORG_ID``
+    env var. If two or more orgs have Stripe configured, the resolver
+    picks the earliest by ``created_at`` and logs a warning so the
+    operator can clean it up.
+    """
+    rows = (
+        (
+            await db.execute(
+                select(IntegrationProvider)
+                .where(
+                    IntegrationProvider.provider_key == "stripe",
+                    IntegrationProvider.is_enabled.is_(True),
+                    IntegrationProvider.api_key_encrypted.isnot(None),
+                )
+                .order_by(IntegrationProvider.created_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    if not rows:
+        return None
+    if len(rows) > 1:
+        logger.warning(
+            "stripe.operator_org_ambiguous",
+            count=len(rows),
+            chosen_org_id=str(rows[0].organization_id),
+            hint="Multiple organizations have Stripe configured. Earliest by created_at chosen.",
+        )
+    return rows[0].organization_id
+
+
+def classify_stripe_mode(api_key: str | None) -> str:
+    """Classify a Stripe key by its publishable prefix.
+
+    Returns one of ``"live"``, ``"test"``, ``"unconfigured"``, or
+    ``"unknown"``. Never returns the key, never returns prefix bytes —
+    only the classification token. Safe to expose to operators.
+    """
+    if not api_key:
+        return "unconfigured"
+    key = api_key.strip()
+    if key.startswith("sk_live_") or key.startswith("rk_live_"):
+        return "live"
+    if key.startswith("sk_test_") or key.startswith("rk_test_"):
+        return "test"
+    return "unknown"
+
+
+async def get_stripe_credential_status(db: AsyncSession) -> dict:
+    """Return a secret-free summary of Stripe DB credentials for the operator.
+
+    The caller (UI/health endpoint) renders this directly. The response
+    contains classification tokens only — never the api key, never the
+    webhook secret, never any prefix bytes beyond classification.
+    """
+    op_org_id = await resolve_operator_org_for_stripe(db)
+    if op_org_id is None:
+        return {
+            "configured": False,
+            "operator_org_id": None,
+            "api_key_source": "missing",
+            "webhook_secret_source": "missing",
+            "mode": "unconfigured",
+            "last_health_check": None,
+            "health_status": None,
+        }
+
+    provider = (
+        await db.execute(
+            select(IntegrationProvider).where(
+                IntegrationProvider.organization_id == op_org_id,
+                IntegrationProvider.provider_key == "stripe",
+            )
+        )
+    ).scalar_one_or_none()
+
+    api_key_present = bool(provider and provider.api_key_encrypted)
+    webhook_secret_present = bool(provider and provider.api_secret_encrypted)
+    api_key_plain = _decrypt(provider.api_key_encrypted) if api_key_present else None
+    mode = classify_stripe_mode(api_key_plain)
+    api_key_plain = None  # drop the reference; never return or log
+
+    return {
+        "configured": api_key_present and webhook_secret_present,
+        "operator_org_id": str(op_org_id),
+        "api_key_source": "db" if api_key_present else "missing",
+        "webhook_secret_source": "db" if webhook_secret_present else "missing",
+        "mode": mode,
+        "last_health_check": (
+            provider.last_health_check.isoformat() if provider and provider.last_health_check else None
+        ),
+        "health_status": provider.health_status if provider else None,
+    }

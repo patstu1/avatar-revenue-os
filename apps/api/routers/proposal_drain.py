@@ -163,11 +163,7 @@ async def _drain_one(action: OperatorAction, db, smtp: SmtpEmailClient) -> dict:
     _guard_blocked, _guard_reason = is_test_or_synthetic_record(
         email=sender_email,
         source=payload.get("source") or payload.get("reply_type"),
-        metadata={
-            k: str(v)
-            for k, v in payload.items()
-            if isinstance(v, str)
-        },
+        metadata={k: str(v) for k, v in payload.items() if isinstance(v, str)},
     )
     if _guard_blocked:
         logger.warning(

@@ -39,10 +39,12 @@ logger = structlog.get_logger()
 # Stripe metadata.source values that identify a public ProofHook checkout
 # (no Proposal exists for the buyer). These links carry a static, reused
 # proposal_id per package which must be ignored — see record_payment_from_stripe.
-PUBLIC_CHECKOUT_SOURCES = frozenset({
-    "proofhook_public_checkout",
-    "proofhook_public_checkout_live",
-})
+PUBLIC_CHECKOUT_SOURCES = frozenset(
+    {
+        "proofhook_public_checkout",
+        "proofhook_public_checkout_live",
+    }
+)
 
 
 @dataclass

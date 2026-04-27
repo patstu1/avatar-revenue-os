@@ -22,6 +22,7 @@ from apps.api.routers import (
     affiliate_enterprise,
     affiliate_intel,
     ai_command,
+    ai_search_authority,
     analytics,
     auth,
     autonomous_execution,
@@ -429,6 +430,7 @@ app.include_router(gm_ai.router, prefix="/api/v1", tags=["GM AI: Strategic Opera
 app.include_router(gm_chat.router, prefix="/api/v1", tags=["GM Chat: Conversational Strategic GM"])
 app.include_router(portfolio_command.router, prefix="/api/v1", tags=["Portfolio Command Center"])
 app.include_router(integrations_dashboard.router, prefix="/api/v1", tags=["Integrations Dashboard"])
+app.include_router(ai_search_authority.router, prefix="/api/v1", tags=["AI Search Authority: Buyer Trust Test"])
 app.include_router(brain_ops.router, prefix="/api/v1", tags=["Brain Operations: Runtime State"])
 app.include_router(
     ai_command.router,

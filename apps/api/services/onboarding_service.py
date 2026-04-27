@@ -325,7 +325,9 @@ async def get_onboarding_status(
     db_keys = await secrets_service.get_all_keys(db, organization_id)
     providers_from_db = len([k for k, v in db_keys.items() if v])
 
-    # Check critical env vars as fallback
+    # Check critical env vars as fallback. Stripe intentionally omitted —
+    # it is DB-only; configuration state is reported via
+    # /api/v1/integrations/stripe/status.
     critical_env_keys = [
         "ANTHROPIC_API_KEY",
         "OPENAI_API_KEY",
@@ -333,7 +335,6 @@ async def get_onboarding_status(
         "ELEVENLABS_API_KEY",
         "HEYGEN_API_KEY",
         "BUFFER_API_KEY",
-        "STRIPE_API_KEY",
     ]
     providers_from_env = len([k for k in critical_env_keys if os.environ.get(k, "")])
     providers_configured = max(providers_from_db, providers_from_env)

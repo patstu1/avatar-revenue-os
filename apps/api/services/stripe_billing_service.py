@@ -1,9 +1,14 @@
 """Stripe Billing Service — Handles subscriptions, credit purchases, checkout,
 and operator-facing payment processing (payment links, invoices, checkout
 sessions, subscription links) for the operator's offers and proposals.
+
+DB-ONLY DOCTRINE: This module never reads ``STRIPE_API_KEY`` from the
+environment, never reads it from pydantic settings, and never falls back
+to anything but the encrypted DB credential on
+``integration_providers(provider_key='stripe').api_key_encrypted``.
+Operators configure Stripe through the dashboard.
 """
 
-import os
 import uuid
 from typing import Optional
 
@@ -22,29 +27,76 @@ from packages.db.models.monetization import (
 logger = structlog.get_logger()
 
 
+class StripeNotConfigured(Exception):
+    """Raised when Stripe is required but the DB credential is missing.
+
+    Carries no key material. The string form is safe to surface to the
+    operator. Callers should translate to a 503 with the operator-facing
+    error code ``stripe_not_configured`` and link to the integrations
+    dashboard.
+    """
+
+
+class StripeMetadataInvalid(ValueError):
+    """Raised when a Stripe link/session is created without required metadata."""
+
+
+# Required metadata keys per call kind. Enforced before any Stripe object
+# is created so a misconfigured operator flow fails before money moves.
+_REQUIRED_METADATA: dict[str, tuple[str, ...]] = {
+    "payment_link": ("org_id", "brand_id", "source"),
+    "invoice": ("org_id", "brand_id", "source"),
+    "offer_checkout": ("org_id", "brand_id", "source"),
+    "subscription_link": ("org_id", "brand_id", "source"),
+    "plan_subscription": ("organization_id", "user_id", "plan_tier", "source"),
+    "credit_purchase": ("organization_id", "user_id", "pack_id", "source"),
+}
+
+# Sources that are revenue-bearing brand-scoped events. For these, a
+# missing ``brand_id`` is fatal: no Payment, no Client, no Intake.
+PUBLIC_CHECKOUT_SOURCES = (
+    "proofhook_public_checkout",
+    "proofhook_public_checkout_live",
+)
+
+
+def _validate_metadata(kind: str, metadata: dict) -> None:
+    """Fail closed if required metadata is missing for the given call kind."""
+    required = _REQUIRED_METADATA.get(kind, ())
+    missing = [k for k in required if not (metadata.get(k) or "").__str__().strip()]
+    if missing:
+        raise StripeMetadataInvalid(
+            f"Stripe {kind} requires metadata fields: {', '.join(missing)}. "
+            f"Refusing to create the Stripe object — every paid event must "
+            f"carry attribution so the revenue ledger can record it."
+        )
+
+
 # ══════════════════════════════════════════════════════════════════════
-# STRIPE API KEY RESOLUTION
+# STRIPE API KEY RESOLUTION — DB-only, no env, no settings fallback
 # ══════════════════════════════════════════════════════════════════════
 
 
-async def _get_stripe_api_key(db: Optional[AsyncSession] = None, org_id: Optional[uuid.UUID] = None) -> str:
-    """Resolve Stripe API key: integration_manager DB credential first, then env/settings fallback."""
-    # Try integration_manager for org-specific key
-    if db and org_id:
-        try:
-            from apps.api.services.integration_manager import get_credential
+async def _get_stripe_api_key(db: AsyncSession, org_id: uuid.UUID) -> str | None:
+    """Resolve the Stripe API key from the encrypted DB credential.
 
-            db_key = await get_credential(db, org_id, "stripe")
-            if db_key:
-                return db_key
-        except Exception:
-            pass
+    Returns the decrypted key string or ``None`` if the operator has not
+    configured Stripe for this org. Never reads env, never reads
+    settings, never logs the key.
+    """
+    from apps.api.services.integration_manager import get_credential
 
-    # Fall back to settings / env
-    settings = get_settings()
-    if settings.stripe_api_key:
-        return settings.stripe_api_key
-    return os.environ.get("STRIPE_API_KEY", "")
+    return await get_credential(db, org_id, "stripe")
+
+
+async def _require_stripe_api_key(db: AsyncSession, org_id: uuid.UUID) -> str:
+    """Like ``_get_stripe_api_key`` but raises ``StripeNotConfigured``."""
+    api_key = await _get_stripe_api_key(db, org_id)
+    if not api_key:
+        raise StripeNotConfigured(
+            "Stripe is not configured for this organization. Configure it via Settings > Integrations in the dashboard."
+        )
+    return api_key
 
 
 def _init_stripe(api_key: str):
@@ -66,17 +118,26 @@ async def create_payment_link(
     product_name: str,
     metadata: dict,
     *,
-    db: Optional[AsyncSession] = None,
-    org_id: Optional[uuid.UUID] = None,
+    db: AsyncSession,
+    org_id: uuid.UUID,
 ) -> dict:
     """Create a Stripe Payment Link for a one-time payment.
 
-    metadata must include brand_id, offer_id, content_item_id for attribution.
+    metadata must include org_id, brand_id, source. Fails closed if
+    required attribution is missing — a payment link without attribution
+    cannot reach the revenue ledger and pollutes the operator's truth.
     Returns {url, id} or {error}.
     """
-    api_key = await _get_stripe_api_key(db, org_id)
-    if not api_key:
-        return {"error": "Stripe API key not configured", "url": None, "id": None}
+    try:
+        _validate_metadata("payment_link", metadata)
+    except StripeMetadataInvalid as exc:
+        logger.warning("stripe.payment_link_metadata_invalid", error=str(exc))
+        return {"error": str(exc), "url": None, "id": None}
+
+    try:
+        api_key = await _require_stripe_api_key(db, org_id)
+    except StripeNotConfigured as exc:
+        return {"error": str(exc), "url": None, "id": None}
 
     stripe = _init_stripe(api_key)
 
@@ -112,18 +173,26 @@ async def create_invoice(
     line_items: list[dict],
     metadata: dict,
     *,
-    db: Optional[AsyncSession] = None,
-    org_id: Optional[uuid.UUID] = None,
+    db: AsyncSession,
+    org_id: uuid.UUID,
     days_until_due: int = 30,
 ) -> dict:
     """Create and send a Stripe Invoice.
 
+    metadata must include org_id, brand_id, source.
     line_items: list of {description, amount_cents, quantity}.
     Returns {invoice_url, invoice_id} or {error}.
     """
-    api_key = await _get_stripe_api_key(db, org_id)
-    if not api_key:
-        return {"error": "Stripe API key not configured", "invoice_url": None, "invoice_id": None}
+    try:
+        _validate_metadata("invoice", metadata)
+    except StripeMetadataInvalid as exc:
+        logger.warning("stripe.invoice_metadata_invalid", error=str(exc))
+        return {"error": str(exc), "invoice_url": None, "invoice_id": None}
+
+    try:
+        api_key = await _require_stripe_api_key(db, org_id)
+    except StripeNotConfigured as exc:
+        return {"error": str(exc), "invoice_url": None, "invoice_id": None}
 
     stripe = _init_stripe(api_key)
 
@@ -181,16 +250,24 @@ async def create_checkout_session_for_offer(
     cancel_url: str,
     metadata: dict,
     *,
-    db: Optional[AsyncSession] = None,
-    org_id: Optional[uuid.UUID] = None,
+    db: AsyncSession,
+    org_id: uuid.UUID,
 ) -> dict:
     """Create a Stripe Checkout Session for a one-time offer payment.
 
+    metadata must include org_id, brand_id, source.
     Returns {session_url, session_id} or {error}.
     """
-    api_key = await _get_stripe_api_key(db, org_id)
-    if not api_key:
-        return {"error": "Stripe API key not configured", "session_url": None, "session_id": None}
+    try:
+        _validate_metadata("offer_checkout", metadata)
+    except StripeMetadataInvalid as exc:
+        logger.warning("stripe.offer_checkout_metadata_invalid", error=str(exc))
+        return {"error": str(exc), "session_url": None, "session_id": None}
+
+    try:
+        api_key = await _require_stripe_api_key(db, org_id)
+    except StripeNotConfigured as exc:
+        return {"error": str(exc), "session_url": None, "session_id": None}
 
     stripe = _init_stripe(api_key)
 
@@ -228,16 +305,24 @@ async def create_subscription_link(
     price_id: str,
     metadata: dict,
     *,
-    db: Optional[AsyncSession] = None,
-    org_id: Optional[uuid.UUID] = None,
+    db: AsyncSession,
+    org_id: uuid.UUID,
 ) -> dict:
     """Create a Stripe Payment Link for a recurring subscription price.
 
+    metadata must include org_id, brand_id, source.
     Returns {url} or {error}.
     """
-    api_key = await _get_stripe_api_key(db, org_id)
-    if not api_key:
-        return {"error": "Stripe API key not configured", "url": None}
+    try:
+        _validate_metadata("subscription_link", metadata)
+    except StripeMetadataInvalid as exc:
+        logger.warning("stripe.subscription_link_metadata_invalid", error=str(exc))
+        return {"error": str(exc), "url": None}
+
+    try:
+        api_key = await _require_stripe_api_key(db, org_id)
+    except StripeNotConfigured as exc:
+        return {"error": str(exc), "url": None}
 
     stripe = _init_stripe(api_key)
 
@@ -327,15 +412,32 @@ async def create_checkout_session(
     success_url: str = "",
     cancel_url: str = "",
 ) -> dict:
-    """Create a Stripe Checkout session for plan subscription."""
+    """Create a Stripe Checkout session for plan subscription.
+
+    Stripe API key resolved DB-only via the integration_manager — never
+    from env or pydantic settings. Plan price IDs still live in
+    pydantic settings as those are non-secret subscription wiring; a
+    follow-up patch can move them into integration_providers.extra_config.
+    """
+    metadata = {
+        "organization_id": str(org_id),
+        "user_id": str(user_id),
+        "plan_tier": plan_tier,
+        "billing_interval": billing_interval,
+        "source": "plan_subscription",
+    }
+    try:
+        _validate_metadata("plan_subscription", metadata)
+    except StripeMetadataInvalid as exc:
+        logger.warning("stripe.plan_subscription_metadata_invalid", error=str(exc))
+        return {"error": str(exc), "checkout_url": None}
+
+    try:
+        api_key = await _require_stripe_api_key(db, org_id)
+    except StripeNotConfigured as exc:
+        return {"error": str(exc), "checkout_url": None}
+
     settings = get_settings()
-    if not settings.stripe_api_key:
-        return {"error": "Stripe not configured", "checkout_url": None}
-
-    import stripe
-
-    stripe.api_key = settings.stripe_api_key
-
     price_map = {
         ("starter", "monthly"): settings.stripe_price_starter_monthly,
         ("starter", "annual"): settings.stripe_price_starter_annual,
@@ -344,27 +446,23 @@ async def create_checkout_session(
         ("business", "monthly"): settings.stripe_price_business_monthly,
         ("business", "annual"): settings.stripe_price_business_annual,
     }
-
     price_id = price_map.get((plan_tier, billing_interval))
     if not price_id:
         return {"error": f"No Stripe price configured for {plan_tier}/{billing_interval}", "checkout_url": None}
 
+    stripe = _init_stripe(api_key)
     try:
         session = stripe.checkout.Session.create(
             mode="subscription",
             line_items=[{"price": price_id, "quantity": 1}],
             success_url=success_url or f"{settings.api_cors_origins[0]}/dashboard/monetization?success=true",
             cancel_url=cancel_url or f"{settings.api_cors_origins[0]}/dashboard/monetization?cancelled=true",
-            metadata={
-                "organization_id": str(org_id),
-                "user_id": str(user_id),
-                "plan_tier": plan_tier,
-                "billing_interval": billing_interval,
-            },
+            metadata=metadata,
             subscription_data={
                 "metadata": {
                     "organization_id": str(org_id),
                     "plan_tier": plan_tier,
+                    "source": "plan_subscription",
                 },
             },
         )
@@ -382,16 +480,29 @@ async def create_credit_purchase_session(
     success_url: str = "",
     cancel_url: str = "",
 ) -> dict:
-    """Create a one-time Stripe Checkout for credit pack purchase."""
+    """Create a one-time Stripe Checkout for credit pack purchase.
+
+    Stripe API key resolved DB-only via integration_manager.
+    """
     from packages.scoring.monetization_machine import design_pricing_ladder
 
-    settings = get_settings()
-    if not settings.stripe_api_key:
-        return {"error": "Stripe not configured", "checkout_url": None}
+    metadata = {
+        "organization_id": str(org_id),
+        "user_id": str(user_id),
+        "pack_id": pack_id,
+        "type": "credit_purchase",
+        "source": "credit_purchase",
+    }
+    try:
+        _validate_metadata("credit_purchase", metadata)
+    except StripeMetadataInvalid as exc:
+        logger.warning("stripe.credit_purchase_metadata_invalid", error=str(exc))
+        return {"error": str(exc), "checkout_url": None}
 
-    import stripe
-
-    stripe.api_key = settings.stripe_api_key
+    try:
+        api_key = await _require_stripe_api_key(db, org_id)
+    except StripeNotConfigured as exc:
+        return {"error": str(exc), "checkout_url": None}
 
     ladder = design_pricing_ladder()
     pack = None
@@ -399,10 +510,12 @@ async def create_credit_purchase_session(
         if p.pack_id == pack_id:
             pack = p
             break
-
     if not pack:
         return {"error": f"Unknown pack: {pack_id}", "checkout_url": None}
 
+    metadata["credits"] = str(pack.credits + pack.bonus_credits)
+    settings = get_settings()
+    stripe = _init_stripe(api_key)
     try:
         session = stripe.checkout.Session.create(
             mode="payment",
@@ -421,13 +534,7 @@ async def create_credit_purchase_session(
             ],
             success_url=success_url or f"{settings.api_cors_origins[0]}/dashboard/monetization?credit_success=true",
             cancel_url=cancel_url or f"{settings.api_cors_origins[0]}/dashboard/monetization",
-            metadata={
-                "organization_id": str(org_id),
-                "user_id": str(user_id),
-                "pack_id": pack_id,
-                "credits": str(pack.credits + pack.bonus_credits),
-                "type": "credit_purchase",
-            },
+            metadata=metadata,
         )
         return {"checkout_url": session.url, "session_id": session.id}
     except Exception as e:
