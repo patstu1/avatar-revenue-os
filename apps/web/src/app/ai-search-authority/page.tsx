@@ -1,8 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { AiBuyerTrustTest } from "@/components/ai-buyer-trust/Test";
 import {
-  Bullets,
+  AfterTheTestSection,
+  CommercialFlowSection,
+  DecisionLayerSection,
+  ExplainerVideoSection,
+  ResultToPackageSection,
+  ScatteredToStructuredSection,
+  ThirdShiftSection,
+  WhatProofHookChecksSection,
+  WhatTheScoreRevealsSection,
+} from "@/components/ai-buyer-trust/DecisionLayerSections";
+import {
   CTA,
   MarketingShell,
   SectionHeading,
@@ -14,50 +25,66 @@ import {
   ServiceJsonLd,
   WebSiteJsonLd,
 } from "@/components/jsonld";
-import { PACKAGE_BY_SLUG, SITE_URL } from "@/lib/proofhook-packages";
+import {
+  PACKAGE_BY_SLUG,
+  SITE_URL,
+  packagePriceDisplay,
+} from "@/lib/proofhook-packages";
 
-const PKG = PACKAGE_BY_SLUG["ai_search_authority_sprint"];
+const SPRINT = PACKAGE_BY_SLUG["ai_search_authority_sprint"];
+const SNAPSHOT = PACKAGE_BY_SLUG["ai_search_authority_snapshot"];
+const BUILDOUT = PACKAGE_BY_SLUG["proof_infrastructure_buildout"];
+const RETAINER = PACKAGE_BY_SLUG["authority_monitoring_retainer"];
+const SYSTEM = PACKAGE_BY_SLUG["ai_search_authority_system"];
+
 const PAGE_URL = "/ai-search-authority";
 
 const FAQ = [
   {
-    question: "Will ProofHook guarantee that ChatGPT, Google AI Overviews, Bing Copilot, or Perplexity recommend my company?",
+    question: "How does ProofHook influence the AI decision layer?",
     answer:
-      "No. We do not promise rankings, citations, or AI placements. We improve the inputs those systems use — machine readability, entity authority, crawlability, and citation readiness — to increase your eligibility for search and AI discovery.",
+      "ProofHook structures the inputs AI systems read when they evaluate a business — entity clarity, machine-readable proof, schema, FAQs, comparisons, trust signals, and crawlability. Clear inputs lead to clearer recommendations.",
+  },
+  {
+    question: "How is this different from a generic AI SEO or GEO tool?",
+    answer:
+      "Generic AI SEO and GEO tools track citations and visibility from the outside. ProofHook builds the AI Buyer Trust Infrastructure those systems read — public proof, offers, FAQs, comparisons, schema, and trust structure — so your business is structured for the decision before it happens.",
   },
   {
     question: "What does the AI Search Authority Sprint include?",
     answer:
-      "An AI search and entity audit, a robots.txt and crawler access review, sitemap and canonical URL review, structured data (Organization, WebSite, Service, Product/Offer, FAQPage, BreadcrumbList) implementation plan and assets, an about / entity page, FAQ, how-it-works, two industry pages, two comparison pages, five answer-engine content pages, an internal linking map, Google Search Console and Bing Webmaster Tools checklists, an AI referral tracking plan, and an external citation / backlink target checklist.",
+      "An AI Buyer Trust audit + Authority Graph, robots and crawler review, schema implementation plan and assets (Organization, WebSite, Service, Product/Offer, FAQPage, BreadcrumbList), entity / About / FAQ / how-it-works / industry / comparison / answer-engine pages, internal linking map, Search Console + Bing Webmaster checklists, and an AI referral tracking plan.",
   },
   {
-    question: "How long does the engagement take?",
+    question: "Where does the AI Buyer Trust Snapshot fit?",
+    answer:
+      "The Snapshot is the reviewed Authority diagnostic. It is sized for businesses that want a deeper read than the public test before scoping a Sprint or Buildout, and it carries the same per-dimension evidence the Sprint will act on.",
+  },
+  {
+    question: "How long is a Sprint engagement?",
     answer: "10–14 days from kickoff.",
   },
   {
-    question: "What does it cost?",
+    question: "What does a Sprint cost?",
     answer:
-      "From $4,500. Final scope and price depend on the size of your existing site, the number of products or services to model, and the depth of structured data and content build-out.",
+      "Founding-client launch pricing starts at $1,500. Final scope and price depend on the size of your existing site, the number of products or services to model, and the depth of structured data and content build-out.",
   },
   {
     question: "Who is this for?",
     answer:
-      "Founder-led brands, SaaS companies, AI companies, service businesses, clinics, ecommerce brands, agencies, consultants, and premium local businesses that want their brand to be easier to understand, categorize, trust, cite, and recommend.",
-  },
-  {
-    question: "Will my robots.txt block AI crawlers?",
-    answer:
-      "Only if you choose to. By default we keep Googlebot, Bingbot, OAI-SearchBot, and GPTBot allowed so your content remains eligible for AI search and recommendation systems. We document trade-offs and let you decide.",
+      "Founder-led brands, SaaS companies, AI companies, service businesses, clinics, ecommerce brands, agencies, consultants, and premium local businesses that want their public surface to be clearer to both human buyers and AI assistants.",
   },
 ];
 
 export const metadata: Metadata = {
-  title: `${PKG.name} — ${PKG.tagline} | ProofHook`,
-  description: PKG.positioning,
+  title: `AI Buyer Trust Infrastructure — ${SPRINT.name} | ProofHook`,
+  description:
+    "Google helped customers find businesses. AI is helping them decide who to trust. Take the AI Buyer Trust Test and see how clearly your business is structured for the AI decision layer.",
   alternates: { canonical: `${SITE_URL}${PAGE_URL}` },
   openGraph: {
-    title: `${PKG.name} | ProofHook`,
-    description: PKG.positioning,
+    title: `AI Buyer Trust Infrastructure | ProofHook`,
+    description:
+      "Customers are starting to ask AI systems who to trust, compare, and choose before they ever visit a website. ProofHook structures the public signals the AI decision layer reads.",
     url: `${SITE_URL}${PAGE_URL}`,
     type: "website",
   },
@@ -65,67 +92,144 @@ export const metadata: Metadata = {
 
 export default function AiSearchAuthorityPage() {
   return (
-    <MarketingShell pageId="ai-search-authority" breadcrumbs={[{ label: "Home", url: "/" }, { label: PKG.name, url: PAGE_URL }]}>
+    <MarketingShell
+      pageId="ai-search-authority"
+      breadcrumbs={[
+        { label: "Home", url: "/" },
+        { label: "AI Buyer Trust", url: PAGE_URL },
+      ]}
+    >
       <OrganizationJsonLd />
       <WebSiteJsonLd />
-      <ServiceJsonLd pkg={PKG} pageUrl={PAGE_URL} />
+      <ServiceJsonLd pkg={SPRINT} pageUrl={PAGE_URL} />
       <PackageCatalogOffersJsonLd />
       <FaqJsonLd qa={FAQ} />
 
-      <header>
-        <p className="font-mono text-xs uppercase tracking-wider text-zinc-500">
-          AI Search Authority Sprint
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-          Make your company easier for search engines and AI systems to understand,
-          categorize, trust, cite, and recommend.
-        </h1>
-        <p className="mt-5 max-w-2xl text-lg text-zinc-300 leading-relaxed">
-          {PKG.positioning}
-        </p>
-        <p className="mt-5 font-mono text-sm text-zinc-400">
-          From <span className="text-zinc-100">${PKG.price.toLocaleString()}</span>
-          {" · "}
-          {PKG.timeline}
-        </p>
-        <div className="mt-6">
-          <CTA
-            label="Start an AI Search Authority Sprint"
-            subject="ProofHook — AI Search Authority Sprint"
-          />
+      {/* ── Hero ───────────────────────────────────────────────────── */}
+      <section className="grid gap-10 sm:gap-12 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-wider text-zinc-500">
+            AI Buyer Trust Infrastructure
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight text-zinc-100 sm:text-4xl">
+            Will AI understand why customers should choose your business?
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg text-zinc-200 leading-relaxed">
+            Google helped customers find businesses.
+            <br />
+            AI is helping them decide who to trust.
+          </p>
+          <p className="mt-4 max-w-2xl text-zinc-300 leading-relaxed">
+            A new era of search is here — and it is bigger than Google.
+            Customers are no longer browsing websites the same way. They
+            are beginning to ask AI systems who to trust, compare, hire,
+            and buy from before they ever reach a website.
+          </p>
+          <p className="mt-3 max-w-2xl text-zinc-300 leading-relaxed">
+            ProofHook helps you see how clearly your business is structured
+            for that decision layer.
+          </p>
+          <p className="mt-4 max-w-2xl text-sm text-zinc-400 leading-relaxed">
+            Based on public website signals: offers, proof, FAQs, schema,
+            comparisons, crawlability, and trust structure.
+          </p>
         </div>
-      </header>
+        <div className="lg:sticky lg:top-6">
+          <AiBuyerTrustTest />
+        </div>
+      </section>
 
-      <SectionHeading>What it does</SectionHeading>
+      {/* ── The third shift in search ──────────────────────────────── */}
+      <ThirdShiftSection />
+
+      {/* ── AI is becoming the decision layer ──────────────────────── */}
+      <DecisionLayerSection />
+
+      {/* ── Explainer video (placeholder + transcript-as-text) ─────── */}
+      <ExplainerVideoSection />
+
+      {/* ── What ProofHook checks ──────────────────────────────────── */}
+      <WhatProofHookChecksSection />
+
+      {/* ── What the score reveals ─────────────────────────────────── */}
+      <WhatTheScoreRevealsSection />
+
+      {/* ── From scattered proof to structured authority ──────────── */}
+      <ScatteredToStructuredSection />
+
+      {/* ── Result to package mapping ──────────────────────────────── */}
+      <ResultToPackageSection />
+
+      {/* ── Package ladder — full cards with whoItsFor + CTA ───────── */}
+      <SectionHeading>AI Authority Packages</SectionHeading>
       <p className="mt-3 max-w-2xl text-zinc-300 leading-relaxed">
-        We strengthen the signals that search engines and AI search systems use
-        when they decide whether your brand is the right answer to a buyer&apos;s
-        question. We improve machine readability, strengthen entity authority,
-        and increase eligibility for search and AI discovery — without making
-        promises we can&apos;t verify.
+        Pick the package that fits the gap your Authority Score reveals. Each
+        package builds the public surfaces and structured signals AI
+        assistants and AI-assisted buyers read.
       </p>
+      <ul className="mt-6 grid gap-4 sm:grid-cols-2" data-testid="ai-authority-packages">
+        {[SNAPSHOT, SPRINT, BUILDOUT, RETAINER, SYSTEM].map((pkg) =>
+          pkg ? (
+            <li
+              key={pkg.slug}
+              className="flex h-full flex-col rounded-md border border-zinc-800 bg-zinc-900/40 p-5"
+              data-testid={`pkg-card-${pkg.slug}`}
+            >
+              <p className="font-mono text-[11px] uppercase tracking-wider text-zinc-500">
+                {packagePriceDisplay(pkg)} · {pkg.timeline}
+              </p>
+              <h3 className="mt-2 text-lg font-semibold tracking-tight text-zinc-100">
+                {pkg.name}
+              </h3>
+              <p className="mt-2 text-sm text-zinc-300 leading-relaxed">
+                {pkg.tagline}
+              </p>
+              <div className="mt-3 rounded border border-zinc-800 bg-zinc-950/50 p-3">
+                <p className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+                  Who it&rsquo;s for
+                </p>
+                <p className="mt-1 text-xs text-zinc-300 leading-relaxed">
+                  {pkg.whoItsFor}
+                </p>
+              </div>
+              <p className="mt-3 text-xs text-zinc-500 leading-relaxed">
+                {pkg.positioning}
+              </p>
+              <ul className="mt-4 space-y-1.5 text-xs text-zinc-400">
+                {pkg.deliverables.slice(0, 4).map((d) => (
+                  <li key={d} className="flex gap-2">
+                    <span aria-hidden className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-zinc-600" />
+                    <span>{d}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4 flex flex-wrap gap-2 pt-1">
+                <Link
+                  href="/ai-search-authority/score"
+                  data-cta={`ai-pkg-${pkg.slug}-test`}
+                  className="inline-block rounded-md border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-100 hover:bg-zinc-800"
+                >
+                  Take the AI Buyer Trust Test
+                </Link>
+                <CTA
+                  label="Talk to ProofHook"
+                  subject={`ProofHook — ${pkg.name} (${pkg.slug})`}
+                  ctaId={`ai-pkg-${pkg.slug}-talk`}
+                  className="inline-block rounded-md border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-100 hover:bg-zinc-800"
+                />
+              </div>
+            </li>
+          ) : null,
+        )}
+      </ul>
 
-      <SectionHeading>What you get</SectionHeading>
-      <Bullets items={PKG.deliverables} />
+      {/* ── What happens after the test ────────────────────────────── */}
+      <AfterTheTestSection />
 
-      <SectionHeading>What we won&apos;t promise</SectionHeading>
-      <p className="mt-3 max-w-2xl text-zinc-300 leading-relaxed">
-        We will not promise that ChatGPT, Google AI Overviews, Bing Copilot,
-        Perplexity, or any other system will rank, cite, or recommend you. Those
-        systems make their own decisions and change frequently. What we will do
-        is fix the inputs those systems use — and document them so you can
-        verify the work and audit it later.
-      </p>
+      {/* ── Full commercial flow ───────────────────────────────────── */}
+      <CommercialFlowSection />
 
-      <SectionHeading>Who it&apos;s for</SectionHeading>
-      <p className="mt-3 max-w-2xl text-zinc-300 leading-relaxed">
-        Founder-led brands, SaaS companies, AI companies, service businesses,
-        clinics, ecommerce brands, agencies, consultants, and premium local
-        businesses. If you sell something specific and want to be findable,
-        understandable, and citable to both humans and machines, this is for
-        you.
-      </p>
-
+      {/* ── FAQ ─────────────────────────────────────────────────────── */}
       <SectionHeading>Frequently asked questions</SectionHeading>
       <div className="mt-4 space-y-6">
         {FAQ.map((qa) => (
@@ -136,6 +240,7 @@ export default function AiSearchAuthorityPage() {
         ))}
       </div>
 
+      {/* ── Related reading ───────────────────────────────────────── */}
       <SectionHeading>Related reading</SectionHeading>
       <ul className="mt-4 grid gap-2 text-zinc-300 sm:grid-cols-2">
         <li>
@@ -144,34 +249,24 @@ export default function AiSearchAuthorityPage() {
           </Link>
         </li>
         <li>
-          <Link href="/compare/proofhook-vs-content-agency" className="hover:text-zinc-100">
-            ProofHook vs. a content agency →
+          <Link href="/answers/what-is-ai-search-authority" className="hover:text-zinc-100">
+            What is AI search authority? →
           </Link>
         </li>
         <li>
-          <Link href="/compare/proofhook-vs-ugc-platform" className="hover:text-zinc-100">
-            ProofHook vs. a UGC platform →
+          <Link href="/answers/how-to-make-a-company-ai-searchable" className="hover:text-zinc-100">
+            How to make a company AI-searchable →
           </Link>
         </li>
         <li>
-          <Link href="/industries/ai-startups" className="hover:text-zinc-100">
-            For AI startups →
-          </Link>
-        </li>
-        <li>
-          <Link href="/industries/saas" className="hover:text-zinc-100">
-            For SaaS →
-          </Link>
-        </li>
-        <li>
-          <Link href="/industries/ecommerce" className="hover:text-zinc-100">
-            For ecommerce →
+          <Link href="/proof" className="hover:text-zinc-100">
+            What ProofHook actually ships →
           </Link>
         </li>
       </ul>
 
       <div className="mt-12">
-        <CTA label="Talk to ProofHook" subject="ProofHook — AI Search Authority Sprint" />
+        <CTA label="Talk to ProofHook" subject="ProofHook — AI Buyer Trust Infrastructure" ctaId="ai-search-authority-talk" />
       </div>
     </MarketingShell>
   );

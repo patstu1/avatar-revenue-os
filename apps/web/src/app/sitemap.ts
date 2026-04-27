@@ -12,9 +12,14 @@ import { SITE_URL } from "@/lib/proofhook-packages";
 const NOW = new Date();
 
 const PATHS: { path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }[] = [
+  // ── Front door — homepage hero hosts the AI Buyer Trust Test ───────
+  { path: "/", priority: 1.0, changeFrequency: "weekly" },
+
   // ── Entity / authority / package landing ───────────────────────────
   { path: "/about", priority: 0.9, changeFrequency: "monthly" },
-  { path: "/ai-search-authority", priority: 0.9, changeFrequency: "monthly" },
+  { path: "/ai-search-authority", priority: 0.95, changeFrequency: "weekly" },
+  { path: "/ai-search-authority/score", priority: 0.85, changeFrequency: "weekly" },
+  { path: "/ai-search-authority/snapshot", priority: 0.8, changeFrequency: "monthly" },
   { path: "/services/ai-search-authority", priority: 0.6, changeFrequency: "monthly" },
 
   // ── Standard marketing pages ────────────────────────────────────────

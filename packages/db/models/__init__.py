@@ -4,6 +4,7 @@ from packages.db.models.account_state_intel import (
     AccountStateTransition,
 )
 from packages.db.models.accounts import AccountPortfolio, CreatorAccount
+from packages.db.models.authority_score_reports import AuthorityScoreReport
 from packages.db.models.affiliate_enterprise import (
     AffiliateApproval,
     AffiliateAuditEvent,
@@ -1007,6 +1008,7 @@ __all__ = [
     "PackPurchase",
     "MultiplicationEvent",
     "MonetizationTelemetryEvent",
+    "AuthorityScoreReport",
     "SystemEvent",
     "OperatorAction",
     "SystemHealthSnapshot",
