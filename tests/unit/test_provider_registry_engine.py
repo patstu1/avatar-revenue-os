@@ -58,12 +58,30 @@ def test_check_credentials_missing():
 
 
 def test_check_credentials_present(monkeypatch):
-    monkeypatch.setenv("STRIPE_API_KEY", "sk_test_123")
-    monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_123")
-    stripe = next(p for p in PROVIDER_INVENTORY if p["provider_key"] == "stripe")
-    result = check_provider_credentials(stripe)
+    """Pick any provider that still uses env_keys (i.e. NOT Stripe — Stripe
+    moved to the DB-only credential doctrine and reports not_required from
+    the env-check; its credentials are validated by integration_manager
+    against integration_providers, not here)."""
+    env_provider = next(
+        p for p in PROVIDER_INVENTORY if p.get("env_keys")
+    )
+    for key in env_provider["env_keys"]:
+        monkeypatch.setenv(key, "configured-value")
+    result = check_provider_credentials(env_provider)
     assert result["is_ready"] is True
     assert result["credential_status"] == "configured"
+
+
+def test_stripe_reports_not_required_under_db_only_doctrine():
+    """Stripe must report not_required from the env-check because
+    credentials live in the encrypted integration_providers DB store,
+    never in environment variables."""
+    stripe = next(p for p in PROVIDER_INVENTORY if p["provider_key"] == "stripe")
+    assert stripe["env_keys"] == [], "Stripe must have no env_keys (DB-only)"
+    result = check_provider_credentials(stripe)
+    assert result["credential_status"] == "not_required"
+    assert result["is_ready"] is True
+    assert result["missing_keys"] == []
 
 
 def test_audit_returns_all_providers():
