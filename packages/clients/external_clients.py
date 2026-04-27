@@ -222,12 +222,23 @@ class ShopifyWebhookVerifier:
 
 
 class StripePaymentClient:
-    """Real HTTP client for Stripe REST API — batch payment/order sync."""
+    """Real HTTP client for Stripe REST API — batch payment/order sync.
+
+    DB-only doctrine: the API key MUST be passed explicitly. There is no
+    env fallback. Callers resolve the key via integration_manager and
+    pass it in. Calling this class without a key raises immediately so
+    a misconfigured caller cannot silently shadow-read STRIPE_API_KEY.
+    """
 
     BASE_URL = "https://api.stripe.com/v1"
 
-    def __init__(self) -> None:
-        self.api_key = os.environ.get("STRIPE_API_KEY", "")
+    def __init__(self, api_key: str) -> None:
+        if not api_key or not api_key.strip():
+            raise ValueError(
+                "StripePaymentClient requires an explicit api_key resolved "
+                "from integration_providers. There is no env fallback."
+            )
+        self.api_key = api_key
 
     def _is_configured(self) -> bool:
         return bool(self.api_key)
@@ -240,7 +251,7 @@ class StripePaymentClient:
     ) -> dict[str, Any]:
         """GET /v1/charges — pull recent charges."""
         if not self._is_configured():
-            return _blocked("STRIPE_API_KEY not configured")
+            return _blocked("Stripe API key not configured")
 
         params: dict[str, Any] = {"limit": min(limit, 100)}
         if starting_after:
@@ -289,7 +300,7 @@ class StripePaymentClient:
     ) -> dict[str, Any]:
         """GET /v1/payment_intents — pull recent payment intents."""
         if not self._is_configured():
-            return _blocked("STRIPE_API_KEY not configured")
+            return _blocked("Stripe API key not configured")
 
         try:
             async with httpx.AsyncClient(timeout=_TIMEOUT) as client:

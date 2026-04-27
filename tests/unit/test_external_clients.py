@@ -305,30 +305,37 @@ def test_shopify_no_api_secret():
 # ---------------------------------------------------------------------------
 
 
-def test_stripe_payment_client_not_configured():
-    c = StripePaymentClient()
-    assert not c._is_configured()
+def test_stripe_payment_client_requires_explicit_api_key():
+    """DB-only doctrine: instantiating StripePaymentClient without an
+    explicit api_key must raise. Even if STRIPE_API_KEY is set in env
+    the constructor never reads it.
+    """
+    import os
+
+    # Even with env set, no-arg construction is forbidden
+    os.environ["STRIPE_API_KEY"] = "sk_test_should_not_be_read"
+    try:
+        with pytest.raises(TypeError):
+            StripePaymentClient()  # type: ignore[call-arg]  # missing required arg
+        # Empty/whitespace key also rejected
+        with pytest.raises(ValueError):
+            StripePaymentClient(api_key="")
+        with pytest.raises(ValueError):
+            StripePaymentClient(api_key="   ")
+    finally:
+        del os.environ["STRIPE_API_KEY"]
 
 
-def test_stripe_payment_client_configured(monkeypatch):
-    monkeypatch.setenv("STRIPE_API_KEY", "sk_test_xxx")
-    c = StripePaymentClient()
+def test_stripe_payment_client_configured_with_explicit_key():
+    c = StripePaymentClient(api_key="sk_test_xxx")
     assert c._is_configured()
+    assert c.api_key == "sk_test_xxx"
 
 
-@pytest.mark.asyncio
-async def test_stripe_payment_fetch_blocked():
-    c = StripePaymentClient()
-    result = await c.fetch_recent_charges()
-    assert result["blocked"] is True
-    assert result["success"] is False
-
-
-@pytest.mark.asyncio
-async def test_stripe_payment_intents_blocked():
-    c = StripePaymentClient()
-    result = await c.fetch_recent_payment_intents()
-    assert result["blocked"] is True
+def test_stripe_payment_client_ignores_env_when_explicit_key_passed(monkeypatch):
+    monkeypatch.setenv("STRIPE_API_KEY", "sk_test_should_not_be_read")
+    c = StripePaymentClient(api_key="sk_test_real")
+    assert c.api_key == "sk_test_real"  # explicit beats env (env is never read)
 
 
 # ---------------------------------------------------------------------------

@@ -244,9 +244,11 @@ PROVIDER_INVENTORY: list[dict[str, Any]] = [
         "is_primary": True,
         "is_fallback": False,
         "is_optional": False,
-        "env_keys": ["STRIPE_API_KEY", "STRIPE_WEBHOOK_SECRET"],
+        # DB-only: Stripe credentials live in integration_providers
+        # (api_key + api_secret/webhook_secret encrypted). No env path.
+        "env_keys": [],
         "integration_status": "live",
-        "description": "Payment processing, webhook verification, batch charge/intent sync.",
+        "description": "Payment processing, webhook verification, batch charge/intent sync. Configure via Settings > Integrations (DB-only).",
         "capabilities": ["payment_processing", "webhook_verification", "batch_sync", "refund_tracking"],
     },
     {

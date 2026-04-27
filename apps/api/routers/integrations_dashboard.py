@@ -247,6 +247,50 @@ async def get_provider_for_task(
     return result
 
 
+# ---------------------------------------------------------------------------
+# Stripe-specific (webhook signing secret + safe runtime status)
+# ---------------------------------------------------------------------------
+
+
+class StripeWebhookSecretRequest(BaseModel):
+    webhook_secret: str
+
+
+@router.post("/integrations/providers/stripe/webhook-secret")
+async def set_stripe_webhook_secret(
+    body: StripeWebhookSecretRequest,
+    current_user: OperatorUser,
+    db: DBSession,
+):
+    """Encrypt and store the Stripe webhook signing secret on the operator's
+    Stripe provider row. The secret is stored on
+    ``integration_providers('stripe').api_secret_encrypted`` so it
+    shares the same Fernet protection as the API key.
+    """
+    if not body.webhook_secret or not body.webhook_secret.strip():
+        raise HTTPException(400, "webhook_secret cannot be empty")
+
+    result = await im.set_webhook_secret(
+        db,
+        current_user.organization_id,
+        "stripe",
+        body.webhook_secret.strip(),
+    )
+    if "error" in result:
+        raise HTTPException(400, result["error"])
+    await db.commit()
+    return {"provider": "stripe", "webhook_secret": "configured"}
+
+
+@router.get("/integrations/stripe/status")
+async def get_stripe_status(current_user: OperatorUser, db: DBSession):
+    """Read-only Stripe credential status. Returns classification tokens
+    only — never the API key, never the webhook secret, never any key
+    fragment beyond ``mode in {live, test, unconfigured, unknown}``.
+    """
+    return await im.get_stripe_credential_status(db)
+
+
 @router.post("/integrations/providers/{provider_key}/enable")
 async def enable_provider(provider_key: str, current_user: OperatorUser, db: DBSession):
     """Enable a provider."""

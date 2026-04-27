@@ -149,10 +149,12 @@ async def get_exceptions(db: DBSession):
         )
 
     # ── 3. Missing credentials ────────────────────────────────────────
+    # Stripe is DB-only (integration_providers); status surfaced via
+    # /api/v1/integrations/stripe/status. Do not introspect a settings
+    # field here — there is no env path for Stripe.
     settings = get_settings()
     _CRITICAL_PROVIDERS = {
         "anthropic_api_key": "Anthropic (Claude)",
-        "stripe_api_key": "Stripe",
     }
     _IMPORTANT_PROVIDERS = {
         "openai_api_key": "OpenAI",

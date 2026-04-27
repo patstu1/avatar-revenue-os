@@ -94,9 +94,13 @@ class Settings(BaseSettings):
     s3_bucket_name: str = "avatar-revenue-os"
     s3_region: str = "us-east-1"
 
-    # Stripe Billing
-    stripe_api_key: str = ""
-    stripe_webhook_secret: str = ""
+    # Stripe Billing — credentials live in integration_providers (DB-only).
+    # The Stripe API key and webhook signing secret are NOT pydantic
+    # settings: this is enforced by the DB-only doctrine. Setting either
+    # ``STRIPE_API_KEY`` or ``STRIPE_WEBHOOK_SECRET`` in env has no
+    # effect; the app will refuse Stripe operations until the credential
+    # is configured via Settings > Integrations.
+    # Plan price IDs remain here as non-secret subscription wiring.
     stripe_price_starter_monthly: str = ""
     stripe_price_starter_annual: str = ""
     stripe_price_professional_monthly: str = ""

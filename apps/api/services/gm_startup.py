@@ -52,6 +52,9 @@ async def get_machine_state(
         db_keys = await secrets_service.get_all_keys(db, org_id)
         providers_from_db = {k: v for k, v in db_keys.items() if v}
 
+        # Stripe intentionally omitted: it is DB-only (no env path).
+        # Stripe configuration state is reported via
+        # /api/v1/integrations/stripe/status, not by introspecting env.
         critical_env = {
             "anthropic": "ANTHROPIC_API_KEY",
             "openai": "OPENAI_API_KEY",
@@ -60,7 +63,6 @@ async def get_machine_state(
             "elevenlabs": "ELEVENLABS_API_KEY",
             "heygen": "HEYGEN_API_KEY",
             "buffer": "BUFFER_API_KEY",
-            "stripe": "STRIPE_API_KEY",
             "fal": "FAL_API_KEY",
             "runway": "RUNWAY_API_KEY",
         }

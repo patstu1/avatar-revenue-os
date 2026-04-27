@@ -213,7 +213,22 @@ async def run_payment_sync(
     brand_id: uuid.UUID,
     provider: str = "stripe",
 ) -> dict[str, Any]:
-    api_key_present = bool(os.environ.get(f"{provider.upper()}_API_KEY", ""))
+    # Stripe credentials are DB-only. For other providers (e.g. shopify)
+    # this still falls back to env until they are migrated.
+    stripe_api_key: str | None = None
+    if provider == "stripe":
+        from packages.db.models.core import Brand
+        from apps.api.services.integration_manager import get_credential
+
+        brand_org_id = (
+            await db.execute(select(Brand.organization_id).where(Brand.id == brand_id))
+        ).scalar()
+        if brand_org_id is not None:
+            stripe_api_key = await get_credential(db, brand_org_id, "stripe")
+        api_key_present = bool(stripe_api_key)
+    else:
+        api_key_present = bool(os.environ.get(f"{provider.upper()}_API_KEY", ""))
+
     readiness = evaluate_payment_sync_readiness(provider, api_key_present)
 
     row = PaymentConnectorSync(
@@ -230,7 +245,7 @@ async def run_payment_sync(
         if provider == "stripe":
             from packages.clients.external_clients import StripePaymentClient
 
-            client = StripePaymentClient()
+            client = StripePaymentClient(api_key=stripe_api_key)
             result = await client.fetch_recent_charges()
         elif provider == "shopify":
             from packages.clients.external_clients import ShopifyOrderClient
