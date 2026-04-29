@@ -13,6 +13,7 @@ from packages.db.models.affiliate_enterprise import (
     OwnedAffiliatePartner,
     OwnedPartnerConversion,
 )
+from packages.db.models.ai_search_authority import AISearchAuthorityReport
 from packages.db.models.affiliate_intel import (
     AffiliateBlocker,
     AffiliateClickEvent,
@@ -1023,4 +1024,5 @@ __all__ = [
     "EmailClassification",
     "EmailReplyDraft",
     "SalesStageTransition",
+    "AISearchAuthorityReport",
 ]

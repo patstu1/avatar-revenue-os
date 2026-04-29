@@ -22,6 +22,7 @@ from apps.api.routers import (
     affiliate_enterprise,
     affiliate_intel,
     ai_command,
+    ai_search_authority,
     analytics,
     auth,
     autonomous_execution,
@@ -344,6 +345,11 @@ app.include_router(webhooks.router, prefix="/api/v1", tags=["Webhooks: Stripe, S
 app.include_router(_intake_router, prefix="/api/v1", tags=["Intake"])
 app.include_router(cold_outreach_tracking.router, tags=["Cold Outreach Tracking"])
 app.include_router(leads.router, prefix="/api/v1", tags=["Lead Capture: Public offer page submissions"])
+app.include_router(
+    ai_search_authority.router,
+    prefix="/api/v1",
+    tags=["AI Search Authority: Public diagnostic + operator pipeline"],
+)
 app.include_router(
     email_pipeline.router, prefix="/api/v1", tags=["Email Pipeline: Threads, Classification, Reply Drafts"]
 )
